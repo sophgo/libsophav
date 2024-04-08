@@ -1,0 +1,98 @@
+cmake_minimum_required(VERSION 3.16)
+
+# subdirectories may depend on former settings
+
+project(libsophav C CXX)
+if(CMAKE_HOST_WIN32)
+    set(WINDOWS 1)
+elseif(CMAKE_HOST_APPLE)
+    set(MACOS 1)
+elseif(CMAKE_HOST_UNIX)
+    set(LINUX 1)
+endif()
+cmake_policy(SET CMP0046 NEW)
+
+# options
+#set(CHIP_LIST bm1686)
+#set(CHIP_NAME bm1686 CACHE STRING "chip: bm1686")
+#set_property(CACHE CHIP_NAME PROPERTY STRINGS ${CHIP_LIST})
+#
+#set(PLATFORM_LIST soc pcie pcie_arm64 pcie_loongarch64)
+#set(PLATFORM soc CACHE STRING "platform: soc pcie pcie_arm64 pcie_loongarch64")
+#set_property(CACHE PLATFORM PROPERTY STRINGS ${PLATFORM_LIST})
+#
+#set(SUBTYPE_LIST asic palladium fpga)
+#set(SUBTYPE asic CACHE STRING "subtype: asic palladium fpga")
+#set_property(CACHE SUBTYPE PROPERTY STRINGS ${SUBTYPE_LIST})
+#
+#set(DEBUG_LIST off on)
+#set(DEBUG off CACHE STRING "debug: off on")
+#set_property(CACHE DEBUG PROPERTY STRINGS ${DEBUG_LIST})
+#
+#if("${PLATFORM}" STREQUAL "soc" OR "${PLATFORM}" STREQUAL "pcie_arm64")
+#    set(CMAKE_TOOLCHAIN_FILE cmake/aarch64-gnu.toolchain.cmake)
+#    #include(cmake/aarch64-gnu.toolchain.cmake)
+#elseif("${PLATFORM}" STREQUAL "pcie")
+#    set(CMAKE_TOOLCHAIN_FILE cmake/x86_64-gnu.toolchain.cmake)
+#    #include(cmake/x86_64-gnu.toolchain.cmake)
+#endif()
+
+if("${DEBUG}" STREQUAL "on")
+    set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Choose the build type: Release Debug RelWithDebInfo MinSizeRel.")
+    add_compile_options(-O0 -Wall -g -ggdb)
+else()
+    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the build type: Release Debug RelWithDebInfo MinSizeRel.")
+    add_compile_options(-O3 -Wall)
+endif()
+
+set(LIBSOPHAV_OUT_PATH ${CMAKE_CURRENT_BINARY_DIR}/release CACHE STRING "bmvid compile output location")
+# set project name and version after setting cmake toolchains
+execute_process(
+    COMMAND bash -c "git describe --tags --match v* | sed -e 's/.*\\([0-9][0-9]*\\.[0-9][0-9]*\\.[0-9][0-9]*\\).*/\\1/'"
+    OUTPUT_VARIABLE GIT_VERSION)
+if(NOT "${GIT_VERSION}" STREQUAL "")
+    STRING(REGEX REPLACE "[\n\t\r]" "" GIT_VERSION ${GIT_VERSION})
+    STRING(REGEX REPLACE "([0-9][0-9]*)\\..*" "\\1" MAJOR_VERSION ${GIT_VERSION})
+    STRING(REGEX REPLACE ".*\\.([0-9][0-9]*)\\..*" "\\1" MINOR_VERSION ${GIT_VERSION})
+    STRING(REGEX REPLACE ".*\\.([0-9][0-9]*).*" "\\1" PATCH_VERSION ${GIT_VERSION})
+    project("libsophav" VERSION ${MAJOR_VERSION}.${MINOR_VERSION}.${PATCH_VERSION})
+else()
+    project("libsophav")
+endif()
+
+#if("${PLATFORM}" STREQUAL "soc" OR "${PLATFORM}" STREQUAL "pcie_arm64")
+#    set(CMAKE_TOOLCHAIN_FILE cmake/aarch64-gnu.toolchain.cmake)
+#    #include(cmake/aarch64-gnu.toolchain.cmake)
+#elseif("${PLATFORM}" STREQUAL "pcie")
+#    set(CMAKE_TOOLCHAIN_FILE cmake/x86_64-gnu.toolchain.cmake)
+#    #include(cmake/x86_64-gnu.toolchain.cmake)
+#endif()
+
+message(STATUS "PROJECT..................... " ${PROJECT_NAME})
+message(STATUS "VERSION..................... " ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH})
+message(STATUS "CMAKE_VERSION............... " ${CMAKE_VERSION})
+message(STATUS "CMAKE_BINARY_DIR............ " ${CMAKE_BINARY_DIR})
+message(STATUS "CMAKE_SOURCE_DIR............ " ${CMAKE_SOURCE_DIR})
+message(STATUS "CMAKE_GENERATOR............. " ${CMAKE_GENERATOR})
+message(STATUS "CMAKE_C_COMPILER............ " ${CMAKE_C_COMPILER})
+message(STATUS "CMAKE_CXX_COMPILER.......... " ${CMAKE_CXX_COMPILER})
+message(STATUS "CMAKE_BUILD_TYPE............ " ${CMAKE_BUILD_TYPE})
+message(STATUS "CMAKE_TOOLCHAIN_FILE........ " ${CMAKE_TOOLCHAIN_FILE})
+message(STATUS "CMAKE_SYSTEM_PROCESSOR...... " ${CMAKE_SYSTEM_PROCESSOR})
+message(STATUS "CHIP NAME................... " ${CHIP_NAME})
+message(STATUS "PLATFORM.................... " ${PLATFORM})
+message(STATUS "SUBTYPE..................... " ${SUBTYPE})
+message(STATUS "CMAKE_INSTALL_PREFIX........ " ${CMAKE_INSTALL_PREFIX})
+
+# add sub-modules
+#set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/cmake)
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake/)
+find_package(Sophav)
+ADD_TARGET_YUV_LIB(yuv_lib ${PLATFORM} off libsophon ${LIBSOPHAV_OUT_PATH})
+add_subdirectory(jpeg)
+add_subdirectory(video/dec)
+add_subdirectory(video/enc)
+add_subdirectory(bmcv)
+add_subdirectory(vo/drm)
+add_subdirectory(vglite)
+add_subdirectory(tde)

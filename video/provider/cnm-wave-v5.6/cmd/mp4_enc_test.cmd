@@ -1,0 +1,1 @@
+mp4cfg/MP4_C249_akiyo_cif.yuv_DP1_RVLC0_SRX1_SRY1_QP1.cfg
