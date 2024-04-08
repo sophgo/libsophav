@@ -1,0 +1,79 @@
+#! /bin/sh
+#
+#
+#       UMRBus PCI(e) Kernel Mode Device Driver for Linux
+#
+#            Copyright (C) 2001 - 2014 Synopsys, Inc.
+#
+#  This software is licensed under the terms of the GNU General Public License, version 2 (GPLv2),
+#  as published by the Free Software Foundation, and you may redistribute and/or modify this
+#  software under the terms of that license.
+#
+#  To the maximum extent permitted by law, this program is provided on an "AS IS" BASIS, WITHOUT 
+#  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied, including, without limitation, 
+#  any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A 
+#  PARTICULAR PURPOSE. You are solely responsible for determining the appropriateness of using or 
+#  redistributing the software and assume any risks  associated with your exercise of permissions under the GPLv2.
+#  See the GPLv2 for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, write to the Free Software
+#  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
+#
+#  Start/Stop script for umrdrv1 (i386linux)
+#
+
+#
+# chkconfig: 235 20 20
+# description: Load/unload UMRBus Master driver (umrdrv1) \
+#              for certain PCI cards from Synopsys
+#
+
+### BEGIN INIT INFO
+# Provides:            umrdrv1
+# Required-Start:      $local_fs $remote_fs $syslog
+# Required-Stop:
+# Default-Start:       2 3 5
+# Default-Stop:        0 1 6
+# Short-Description:   umrdrv1 init
+# Description:         UMRBus Master driver (umrdrv1) for Synopsys PCI cards
+### END INIT INFO
+
+module="umrdrv1"
+device="umrdrv1_"
+mode="666"
+
+# Allow unsupported modules in SLES11, if disallowed by current configuration            
+modprobe=/sbin/modprobe
+if ${modprobe} -c | grep -q '^allow_unsupported_modules  *0'; then
+    modprobe="${modprobe} --allow-unsupported-modules"
+fi
+
+case "$1" in
+    start)
+	echo "Loading UMRDrv1 module"
+	rm -f /dev/${device}[0-3]
+	shift # get rid of parameter 'start'
+	${modprobe} $module $* || exit 1
+	major=`cat /proc/devices | awk "\\$2==\"$module\" {print \\$1}"`
+	mknod /dev/${device}0 c $major 0
+	mknod /dev/${device}1 c $major 1
+	mknod /dev/${device}2 c $major 2
+	mknod /dev/${device}3 c $major 3
+	chmod $mode /dev/${device}?
+	;;
+    stop)
+	echo "Unloading UMRDrv1 module"
+	/sbin/rmmod $module
+	rm -f /dev/${device}[0-3]
+	;;
+    restart)
+        $0 stop
+        $0 start
+        ;;	
+    *)
+    echo "Usage: $0 {start|stop}"
+    exit 1
+esac
+exit 0

@@ -1,0 +1,45 @@
+YUV_SRC_IMG           akiyo_qcif_15fs_img.264.yuv	// source YUV image file
+FRAME_NUMBER_ENCODED  30   			                // number of frames to be encoded
+PICTURE_WIDTH         176   			            // picture width
+PICTURE_HEIGHT        144   			            // picture height
+FRAME_RATE            30   			                // frame rate
+LEVEL                 0                             // level in 14496-10 Annex A
+CONSTRAINED_INTRA     0   			                // constrained_intra_pred_flag
+INTERLACED_PIC        0
+;-----------------------
+; DEBLKING FILTER
+;-----------------------
+DISABLE_DEBLK         1   			// disable_deblk (0 : enable, 1 : disable, 2 : disable at slice boundary)
+DEBLK_ALPHA           3   			// deblk_filter_offset_alpha (-6 ~ 6)
+DEBLK_BETA            -4   			// deblk_filter_offset_beta  (-6 ~ 6)
+CHROMA_QP_OFFSET      2   			// chroma_qp_offset (-12 ~ 12)
+PIC_QP_Y              10   			// pic_qp_y (0 ~ 51)
+GOP_PIC_NUMBER        0   			// GOP picture number (0 : only first I, 1 : all I, 3 : I,P,P,I,)
+;-----------------------
+; SLICE STRUCTURE
+;-----------------------
+SLICE_MODE            0   			// slice mode (0 : one slice, 1 : multiple slice)
+SLICE_SIZE_MODE       0   			// slice size mode (0 : slice bit number, 1 : slice mb number)
+SLICE_SIZE_NUMBER     8192   	    // slice size number (bit count or mb number)
+;-----------------------
+; RATE CONTROL
+;-----------------------
+RATE_CONTROL_ENABLE   0   			// rate control enable
+BIT_RATE_KBPS         0   			// bit rate in kbps (ignored if rate control disable) (64 ~50000)
+DELAY_IN_MS           0   			// delay in ms (initial decoder buffer delay) (20 ~ 1000) 
+VBV_BUFFER_SIZE       0   			// reference decoder buffer size in bits (0 : ignore)
+;-----------------------
+; ERROR RESILIENCE
+;-----------------------
+INTRA_MB_REFRESH      0  			// Intra MB Refresh (0 - None, 1 ~ MbNum-1)
+;-----------------------
+; ADDITIONAL PARAMETER
+;-----------------------
+ENTROPY_CODING_MODE     0           // 0 : CAVLC, 1 : CABAC
+TRANSFORM_8X8_MODE      0           // 0 : disable(BP), 1 : enable(HP)
+CHROMA_FORMAT_400       0           // 0 : 420, 1 : 400 (MONO mode allowed only on HP)
+SEARCH_RANGE_X          0           // 3: -16~15, 2:-32~31, 1:-48~47, 0:-64~63, H.263(Short Header : always 0)
+SEARCH_RANGE_Y          0           // 2: -16~15, 1:-32~31, 0:-48~47, H.263(Short Header : always 0)
+ME_USE_ZERO_PMV         0           // 0: PMV_ENABLE, 1: PMV_DISABLE
+WEIGHT_INTRA_COST       500         // Intra weight when compare Intra and Inter
+CABAC_INIT_IDC          0           // cabac init idc ( 0 ~ 2 )

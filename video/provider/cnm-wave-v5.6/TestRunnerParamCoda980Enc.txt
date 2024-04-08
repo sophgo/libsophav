@@ -1,0 +1,28 @@
+//-----------------------------------------------------------------------------
+// COPYRIGHT (C) 2020   CHIPS&MEDIA INC. ALL RIGHTS RESERVED
+// 
+// This file is distributed under BSD 3 clause and LGPL2.1 (dual license)
+// SPDX License Identifier: BSD-3-Clause
+// SPDX License Identifier: LGPL-2.1-only
+// 
+// The entire notice above must be reproduced on all authorized copies.
+// 
+// Description  : 
+//-----------------------------------------------------------------------------
+
+default=0                       #Default Option test:
+                                #default=0   off
+                                #default=1   on
+                                #-99 all random
+                                
+secondary-axi=0                 #0 ~ 63,                                        -99(random)
+stream-endian=0                 #0 ~ 3,                                         -99(random)
+frame-endian=0                  #0 ~ 3,                                         -99(random)
+rotAngle=0                      #0, 90, 180, 270,                               -99(random)
+mirDir=0                        #0 ~ 3,                                         -99(random)
+maptype=0                       #0~8,                                           -99(random)
+enable_linear2tiled=0           #0: disable, 1: enable                          -99(random)
+bsmode=0                        #0: ringbuffer, 1: linebuffer                   -99(random)
+linebuf_int=0                   #0: disable linebuffer full interrupt           -99(random)
+cbcr_interleave_mode=0          #0:planar, 1:nv12, 2:nv21                       -99(random)
+

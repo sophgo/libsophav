@@ -1,0 +1,1 @@
+mvccfg/160x128_420_pattern_0005.mvccfg
