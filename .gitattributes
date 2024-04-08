@@ -1,0 +1,4 @@
+video/provider/cnm-wave-v5.6/ffmpeg/lib/armlinux/libavformat.a filter=lfs diff=lfs merge=lfs -text
+video/provider/cnm-wave-v5.6/ffmpeg/lib/armlinux_back/libavcodec.a filter=lfs diff=lfs merge=lfs -text
+video/provider/cnm-wave-v5.6/ffmpeg/lib/armlinux_back/libavformat.a filter=lfs diff=lfs merge=lfs -text
+video/provider/cnm-wave-v5.6/ffmpeg/lib/armlinux/libavcodec.a filter=lfs diff=lfs merge=lfs -text
