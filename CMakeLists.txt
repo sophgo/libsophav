@@ -47,9 +47,7 @@ endif()
 
 set(LIBSOPHAV_OUT_PATH ${CMAKE_CURRENT_BINARY_DIR}/release CACHE STRING "bmvid compile output location")
 # set project name and version after setting cmake toolchains
-execute_process(
-    COMMAND bash -c "git describe --tags --match v* | sed -e 's/.*\\([0-9][0-9]*\\.[0-9][0-9]*\\.[0-9][0-9]*\\).*/\\1/'"
-    OUTPUT_VARIABLE GIT_VERSION)
+set(GIT_VERSION "1.5.0")
 if(NOT "${GIT_VERSION}" STREQUAL "")
     STRING(REGEX REPLACE "[\n\t\r]" "" GIT_VERSION ${GIT_VERSION})
     STRING(REGEX REPLACE "([0-9][0-9]*)\\..*" "\\1" MAJOR_VERSION ${GIT_VERSION})
