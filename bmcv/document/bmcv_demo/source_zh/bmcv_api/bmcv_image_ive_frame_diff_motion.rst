@@ -111,3 +111,116 @@ bmcv_ive_frame_diff_motion
 【注意】
 
 1. 输入输出图像的 width 都需要16对齐。
+
+
+**示例代码**
+
+    .. code-block:: c
+
+
+      #include <stdio.h>
+      #include <stdlib.h>
+      #include <string.h>
+      #include <pthread.h>
+      #include <sys/time.h>
+      #include "bmcv_api_ext_c.h"
+      #include <unistd.h>
+      extern void bm_ive_read_bin(bm_image src, const char *input_name);
+      extern bm_status_t bm_ive_image_calc_stride(bm_handle_t handle, int img_h, int img_w,
+          bm_image_format_ext image_format, bm_image_data_format_ext data_type, int *stride);
+      int main(){
+        int dev_id = 0;int height = 480, width = 480;bm_image_format_ext fmt = FORMAT_GRAY;
+        char *src1_name = "ive_data/md1_480x480.yuv";
+        char *src2_name = "ive_data/md2_480x480.yuv";
+        bm_handle_t handle = NULL;
+        int ret = (int)bm_dev_request(&handle, dev_id);
+        if (ret != 0) {
+            printf("Create bm handle failed. ret = %d\n", ret);
+            exit(-1);
+        }
+        bm_image src1, src2, dst;
+        int stride[4];
+        unsigned int i = 0, loop_time = 0;
+        unsigned long long time_single, time_total = 0, time_avg = 0;
+        unsigned long long time_max = 0, time_min = 10000, fps_actual = 0, pixel_per_sec = 0;
+        struct timeval tv_start;
+        struct timeval tv_end;
+        struct timeval timediff;
+
+        // mask data
+        unsigned char arr[25] = {0, 0, 255, 0, 0, 0, 0, 255, 0, 0, 255,
+                255, 255, 255, 255, 0, 0, 255, 0, 0, 0, 0, 255, 0, 0};
+
+        // config setting(Sub->threshold->erode->dilate)
+        bmcv_ive_frame_diff_motion_attr attr;
+        attr.sub_mode = IVE_SUB_ABS;
+        attr.thr_mode = IVE_THRESH_BINARY;
+        attr.u8_thr_min_val = 0;
+        attr.u8_thr_max_val = 255;
+        attr.u8_thr_low = 30;
+
+        memcpy(&attr.au8_erode_mask, &arr, 25 * sizeof(unsigned char));
+        memcpy(&attr.au8_dilate_mask, &arr, 25 * sizeof(unsigned char));
+
+        // calc ive image stride && create bm image struct
+        bm_ive_image_calc_stride(handle, height, width, fmt, DATA_TYPE_EXT_1N_BYTE, stride);
+
+        bm_image_create(handle, height, width, fmt, DATA_TYPE_EXT_1N_BYTE, &src1, stride);
+        bm_image_create(handle, height, width, fmt, DATA_TYPE_EXT_1N_BYTE, &src2, stride);
+        bm_image_create(handle, height, width, fmt, DATA_TYPE_EXT_1N_BYTE, &dst, stride);
+
+        ret = bm_image_alloc_dev_mem(src1, BMCV_HEAP_ANY);
+        if (ret != BM_SUCCESS) {
+            printf("src bm_image_alloc_dev_mem failed. ret = %d\n", ret);
+            exit(-1);
+        }
+
+        ret = bm_image_alloc_dev_mem(src2, BMCV_HEAP_ANY);
+        if (ret != BM_SUCCESS) {
+            printf("src bm_image_alloc_dev_mem failed. ret = %d\n", ret);
+            exit(-1);
+        }
+
+        ret = bm_image_alloc_dev_mem(dst, BMCV_HEAP_ANY);
+        if (ret != BM_SUCCESS) {
+            printf("src bm_image_alloc_dev_mem failed. ret = %d\n", ret);
+            exit(-1);
+        }
+
+        // read image data from input files
+        bm_ive_read_bin(src1, src1_name);
+        bm_ive_read_bin(src2, src2_name);
+
+        for(i = 0; i < loop_time; i++)
+        {
+            gettimeofday(&tv_start, NULL);
+            ret = bmcv_ive_frame_diff_motion(handle, src1, src2, dst, attr);
+            gettimeofday(&tv_end, NULL);
+            timediff.tv_sec  = tv_end.tv_sec - tv_start.tv_sec;
+            timediff.tv_usec = tv_end.tv_usec - tv_start.tv_usec;
+            time_single = (unsigned int)(timediff.tv_sec * 1000000 + timediff.tv_usec);
+
+            if(time_single>time_max){time_max = time_single;}
+            if(time_single<time_min){time_min = time_single;}
+            time_total = time_total + time_single;
+
+            if(ret != BM_SUCCESS){
+                printf("bmcv_ive_frameDiffMotion is failed \n");
+                exit(-1);
+            }
+        }
+
+        time_avg = time_total / loop_time;
+        fps_actual = 1000000 / time_avg;
+        pixel_per_sec = width * height * fps_actual/1024/1024;
+        bm_image_destroy(&src1);
+        bm_image_destroy(&src2);
+        bm_image_destroy(&dst);
+        printf("bm_ive_frameDiffMotion: loop %d cycles, time_max = %llu, time_avg = %llu, fps %llu, %lluM pps\n",
+            loop_time, time_max, time_avg, fps_actual, pixel_per_sec);
+        return 0;
+      }
+
+
+
+

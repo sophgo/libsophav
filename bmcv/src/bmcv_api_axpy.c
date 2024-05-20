@@ -59,14 +59,14 @@ bm_status_t  bmcv_image_axpy(
     api.input_h = input_h;
     api.input_w = input_w;
 
-    unsigned int chipid = BM1686;
+    unsigned int chipid = BM1688;
     ret = bm_get_chipid(handle, &chipid);
     if (BM_SUCCESS != ret)
       return ret;
 
     switch(chipid)
     {
-        case BM1686:
+        case BM1688:
             ret = bm_tpu_kernel_launch(handle, "cv_axpy", (u8 *)&api, sizeof(api), core_id);
             if (BM_SUCCESS != ret) {
                 bmlib_log("AXPY", BMLIB_LOG_ERROR, "axpy sync api error\n");

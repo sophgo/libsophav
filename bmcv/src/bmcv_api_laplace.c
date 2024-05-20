@@ -153,7 +153,7 @@ bm_status_t bmcv_image_laplacian(bm_handle_t handle, bm_image input, bm_image ou
     }
 
     switch(chipid) {
-        case BM1686:
+        case BM1688:
             ret = bm_tpu_kernel_launch(handle, "cv_laplacian", (u8*)&api,
                                                 sizeof(api), core_id);
             if (ret != BM_SUCCESS) {

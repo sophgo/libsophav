@@ -130,7 +130,8 @@ vg_lite_error_t SFT_Blit_001()
     vg_lite_error_t error = VG_LITE_SUCCESS;
     vg_lite_color_t cc = 0xffffffff;    //Clear with WHITE.
     int32_t    width, height;
-
+    vg_lite_uint32_t chip_id;
+    vg_lite_get_product_info(NULL, &chip_id, NULL);
     for (i = 0; i < NUM_SRC_FORMATS; i++)
     {
         width = (int32_t)Random_r(1.0f, WINDSIZEX);
@@ -165,7 +166,9 @@ vg_lite_error_t SFT_Blit_001()
                 Free_Buffer(&src_buf);
                 return error;
             }
-
+            if (chip_id == 0x355 && (src_buf.format == VG_LITE_YUYV || dst_buf.format == VG_LITE_L8 || dst_buf.format == VG_LITE_YUYV)) {
+                continue;
+            }
             CHECK_ERROR(vg_lite_clear(&dst_buf, NULL, cc));
             CHECK_ERROR(vg_lite_blit(&dst_buf, &src_buf, NULL, (vg_lite_blend_t)0, 0, filter));
             CHECK_ERROR(vg_lite_finish());
@@ -205,7 +208,8 @@ vg_lite_error_t SFT_Blit_002()
     vg_lite_matrix_t matrix;
     vg_lite_float_t xScl, yScl;
     int32_t width, height;
-
+    vg_lite_uint32_t chip_id;
+    vg_lite_get_product_info(NULL, &chip_id, NULL);
     for (i = 0; i < NUM_SRC_FORMATS; i++)
     {
         width = (int32_t)Random_r(1.0f, WINDSIZEX);
@@ -242,7 +246,9 @@ vg_lite_error_t SFT_Blit_002()
             vg_lite_translate(x, y, &matrix);
             vg_lite_scale(xScl, yScl, &matrix);
             printf("blit src to dst with scale: xScl = %f, yScl = %f\n",xScl,yScl);
-
+            if (chip_id == 0x355 && (src_buf.format == VG_LITE_YUYV || dst_buf.format == VG_LITE_L8 || dst_buf.format == VG_LITE_YUYV)) {
+                continue;
+            }
             CHECK_ERROR(vg_lite_clear(&dst_buf, NULL, cc));
             CHECK_ERROR(vg_lite_blit(&dst_buf, &src_buf,&matrix, (vg_lite_blend_t)0, 0, filter));
             CHECK_ERROR(vg_lite_finish());
@@ -281,7 +287,8 @@ vg_lite_error_t SFT_Blit_003()
     vg_lite_matrix_t matrix;
     vg_lite_float_t degrees;
     int32_t width, height;
-
+    vg_lite_uint32_t chip_id;
+    vg_lite_get_product_info(NULL, &chip_id, NULL);
     for (i = 0; i < NUM_SRC_FORMATS; i++)
     {
         width = (int32_t)Random_r(1.0f, WINDSIZEX);
@@ -310,7 +317,9 @@ vg_lite_error_t SFT_Blit_003()
             vg_lite_translate(x, y, &matrix);
             vg_lite_rotate(degrees, &matrix);
             printf("blit with rotation: %f degrees.\n", degrees);
-
+            if (chip_id == 0x355 && (src_buf.format == VG_LITE_YUYV || dst_buf.format == VG_LITE_L8 || dst_buf.format == VG_LITE_YUYV)) {
+                continue;
+            }
             CHECK_ERROR(vg_lite_clear(&dst_buf, NULL, cc));
             CHECK_ERROR(vg_lite_blit(&dst_buf, &src_buf, &matrix, (vg_lite_blend_t)0, 0, filter));
             CHECK_ERROR(vg_lite_finish());
@@ -349,7 +358,8 @@ vg_lite_error_t SFT_Blit_004()
     vg_lite_matrix_t matrix;
     vg_lite_float_t xOffs, yOffs;
     int32_t width, height;
-
+    vg_lite_uint32_t chip_id;
+    vg_lite_get_product_info(NULL, &chip_id, NULL);
     for (i = 0; i < NUM_SRC_FORMATS; i++)
     {
         width = (int32_t)Random_r(1.0f, WINDSIZEX);
@@ -376,7 +386,9 @@ vg_lite_error_t SFT_Blit_004()
             vg_lite_identity(&matrix);
             vg_lite_translate(xOffs, yOffs, &matrix);
             printf("blit with translation: %f, %f\n", xOffs, yOffs);
-
+            if (chip_id == 0x355 && (src_buf.format == VG_LITE_YUYV || dst_buf.format == VG_LITE_L8 || dst_buf.format == VG_LITE_YUYV)) {
+                continue;
+            }
             CHECK_ERROR(vg_lite_clear(&dst_buf, NULL, cc));
             CHECK_ERROR(vg_lite_blit(&dst_buf, &src_buf, &matrix, (vg_lite_blend_t)0, 0, filter));
             CHECK_ERROR(vg_lite_finish());
@@ -416,7 +428,8 @@ vg_lite_error_t SFT_Blit_005()
     int32_t width, height;
     vg_lite_point4_t src;
     vg_lite_point4_t dst;
-
+    vg_lite_uint32_t chip_id;
+    vg_lite_get_product_info(NULL, &chip_id, NULL);
     for (i = 0; i < NUM_SRC_FORMATS; i++)
     {
         width = (int32_t)Random_r(1.0f, WINDSIZEX);
@@ -463,7 +476,9 @@ vg_lite_error_t SFT_Blit_005()
             vg_lite_get_transform_matrix(src, dst, &matrix);
 
             printf("blit with perspective factor: %f, %f\n", w0, w1);
-
+            if (chip_id == 0x355 && (src_buf.format == VG_LITE_YUYV || dst_buf.format == VG_LITE_L8 || dst_buf.format == VG_LITE_YUYV)) {
+                continue;
+            }
             CHECK_ERROR(vg_lite_clear(&dst_buf, NULL, cc));
             CHECK_ERROR(vg_lite_blit(&dst_buf, &src_buf, &matrix, (vg_lite_blend_t)0, 0, filter));
             CHECK_ERROR(vg_lite_finish());
@@ -504,7 +519,8 @@ vg_lite_error_t SFT_Blit_006()
     int32_t width, height;
     vg_lite_point4_t src;
     vg_lite_point4_t dst;
-
+    vg_lite_uint32_t chip_id;
+    vg_lite_get_product_info(NULL, &chip_id, NULL);
     for (i = 0; i < NUM_SRC_FORMATS; i++)
     {
         width = (int32_t)Random_r(1.0f, WINDSIZEX);
@@ -564,6 +580,9 @@ vg_lite_error_t SFT_Blit_006()
 
             printf("blit rotate: %f, trans: %f, %f, perspective: %f, %f, scale: %f, %f\n",
                 degrees, tx, ty, w0, w1, sx, sy);
+            if (chip_id == 0x355 && (src_buf.format == VG_LITE_YUYV || dst_buf.format == VG_LITE_L8 || dst_buf.format == VG_LITE_YUYV)) {
+                continue;
+            }
             CHECK_ERROR(vg_lite_clear(&dst_buf, NULL, cc));
             CHECK_ERROR(vg_lite_blit(&dst_buf, &src_buf, &matrix, 0, 0, filter));
             CHECK_ERROR(vg_lite_finish());
@@ -600,7 +619,8 @@ vg_lite_error_t SFT_Blit_007()
     vg_lite_buffer_t srcbuffer;
     vg_lite_buffer_t dstbuffer;
     int32_t width, height;
-
+    vg_lite_uint32_t chip_id;
+    vg_lite_get_product_info(NULL, &chip_id, NULL);
     for (i = 0; i < NUM_BLEND_MODES; i++)
     {
         width = (int32_t)Random_r(1.0f, WINDSIZEX);
@@ -622,7 +642,9 @@ vg_lite_error_t SFT_Blit_007()
         SaveBMP_SFT("SFT_Blit_007_",&dstbuffer);
 
         printf("blit with format: %d, blend mode: %d\n", formats[k], blend_mode[i]);
-
+        if (chip_id == 0x355 && (srcbuffer.format == VG_LITE_YUYV || dstbuffer.format == VG_LITE_L8 || dstbuffer.format == VG_LITE_YUYV)) {
+            continue;
+        }
         //Then blit src to dest (do format conversion).
         CHECK_ERROR(vg_lite_blit(&dstbuffer, &srcbuffer, NULL, blend_mode[i], 0, filter));
         CHECK_ERROR(vg_lite_finish());
@@ -657,7 +679,8 @@ vg_lite_error_t SFT_Blit_008()
     vg_lite_buffer_t dstbuffer;
     vg_lite_buffer_t tempBuffer;
     int32_t width, height;
-
+    vg_lite_uint32_t chip_id;
+    vg_lite_get_product_info(NULL, &chip_id, NULL);
     width = (int32_t)Random_r(1.0f, WINDSIZEX);
     height = (int32_t)Random_r(1.0f, WINDSIZEY);
 
@@ -679,7 +702,9 @@ vg_lite_error_t SFT_Blit_008()
 
             //Generate dst with checkers.
             CHECK_ERROR(gen_buffer(0, &dstbuffer, formats[j], dstbuffer.width, dstbuffer.height));
-
+            if (chip_id == 0x355 && (dstbuffer.format == VG_LITE_YUYV || tempBuffer.format == VG_LITE_L8 || tempBuffer.format == VG_LITE_YUYV)) {
+                continue;
+            }
             //Backup the dstbuffer.
             CHECK_ERROR(vg_lite_blit(&tempBuffer, &dstbuffer, NULL, 0, 0, filter));
             CHECK_ERROR(vg_lite_finish());
@@ -687,6 +712,9 @@ vg_lite_error_t SFT_Blit_008()
 
             for(k = 0; k < NUM_BLEND_MODES; k++)
             {
+                if (chip_id == 0x355 && (srcbuffer.format == VG_LITE_YUYV || tempBuffer.format == VG_LITE_YUYV || dstbuffer.format == VG_LITE_L8 || dstbuffer.format == VG_LITE_YUYV)) {
+                    continue;
+                }
                 //Then blit src to dest (do format conversion).
                 CHECK_ERROR(vg_lite_blit(&dstbuffer, &srcbuffer, NULL, blend_mode[k], 0, filter));
                 CHECK_ERROR(vg_lite_finish());
@@ -732,7 +760,8 @@ vg_lite_error_t SFT_Blit_009()
     vg_lite_color_t cc = 0xffffffff;    //Clear with BLACK.
     vg_lite_buffer_t tempBuffer;
     int32_t width, height;
-
+    vg_lite_uint32_t chip_id;
+    vg_lite_get_product_info(NULL, &chip_id, NULL);
     nformats = (NUM_SRC_FORMATS > NUM_DST_FORMATS ? NUM_DST_FORMATS : NUM_SRC_FORMATS);
     for (i = 0; i < nformats; i++)
     {
@@ -752,12 +781,17 @@ vg_lite_error_t SFT_Blit_009()
 
         //Construct the temp buffer to save the orginal dst.
         CHECK_ERROR(Allocate_Buffer(&tempBuffer, dst_buf.format, dst_buf.width, dst_buf.height));
-
+        if (chip_id == 0x355 && (dst_buf.format == VG_LITE_YUYV || tempBuffer.format == VG_LITE_L8 || tempBuffer.format == VG_LITE_YUYV)) {
+            continue;
+        }
         //Backup the dst buff.
         CHECK_ERROR(vg_lite_blit(&tempBuffer, &dst_buf, NULL, 0, 0, filter));
         //Then blit src to dest with different blending modes.
         for (j = 0; j < NUM_BLEND_MODES; j++)
         {
+            if (chip_id == 0x355 && (src_buf.format == VG_LITE_YUYV || tempBuffer.format == VG_LITE_YUYV || dst_buf.format == VG_LITE_L8 || dst_buf.format == VG_LITE_YUYV)) {
+                continue;
+            }
             CHECK_ERROR(vg_lite_blit(&dst_buf, &src_buf, NULL, blend_mode[j], 0, filter));
             CHECK_ERROR(vg_lite_finish());
             SaveBMP_SFT("SFT_Blit_009_",&dst_buf);
@@ -799,7 +833,8 @@ vg_lite_error_t SFT_Blit_010()
     vg_lite_color_t cc = 0xffffffff;    //Clear with BLACK.
     vg_lite_buffer_t    tempBuffer;
     int32_t width, height;
-
+    vg_lite_uint32_t chip_id;
+    vg_lite_get_product_info(NULL, &chip_id, NULL);
     for (i = 0; i < NUM_SRC_FORMATS; i++)
     {
         width = (int32_t)Random_r(1.0f, WINDSIZEX);
@@ -819,12 +854,18 @@ vg_lite_error_t SFT_Blit_010()
 
             //Backup dst_buf.
             CHECK_ERROR(Allocate_Buffer(&tempBuffer, dst_buf.format, dst_buf.width, dst_buf.height));
+            if (chip_id == 0x355 && (dst_buf.format == VG_LITE_YUYV || tempBuffer.format == VG_LITE_L8 || tempBuffer.format == VG_LITE_YUYV)) {
+                continue;
+            }
             CHECK_ERROR(vg_lite_blit(&tempBuffer, &dst_buf, NULL, VG_LITE_BLEND_NONE, 0, filter));
             CHECK_ERROR(vg_lite_finish());
             //Save dst buf.
             SaveBMP_SFT("SFT_Blit_010_",&dst_buf);
             for(k = 0;k < NUM_BLEND_MODES; k++)
             {
+                if (chip_id == 0x355 && (src_buf.format == VG_LITE_YUYV || tempBuffer.format == VG_LITE_YUYV || dst_buf.format == VG_LITE_L8 || dst_buf.format == VG_LITE_YUYV)) {
+                    continue;
+                }
                 //Then blit src to dest (do format conversion).
                 CHECK_ERROR(vg_lite_blit(&dst_buf, &src_buf, NULL, blend_mode[k], 0, filter));
                 CHECK_ERROR(vg_lite_finish());

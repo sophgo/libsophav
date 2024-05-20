@@ -1213,6 +1213,14 @@ BmJpuEncReturnCodes bm_jpu_jpeg_enc_encode(BmJpuJPEGEncoder *jpeg_encoder,
         *acquired_handle = NULL;
 
         uint8_t *ptr_start = NULL;
+
+        if (params->acquire_output_buffer == NULL) {
+            BM_JPU_ERROR("acquire_output_buffer = 0x%llx\n\t-o need to be configured! e.g. \"-o /dev/null\"\n",
+                                    (unsigned long long)params->acquire_output_buffer);
+            ret = BM_JPU_ENC_RETURN_CODE_INVALID_PARAMS;
+            goto ERR_ENC_ENCODE_3;
+        }
+
         ptr_start = params->acquire_output_buffer(params->output_buffer_context, *output_buffer_size, acquired_handle);
         if (ptr_start == NULL) {
             BM_JPU_ERROR("could not acquire buffer with %llu bytes or encoded frame data", *output_buffer_size);

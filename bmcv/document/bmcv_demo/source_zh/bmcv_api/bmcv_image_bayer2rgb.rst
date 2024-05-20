@@ -14,7 +14,6 @@ bmcv_image_bayer2rgb
 
     bm_status_t bmcv_image_bayer2rgb(
         bm_handle_t handle,
-        int src_type,
         unsigned char* convd_kernel,
         bm_image input,
         bm_image output);
@@ -30,15 +29,12 @@ bmcv_image_bayer2rgb
     * - handle
       - 输入
       - 设备环境句柄，通过调用bm_dev_request获取。
-    * - src_type
-      - 输入
-      - 指明输入bayer图像的具体格式，目前支持0（bg8）或1（rg8）两种格式。
     * - convd_kernel
       - 输入
       - 卷积核数值。
     * - input
       - 输入
-      - 输入图像的bm_image，bm_image需要外部调用bmcv_image_create创建。image内存可以使用bm_image_alloc_dev_mem或者bm_image_copy_host_to_device来开辟新的内存，或者使用bmcv_image_attach来attach已有的内存。
+      - 输入参数。输入bayer格式图像的 bm_image，bm_image 需要外部调用 bmcv_image_create 创建。image 内存可以使用 bm_image_alloc_dev_mem 或者 bm_image_copy_host_to_device 来开辟新的内存，或者使用 bmcv_image_attach 来 attach 已有的内存。
     * - output
       - 输出
       - 输出图像的bm_image，bm_image需要外部调用bmcv_image_create创建。image内存可以使用bm_image_alloc_dev_mem或者bm_image_copy_host_to_device来开辟新的内存，或者使用bmcv_image_attach来attach已有的内存。

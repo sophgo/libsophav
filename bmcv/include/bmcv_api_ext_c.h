@@ -290,6 +290,13 @@ typedef struct bmcv_resize_image_s {
     unsigned int   interpolation;
 } bmcv_resize_image;
 
+typedef enum {
+    NO_FLIP = 0,
+    HORIZONTAL_FLIP = 1,
+    VERTICAL_FLIP = 2,
+    ROTATE_180 = 3,
+} bmcv_flip_mode;
+
 typedef struct {
     int x;
     int y;
@@ -1211,6 +1218,12 @@ DECL_EXPORT bm_status_t bmcv_image_overlay(
     int                 overlay_num,
     bmcv_rect_t*        overlay_info,
     bm_image*           overlay_image);
+
+DECL_EXPORT bm_status_t bmcv_image_flip(
+    bm_handle_t          handle,
+    bm_image             input,
+    bm_image             output,
+    bmcv_flip_mode       flip_mode);
 
 // quality_factor = 84
 DECL_EXPORT bm_status_t bmcv_image_jpeg_enc(

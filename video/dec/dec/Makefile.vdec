@@ -1,0 +1,104 @@
+CHIP ?= bm1688
+PRODUCTFORM ?= soc
+SUBTYPE ?= fpga
+INSTALL_DIR ?= ../../../install/vdec
+DEBUG ?= 0
+CURRENT_DIR := .
+PROVIDER_DIR := $(CURRENT_DIR)/../provider/cnm-wave-v5.6
+
+ifeq ($(PRODUCTFORM),pcie) # pcie mode
+    CROSS_CC_PREFIX =
+else ifeq ($(PRODUCTFORM),pcie_mips64) # pcie mode
+    CROSS_CC_PREFIX = mips-linux-gnu-
+else ifeq ($(PRODUCTFORM),pcie_sw64) # pcie mode
+    CROSS_CC_PREFIX = sw_64-sunway-linux-gnu-
+else ifeq ($(PRODUCTFORM),pcie_loongarch64) # pcie mode
+    CROSS_CC_PREFIX = loongarch64-linux-gnu-
+else # pcie_arm64 and soc mode
+    CROSS_CC_PREFIX = aarch64-linux-gnu-
+endif
+
+CC  = $(CROSS_CC_PREFIX)gcc
+CXX = $(CROSS_CC_PREFIX)g++
+AR  = $(CROSS_CC_PREFIX)ar
+
+CFLAGS += -fPIC -Wall -Wl,--fatal-warning
+ifneq ($(PRODUCTFORM),soc)
+    CFLAGS += -DBM_PCIE_MODE
+endif
+ifeq ($(DEBUG), 0)
+    CFLAGS += -O2
+else
+    CFLAGS += -g
+endif
+
+INCLUDES = -I$(CURRENT_DIR)/inc
+INCLUDES += -I$(CURRENT_DIR)/../../3rdparty/libbmcv/include
+INCLUDES += -I$(CURRENT_DIR)/example
+INCLUDES += -I$(CURRENT_DIR)/helper
+#INCLUDES += -I$(PROVIDER_DIR)
+#INCLUDES += -I$(PROVIDER_DIR)/vdi
+#INCLUDES += -I$(PROVIDER_DIR)/vpuapi
+#INCLUDES += -I$(PROVIDER_DIR)/sample_v2/helper
+CFLAGS += $(INCLUDES)
+
+LDFLAGS += -L$(INSTALL_DIR)/lib -L$(CURRENT_DIR)/../../3rdparty/libbmcv/lib/$(PRODUCTFORM)
+LIBS = -lpthread -lm -lrt -ldl
+
+MAKEFILE=Makefile
+OBJDIR=$(CURRENT_DIR)/obj
+ALLOBJS=*.o
+ALLDEPS=*.dep
+RM := rm -rf
+CP ?= cp -f
+MKDIR ?= mkdir -p
+
+TARGET_NAME = libbmvd.so
+TEST_NAME = bm_test
+
+TARGET = $(INSTALL_DIR)/lib/$(TARGET_NAME)
+TEST = $(INSTALL_DIR)/test/$(TEST_NAME)
+
+LIB_SRC = src/bm_vpudec_interface.c \
+		  src/bm_ioctl.c
+LIB_OBJS=$(patsubst %.c,%.o,$(LIB_SRC))
+LIB_PATHS=$(addprefix $(OBJDIR)/,$(notdir $(LIB_OBJS)))
+
+TEST_SRC = example/bm_test.c \
+		   example/md5.c \
+		   example/osal.c
+TEST_OBJS=$(patsubst %.c,%.o,$(patsubst %.cpp,%.o,$(TEST_SRC)))
+TEST_PATHS=$(addprefix $(OBJDIR)/,$(notdir $(TEST_OBJS)))
+
+all : CREATE_DIR $(TARGET) $(TEST)
+
+$(TEST) : $(TARGET) $(LIB_PATHS) $(TEST_PATHS)
+	$(CC) $(CFLAGS) -o $@ $(TEST_PATHS) $(LIB_PATHS) $(LDFLAGS) $(LIBS) $(CURRENT_DIR)/helper/libsys.a
+
+$(TARGET) : $(LIB_PATHS)
+	$(CC) $(CFLAGS) -o $@ -shared -Wl,-soname,$(LIB_PATHS) -L$(INSTALL_DIR)/lib $(CURRENT_DIR)/helper/libsys.a
+
+$(OBJDIR)/bm_vpudec_interface.o : src/bm_vpudec_interface.c
+	$(CC) $(CFLAGS) -c $< -o $@ -MD -MF $(@:.o=.dep)
+
+$(OBJDIR)/bm_ioctl.o : src/bm_ioctl.c
+	$(CC) $(CFLAGS) -c $< -o $@ -MD -MF $(@:.o=.dep)
+
+$(OBJDIR)/bm_test.o : example/bm_test.c
+	$(CC) $(CFLAGS) -c $< -o $@ -MD -MF $(@:.o=.dep)
+
+$(OBJDIR)/md5.o : example/md5.c
+	$(CC) $(CFLAGS) -c $< -o $@ -MD -MF $(@:.o=.dep)
+
+$(OBJDIR)/osal.o : example/osal.c
+	$(CC) $(CFLAGS) -c $< -o $@ -MD -MF $(@:.o=.dep)
+
+CREATE_DIR:
+	-mkdir -p obj
+	-mkdir -p $(INSTALL_DIR)/test
+	-mkdir -p $(INSTALL_DIR)/lib
+	-mkdir -p $(INSTALL_DIR)/include
+
+clean:
+	$(RM) $(INSTALL_DIR)
+	$(RM) $(OBJDIR)

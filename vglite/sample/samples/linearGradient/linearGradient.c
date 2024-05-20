@@ -11,7 +11,7 @@
 #define DEFAULT_HEIGHT 640
 
 #define __func__ __FUNCTION__
-char *error_type[] = 
+char* error_type[] =
 {
     "VG_LITE_SUCCESS",
     "VG_LITE_INVALID_ARGUMENT",
@@ -27,14 +27,14 @@ char *error_type[] =
     error = Function; \
     if (IS_ERROR(error)) \
     { \
-        printf("[%s: %d] failed.error type is %s\n", __func__, __LINE__,error_type[error]);\
+        printf("[%s: %d] error type is %s\n", __func__, __LINE__,error_type[error]);\
         goto ErrorHandler; \
     }
 static int   fb_width = DEFAULT_WIDTH, fb_height = DEFAULT_HEIGHT;
 
 static vg_lite_buffer_t buffer;
-static vg_lite_buffer_t * fb;
-int frames = 1;
+static vg_lite_buffer_t* fb;
+
 vg_lite_gradient_spreadmode_t spreadmode[] = {
     VG_LITE_GRADIENT_SPREAD_FILL,
     VG_LITE_GRADIENT_SPREAD_PAD,
@@ -55,10 +55,10 @@ vg_lite_gradient_spreadmode_t spreadmode[] = {
 *-----*
 */
 static short path_data[] = {
-    2, 0, 0,
-    4, 400, 0,
-    4, 400, 400,
-    4, 0, 400,
+    2, 30, 50,
+    4, 450, 50,
+    4, 450, 350,
+    4, 30, 350,
     0,
 };
 
@@ -82,7 +82,7 @@ void cleanup(void)
     vg_lite_close();
 }
 
-int main(int argc, const char * argv[])
+int main(int argc, const char* argv[])
 {
     vg_lite_filter_t filter;
     vg_lite_ext_linear_gradient_t grad;
@@ -90,30 +90,38 @@ int main(int argc, const char * argv[])
     vg_lite_color_ramp_t vg_color_ramp[] =
     {
         {
-            0.0f,
-            0.4f, 0.0f, 0.6f, 1.0f
+            0.1f,
+            0.9f, 0.2f, 0.0f, 1.0f
         },
         {
-            1.00f,
-            1.0f, 1.0f, 1.0f, 1.0f
+            0.45f,
+            0.0f, 8.0f, 0.3f, 0.8f
+        },
+        {
+            0.75f,
+            0.2f, 0.1f, 0.8f, 0.9f
+        },
+        {
+            0.9f,
+            0.8f, 0.3f, 0.1f, 1.0f
         }
     };
-    vg_lite_linear_gradient_parameter_t linear_gradient = {0.0f ,0.0f ,0.0f ,256.0f};
-    vg_lite_matrix_t *mat_grad;
+    vg_lite_linear_gradient_parameter_t linear_gradient = { 25.0f ,50.0f ,470.0f ,50.0f };
+    vg_lite_matrix_t* mat_grad;
     vg_lite_matrix_t mat_path;
-    int fcount = 0;
     char filename[20];
+
     /* Initialize vg_lite engine. */
     vg_lite_error_t error = VG_LITE_SUCCESS;
     CHECK_ERROR(vg_lite_init(fb_width, fb_height));
 
     filter = VG_LITE_FILTER_POINT;
-    if(!vg_lite_query_feature(gcFEATURE_BIT_VG_LINEAR_GRADIENT_EXT)) {
+    if (!vg_lite_query_feature(gcFEATURE_BIT_VG_LINEAR_GRADIENT_EXT)) {
         printf("linearGradient is not supported.\n");
         return VG_LITE_NOT_SUPPORT;
     }
     /* Allocate the off-screen buffer. */
-    buffer.width  = fb_width;
+    buffer.width = fb_width;
     buffer.height = fb_height;
     buffer.format = VG_LITE_BGRX8888;
 
@@ -121,25 +129,23 @@ int main(int argc, const char * argv[])
     fb = &buffer;
 
     printf("Render size: %d x %d\n", fb_width, fb_height);
-    while (frames > 0)
-    {
-        sprintf(filename,"linearGrad_%d.png",frames+1);
-        memset(&grad, 0, sizeof(grad));
-        vg_lite_set_linear_grad(&grad, 2,vg_color_ramp,linear_gradient,spreadmode[fcount],1);
-        vg_lite_update_linear_grad(&grad);
-        mat_grad = vg_lite_get_linear_grad_matrix(&grad);
-        vg_lite_identity(mat_grad);
 
-        CHECK_ERROR(vg_lite_clear(fb, NULL, 0xffffffff));
-        vg_lite_identity(&mat_path);
+    sprintf(filename, "linearGradient.png");
+    memset(&grad, 0, sizeof(grad));
+    vg_lite_set_linear_grad(&grad, 4, vg_color_ramp, linear_gradient, spreadmode[0], 1);
+    mat_grad = vg_lite_get_linear_grad_matrix(&grad);
+    vg_lite_identity(mat_grad);
+    vg_lite_update_linear_grad(&grad);
 
-        CHECK_ERROR(vg_lite_draw_linear_grad(fb, &path, VG_LITE_FILL_EVEN_ODD, &mat_path, &grad,0,VG_LITE_BLEND_NONE,VG_LITE_FILTER_LINEAR));
-        CHECK_ERROR(vg_lite_finish());
-        vg_lite_clear_linear_grad(&grad);
-        frames--;
-        printf("frame %d done\n", fcount++);
-        vg_lite_save_png(filename, fb);
-    }
+    CHECK_ERROR(vg_lite_clear(fb, NULL, 0xffffffff));
+    vg_lite_identity(&mat_path);
+
+    CHECK_ERROR(vg_lite_draw_linear_grad(fb, &path, VG_LITE_FILL_EVEN_ODD, &mat_path, &grad, 0, VG_LITE_BLEND_NONE, VG_LITE_FILTER_LINEAR));
+    CHECK_ERROR(vg_lite_finish());
+    vg_lite_clear_linear_grad(&grad);
+
+    printf("Rendering  done\n");
+    vg_lite_save_png(filename, fb);
 
 ErrorHandler:
 

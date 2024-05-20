@@ -77,7 +77,7 @@ bm_status_t bmcv_gemm(bm_handle_t handle, bool is_A_trans, bool is_B_trans, int 
     }
 
     switch(chipid) {
-        case BM1686:
+        case BM1688:
             ret = bm_tpu_kernel_launch(handle, "cv_gemm", (u8*)(&api), sizeof(api), core_id);
             if(ret != BM_SUCCESS){
                 bmlib_log("GEMM", BMLIB_LOG_ERROR, "gemm sync api error\n");
@@ -187,7 +187,7 @@ bm_status_t bmcv_gemm_ext(bm_handle_t handle, bool is_A_trans, bool is_B_trans, 
     }
 
     switch(chipid) {
-        case BM1686:
+        case BM1688:
             ret = bm_tpu_kernel_launch(handle, "cv_gemm", (u8*)(&api), sizeof(api), core_id);
             if(ret != BM_SUCCESS){
                 bmlib_log("GEMM", BMLIB_LOG_ERROR, "gemm sync api error\n");

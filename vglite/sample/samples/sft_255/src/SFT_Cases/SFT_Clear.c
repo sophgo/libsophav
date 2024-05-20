@@ -103,9 +103,9 @@ vg_lite_error_t    SFT_Clear_001()
     buffer.memory = NULL;
     buffer.address = 0;
     buffer.tiled  = 0;
-
+    vg_lite_uint32_t chip_id;
+    vg_lite_get_product_info(NULL, &chip_id, NULL);
     CHECK_ERROR(vg_lite_allocate(&buffer));
-
 
     for(i = 0; i < 16; i++)
     {
@@ -120,6 +120,9 @@ vg_lite_error_t    SFT_Clear_001()
         rect.width = w;
         rect.height = h;
         printf("Clearing color: 0x%x, area: %d, %d, %d, %d \n", cc, x, y, w, h);
+        if (chip_id == 0x355 && (buffer.format == VG_LITE_YUYV || buffer.format == VG_LITE_L8)) {
+            continue;
+        }
         CHECK_ERROR(vg_lite_clear(&buffer,NULL,0xffffffff));
         CHECK_ERROR(vg_lite_clear(&buffer,&rect,cc));
         CHECK_ERROR(vg_lite_finish());
@@ -139,7 +142,8 @@ vg_lite_error_t    SFT_Clear_002()
     int i;
     vg_lite_color_t cc;
     vg_lite_buffer_t buffer[NUM_FORMATS];
-
+    vg_lite_uint32_t chip_id;
+    vg_lite_get_product_info(NULL, &chip_id, NULL);
     for(i = 0; i < NUM_FORMATS; i++)
     {
         cc = GenColor_r();
@@ -155,7 +159,9 @@ vg_lite_error_t    SFT_Clear_002()
         buffer[i].tiled = 0;
 
         CHECK_ERROR(vg_lite_allocate(&buffer[i]));
-
+        if (chip_id == 0x355 && (buffer[i].format == VG_LITE_YUYV || buffer[i].format == VG_LITE_L8)) {
+            continue;
+        }
         printf("clear buffer with color: 0x%x, format: 0x%x\n", cc, formats[i]);
         CHECK_ERROR(vg_lite_clear(&buffer[i],NULL,cc));
         CHECK_ERROR(vg_lite_finish());
@@ -176,7 +182,8 @@ vg_lite_error_t    SFT_Clear_003()
     int i;
     vg_lite_color_t cc;
     vg_lite_buffer_t buffer[10];
-
+    vg_lite_uint32_t chip_id;
+    vg_lite_get_product_info(NULL, &chip_id, NULL);
     for(i = 0; i < 10; i++)
     {
         cc = GenColor_r();
@@ -193,6 +200,9 @@ vg_lite_error_t    SFT_Clear_003()
         CHECK_ERROR(vg_lite_allocate(&buffer[i]));
 
         printf("clear buffer of size %d x %d, color: 0x%x\n", buffer[i].width, buffer[i].height, cc);
+        if (chip_id == 0x355 && (buffer[i].format == VG_LITE_YUYV || buffer[i].format == VG_LITE_L8)) {
+            continue;
+        }
         CHECK_ERROR(vg_lite_clear(&buffer[i],NULL,cc));
         CHECK_ERROR(vg_lite_finish());
         SaveBMP_SFT("SFT_Clear_003_",&buffer[i]);

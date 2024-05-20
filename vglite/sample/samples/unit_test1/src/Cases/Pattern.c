@@ -35,7 +35,7 @@ vg_lite_error_t Pattern_Draw(void * pathdata,int32_t length,vg_lite_format_t for
     CHECK_ERROR(Allocate_Buffer(&dst_buf, VG_LITE_BGRA8888, dst_width, dst_height));
     /* draw pattern */
     CHECK_ERROR(vg_lite_clear(&dst_buf, NULL, color));
-    CHECK_ERROR(vg_lite_draw_pattern(&dst_buf, &path, VG_LITE_FILL_EVEN_ODD, &matrix, &src_buf, &matrix, blend_mode, VG_LITE_PATTERN_COLOR, 0xffaabbcc, filter_mode));
+    CHECK_ERROR(vg_lite_draw_pattern(&dst_buf, &path, VG_LITE_FILL_EVEN_ODD, &matrix, &src_buf, &matrix, blend_mode, VG_LITE_PATTERN_COLOR, 0xffaabbcc, 0, filter_mode));
     CHECK_ERROR(vg_lite_finish());
     SaveBMP_SFT("Pattern_Draw_", &dst_buf);
 

@@ -60,7 +60,7 @@ static void * mosaic(void* arg) {
         bmcv_image_mosaic(handle, 1, src, &rect, false);
 
         gettimeofday(&tv_end, NULL);
-        if((ctx.i == 0) && (i == 0)){
+        if(i == 0){
             if(md5 == NULL)
                 bm_write_bin(src, dst_name);
             else{
@@ -75,6 +75,7 @@ static void * mosaic(void* arg) {
                 bm_image_copy_device_to_host(src, (void **)out_ptr);
                 if(md5_cmp(output_ptr, (unsigned char*)md5, byte_size)!=0){
                     bm_write_bin(src, "error_cmp.bin");
+                    bm_image_destroy(&src);
                     exit(-1);
                 }
                 free(output_ptr);

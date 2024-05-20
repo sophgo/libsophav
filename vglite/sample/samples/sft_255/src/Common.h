@@ -6,7 +6,7 @@
     error = Function; \
     if (IS_ERROR(error)) \
     { \
-        printf("[%s: %d] failed.error type is %s\n", __func__, __LINE__,error_type[error]);\
+        printf("[%s: %d] error type is %s\n", __func__, __LINE__,error_type[error]);\
         goto ErrorHandler; \
     }
 void StatesReset();

@@ -9,6 +9,11 @@
 #define SLEEP_ON 0
 #define MAX_THREAD_NUM 20
 #define LDC_ALIGN 64
+#define IMG_MAX_HEIGHT 4096
+#define IMG_MAX_WIDTH  4608
+#define IMG_MIN_HEIGHT 64
+#define IMG_MIN_WIDTH  64
+#define ALIGN(num, align) (((num) + ((align) - 1)) & ~((align) - 1))
 
 extern void bm_read_bin(bm_image src, const char *input_name);
 extern void bm_write_bin(bm_image dst, const char *output_name);
@@ -25,6 +30,9 @@ typedef struct ldc_rot_ctx_{
     int i;
 } ldc_rot_ctx;
 
+int rand_mode = 0;
+int loop_mode = 0;
+int rand_input_width = 0, rand_input_height = 0;
 int test_loop_times  = 1;
 int test_threads_num = 1;
 int dev_id = 0;
@@ -35,6 +43,41 @@ bmcv_rot_mode rot_mode = BMCV_ROTATION_0;
 char *src_name = "1920x1080.yuv", *dst_name = "output_1920x1080_rot0.yuv"/*, *perf_name = "1920x1080_rot0.yuv"*/;
 bm_handle_t handle = NULL;
 char *md5 = "03fd51eb71461e1fcc64e072588b5754";
+
+int get_image_data_size(int width, int height, bm_image_format_ext format) {
+    int size;
+    switch (format) {
+        case FORMAT_YUV420P:
+        case FORMAT_NV12:
+        case FORMAT_NV21:
+            size = width * height * 3 / 2;
+            break;
+        case FORMAT_YUV422P:
+        case FORMAT_YUV422_YUYV:
+        case FORMAT_YUV422_YVYU:
+        case FORMAT_YUV422_UYVY:
+        case FORMAT_YUV422_VYUY:
+        case FORMAT_NV16:
+        case FORMAT_NV61:
+            size = width * height * 2;
+            break;
+        case FORMAT_YUV444P:
+        case FORMAT_RGB_PLANAR:
+        case FORMAT_BGR_PLANAR:
+        case FORMAT_RGB_PACKED:
+        case FORMAT_BGR_PACKED:
+            size = width * height * 3;
+            break;
+        case FORMAT_GRAY:
+            size = width * height;
+            break;
+        default:
+            printf("Unknown format! \n");
+            size = width * height * 3;  // Default case, adjust as needed
+            break;
+    }
+    return size;
+}
 
 static void * ldc_rot(void * arg)
 {
@@ -89,14 +132,40 @@ static void * ldc_rot(void * arg)
         goto fail;
     }
 
-    // read image data from input files
-    bm_read_bin(src, src_name);
+    int random_size = get_image_data_size(width, height, src_fmt);
+    unsigned char *random_input_data = (unsigned char *)malloc(random_size);
+    if (!random_input_data) {
+        printf("Memory Allocation Failed \n");
+        ret = BM_ERR_FAILURE;
+        free(random_input_data);
+        goto fail;
+    }
+    if (rand_mode == 0) {
+        // read image data from input files
+        bm_read_bin(src, src_name);
+    } else {
+        // generate random data
+        for (int i = 0; i < random_size; i++) {
+            random_input_data[i] = rand() % 256;
+        }
+        int random_image_byte_size[4] = {0};
+        bm_image_get_byte_size(src, random_image_byte_size);
+
+        void *random_in_ptr[4] = {(void *)random_input_data,
+                            (void *)((char *)random_input_data + random_image_byte_size[0]),
+                            (void *)((char *)random_input_data + random_image_byte_size[0] + random_image_byte_size[1]),
+                            (void *)((char *)random_input_data + random_image_byte_size[0] + random_image_byte_size[1] + random_image_byte_size[2])};
+        bm_image_copy_host_to_device(src, (void **)random_in_ptr);
+    }
 
     for (int i = 0; i < loop_time; i++) {
         gettimeofday(&tv_start, NULL);
         ret = bmcv_ldc_rot(handle, src, dst, rot_mode);
         if(ret != BM_SUCCESS) {
             printf("test bmcv_ldc_rot failed \n");
+            if (rand_mode == 1) {
+                free(random_input_data);
+            }
             goto fail;
         }
         gettimeofday(&tv_end, NULL);
@@ -119,25 +188,31 @@ static void * ldc_rot(void * arg)
     fps_actual = 1000000 / time_avg;
     pixel_per_sec = align_width * align_height * fps_actual/1024/1024;
 
-    if (ctx.i == 0) {
-        if (md5 == NULL) {
-            bm_write_bin(dst, dst_name);
-        } else {
-            int image_byte_size[4] = {0};
-            bm_image_get_byte_size(dst, image_byte_size);
-            int byte_size = image_byte_size[0] + image_byte_size[1] + image_byte_size[2] + image_byte_size[3];
-            unsigned char* output_ptr = (unsigned char *)malloc(byte_size);
-            void* out_ptr[4] = {(void*)output_ptr,
-                                (void*)((unsigned char*)output_ptr + image_byte_size[0]),
-                                (void*)((unsigned char*)output_ptr + image_byte_size[0] + image_byte_size[1]),
-                                (void*)((unsigned char*)output_ptr + image_byte_size[0] + image_byte_size[1] + image_byte_size[2])};
-            bm_image_copy_device_to_host(dst, (void **)out_ptr);
-            if(md5_cmp(output_ptr, (unsigned char*)md5, byte_size) != 0) {
-                bm_write_bin(dst, "error_cmp.bin");
-                exit(-1);
+    // Only compare and save output data when in user config mode
+    if (rand_mode == 0)
+    {
+        if (ctx.i == 0) {
+            if (md5 == NULL) {
+                bm_write_bin(dst, dst_name);
+            } else {
+                int image_byte_size[4] = {0};
+                bm_image_get_byte_size(dst, image_byte_size);
+                int byte_size = image_byte_size[0] + image_byte_size[1] + image_byte_size[2] + image_byte_size[3];
+                unsigned char* output_ptr = (unsigned char *)malloc(byte_size);
+                void* out_ptr[4] = {(void*)output_ptr,
+                                    (void*)((unsigned char*)output_ptr + image_byte_size[0]),
+                                    (void*)((unsigned char*)output_ptr + image_byte_size[0] + image_byte_size[1]),
+                                    (void*)((unsigned char*)output_ptr + image_byte_size[0] + image_byte_size[1] + image_byte_size[2])};
+                bm_image_copy_device_to_host(dst, (void **)out_ptr);
+                if(md5_cmp(output_ptr, (unsigned char*)md5, byte_size) != 0) {
+                    bm_write_bin(dst, "error_cmp.bin");
+                    exit(-1);
+                }
+                free(output_ptr);
             }
-            free(output_ptr);
         }
+    } else {
+        free(random_input_data);
     }
 
     char algorithm_str[100] = "bmcv_ldc_rot";
@@ -156,8 +231,6 @@ static void * ldc_rot(void * arg)
 fail:
     bm_image_destroy(&src);
     bm_image_destroy(&dst);
-    // bm_dev_free(handle);
-    // printf("free finished!\n");
     return 0;
 }
 
@@ -171,7 +244,7 @@ int main(int argc, char **argv) {
         test_threads_num = atoi(argv[8]);
         test_loop_times  = atoi(argv[9]);
     }
-    if (argc >= 7) {
+    if (argc >= 8) {
         src_name = argv[1];
         dst_name = argv[2];
         width = atoi(argv[3]);
@@ -183,14 +256,63 @@ int main(int argc, char **argv) {
     if (argc == 3){
         test_threads_num = atoi(argv[1]);
         test_loop_times  = atoi(argv[2]);
-    }
-
-    if(argc == 1 || (argc > 3 && argc < 8)){
+    } else if (argc == 4) {
+        rand_mode = atoi(argv[1]);
+        test_threads_num = atoi(argv[2]);
+        test_loop_times  = atoi(argv[3]);
+    } else if (argc == 5) {
+        rand_mode = atoi(argv[1]);
+        loop_mode = atoi(argv[2]);
+        rand_input_width = atoi(argv[3]);
+        rand_input_height = atoi(argv[4]);
+        for (width = rand_input_width; width <= IMG_MAX_WIDTH; width += 64) {
+            for (height = rand_input_height; height <= IMG_MAX_HEIGHT; height += 64) {
+                rot_mode = BMCV_ROTATION_0;
+                src_fmt = FORMAT_NV21;
+                dst_fmt = FORMAT_NV21;
+                printf("Size loop mode for rot: width = %d, height = %d, rot_mode = %d, img_fmt = %d\n", width, height, rot_mode, src_fmt);
+                test_threads_num = 1;
+                test_loop_times  = 1;
+                int ret = (int)bm_dev_request(&handle, dev_id);
+                if (ret != 0) {
+                    printf("Create bm handle failed. ret = %d\n", ret);
+                    exit(-1);
+                }
+                ldc_rot_ctx ctx[MAX_THREAD_NUM];
+#ifdef __linux__
+                pthread_t pid[MAX_THREAD_NUM];
+                for (int i = 0; i < test_threads_num; i++) {
+                    ctx[i].i = i;
+                    ctx[i].loop = test_loop_times;
+                    if (pthread_create(&pid[i], NULL, ldc_rot, (void *)(ctx + i))) {
+                        perror("create thread failed\n");
+                        exit(-1);
+                    }
+                }
+                for (int i = 0; i < test_threads_num; i++) {
+                    bm_status_t ret = pthread_join(pid[i], NULL);
+                    if (ret != 0) {
+                        perror("Thread join failed");
+                        exit(-1);
+                    }
+                }
+                bm_dev_free(handle);
+#endif
+                if (width == 4608 && height == 4096) {
+                    printf("--------ALL ROT SIZE LOOP TEST OVER---------\n");
+                    return 0;
+                }
+            }
+            rand_input_height = 64;
+        }
+    } else if (argc == 1 || (argc > 6 && argc < 10)){
         printf("command input error, please follow this order:\n \
-        %s src_name dst_name width height rot_mode src_fmt dst_fmt thread_num loop_num md5\n \
-        %s thread_num loop_num\n", argv[0], argv[0]);
+        %s src_name dst_name width height rot_mode src_fmt dst_fmt thread_num loop_num md5 /*For user input test*/\n \
+        %s rand_mode(1) thread_num loop_num         /*For random size test*/\n \
+        %s loop_mode(1) rand_mode(1) width height   /*For size loop test*/\n", argv[0], argv[0], argv[0]);
         exit(-1);
     }
+
     if (test_loop_times > 15000 || test_loop_times < 1) {
         printf("[TEST convert] loop times should be 1~15000\n");
         exit(-1);
@@ -204,6 +326,45 @@ int main(int argc, char **argv) {
     if (ret != 0) {
         printf("Create bm handle failed. ret = %d\n", ret);
         exit(-1);
+    }
+
+    if(argc == 4 && rand_mode == 1){
+        srand(time(NULL));
+        height = rand() % (IMG_MAX_HEIGHT - IMG_MIN_HEIGHT + 1) + IMG_MIN_HEIGHT;
+        width  = rand() % (IMG_MAX_WIDTH - IMG_MIN_WIDTH + 1) + IMG_MIN_WIDTH;
+        height = ALIGN(height, LDC_ALIGN);
+        width  = ALIGN(width, LDC_ALIGN);
+        int rand_rot = rand() % 3;
+        switch (rand_rot) {
+            case 0:
+                rot_mode = BMCV_ROTATION_0;
+                break;
+            case 1:
+                rot_mode = BMCV_ROTATION_90;
+                break;
+            case 2:
+                rot_mode = BMCV_ROTATION_270;
+                break;
+            default:
+                printf("Error: Invalid random index.\n");
+                return -1;
+        }
+        int rand_fmt = rand() % 2;
+        switch (rand_fmt) {
+            case 0:
+                src_fmt = FORMAT_GRAY;
+                dst_fmt = FORMAT_GRAY;
+                break;
+            case 1:
+                src_fmt = FORMAT_NV21;
+                dst_fmt = FORMAT_NV21;
+                break;
+            default:
+                printf("Error: Invalid random index.\n");
+                return -1;
+        }
+        dst_name = "ldc_rot_output_rand.yuv";
+        printf("Random mode: width = %d, height = %d, rot_mode = %d, img_fmt = %d\n", width, height, rot_mode, src_fmt);
     }
 
     ldc_rot_ctx ctx[MAX_THREAD_NUM];

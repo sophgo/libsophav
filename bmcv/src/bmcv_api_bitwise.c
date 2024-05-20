@@ -124,7 +124,7 @@ bm_status_t bmcv_image_bitwise(bm_handle_t handle, bm_image input1,
 
     int core_id = 0;
     switch(chipid) {
-        case BM1686:
+        case BM1688:
             ret = bm_tpu_kernel_launch(handle, "cv_bitwise", (u8*)&api,
                                                 sizeof(api), core_id);
             if(BM_SUCCESS != ret){

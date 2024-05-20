@@ -183,3 +183,117 @@ bmcv_ive_ccl
 6. 当连通区域数目大于 254, 会用 ccl_attr.u16_init_area_thr 删除面积小的连通区域；若 ccl_attr.u16_init_area_thr 不满足删除条件，会以 pstCclCtrl→u16_step 为步长，增大删除连通区域的面积阈值。
 
 7. 最终的面积阈值存储在 ccblob_output.u16_cur_aera_thr 中。
+
+
+**示例代码**
+
+    .. code-block:: c
+
+      #include <stdio.h>
+      #include <stdlib.h>
+      #include <string.h>
+      #include <pthread.h>
+      #include <math.h>
+      #include <sys/time.h>
+      #include "bmcv_api_ext_c.h"
+      #include <unistd.h>
+      extern void bm_ive_read_bin(bm_image src, const char *input_name);
+      extern bm_status_t bm_ive_image_calc_stride(bm_handle_t handle, int img_h, int img_w,
+          bm_image_format_ext image_format, bm_image_data_format_ext data_type, int *stride);
+      int main(){
+          int dev_id = 0;int height = 576, width = 720;
+          bm_image_format_ext fmt = FORMAT_GRAY;
+          bmcv_ive_ccl_mode enMode = BM_IVE_CCL_MODE_8C;
+          unsigned short u16InitAreaThr = 4;
+          unsigned short u16Step = 2;
+          char *src_name = "./ive_data/ccl_raw_1.raw";bm_handle_t handle = NULL;
+          bm_image src_dst_img;
+          bm_device_mem_t pst_blob;
+          bmcv_ive_ccl_attr ccl_attr;
+          bmcv_ive_ccblob *ccblob = NULL;
+          int ret = (int)bm_dev_request(&handle, dev_id);
+          if (ret != 0) {
+              printf("Create bm handle failed. ret = %d\n", ret);
+              exit(-1);
+          }
+          int stride[4];
+          unsigned int i = 0, loop_time = 0;
+          unsigned long long time_single, time_total = 0, time_avg = 0;
+          unsigned long long time_max = 0, time_min = 10000, fps_actual = 0;
+          struct timeval tv_start;
+          struct timeval tv_end;
+          struct timeval timediff;
+
+          ccl_attr.en_mode = enMode;
+          ccl_attr.u16_init_area_thr = u16InitAreaThr;
+          ccl_attr.u16_step = u16Step;
+
+          ccblob = (bmcv_ive_ccblob *)malloc(sizeof(bmcv_ive_ccblob));
+          memset(ccblob, 0, sizeof(bmcv_ive_ccblob));
+
+          // calc ive image stride && create bm image struct
+          bm_ive_image_calc_stride(handle, height, width, fmt, DATA_TYPE_EXT_1N_BYTE, stride);
+          bm_image_create(handle, height, width, fmt, DATA_TYPE_EXT_1N_BYTE, &src_dst_img, stride);
+
+          ret = bm_image_alloc_dev_mem(src_dst_img, BMCV_HEAP_ANY);
+          if (ret != BM_SUCCESS) {
+              printf("src bm_image_alloc_dev_mem failed. ret = %d\n", ret);
+              free(ccblob);
+              bm_image_destroy(&src_dst_img);
+              exit(-1);
+          }
+
+          ret = bm_malloc_device_byte(handle, &pst_blob, sizeof(bmcv_ive_ccblob));
+          if(ret != BM_SUCCESS){
+              printf("pst_blob bm_malloc_device_byte failed, ret = %d \n", ret);
+              free(ccblob);
+              bm_image_destroy(&src_dst_img);
+              exit(-1);
+          }
+
+          for (i = 0; i < loop_time; i++) {
+              bm_ive_read_bin(src_dst_img, src_name);
+
+              ret = bm_memcpy_s2d(handle, pst_blob, (void *)ccblob);
+              if(ret != BM_SUCCESS){
+                  printf("pst_blob bm_memcpy_s2d failed, ret = %d \n", ret);
+                  free(ccblob);
+                  bm_image_destroy(&src_dst_img);
+                  bm_free_device(handle, pst_blob);
+                  exit(-1);
+              }
+
+              gettimeofday(&tv_start, NULL);
+              ret = bmcv_ive_ccl(handle, src_dst_img, pst_blob, ccl_attr);
+              gettimeofday(&tv_end, NULL);
+              timediff.tv_sec  = tv_end.tv_sec - tv_start.tv_sec;
+              timediff.tv_usec = tv_end.tv_usec - tv_start.tv_usec;
+              time_single = (unsigned int)(timediff.tv_sec * 1000000 + timediff.tv_usec);
+
+              if(time_single>time_max){time_max = time_single;}
+              if(time_single<time_min){time_min = time_single;}
+              time_total = time_total + time_single;
+
+              if(ret != BM_SUCCESS){
+                  printf("bmcv_ive_ccl failed. ret = %d\n", ret);
+                  free(ccblob);
+                  bm_image_destroy(&src_dst_img);
+                  bm_free_device(handle, pst_blob);
+                  exit(-1);
+              }
+          }
+
+          time_avg = time_total / loop_time;
+          fps_actual = 1000000 / time_avg;
+          printf("idx:%d, bmcv_ive_ccl: loop %d cycles, time_max = %llu, time_avg = %llu, fps %llu \n",
+                  ctx.i, loop_time, time_max, time_avg, fps_actual);
+
+          free(ccblob);
+          bm_image_destroy(&src_dst_img);
+          bm_free_device(handle, pst_blob);
+
+          return 0;
+        }
+
+
+

@@ -37,7 +37,7 @@ char *error_type[] =
     error = Function; \
     if (IS_ERROR(error)) \
     { \
-        printf("[%s: %d] failed.error type is %s\n", __func__, __LINE__,error_type[error]);\
+        printf("[%s: %d] error type is %s\n", __func__, __LINE__,error_type[error]);\
         goto ErrorHandler; \
     }
 static int fb_width = DEFAULT_WIDTH, fb_height = DEFAULT_HEIGHT;
@@ -153,7 +153,7 @@ int main(int argc, const char * argv[])
         vg_lite_translate(fb_width / 2.0f, fb_height / 4.0f, &matPath);
         vg_lite_scale(10, 10, &matPath);
 
-        CHECK_ERROR(vg_lite_draw_pattern(&buffer1[i], &path, VG_LITE_FILL_EVEN_ODD, &matPath, &image, &matrix, VG_LITE_BLEND_NONE, VG_LITE_PATTERN_COLOR, 0xffaabbcc, filter));
+        CHECK_ERROR(vg_lite_draw_pattern(&buffer1[i], &path, VG_LITE_FILL_EVEN_ODD, &matPath, &image, &matrix, VG_LITE_BLEND_NONE, VG_LITE_PATTERN_COLOR, 0xffaabbcc, 0, filter));
         vg_lite_identity(&matrix);
         CHECK_ERROR(vg_lite_blit(&buffer[i], &buffer1[i], &matrix, VG_LITE_BLEND_NONE, 0, filter));
         CHECK_ERROR(vg_lite_finish());

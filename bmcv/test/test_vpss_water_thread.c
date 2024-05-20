@@ -23,10 +23,19 @@ int test_threads_num = 1;
 int src_h = 1080, src_w = 1920, water_w = 128, water_byte = 16384, font_mode = 0, dev_id = 0;
 bm_image_format_ext src_fmt = FORMAT_YUV420P;
 char *src_name = "/opt/sophon/libsophon-current/bin/res/1920x1080_yuv420.bin", *dst_name = "out/water_1920x1080_yuv420.bin", *water_name = "/opt/sophon/libsophon-current/bin/res/128x128_sophgo.bin";
-bmcv_rect_t rect = {.start_x = 100, .start_y = 100, .crop_w = 128, .crop_h = 128};
+bmcv_rect_t rect[9] = {{.start_x = 0, .start_y = 0, .crop_w = 128, .crop_h = 128},
+                        {.start_x = 640, .start_y = 0, .crop_w = 128, .crop_h = 128},
+                        {.start_x = 1280, .start_y = 0, .crop_w = 128, .crop_h = 128},
+                        {.start_x = 0, .start_y = 360, .crop_w = 128, .crop_h = 128},
+                        {.start_x = 640, .start_y = 360, .crop_w = 128, .crop_h = 128},
+                        {.start_x = 1280, .start_y = 360, .crop_w = 128, .crop_h = 128},
+                        {.start_x = 0, .start_y = 720, .crop_w = 128, .crop_h = 128},
+                        {.start_x = 640, .start_y = 720, .crop_w = 128, .crop_h = 128},
+                        {.start_x = 1280, .start_y = 720, .crop_w = 128, .crop_h = 128}};
+int rect_num = 9;
 bmcv_resize_algorithm algorithm = BMCV_INTER_LINEAR;
 bm_handle_t handle = NULL;
-char *md5 = "9eed6f39ef501e56a3737ee2067a7a62";
+char *md5 = "0d5b1d52a7ca5140f0460a572b561261";
 
 static void * water(void* arg) {
     bm_status_t ret;
@@ -74,10 +83,11 @@ static void * water(void* arg) {
     for(i = 0;i < loop_time; i++){
         gettimeofday(&tv_start, NULL);
 
-        bmcv_image_watermark_superpose(handle, &src, &water, 1, font_mode, water_w, &rect, color);
+        // bmcv_image_watermark_superpose(handle, &src, &water, 1, font_mode, water_w, &rect, color);
+        bmcv_image_watermark_repeat_superpose(handle, src, water, rect_num, font_mode, water_w, rect, color);
 
         gettimeofday(&tv_end, NULL);
-        if((ctx.i == 0) && (i == 0)){
+        if(i == 0){
             if(md5 == NULL)
                 bm_write_bin(src, dst_name);
             else{
@@ -92,6 +102,7 @@ static void * water(void* arg) {
                 bm_image_copy_device_to_host(src, (void **)out_ptr);
                 if(md5_cmp(output_ptr, (unsigned char*)md5, byte_size)!=0){
                     bm_write_bin(src, "error_cmp.bin");
+                    bm_image_destroy(&src);
                     exit(-1);
                 }
                 free(output_ptr);
@@ -154,12 +165,13 @@ int main(int argc, char **argv) {
         water_byte = atoi(argv[6]);
         water_w = atoi(argv[7]);
         font_mode = atoi(argv[8]);
-        rect.start_x = atoi(argv[9]);
-        rect.start_y = atoi(argv[10]);
-        rect.crop_w = water_w;
-        rect.crop_h = water_byte / water_w;
+        rect[0].start_x = atoi(argv[9]);
+        rect[0].start_y = atoi(argv[10]);
+        rect[0].crop_w = water_w;
+        rect[0].crop_h = water_byte / water_w;
         dst_name = argv[11];
         dev_id = atoi(argv[12]);
+        rect_num = 1;
     }
     if (argc == 2){
         if (atoi(argv[1]) < 0){

@@ -14,23 +14,13 @@
 #include <errno.h>
 #endif
 
-#define LDC_ALIGN 64
-#define LDC_MAX_TSK_MESH (32)
-#define TILESIZE 64 // HW: data Tile Size
-#define HW_MESH_SIZE 8
-meshdata_all ldc_meshdata;
+bm_meshdata_all ldc_meshdata;
 
-typedef struct COORD2D_INT_HW {
-    u8 xcor[3]; // s13.10, 24bit
-} __attribute__((packed)) COORD2D_INT_HW;
-
-#define MESH_NUM_ATILE (TILESIZE / HW_MESH_SIZE) // how many mesh in A TILE
-
-TSK_MESH_ATTR_S tskMesh[LDC_MAX_TSK_MESH];
+bm_tsk_mesh_attr_s tsk_mesh[LDC_MAX_TSK_MESH];
 
 static inline void COMMON_GetPicBufferConfig(u32 u32Width, u32 u32Height,
                                              PIXEL_FORMAT_E enPixelFormat, DATA_BITWIDTH_E enBitWidth,
-                                             COMPRESS_MODE_E enCmpMode, u32 u32Align, BM_VB_CAL_CONFIG_S *pstCalConfig)
+                                             COMPRESS_MODE_E enCmpMode, u32 u32Align, bm_vb_cal_config_s *pstCalConfig)
 {
     u8  u8BitWidth = 0;
     u32 u32VBSize = 0;
@@ -194,14 +184,14 @@ bm_status_t bm_ldc_comm_cfg_frame(bm_handle_t handle,
                                   PIXEL_FORMAT_E enPixelFormat,
                                   VIDEO_FRAME_INFO_S *pstVideoFrame)
 {
-    BM_VB_CAL_CONFIG_S stVbCalConfig;
+    bm_vb_cal_config_s st_vb_cal_config;
     if (pstVideoFrame == NULL) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "Null pointer! \n");
         return BM_ERR_FAILURE;
     }
 
     COMMON_GetPicBufferConfig(stSize->u32Width, stSize->u32Height, enPixelFormat, DATA_BITWIDTH_8,
-                              COMPRESS_MODE_NONE, LDC_ALIGN, &stVbCalConfig);
+                              COMPRESS_MODE_NONE, LDC_ALIGN, &st_vb_cal_config);
 
     memset(pstVideoFrame, 0, sizeof(*pstVideoFrame));
     pstVideoFrame->stVFrame.enCompressMode = COMPRESS_MODE_NONE;
@@ -210,26 +200,26 @@ bm_status_t bm_ldc_comm_cfg_frame(bm_handle_t handle,
     pstVideoFrame->stVFrame.enColorGamut = COLOR_GAMUT_BT601;
     pstVideoFrame->stVFrame.u32Width = stSize->u32Width;
     pstVideoFrame->stVFrame.u32Height = stSize->u32Height;
-    pstVideoFrame->stVFrame.u32Stride[0] = stVbCalConfig.u32MainStride;
-    pstVideoFrame->stVFrame.u32Stride[1] = stVbCalConfig.u32CStride;
+    pstVideoFrame->stVFrame.u32Stride[0] = st_vb_cal_config.u32MainStride;
+    pstVideoFrame->stVFrame.u32Stride[1] = st_vb_cal_config.u32CStride;
     pstVideoFrame->stVFrame.u32TimeRef = 0;
     pstVideoFrame->stVFrame.u64PTS = 0;
     pstVideoFrame->stVFrame.enDynamicRange = DYNAMIC_RANGE_SDR8;
     pstVideoFrame->u32PoolId = 0;
-    pstVideoFrame->stVFrame.u32Length[0] = stVbCalConfig.u32MainYSize;
-    pstVideoFrame->stVFrame.u32Length[1] = stVbCalConfig.u32MainCSize;
+    pstVideoFrame->stVFrame.u32Length[0] = st_vb_cal_config.u32MainYSize;
+    pstVideoFrame->stVFrame.u32Length[1] = st_vb_cal_config.u32MainCSize;
 
     unsigned long long phy_addr = dmem.u.device.device_addr;
 
     pstVideoFrame->stVFrame.u64PhyAddr[0] = phy_addr;
     pstVideoFrame->stVFrame.u64PhyAddr[1] = pstVideoFrame->stVFrame.u64PhyAddr[0]
-        + ALIGN(stVbCalConfig.u32MainYSize, stVbCalConfig.u16AddrAlign);
+        + ALIGN(st_vb_cal_config.u32MainYSize, st_vb_cal_config.u16AddrAlign);
 
-    if (stVbCalConfig.plane_num == 3) {
-        pstVideoFrame->stVFrame.u32Stride[2] = stVbCalConfig.u32CStride;
-        pstVideoFrame->stVFrame.u32Length[2] = stVbCalConfig.u32MainCSize;
+    if (st_vb_cal_config.plane_num == 3) {
+        pstVideoFrame->stVFrame.u32Stride[2] = st_vb_cal_config.u32CStride;
+        pstVideoFrame->stVFrame.u32Length[2] = st_vb_cal_config.u32MainCSize;
         pstVideoFrame->stVFrame.u64PhyAddr[2] = pstVideoFrame->stVFrame.u64PhyAddr[1]
-            + ALIGN(stVbCalConfig.u32MainCSize, stVbCalConfig.u16AddrAlign);
+            + ALIGN(st_vb_cal_config.u32MainCSize, st_vb_cal_config.u16AddrAlign);
     }
     return BM_SUCCESS;
 }
@@ -243,9 +233,9 @@ static u8 ldc_get_valid_tsk_mesh_by_name(const char *name)
     }
 
     for (i = 0; i < LDC_MAX_TSK_MESH; i++) {
-        if (strcmp(tskMesh[i].Name, name) == 0 && tskMesh[i].paddr && tskMesh[i].vaddr) {
+        if (strcmp(tsk_mesh[i].Name, name) == 0 && tsk_mesh[i].paddr && tsk_mesh[i].vaddr) {
             // for debug
-            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "got remain tsk mesh[%d-%s-%llu]\n", i, tskMesh[i].Name, tskMesh[i].paddr);
+            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "got remain tsk mesh[%d-%s-%llu]\n", i, tsk_mesh[i].Name, tsk_mesh[i].paddr);
             break;
         }
     }
@@ -266,7 +256,7 @@ static u8 ldc_get_valid_tsk_mesh_by_name2(const char *name)
     }
 
     for (i = 0; i < LDC_MAX_TSK_MESH; i++) {
-        if (strcmp(tskMesh[i].Name, name) == 0 && tskMesh[i].paddr /*&& tskMesh[i].vaddr*/) {
+        if (strcmp(tsk_mesh[i].Name, name) == 0 && tsk_mesh[i].paddr /*&& tsk_mesh[i].vaddr*/) {
             break;
         }
     }
@@ -294,7 +284,7 @@ void mesh_gen_get_1st_size(SIZE_S in_size, u32 *mesh_1st_size)
     u32 num_tiley_s1 = dst_height_s1 / TILESIZE;
 
     // 4 = 4 knots in a mesh
-    *mesh_1st_size = sizeof(struct COORD2D_INT_HW) * MESH_NUM_ATILE * MESH_NUM_ATILE * num_tilex_s1 * num_tiley_s1 * 4;
+    *mesh_1st_size = sizeof(bm_coord2d_int_hw) * MESH_NUM_ATILE * MESH_NUM_ATILE * num_tilex_s1 * num_tiley_s1 * 4;
 }
 
 void mesh_gen_get_2nd_size(SIZE_S in_size, u32 *mesh_2nd_size)
@@ -320,7 +310,7 @@ void mesh_gen_get_2nd_size(SIZE_S in_size, u32 *mesh_2nd_size)
     u32 num_tiley_s2 = dst_height_s2 / TILESIZE;
 
     // 4 = 4 knots in a mesh
-    *mesh_2nd_size = sizeof(struct COORD2D_INT_HW) * MESH_NUM_ATILE * MESH_NUM_ATILE * num_tilex_s2 * num_tiley_s2 * 4;
+    *mesh_2nd_size = sizeof(bm_coord2d_int_hw) * MESH_NUM_ATILE * MESH_NUM_ATILE * num_tilex_s2 * num_tiley_s2 * 4;
 }
 
 void mesh_gen_get_size(SIZE_S in_size,
@@ -338,8 +328,8 @@ void mesh_gen_get_size(SIZE_S in_size,
 }
 
 static void _ldc_attr_map_cv182x(const LDC_ATTR_S *pstLDCAttr,
-                                 LDC_ATTR *cfg,
-                                 LDC_RGN_ATTR *rgn_attr,
+                                 bm_ldc_attr *cfg,
+                                 bm_ldc_rgn_attr *rgn_attr,
                                  double x0, double y0, double r, int mesh_horcnt, int mesh_vercnt)
 {
     // Global Initialization
@@ -376,7 +366,7 @@ static void _ldc_attr_map_cv182x(const LDC_ATTR_S *pstLDCAttr,
     rgn_attr[0].ThetaZ = pstLDCAttr->s32YRatio;
 }
 
-static bm_status_t _get_region_dst_mesh_list(LDC_RGN_ATTR *rgn_attr,
+static bm_status_t _get_region_dst_mesh_list(bm_ldc_rgn_attr *rgn_attr,
                                          int view_w,
                                          int view_h,
                                          int mesh_horcnt,
@@ -485,9 +475,9 @@ static bm_status_t _get_region_dst_mesh_list(LDC_RGN_ATTR *rgn_attr,
     return BM_SUCCESS;
 }
 
-static void ldc_get_region_src_mesh_list(LDC_RGN_ATTR *rgn_attr,
+static void ldc_get_region_src_mesh_list(bm_ldc_rgn_attr *rgn_attr,
                                          int rgn_idx, double x0, double y0,
-                                         meshdata_all* meshdata,
+                                         bm_meshdata_all* meshdata,
                                          const LDC_ATTR_S *pstLDCAttr)
 {
     int view_w = rgn_attr[rgn_idx].OutW;
@@ -513,7 +503,7 @@ static void ldc_get_region_src_mesh_list(LDC_RGN_ATTR *rgn_attr,
 
     double Aspect_gainX = MAX(ud_gain, lr_gain);
     double Aspect_gainY = MAX(ud_gain, lr_gain);
-    Vector2D dist2d;
+    bm_vector2D dist2d;
 
     if (pstLDCAttr->stGridInfoAttr.Enable) {
         int str_idx = *(meshdata->pmesh_dst) / meshdata->mesh_w;
@@ -583,7 +573,7 @@ static void ldc_get_region_src_mesh_list(LDC_RGN_ATTR *rgn_attr,
     }
 }
 
-static void _get_frame_mesh_list(LDC_ATTR *cfg, LDC_RGN_ATTR *rgn_attr)
+static void _get_frame_mesh_list(bm_ldc_attr *cfg, bm_ldc_rgn_attr *rgn_attr)
 {
     // pack all regions' mesh info, including src & dst.
     int rgnNum = cfg->RgnNum;
@@ -617,17 +607,17 @@ static void _get_frame_mesh_list(LDC_ATTR *cfg, LDC_RGN_ATTR *rgn_attr)
     cfg->TotalMeshNum = frameMeshIdx;
 }
 
-static COORD2D _find_knot_map2src(COORD2D_INT cur_dst_mesh,
-                                  LDC_ATTR *cfg,
+static bm_coord2d _find_knot_map2src(bm_coord2d_int cur_dst_mesh,
+                                  bm_ldc_attr *cfg,
                                   int swmesh_hit_index, int stageID)
 {
-    COORD2D knot_source;
-    MESH_STRUCT cur_dst_sw_mesh;
-    MESH_STRUCT cur_src_sw_mesh;
-    MESH_STRUCT *dstMesh = cfg->DstRgnMeshInfoExt;
-    MESH_STRUCT *srcMesh = cfg->SrcRgnMeshInfoExt;
-    MESH_STRUCT *dstMesh2ND = cfg->DstRgnMeshInfoExt2ND;
-    MESH_STRUCT *srcMesh2ND = cfg->SrcRgnMeshInfoExt2ND;
+    bm_coord2d knot_source;
+    bm_mesh_struct cur_dst_sw_mesh;
+    bm_mesh_struct cur_src_sw_mesh;
+    bm_mesh_struct *dst_mesh = cfg->DstRgnMeshInfoExt;
+    bm_mesh_struct *src_mesh = cfg->SrcRgnMeshInfoExt;
+    bm_mesh_struct *dst_mesh_2nd = cfg->DstRgnMeshInfoExt2ND;
+    bm_mesh_struct *src_mesh_2nd = cfg->SrcRgnMeshInfoExt2ND;
 
     //======================================================================
     // input current destination grid mesh
@@ -640,17 +630,17 @@ static COORD2D _find_knot_map2src(COORD2D_INT cur_dst_mesh,
     // check which triangle cur-pxl locates in,
     for (int knotidx = 0; knotidx < 4; knotidx++) {
         if (stageID == 0) {
-            cur_dst_sw_mesh.knot[knotidx].xcor = dstMesh[swmesh_hit_index].knot[knotidx].xcor;
-            cur_dst_sw_mesh.knot[knotidx].ycor = srcMesh[swmesh_hit_index].knot[knotidx].ycor;
+            cur_dst_sw_mesh.knot[knotidx].xcor = dst_mesh[swmesh_hit_index].knot[knotidx].xcor;
+            cur_dst_sw_mesh.knot[knotidx].ycor = src_mesh[swmesh_hit_index].knot[knotidx].ycor;
 
-            cur_src_sw_mesh.knot[knotidx].xcor = srcMesh[swmesh_hit_index].knot[knotidx].xcor;
-            cur_src_sw_mesh.knot[knotidx].ycor = srcMesh[swmesh_hit_index].knot[knotidx].ycor;
+            cur_src_sw_mesh.knot[knotidx].xcor = src_mesh[swmesh_hit_index].knot[knotidx].xcor;
+            cur_src_sw_mesh.knot[knotidx].ycor = src_mesh[swmesh_hit_index].knot[knotidx].ycor;
         } else {
-            cur_dst_sw_mesh.knot[knotidx].xcor = dstMesh2ND[swmesh_hit_index].knot[knotidx].xcor;
-            cur_dst_sw_mesh.knot[knotidx].ycor = dstMesh2ND[swmesh_hit_index].knot[knotidx].ycor;
+            cur_dst_sw_mesh.knot[knotidx].xcor = dst_mesh_2nd[swmesh_hit_index].knot[knotidx].xcor;
+            cur_dst_sw_mesh.knot[knotidx].ycor = dst_mesh_2nd[swmesh_hit_index].knot[knotidx].ycor;
 
-            cur_src_sw_mesh.knot[knotidx].xcor = srcMesh2ND[swmesh_hit_index].knot[knotidx].xcor;
-            cur_src_sw_mesh.knot[knotidx].ycor = dstMesh2ND[swmesh_hit_index].knot[knotidx].ycor;
+            cur_src_sw_mesh.knot[knotidx].xcor = src_mesh_2nd[swmesh_hit_index].knot[knotidx].xcor;
+            cur_src_sw_mesh.knot[knotidx].ycor = dst_mesh_2nd[swmesh_hit_index].knot[knotidx].ycor;
         }
     }
 
@@ -658,35 +648,35 @@ static COORD2D _find_knot_map2src(COORD2D_INT cur_dst_mesh,
     double x01_a = (double)cur_dst_mesh.xcor - cur_dst_sw_mesh.knot[(0 + stageID) % 4].xcor;
     double x01_b = cur_dst_sw_mesh.knot[(1 + stageID) % 4].xcor - (double)cur_dst_mesh.xcor;
 
-    COORD2D INTER_01, INTER_32;
+    bm_coord2d inter_01, inter_32;
 
-    INTER_01.xcor = cur_dst_sw_mesh.knot[(0 + stageID) % 4].xcor +
+    inter_01.xcor = cur_dst_sw_mesh.knot[(0 + stageID) % 4].xcor +
             (cur_dst_sw_mesh.knot[(1 + stageID) % 4].xcor -
             cur_dst_sw_mesh.knot[(0 + stageID) % 4].xcor) * (x01_a) / (x01_a + x01_b);
-    INTER_01.ycor = cur_dst_sw_mesh.knot[(0 + stageID) % 4].ycor +
+    inter_01.ycor = cur_dst_sw_mesh.knot[(0 + stageID) % 4].ycor +
             (cur_dst_sw_mesh.knot[(1 + stageID) % 4].ycor -
             cur_dst_sw_mesh.knot[(0 + stageID) % 4].ycor) * (x01_a) / (x01_a + x01_b);
-    INTER_32.xcor = cur_dst_sw_mesh.knot[(3 + stageID) % 4].xcor +
+    inter_32.xcor = cur_dst_sw_mesh.knot[(3 + stageID) % 4].xcor +
             (cur_dst_sw_mesh.knot[(2 + stageID) % 4].xcor -
             cur_dst_sw_mesh.knot[(3 + stageID) % 4].xcor) * (x01_a) / (x01_a + x01_b);
-    INTER_32.ycor = cur_dst_sw_mesh.knot[(3 + stageID) % 4].ycor +
+    inter_32.ycor = cur_dst_sw_mesh.knot[(3 + stageID) % 4].ycor +
             (cur_dst_sw_mesh.knot[(2 + stageID) % 4].ycor -
             cur_dst_sw_mesh.knot[(3 + stageID) % 4].ycor) * (x01_a) / (x01_a + x01_b);
 
-    double y01_a = (double)cur_dst_mesh.ycor - INTER_01.ycor;
-    double y01_b = INTER_32.ycor - (double)cur_dst_mesh.ycor;
+    double y01_a = (double)cur_dst_mesh.ycor - inter_01.ycor;
+    double y01_b = inter_32.ycor - (double)cur_dst_mesh.ycor;
 
-    COORD2D INTER_01_SRC, INTER_32_SRC;
+    bm_coord2d inter_01_src, inter_32_src;
 
-    INTER_01_SRC.xcor = cur_src_sw_mesh.knot[(0 + stageID) % 4].xcor +
+    inter_01_src.xcor = cur_src_sw_mesh.knot[(0 + stageID) % 4].xcor +
                 (cur_src_sw_mesh.knot[(1 + stageID) % 4].xcor -
                 cur_src_sw_mesh.knot[(0 + stageID) % 4].xcor) * (x01_a) / (x01_a + x01_b);
-    INTER_32_SRC.xcor = cur_src_sw_mesh.knot[(3 + stageID) % 4].xcor +
+    inter_32_src.xcor = cur_src_sw_mesh.knot[(3 + stageID) % 4].xcor +
                 (cur_src_sw_mesh.knot[(2 + stageID) % 4].xcor -
                 cur_src_sw_mesh.knot[(3 + stageID) % 4].xcor) * (x01_a) / (x01_a + x01_b);
 
     knot_source.ycor = (double)cur_dst_mesh.ycor;
-    knot_source.xcor = INTER_01_SRC.xcor + (INTER_32_SRC.xcor - INTER_01_SRC.xcor) * (y01_a) / (y01_a + y01_b);
+    knot_source.xcor = inter_01_src.xcor + (inter_32_src.xcor - inter_01_src.xcor) * (y01_a) / (y01_a + y01_b);
 
     return knot_source;
 }
@@ -718,7 +708,7 @@ static int _double2Int_s13_10(double value)
     return rtn_value;
 }
 
-static int _chk_location_to_line(COORD2D *meshcorA, COORD2D *meshcorB, int x, int y, int inc_zero)
+static int _chk_location_to_line(bm_coord2d *meshcorA, bm_coord2d *meshcorB, int x, int y, int inc_zero)
 {
     int onright = 0;
 
@@ -741,7 +731,7 @@ static int _chk_location_to_line(COORD2D *meshcorA, COORD2D *meshcorB, int x, in
     return onright;
 }
 
-static int _chk_in_mesh(int x, int y, MESH_STRUCT cur_sw_mesh)
+static int _chk_in_mesh(int x, int y, bm_mesh_struct cur_sw_mesh)
 {
     int inthismesh_hit = 0;
     int onright_01 = _chk_location_to_line(&cur_sw_mesh.knot[0], &cur_sw_mesh.knot[1], x, y, 1);
@@ -764,8 +754,8 @@ static int _chk_in_mesh(int x, int y, MESH_STRUCT cur_sw_mesh)
 }
 
 static bm_status_t _get_1st_src_midxy(int num_tilex_s1,
-                                      LDC_ATTR *cfg,
-                                      COORD2D_INT_HW *src_1st_list,
+                                      bm_ldc_attr *cfg,
+                                      bm_coord2d_int_hw *src_1st_list,
                                       int tidx, int tidy, int mesh_horcnt, int mesh_vercnt,
                                       const LDC_ATTR_S *pstLDCAttr)
 {
@@ -777,7 +767,7 @@ static bm_status_t _get_1st_src_midxy(int num_tilex_s1,
         for (int midx = 0; midx < MESH_NUM_ATILE; midx++) {
             // each grid mesh from destination
             // find the mapping coordinate onto the source.
-            COORD2D_INT cur_dst_mesh[4];
+            bm_coord2d_int cur_dst_mesh[4];
 
             memset(cur_dst_mesh, 0, sizeof(cur_dst_mesh));
 
@@ -805,9 +795,9 @@ static bm_status_t _get_1st_src_midxy(int num_tilex_s1,
                 int use_count = 0;
                 for (int knotidx = 0; knotidx < 4; knotidx++) {
                     for (uint32_t meshidx = 0; meshidx < max_mesh_num; meshidx++) {
-                        MESH_STRUCT cur_sw_mesh;
-                        MESH_STRUCT *dst = &cfg->DstRgnMeshInfoExt[meshidx];
-                        MESH_STRUCT *src = &cfg->SrcRgnMeshInfoExt[meshidx];
+                        bm_mesh_struct cur_sw_mesh;
+                        bm_mesh_struct *dst = &cfg->DstRgnMeshInfoExt[meshidx];
+                        bm_mesh_struct *src = &cfg->SrcRgnMeshInfoExt[meshidx];
 
                         // load cur_sw_mesh to check if hwmesh's knot is in it?
                         for (int swknotidx = 0; swknotidx < 4; swknotidx++) {
@@ -832,7 +822,7 @@ static bm_status_t _get_1st_src_midxy(int num_tilex_s1,
                     // assigned a swmesh index
                     // to estimate approximation.
                     // do estimation here:
-                    COORD2D map_src_knot;
+                    bm_coord2d map_src_knot;
 
                     memset(&map_src_knot, 0, sizeof(map_src_knot));
 
@@ -840,7 +830,7 @@ static bm_status_t _get_1st_src_midxy(int num_tilex_s1,
                 }
 
                 for (int knotidx = 0; knotidx < 4; knotidx++) {
-                    COORD2D map_src_knot;
+                    bm_coord2d map_src_knot;
                     int xidx = tidx * MESH_NUM_ATILE + midx;
                     int yidx = tidy * MESH_NUM_ATILE + midy;
                     uint32_t xcor;
@@ -863,9 +853,9 @@ static bm_status_t _get_1st_src_midxy(int num_tilex_s1,
                 // go through al hwmesh knots
                 for (int knotidx = 0; knotidx < 4; knotidx++) {
                     for (uint32_t meshidx = 0; meshidx < max_mesh_num; meshidx++) {
-                        MESH_STRUCT cur_sw_mesh;
-                        MESH_STRUCT *dst = &cfg->DstRgnMeshInfoExt[meshidx];
-                        MESH_STRUCT *src = &cfg->SrcRgnMeshInfoExt[meshidx];
+                        bm_mesh_struct cur_sw_mesh;
+                        bm_mesh_struct *dst = &cfg->DstRgnMeshInfoExt[meshidx];
+                        bm_mesh_struct *src = &cfg->SrcRgnMeshInfoExt[meshidx];
 
                         // load cur_sw_mesh to check if hwmesh's knot is in it?
                         for (int swknotidx = 0; swknotidx < 4; swknotidx++) {
@@ -890,7 +880,7 @@ static bm_status_t _get_1st_src_midxy(int num_tilex_s1,
                     // assigned a swmesh index
                     // to estimate approximation.
                     // do estimation here:
-                    COORD2D map_src_knot;
+                    bm_coord2d map_src_knot;
 
                     memset(&map_src_knot, 0, sizeof(map_src_knot));
 
@@ -925,8 +915,8 @@ static bm_status_t _get_1st_src_midxy(int num_tilex_s1,
 
 
 static bm_status_t _offline_get_1st_src_mesh_table(int num_tiley_s1, int num_tilex_s1,
-                                                   LDC_ATTR *cfg,
-                                                   COORD2D_INT_HW *src_1st_list,
+                                                   bm_ldc_attr *cfg,
+                                                   bm_coord2d_int_hw *src_1st_list,
                                                    int mesh_horcnt, int mesh_vercnt,
                                                    const LDC_ATTR_S *pstLDCAttr)
 {
@@ -945,9 +935,9 @@ static bm_status_t _offline_get_1st_src_mesh_table(int num_tiley_s1, int num_til
     return BM_SUCCESS;
 }
 
-static int _fill_src_2nd_list(int num_tilex_s2, LDC_ATTR *cfg,
-                                  COORD2D_INT_HW *src_2nd_list, int tidx, int tidy, int midx, int midy,
-                                  MESH_STRUCT *dstMesh, COORD2D_INT *cur_dst_mesh,
+static int _fill_src_2nd_list(int num_tilex_s2, bm_ldc_attr *cfg,
+                                  bm_coord2d_int_hw *src_2nd_list, int tidx, int tidy, int midx, int midy,
+                                  bm_mesh_struct *dst_mesh, bm_coord2d_int *cur_dst_mesh,
                                   uint32_t *swmesh_hit_index, int mesh_horcnt, int mesh_vercnt)
 {
     u32 max_mesh_num = 9 * (mesh_vercnt * mesh_horcnt);
@@ -956,16 +946,16 @@ static int _fill_src_2nd_list(int num_tilex_s2, LDC_ATTR *cfg,
     // go through all hwmesh knots
     for (int knotidx = 0; knotidx < 4; knotidx++) {
         for (u32 meshidx = 0; meshidx < max_mesh_num; meshidx++) {
-            MESH_STRUCT cur_sw_mesh;
+            bm_mesh_struct cur_sw_mesh;
 
             // load cur_sw_mesh to check if hwmesh's knot is in it?
             for (int swknotidx = 0; swknotidx < 4; swknotidx++) {
                 // 1st stage, SW destination( x, y ) = ( int ,float )
                 // 1st stage, SW source( x,y ) = ( float, float )
                 cur_sw_mesh.knot[swknotidx].xcor =
-                    dstMesh[meshidx].knot[swknotidx].xcor;
+                    dst_mesh[meshidx].knot[swknotidx].xcor;
                 cur_sw_mesh.knot[swknotidx].ycor =
-                    dstMesh[meshidx].knot[swknotidx].ycor;
+                    dst_mesh[meshidx].knot[swknotidx].ycor;
             }
 
             // check if cur-pixel in this mesh
@@ -981,10 +971,10 @@ static int _fill_src_2nd_list(int num_tilex_s2, LDC_ATTR *cfg,
         // each knot has been assigned a swmesh index to estimate approximation.
         // do estimation here:
         // int knotMissingFlag = 0;
-        COORD2D map_src_knot;
+        bm_coord2d map_src_knot;
 
         memset(&map_src_knot, 0, sizeof(map_src_knot));
-        //COORD2D_INT map_src_knot_32bit;
+        //bm_coord2d_int map_src_knot_32bit;
         if (swmesh_hit_index[knotidx] == 0xFFFFFFFF) {
             bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "!!!! 2ndSTAG----ERROR !!!\n");
             return BM_ERR_PARAM;
@@ -1009,7 +999,7 @@ static int _fill_src_2nd_list(int num_tilex_s2, LDC_ATTR *cfg,
 }
 
 static int _offline_get_2nd_src_mesh_table(int stage2_rotate_type, int num_tiley_s2, int num_tilex_s2,
-                                           LDC_ATTR *cfg, COORD2D_INT_HW *src_2nd_list, int src_width_s1, int src_height_s1,
+                                           bm_ldc_attr *cfg, bm_coord2d_int_hw *src_2nd_list, int src_width_s1, int src_height_s1,
                                            u32 mesh_2nd_size, int mesh_horcnt, int mesh_vercnt)
 {
     // stage2_rotate_type = 0:  +90 degrees
@@ -1019,8 +1009,8 @@ static int _offline_get_2nd_src_mesh_table(int stage2_rotate_type, int num_tiley
     // CVI_U32 max_mesh_num = 9 * (MAX_HEIGHT_MESH_NUM * MAX_WIDTH_MESH_NUM);
 
     int RMATRIX[2][2];
-    MESH_STRUCT *dstMesh = cfg->DstRgnMeshInfoExt2ND;
-    MESH_STRUCT *srcMesh = cfg->SrcRgnMeshInfoExt2ND;
+    bm_mesh_struct *dst_mesh = cfg->DstRgnMeshInfoExt2ND;
+    bm_mesh_struct *src_mesh = cfg->SrcRgnMeshInfoExt2ND;
 
     int ret;
 
@@ -1040,33 +1030,33 @@ static int _offline_get_2nd_src_mesh_table(int stage2_rotate_type, int num_tiley
 
     for (u32 meshidx = 0; meshidx < max_mesh_num; meshidx++) {
         for (int knotidx = 0; knotidx < 4; knotidx++) {
-            dstMesh[meshidx].knot[knotidx].xcor =
+            dst_mesh[meshidx].knot[knotidx].xcor =
                 RMATRIX[0][0] * (cfg->DstRgnMeshInfoExt[meshidx].knot[knotidx].xcor) +
                 RMATRIX[0][1] * (cfg->DstRgnMeshInfoExt[meshidx].knot[knotidx].ycor);
 
-            dstMesh[meshidx].knot[knotidx].ycor =
+            dst_mesh[meshidx].knot[knotidx].ycor =
                 RMATRIX[1][0] *	(cfg->DstRgnMeshInfoExt[meshidx].knot[knotidx].xcor) +
                 RMATRIX[1][1] * (cfg->DstRgnMeshInfoExt[meshidx].knot[knotidx].ycor);
 
-            srcMesh[meshidx].knot[knotidx].xcor =
+            src_mesh[meshidx].knot[knotidx].xcor =
                 RMATRIX[0][0] * (cfg->SrcRgnMeshInfoExt[meshidx].knot[knotidx].xcor) +
                 RMATRIX[0][1] * (cfg->SrcRgnMeshInfoExt[meshidx].knot[knotidx].ycor);
 
-            srcMesh[meshidx].knot[knotidx].ycor =
+            src_mesh[meshidx].knot[knotidx].ycor =
                 RMATRIX[1][0] * (cfg->SrcRgnMeshInfoExt[meshidx].knot[knotidx].xcor) +
                 RMATRIX[1][1] * (cfg->SrcRgnMeshInfoExt[meshidx].knot[knotidx].ycor);
 
             if (RMATRIX[0][1] == 1) {
-                dstMesh[meshidx].knot[knotidx].xcor += 0;
-                dstMesh[meshidx].knot[knotidx].ycor += (src_width_s1 - 1);
-                srcMesh[meshidx].knot[knotidx].xcor += 0;
-                srcMesh[meshidx].knot[knotidx].ycor += (src_width_s1 - 1);
+                dst_mesh[meshidx].knot[knotidx].xcor += 0;
+                dst_mesh[meshidx].knot[knotidx].ycor += (src_width_s1 - 1);
+                src_mesh[meshidx].knot[knotidx].xcor += 0;
+                src_mesh[meshidx].knot[knotidx].ycor += (src_width_s1 - 1);
             } else {
                 // +90
-                dstMesh[meshidx].knot[knotidx].xcor += (src_height_s1 - 1);
-                dstMesh[meshidx].knot[knotidx].ycor += 0;
-                srcMesh[meshidx].knot[knotidx].xcor += (src_height_s1 - 1);
-                srcMesh[meshidx].knot[knotidx].ycor += 0;
+                dst_mesh[meshidx].knot[knotidx].xcor += (src_height_s1 - 1);
+                dst_mesh[meshidx].knot[knotidx].ycor += 0;
+                src_mesh[meshidx].knot[knotidx].xcor += (src_height_s1 - 1);
+                src_mesh[meshidx].knot[knotidx].ycor += 0;
             }
         }
     }
@@ -1082,7 +1072,7 @@ static int _offline_get_2nd_src_mesh_table(int stage2_rotate_type, int num_tiley
                 for (int midx = 0; midx < MESH_NUM_ATILE; midx++) {
                     // each grid mesh from destination
                     // find the mapping coordinate onto the source.
-                    COORD2D_INT cur_dst_mesh[4];
+                    bm_coord2d_int cur_dst_mesh[4];
 
                     memset(cur_dst_mesh, 0, sizeof(cur_dst_mesh));
 
@@ -1106,7 +1096,7 @@ static int _offline_get_2nd_src_mesh_table(int stage2_rotate_type, int num_tiley
 
                     ret = _fill_src_2nd_list(num_tilex_s2, cfg, src_2nd_list,
                                              tidx, tidy, midx, midy,
-                                             dstMesh, cur_dst_mesh, swmesh_hit_index, mesh_horcnt, mesh_vercnt);
+                                             dst_mesh, cur_dst_mesh, swmesh_hit_index, mesh_horcnt, mesh_vercnt);
                     if (ret != BM_SUCCESS)
                         return ret;
                 }
@@ -1125,7 +1115,7 @@ static int _offline_get_2nd_src_mesh_table(int stage2_rotate_type, int num_tiley
 }
 
 static int _convert_1st_src_midxy(int num_tilex_s1, u32 mesh_1st_size,
-                                  COORD2D_INT_HW *src_1st_list, int tidx, int tidy, uint8_t *ptr,
+                                  bm_coord2d_int_hw *src_1st_list, int tidx, int tidy, uint8_t *ptr,
                                   uint32_t *offset_p)
 {
     uint32_t offset = *offset_p;
@@ -1187,7 +1177,7 @@ static int _convert_1st_src_midxy(int num_tilex_s1, u32 mesh_1st_size,
 }
 
 static int convert_1st_src_mesh_table(int num_tiley_s1, int num_tilex_s1,
-                                      COORD2D_INT_HW *src_1st_list, COORD2D_INT_HW *src_1st_list_1d,
+                                      bm_coord2d_int_hw *src_1st_list, bm_coord2d_int_hw *src_1st_list_1d,
                                       u32 mesh_1st_size)
 {
     // packed data in dram for HW
@@ -1226,7 +1216,7 @@ static int convert_1st_src_mesh_table(int num_tiley_s1, int num_tilex_s1,
     return BM_SUCCESS;
 }
 
-static void _convert_2nd_src_midxy(int num_tilex_s2, COORD2D_INT_HW *src_2nd_list,
+static void _convert_2nd_src_midxy(int num_tilex_s2, bm_coord2d_int_hw *src_2nd_list,
                                    int tidx, int tidy, uint8_t *ptr, uint32_t *offset_ptr)
 {
     uint32_t offset = *offset_ptr;
@@ -1273,8 +1263,8 @@ static void _convert_2nd_src_midxy(int num_tilex_s2, COORD2D_INT_HW *src_2nd_lis
 }
 
 static void convert_2nd_src_mesh_table(int num_tiley_s2, int num_tilex_s2,
-                                      COORD2D_INT_HW *src_2nd_list,
-                                      COORD2D_INT_HW *src_2nd_list_1d,
+                                      bm_coord2d_int_hw *src_2nd_list,
+                                      bm_coord2d_int_hw *src_2nd_list_1d,
                                       u32 mesh_2nd_size)
 {
     // packed data in dram for HW
@@ -1309,7 +1299,7 @@ static void convert_2nd_src_mesh_table(int num_tiley_s2, int num_tilex_s2,
 #endif
 }
 
-int load_meshdata(char *grid, MESH_DATA_ALL_S *pmeshdata, const char *bindName)
+int load_meshdata(char *grid, bm_mesh_data_all_s *pmeshdata, const char *bindName)
 {
     int info[100] = {0};
 
@@ -1372,11 +1362,11 @@ bm_status_t mesh_gen_ldc(SIZE_S in_size,
                          char *grid)
 {
     bm_status_t ret = BM_SUCCESS;
-    _reg_ldc reg;
-    COORD2D_INT_HW *src_1st_list_1d = NULL, *src_2nd_list_1d = NULL;
-    COORD2D_INT_HW *src_1st_list = NULL, *src_2nd_list = NULL;
-    LDC_ATTR *cfg = NULL;
-    LDC_RGN_ATTR *rgn_attr = NULL;
+    bm_reg_ldc reg;
+    bm_coord2d_int_hw *src_1st_list_1d = NULL, *src_2nd_list_1d = NULL;
+    bm_coord2d_int_hw *src_1st_list = NULL, *src_2nd_list = NULL;
+    bm_ldc_attr *cfg = NULL;
+    bm_ldc_rgn_attr *rgn_attr = NULL;
 
     (void)mesh_phy_addr;
     (void)rot;
@@ -1384,15 +1374,15 @@ bm_status_t mesh_gen_ldc(SIZE_S in_size,
     u32 mesh_1st_size = 0, mesh_2nd_size = 0;
 
     mesh_gen_get_size(in_size, out_size, &mesh_1st_size, &mesh_2nd_size);
-    src_1st_list_1d = (COORD2D_INT_HW *)mesh_vir_addr;
-    src_2nd_list_1d = (COORD2D_INT_HW *)(mesh_vir_addr + mesh_1st_size);
+    src_1st_list_1d = (bm_coord2d_int_hw *)mesh_vir_addr;
+    src_2nd_list_1d = (bm_coord2d_int_hw *)(mesh_vir_addr + mesh_1st_size);
 
     bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "1st src_1st_list=%p(%d), src_2nd_list=%p(%d)\n",src_1st_list_1d, mesh_1st_size, src_2nd_list_1d, mesh_2nd_size);
 
-    src_1st_list = (COORD2D_INT_HW *)malloc(mesh_1st_size);
-    src_2nd_list = (COORD2D_INT_HW *)malloc(mesh_2nd_size);
-    cfg = (LDC_ATTR *)calloc(1, sizeof(*cfg));
-    rgn_attr = (LDC_RGN_ATTR *)calloc(1, sizeof(*rgn_attr) * MAX_REGION_NUM);
+    src_1st_list = (bm_coord2d_int_hw *)malloc(mesh_1st_size);
+    src_2nd_list = (bm_coord2d_int_hw *)malloc(mesh_2nd_size);
+    cfg = (bm_ldc_attr *)calloc(1, sizeof(*cfg));
+    rgn_attr = (bm_ldc_rgn_attr *)calloc(1, sizeof(*rgn_attr) * MAX_REGION_NUM);
     if (!src_1st_list || !src_2nd_list || !cfg || !rgn_attr) {
         free(src_1st_list);
         free(src_2nd_list);
@@ -1461,7 +1451,7 @@ bm_status_t mesh_gen_ldc(SIZE_S in_size,
     y0 = ori_src_height / 2;
     r = MIN(x0, y0);
 
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "cfg size %d\n", (int)sizeof(LDC_ATTR));
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "cfg size %d\n", (int)sizeof(bm_ldc_attr));
 
     // update parameters
     _ldc_attr_map_cv182x(pstLDCAttr, cfg, rgn_attr, x0, y0, r, mesh_horcnt, mesh_vercnt);
@@ -1547,7 +1537,7 @@ static u8 ldc_get_idle_tsk_mesh(void)
     u8 i = LDC_MAX_TSK_MESH;
 
     for (i = 0; i < LDC_MAX_TSK_MESH; i++) {
-        if (strcmp(tskMesh[i].Name, "") == 0 && !tskMesh[i].paddr && !tskMesh[i].vaddr)
+        if (strcmp(tsk_mesh[i].Name, "") == 0 && !tsk_mesh[i].paddr && !tsk_mesh[i].vaddr)
             break;
     }
     return i;
@@ -1637,19 +1627,19 @@ dump_fail:
             return BM_ERR_FAILURE;
         }
 
-        strcpy(tskMesh[idx].Name, name);
-        tskMesh[idx].paddr = (uint64_t)dmem.u.device.device_addr;
-        tskMesh[idx].vaddr = (void*)buffer;
+        strcpy(tsk_mesh[idx].Name, name);
+        tsk_mesh[idx].paddr = (uint64_t)dmem.u.device.device_addr;
+        tsk_mesh[idx].vaddr = NULL;
 
         // for debug
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "idx in bm_ldc_gen_gdc_mesh for loop = %d\n", idx);
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "tskMesh[%d].Name in bm_ldc_gen_gdc_mesh for loop = %s\n", idx, tskMesh[idx].Name);
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "tskMesh[%d].paddr in bm_ldc_gen_gdc_mesh for loop = %#"PRIx64"\n", idx, (uint64_t)tskMesh[idx].paddr);
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "tskMesh[%d].vaddr in bm_ldc_gen_gdc_mesh for loop = %p\n", idx, tskMesh[idx].vaddr);
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "tsk_mesh[%d].Name in bm_ldc_gen_gdc_mesh for loop = %s\n", idx, tsk_mesh[idx].Name);
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "tsk_mesh[%d].paddr in bm_ldc_gen_gdc_mesh for loop = %#"PRIx64"\n", idx, (uint64_t)tsk_mesh[idx].paddr);
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "tsk_mesh[%d].vaddr in bm_ldc_gen_gdc_mesh for loop = %p\n", idx, tsk_mesh[idx].vaddr);
 
     }
     *pu64PhyAddr = (uint64_t)dmem.u.device.device_addr;
-    *ppVirAddr = tskMesh[idx].vaddr;
+    *ppVirAddr = tsk_mesh[idx].vaddr;
     // for debug
     bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "In bm_ldc_gen_gdc_mesh, pu64PhyAddr = %#"PRIx64", ppVirAddr = %p.\n", *pu64PhyAddr, *ppVirAddr);
     bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "tsk mesh(%#"PRIx64")\n", *pu64PhyAddr);
@@ -1712,19 +1702,19 @@ bm_status_t bm_ldc_save_gdc_mesh(bm_handle_t handle,
             return BM_ERR_FAILURE;
         }
 
-        strcpy(tskMesh[idx].Name, name);
-        tskMesh[idx].paddr = (uint64_t)(*dmem).u.device.device_addr;
-        tskMesh[idx].vaddr = (void*)buffer;
+        strcpy(tsk_mesh[idx].Name, name);
+        tsk_mesh[idx].paddr = (uint64_t)(*dmem).u.device.device_addr;
+        tsk_mesh[idx].vaddr = NULL;
 
         // for debug
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "idx in bm_ldc_save_gdc_mesh = %d\n", idx);
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "tskMesh[%d].Name in bm_ldc_save_gdc_mesh for = %s\n", idx, tskMesh[idx].Name);
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "tskMesh[%d].paddr in bm_ldc_save_gdc_mesh for = %#"PRIx64"\n", idx, (uint64_t)tskMesh[idx].paddr);
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "tskMesh[%d].vaddr in bm_ldc_save_gdc_mesh for = %p\n", idx, tskMesh[idx].vaddr);
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "tsk_mesh[%d].Name in bm_ldc_save_gdc_mesh for = %s\n", idx, tsk_mesh[idx].Name);
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "tsk_mesh[%d].paddr in bm_ldc_save_gdc_mesh for = %#"PRIx64"\n", idx, (uint64_t)tsk_mesh[idx].paddr);
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "tsk_mesh[%d].vaddr in bm_ldc_save_gdc_mesh for = %p\n", idx, tsk_mesh[idx].vaddr);
 
     }
     *pu64PhyAddr = (uint64_t)(*dmem).u.device.device_addr;
-    *ppVirAddr = tskMesh[idx].vaddr;
+    *ppVirAddr = tsk_mesh[idx].vaddr;
     // for debug
     bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "In bm_ldc_save_gdc_mesh, pu64PhyAddr = %#"PRIx64", ppVirAddr = %p.\n", *pu64PhyAddr, *ppVirAddr);
     bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "tsk mesh(%#"PRIx64")\n", *pu64PhyAddr);
@@ -1760,18 +1750,18 @@ bm_status_t bm_ldc_load_gdc_mesh(bm_handle_t handle,
             bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "tsk mesh count(%d) is out of range(%d)\n", idx + 1, LDC_MAX_TSK_MESH);
             return BM_ERR_FAILURE;
         }
-        strcpy(tskMesh[idx].Name, tskName);
-        tskMesh[idx].paddr = (uint64_t)(*dmem).u.device.device_addr;
-        tskMesh[idx].vaddr = (void*)vaddr;
+        strcpy(tsk_mesh[idx].Name, tskName);
+        tsk_mesh[idx].paddr = (uint64_t)(*dmem).u.device.device_addr;
+        tsk_mesh[idx].vaddr = (void*)vaddr;
 
         // for debug
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "idx in bm_ldc_load_gdc_mesh for = %d\n", idx);
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "tskMesh[%d].Name in bm_ldc_load_gdc_mesh for = %s\n", idx, tskMesh[idx].Name);
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "tskMesh[%d].paddr in bm_ldc_load_gdc_mesh for = %#"PRIx64"\n", idx, (uint64_t)tskMesh[idx].paddr);
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "tskMesh[%d].paddr in bm_ldc_load_gdc_mesh for = %p\n", idx, tskMesh[idx].vaddr);
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "tsk_mesh[%d].Name in bm_ldc_load_gdc_mesh for = %s\n", idx, tsk_mesh[idx].Name);
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "tsk_mesh[%d].paddr in bm_ldc_load_gdc_mesh for = %#"PRIx64"\n", idx, (uint64_t)tsk_mesh[idx].paddr);
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "tsk_mesh[%d].paddr in bm_ldc_load_gdc_mesh for = %p\n", idx, tsk_mesh[idx].vaddr);
     }
     *pu64PhyAddr = (uint64_t)(*dmem).u.device.device_addr;
-    *ppVirAddr = tskMesh[idx].vaddr;
+    *ppVirAddr = tsk_mesh[idx].vaddr;
     bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "In bm_ldc_load_gdc_mesh, pu64PhyAddr = %#"PRIx64", ppVirAddr = %p.\n", *pu64PhyAddr, *ppVirAddr);
 
     return BM_SUCCESS;
@@ -1927,15 +1917,15 @@ static bm_status_t ldc_free_cur_tsk_mesh(char* meshName)
     i = ldc_get_valid_tsk_mesh_by_name2(meshName);
     // for debug
     bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "i in ldc_free_cur_tsk_mesh = %d\n", i);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "tskMesh[%d].paddr = %#"PRIx64"\n", i, (uint64_t)tskMesh[i].paddr);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "tskMesh[%d].vaddr = %p\n", i, tskMesh[i].vaddr);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "tsk_mesh[%d].paddr = %#"PRIx64"\n", i, (uint64_t)tsk_mesh[i].paddr);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "tsk_mesh[%d].vaddr = %p\n", i, tsk_mesh[i].vaddr);
 
-    if (i < LDC_MAX_TSK_MESH && tskMesh[i].paddr /*&& tskMesh[i].vaddr*/)
+    if (i < LDC_MAX_TSK_MESH && tsk_mesh[i].paddr /*&& tsk_mesh[i].vaddr*/)
     {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "start free tsk mesh[%s]\n", meshName);
-        tskMesh[i].paddr = 0;
-        tskMesh[i].vaddr = 0;
-        memset(tskMesh[i].Name, 0, sizeof(tskMesh[i].Name));
+        tsk_mesh[i].paddr = 0;
+        tsk_mesh[i].vaddr = 0;
+        memset(tsk_mesh[i].Name, 0, sizeof(tsk_mesh[i].Name));
     }
     return ret;
 }
@@ -1950,14 +1940,14 @@ bm_status_t bm_ldc_free_all_tsk_mesh(void)
     bm_status_t ret = BM_SUCCESS;
     for (u8 i = 0; i < LDC_MAX_TSK_MESH; i++)
     {
-        if (tskMesh[i].paddr && tskMesh[i].vaddr)
+        if (tsk_mesh[i].paddr && tsk_mesh[i].vaddr)
         {
-            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "start free tsk mesh[%s]\n", tskMesh[i].Name);
-            tskMesh[i].paddr = 0;
-            tskMesh[i].vaddr = 0;
-            memset(tskMesh[i].Name, 0, sizeof(tskMesh[i].Name));
+            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "start free tsk mesh[%s]\n", tsk_mesh[i].Name);
+            tsk_mesh[i].paddr = 0;
+            tsk_mesh[i].vaddr = 0;
+            memset(tsk_mesh[i].Name, 0, sizeof(tsk_mesh[i].Name));
         } else {
-            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "Failed to free %d-th tsk mesh[%s]\n", i, tskMesh[i].Name);
+            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "Failed to free %d-th tsk mesh[%s]\n", i, tsk_mesh[i].Name);
             ret = BM_ERR_PARAM;
         }
     }
@@ -1967,7 +1957,7 @@ bm_status_t bm_ldc_free_all_tsk_mesh(void)
 bm_status_t bm_ldc_send_frame(int fd,
                               bm_image *input_img,
                               bm_image *output_img,
-                              BM_LDC_BASIC_PARAM *param)
+                              bm_ldc_basic_param *param)
 {
     bm_status_t ret = BM_SUCCESS;
     PIXEL_FORMAT_E pixel_format = 0;
@@ -1985,7 +1975,7 @@ bm_status_t bm_ldc_send_frame(int fd,
     return ret;
 }
 
-bm_status_t bm_ldc_get_frame(int fd, bm_image *output_img, BM_LDC_BASIC_PARAM *param)
+bm_status_t bm_ldc_get_frame(int fd, bm_image *output_img, bm_ldc_basic_param *param)
 {
     bm_status_t ret = BM_SUCCESS;
     PIXEL_FORMAT_E pixel_format = 0;
@@ -2060,7 +2050,7 @@ bm_status_t bm_ldc_begin_job(int fd, GDC_HANDLE *phHandle)
     return BM_SUCCESS;
 }
 
-bm_status_t bm_ldc_set_job_identity(int fd, GDC_HANDLE hHandle, BM_LDC_IDENTITY_ATTR_S *identity_attr)
+bm_status_t bm_ldc_set_job_identity(int fd, GDC_HANDLE hHandle, GDC_IDENTITY_ATTR_S *identity_attr)
 {
     bm_status_t ret = BM_SUCCESS;
     struct gdc_identity_attr cfg = {0};
@@ -2075,7 +2065,7 @@ bm_status_t bm_ldc_set_job_identity(int fd, GDC_HANDLE hHandle, BM_LDC_IDENTITY_
     return BM_SUCCESS;
 }
 
-bm_status_t bm_ldc_add_rotation_task(int fd, GDC_HANDLE hHandle, BM_LDC_TASK_ATTR_S *pstTask, ROTATION_E enRotation)
+bm_status_t bm_ldc_add_rotation_task(int fd, GDC_HANDLE hHandle, GDC_TASK_ATTR_S *pstTask, ROTATION_E enRotation)
 {
     bm_status_t ret;
     /* TODO:Add MOD_CHECK_NULL_PTR and CHECK_LDC_FORMAT */
@@ -2109,7 +2099,7 @@ bm_status_t bm_ldc_add_rotation_task(int fd, GDC_HANDLE hHandle, BM_LDC_TASK_ATT
 bm_status_t bm_ldc_add_gdc_task(bm_handle_t handle,
                                 int fd,
                                 GDC_HANDLE hHandle,
-                                BM_LDC_TASK_ATTR_S *pstTask,
+                                GDC_TASK_ATTR_S *pstTask,
                                 const LDC_ATTR_S *pstLDCAttr,
                                 bmcv_rot_mode enRotation,
                                 bm_device_mem_t dmem)
@@ -2194,14 +2184,14 @@ bm_status_t bm_ldc_add_gdc_task(bm_handle_t handle,
     return ret;
 }
 
-static bm_status_t bm_ldc_basic_add_tsk(bm_handle_t handle, int fd, BM_LDC_BASIC_PARAM *param, void *ptr, bm_device_mem_t mid_dmem)
+static bm_status_t bm_ldc_basic_add_tsk(bm_handle_t handle, int fd, bm_ldc_basic_param *param, void *ptr, bm_device_mem_t mid_dmem)
 {
     ROTATION_E enRotation;
     uint64_t u64PhyAddr;
     void *pVirAddr;
     bm_device_mem_t *a2dem;
-    BM_GEN_MESH_PARAM *gen_mesh_param;
-    BM_GDC_ATTR_AND_GRID_INFO *gdc_attr_and_grid;
+    bm_gen_mesh_param *gen_mesh_param;
+    bm_gdc_attr_and_grid_info *gdc_attr_and_grid;
 
     bm_status_t ret = BM_SUCCESS;
     if (!param) {
@@ -2219,7 +2209,7 @@ static bm_status_t bm_ldc_basic_add_tsk(bm_handle_t handle, int fd, BM_LDC_BASIC
             }
             break;
         case BM_LDC_GDC:
-            gdc_attr_and_grid = (BM_GDC_ATTR_AND_GRID_INFO *)ptr;
+            gdc_attr_and_grid = (bm_gdc_attr_and_grid_info *)ptr;
             ret = bm_ldc_gen_gdc_mesh(handle, param->size_in.u32Width, param->size_in.u32Height,
                                       &(gdc_attr_and_grid->ldc_attr), param->stTask.name, &u64PhyAddr, &pVirAddr, gdc_attr_and_grid->grid);
             if (ret != BM_SUCCESS) {
@@ -2234,7 +2224,7 @@ static bm_status_t bm_ldc_basic_add_tsk(bm_handle_t handle, int fd, BM_LDC_BASIC
             }
             break;
         case BM_LDC_GDC_GEN_MESH:
-            gen_mesh_param = (BM_GEN_MESH_PARAM *)ptr;
+            gen_mesh_param = (bm_gen_mesh_param *)ptr;
             ret = bm_ldc_save_gdc_mesh(handle, param->size_in.u32Width, param->size_in.u32Height,
                                       &(gen_mesh_param->ldc_attr), &(gen_mesh_param->dmem), param->stTask.name, &u64PhyAddr, &pVirAddr);
             if (ret != BM_SUCCESS) {
@@ -2270,7 +2260,7 @@ static bm_status_t bm_ldc_basic_add_tsk(bm_handle_t handle, int fd, BM_LDC_BASIC
 bm_status_t bm_ldc_basic(bm_handle_t handle,
                          bm_image in_image,
                          bm_image out_image,
-                         BM_LDC_BASIC_PARAM *param,
+                         bm_ldc_basic_param *param,
                          void *ptr)
 {
     bm_status_t ret = BM_SUCCESS;
@@ -2431,7 +2421,7 @@ bm_status_t bm_ldc_rot_internal(bm_handle_t          handle,
                                 bmcv_rot_mode        rot_mode)
 {
     bm_status_t ret = BM_SUCCESS;
-    BM_LDC_BASIC_PARAM param = {0};
+    bm_ldc_basic_param param = {0};
     ROTATION_E rotation_mode = (ROTATION_E)rot_mode;
     if((rotation_mode != ROTATION_0) && (rotation_mode != ROTATION_90) && (rotation_mode != ROTATION_270)) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "ERROR! LDC output mode not supported!\n");
@@ -2471,7 +2461,7 @@ bm_status_t bm_ldc_gdc_internal(bm_handle_t          handle,
 {
     bm_status_t ret = BM_SUCCESS;
     LDC_ATTR_S ldc_param = {0};
-    BM_LDC_BASIC_PARAM param = {0};
+    bm_ldc_basic_param param = {0};
     memset(&param, 0, sizeof(param));
     memset(&ldc_param, 0, sizeof(ldc_param));
 
@@ -2486,7 +2476,7 @@ bm_status_t bm_ldc_gdc_internal(bm_handle_t          handle,
     param.identity.u32ID = 0;
     param.identity.syncIo = true;
 
-    BM_GDC_ATTR_AND_GRID_INFO gdc_with_grid;
+    bm_gdc_attr_and_grid_info gdc_with_grid;
     memset(&gdc_with_grid, 0, sizeof(gdc_with_grid));
 
     if (ldc_attr.grid_info.size == 0) {
@@ -2527,7 +2517,7 @@ bm_status_t bm_ldc_gdc_gen_mesh_internal(bm_handle_t          handle,
                                          bm_device_mem_t      dmem)
 {
     bm_status_t ret = BM_SUCCESS;
-    BM_LDC_BASIC_PARAM param = {0};
+    bm_ldc_basic_param param = {0};
 
     param.size_in.u32Width   = in_image.width;
     param.size_in.u32Height  = in_image.height;
@@ -2542,7 +2532,7 @@ bm_status_t bm_ldc_gdc_gen_mesh_internal(bm_handle_t          handle,
 
     param.op = BM_LDC_GDC_GEN_MESH;
 
-    BM_GEN_MESH_PARAM gen_param;
+    bm_gen_mesh_param gen_param;
 
     gen_param.ldc_attr.bAspect = ldc_attr.bAspect;
     gen_param.ldc_attr.s32CenterXOffset = ldc_attr.s32CenterXOffset;
@@ -2576,7 +2566,7 @@ bm_status_t bm_ldc_gdc_load_mesh_internal(bm_handle_t          handle,
                                           bm_device_mem_t      dmem)
 {
     bm_status_t ret = BM_SUCCESS;
-    BM_LDC_BASIC_PARAM param = {0};
+    bm_ldc_basic_param param = {0};
 
     param.size_in.u32Width   = in_image.width;
     param.size_in.u32Height  = in_image.height;

@@ -27,7 +27,7 @@ bm_status_t bmcv_cmulp(bm_handle_t handle, bm_device_mem_t inputReal, bm_device_
     }
 
     switch(chipid) {
-        case BM1686:
+        case BM1688:
             ret = bm_tpu_kernel_launch(handle, "cv_cmulp", (u8*)&api, sizeof(api), core_id);
             if(ret != BM_SUCCESS){
                 bmlib_log("CMULP", BMLIB_LOG_ERROR, "cv_cmulp sync api error\n");

@@ -743,6 +743,21 @@ static int inline check_blend_param(bm_handle_t handle, int input_num, bm_image*
 {
   int wgtWidth = 0, wgtHeight = 0, wgt_len = 0, frame_idx = 0;
   int s32Ret = BLEND_SUCCESS;
+  bm_device_mem_t device_mem[4];
+  u64 device_addr = 0;
+  int i = 0, plane_num = 0;
+
+  if(NULL == input)
+  {
+    BMCV_ERR_LOG("bmcv_blending, input is NULL\n");
+    return BLEND_ERR_FAILURE;
+  }
+
+  if(NULL == input[0].image_private)
+  {
+    BMCV_ERR_LOG("bmcv_blending, input[0].image_private is NULL\n");
+    return BLEND_ERR_FAILURE;
+  }
 
   if ((input_num != FOUR_WAY_BLENDING) && (input_num != TWO_WAY_BLENDING))
   {
@@ -796,72 +811,60 @@ static int inline check_blend_param(bm_handle_t handle, int input_num, bm_image*
     {
       return s32Ret;
     }
-    if((stitch_config.bd_attr.bd_lx[frame_idx] != 0) || (stitch_config.bd_attr.bd_rx[frame_idx] != 0)) {
-      BMCV_ERR_LOG("bmcv blend,(%d) bd_attr,bd lx %d,bd rx % invalid\n",
-      frame_idx,stitch_config.bd_attr.bd_lx[frame_idx], stitch_config.bd_attr.bd_rx[frame_idx]);
-      return BLEND_INCORRECT_BD_LX_RX;
+
+    if ((input[frame_idx].width < MIN_WIDTH) || (input[frame_idx].width > MAX_WIDTH))
+    {
+      BMCV_ERR_LOG("bmcv_blending,id %d, width %d should be 64~4608\n", frame_idx,input[frame_idx].width);
+      s32Ret= BLEND_INCORRECT_WIDTH_OR_HEIGHT;
+      return s32Ret;
     }
 
+    if ((input[frame_idx].height < MIN_WIDTH) || (input[frame_idx].height > MAX_HEIGHT))
+    {
+      BMCV_ERR_LOG("bmcv_blending,id %d, height %d  should be 64~8192\n", frame_idx,input[frame_idx].height);
+      s32Ret= BLEND_INCORRECT_WIDTH_OR_HEIGHT;
+      return s32Ret;
+    }
 
-   if ((input[frame_idx].width < MIN_WIDTH) || (input[frame_idx].width > MAX_WIDTH))
-   {
-     BMCV_ERR_LOG("bmcv_blending,id %d, width %d should be 64~4608\n", frame_idx,input[frame_idx].width);
-     s32Ret= BLEND_INCORRECT_WIDTH_OR_HEIGHT;
-     return s32Ret;
-   }
+    plane_num = bm_image_get_plane_num(input[frame_idx]);
+    if(plane_num == 0 || bm_image_get_device_mem(input[frame_idx], device_mem) != BM_SUCCESS)
+    {
+      BMCV_ERR_LOG("not correctly create input[%d] bm_image, get plane num or device mem err %s: %s: %d\n",
+      frame_idx, filename(__FILE__), __func__, __LINE__);
+      return BLEND_ERR_FAILURE;
+    }
 
-   if ((input[frame_idx].height < MIN_WIDTH) || (input[frame_idx].height > MAX_HEIGHT))
-   {
-     BMCV_ERR_LOG("bmcv_blending,id %d, height %d  should be 64~8192\n", frame_idx,input[frame_idx].height);
-     s32Ret= BLEND_INCORRECT_WIDTH_OR_HEIGHT;
-     return s32Ret;
-   }
-
+    for (i = 0; i < plane_num; i++)
+    {
+      device_addr = device_mem[i].u.device.device_addr;
+      if((device_addr > 0x4ffffffff) || (device_addr < 0x100000000))
+      {
+        BMCV_ERR_LOG("input[%d] device memory should between 0x100000000 and 0x4ffffffff %u, %s: %s: %d\n",
+        frame_idx, device_addr, filename(__FILE__), __func__, __LINE__);
+        return BLEND_ERR_FAILURE;
+      }
+    }
   }
-#if 0
-      int plane_num = bm_image_get_plane_num(input[frame_idx]);
-      if(plane_num == 0 || bm_image_get_device_mem(input[frame_idx], device_mem) != BM_SUCCESS)
-      {
-        BMCV_ERR_LOG("not correctly create input[%d] bm_image, get plane num or device mem err %s: %s: %d\n",
-        frame_idx, filename(__FILE__), __func__, __LINE__);
-        return BLEND_ERR_FAILURE;
-      }
 
-      u64 device_addr = 0;
-      int i = 0;
+  plane_num = bm_image_get_plane_num(output);
+  if(plane_num == 0 || bm_image_get_device_mem(output, device_mem) != BM_SUCCESS)
+  {
+    BMCV_ERR_LOG(
+    "not correctly create output[%d] bm_image, get plane num or device mem err %s: %s: %d\n",
+    frame_idx, filename(__FILE__), __func__, __LINE__);
+    return BLEND_ERR_FAILURE;
+  }
 
-      for (i = 0; i < plane_num; i++)
-      {
-        device_addr = device_mem[i].u.device.device_addr;
-        if((device_addr > 0x4ffffffff) || (device_addr < 0x100000000))
-        {
-          BMCV_ERR_LOG("input[%d] device memory should between 0x100000000 and 0x4ffffffff %u, %s: %s: %d\n",
-          frame_idx, device_addr, filename(__FILE__), __func__, __LINE__);
-          return BLEND_ERR_FAILURE;
-        }
-      }
-
-      plane_num = bm_image_get_plane_num(output);
-      if(plane_num == 0 || bm_image_get_device_mem(output[frame_idx], device_mem) != BM_SUCCESS)
-      {
-        BMCV_ERR_LOG(
-        "not correctly create output[%d] bm_image, get plane num or device mem err %s: %s: %d\n",
-        frame_idx, filename(__FILE__), __func__, __LINE__);
-        return BLEND_ERR_FAILURE;
-      }
-
-      for (i = 0; i < plane_num; i++)
-      {
-        device_addr = device_mem[i].u.device.device_addr;
-        if((device_addr > 0x4ffffffff) || (device_addr < 0x100000000))
-        {
-          BMCV_ERR_LOG( "output[%d] device memory should between 0x100000000 and 0x4ffffffff %u, %s: %s: %d\n",
-          frame_idx, device_addr, filename(__FILE__), __func__, __LINE__);
-          return BLEND_ERR_FAILURE;
-        }
-      }
-#endif
-
+  for (i = 0; i < plane_num; i++)
+  {
+    device_addr = device_mem[i].u.device.device_addr;
+    if((device_addr > 0x4ffffffff) || (device_addr < 0x100000000))
+    {
+      BMCV_ERR_LOG( "output[%d] device memory should between 0x100000000 and 0x4ffffffff %u, %s: %s: %d\n",
+      frame_idx, device_addr, filename(__FILE__), __func__, __LINE__);
+      return BLEND_ERR_FAILURE;
+    }
+  }
 
   if (stitch_config.wgt_mode < BM_STITCH_WGT_YUV_SHARE || stitch_config.wgt_mode >= BM_STITCH_WGT_SEP) {
     BMCV_ERR_LOG("bmcv blend wgt_mode(%d) invalid\n", stitch_config.wgt_mode);
@@ -898,6 +901,7 @@ static int inline check_blend_param(bm_handle_t handle, int input_num, bm_image*
     }
   }
 
+#if 0
   if(input_num == TWO_WAY_BLENDING)
   {
     if (input[1].width + stitch_config.ovlap_attr.ovlp_lx[0] != output.width)
@@ -933,6 +937,7 @@ static int inline check_blend_param(bm_handle_t handle, int input_num, bm_image*
       return BLEND_INCORRECT_WIDTH_MATCH;
     }
   }
+#endif
 
   s32Ret= check_input_output_fmt(input[0].image_format,output.image_format);
   if(BLEND_SUCCESS != s32Ret)
@@ -1058,6 +1063,10 @@ exit2:
 exit1:
   return s32Ret;
 }
+/*
+o_width = input[0].width + input[1].width - 1 - stitch_config.ovlap_attr.ovlp_rx[0] + stitch_config.ovlap_attr.ovlp_lx[0]-
+  - stitch_config.bd_attr.bd_lx[0] - stitch_config.bd_attr.bd_rx[0] - stitch_config.bd_attr.bd_lx[1] - stitch_config.bd_attr.bd_rx[1];
+  */
 
 int bmcv_three_way_blending(bm_handle_t handle, int input_num, bm_image* input,bm_image output,struct stitch_param stitch_config)
 {
@@ -1072,7 +1081,20 @@ int bmcv_three_way_blending(bm_handle_t handle, int input_num, bm_image* input,b
     return BLEND_ERR_FAILURE;
   }
 
-  o_width = input[0].width + input[1].width - 1 - stitch_config.ovlap_attr.ovlp_rx[0] + stitch_config.ovlap_attr.ovlp_lx[0];
+  if(NULL == input)
+  {
+    BMCV_ERR_LOG("bmcv_blending, input is NULL\n");
+    return BLEND_ERR_FAILURE;
+  }
+
+  if((NULL == input[0].image_private) || (NULL == output.image_private))
+  {
+    BMCV_ERR_LOG("bmcv_blending, input[0].image_private or output.image_private is NULL\n");
+    return BLEND_ERR_FAILURE;
+  }
+
+  o_width = input[0].width + input[1].width - 1 - stitch_config.ovlap_attr.ovlp_rx[0] + stitch_config.ovlap_attr.ovlp_lx[0]-\
+    - stitch_config.bd_attr.bd_lx[0] - stitch_config.bd_attr.bd_rx[0] - stitch_config.bd_attr.bd_lx[1] - stitch_config.bd_attr.bd_rx[1];
 
   bm_image_create(handle, input[0].height, o_width, input[0].image_format, DATA_TYPE_EXT_1N_BYTE, &out_temp,NULL);
   bm_image_alloc_dev_mem(out_temp, BMCV_HEAP_ANY);
@@ -1088,8 +1110,12 @@ int bmcv_three_way_blending(bm_handle_t handle, int input_num, bm_image* input,b
   input_temp[1] = input[2];
   stitch_config_temp.ovlap_attr.ovlp_lx[0] = stitch_config.ovlap_attr.ovlp_lx[1];
   stitch_config_temp.ovlap_attr.ovlp_rx[0] = stitch_config.ovlap_attr.ovlp_rx[1];
-  stitch_config_temp.bd_attr.bd_lx[0] = stitch_config_temp.bd_attr.bd_rx[0] = 0;
-  stitch_config_temp.bd_attr.bd_lx[1] = stitch_config_temp.bd_attr.bd_rx[1] = 0;
+
+  stitch_config_temp.bd_attr.bd_lx[0] = 0;
+  stitch_config_temp.bd_attr.bd_rx[0] = 0;
+  stitch_config_temp.bd_attr.bd_lx[1] = stitch_config.bd_attr.bd_lx[2];
+  stitch_config_temp.bd_attr.bd_rx[1] = stitch_config.bd_attr.bd_rx[2];
+
   stitch_config_temp.wgt_phy_mem[0][0] = stitch_config.wgt_phy_mem[1][0];
   stitch_config_temp.wgt_phy_mem[0][1] = stitch_config.wgt_phy_mem[1][1];
   stitch_config_temp.wgt_mode = stitch_config.wgt_mode;

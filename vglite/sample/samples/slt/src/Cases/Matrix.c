@@ -404,7 +404,7 @@ vg_lite_error_t Matrix_Operation(int32_t pathdata[],int32_t length,function_t fu
         vg_lite_clear_grad(&grad);
         break;
     case pattern:
-        CHECK_ERROR(vg_lite_draw_pattern(&dst_buf, &path, VG_LITE_FILL_EVEN_ODD, &matrix, &src_buf, matrix1, VG_LITE_BLEND_NONE, VG_LITE_PATTERN_COLOR, 0xffaabbcc, VG_LITE_FILTER_POINT));
+       CHECK_ERROR(vg_lite_draw_pattern(&dst_buf, &path, VG_LITE_FILL_EVEN_ODD, &matrix, &src_buf, matrix1, VG_LITE_BLEND_NONE, VG_LITE_PATTERN_COLOR, 0xffaabbcc, 0, VG_LITE_FILTER_POINT));
         if (error)
         {
             printf("[%s: %d]vg_lite_blit failed.error type is %s\n", __func__, __LINE__,error_type[error]);

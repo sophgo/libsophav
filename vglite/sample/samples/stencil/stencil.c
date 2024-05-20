@@ -32,7 +32,7 @@ char *error_type[] =
     error = Function; \
     if (IS_ERROR(error)) \
     { \
-        printf("[%s: %d] failed.error type is %s\n", __func__, __LINE__,error_type[error]);\
+        printf("[%s: %d] error type is %s\n", __func__, __LINE__,error_type[error]);\
         goto ErrorHandler; \
     }
 static int   fb_width = 320, fb_height = 480;
@@ -149,7 +149,7 @@ int main(int argc, const char * argv[])
         vg_lite_scale(10, 10, &matPath);
 
         /* Fill the path using an image. */
-        CHECK_ERROR(vg_lite_draw_pattern(fb, &path, VG_LITE_FILL_EVEN_ODD, &matPath, &image, &matrix, VG_LITE_BLEND_NONE, VG_LITE_PATTERN_COLOR, 0x22666600, filter));
+        CHECK_ERROR(vg_lite_draw_pattern(fb, &path, VG_LITE_FILL_EVEN_ODD, &matPath, &image, &matrix, VG_LITE_BLEND_NONE, VG_LITE_PATTERN_COLOR, 0x22666600, 0xff000000, filter));
         CHECK_ERROR(vg_lite_finish());
 
         /* Save PNG file. */

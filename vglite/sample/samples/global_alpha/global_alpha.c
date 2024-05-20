@@ -23,7 +23,7 @@ char *error_type[] =
     error = Function; \
     if (IS_ERROR(error)) \
     { \
-        printf("[%s: %d] failed.error type is %s\n", __func__, __LINE__,error_type[error]);\
+        printf("[%s: %d] error type is %s\n", __func__, __LINE__,error_type[error]);\
         goto ErrorHandler; \
     }
 static int   fb_width = 320, fb_height = 480;
@@ -108,6 +108,8 @@ int main(int argc, const char * argv[])
     CHECK_ERROR(vg_lite_dest_global_alpha(global_alpha[0],0xFF));
     CHECK_ERROR(vg_lite_blit(fb, &image, &matrix, VG_LITE_BLEND_SRC_OVER, 0, filter));
     CHECK_ERROR(vg_lite_finish());
+	sprintf(name,"global_alpha%d.png",3);
+    vg_lite_save_png(name, fb);
 
 ErrorHandler:
 

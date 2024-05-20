@@ -27,7 +27,7 @@ static int MESH_EDGE[4][2] = {
 };
 
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-BM_TSK_MESH_ATTR_S dwa_tskMesh[DWA_MAX_TSK_MESH];
+bm_tsk_mesh_attr_s dwa_tskMesh[DWA_MAX_TSK_MESH];
 
 static s32 dwa_init(s32 fd)
 {
@@ -107,39 +107,39 @@ static bool is_rect_overlap(POINT_S l1, POINT_S r1, POINT_S l2, POINT_S r2)
     return true;
 }
 
-static void BM_LOAD_FRAME_CONFIG(BM_FISHEYE_ATTR *FISHEYE_CONFIG)
+static void bm_load_frame_config(bm_fisheye_attr *fisheye_config)
 {
-    switch (FISHEYE_CONFIG->UsageMode)
+    switch (fisheye_config->UsageMode)
     {
     case MODE_PANORAMA_360:
-        FISHEYE_CONFIG->RgnNum = 1;
+        fisheye_config->RgnNum = 1;
         break;
     case MODE_PANORAMA_180:
-        FISHEYE_CONFIG->RgnNum = 1;
+        fisheye_config->RgnNum = 1;
         break;
     case MODE_01_1O:
-        FISHEYE_CONFIG->RgnNum = 1;
+        fisheye_config->RgnNum = 1;
         break;
     case MODE_02_1O4R:
-        FISHEYE_CONFIG->RgnNum = 4; // 1O should be handled in scaler block.
+        fisheye_config->RgnNum = 4; // 1O should be handled in scaler block.
         break;
     case MODE_03_4R:
-        FISHEYE_CONFIG->RgnNum = 4;
+        fisheye_config->RgnNum = 4;
         break;
     case MODE_04_1P2R:
-        FISHEYE_CONFIG->RgnNum = 3;
+        fisheye_config->RgnNum = 3;
         break;
     case MODE_05_1P2R:
-        FISHEYE_CONFIG->RgnNum = 3;
+        fisheye_config->RgnNum = 3;
         break;
     case MODE_06_1P:
-        FISHEYE_CONFIG->RgnNum = 1;
+        fisheye_config->RgnNum = 1;
         break;
     case MODE_07_2P:
-        FISHEYE_CONFIG->RgnNum = 2;
+        fisheye_config->RgnNum = 2;
         break;
     case MODE_STEREO_FIT:
-        FISHEYE_CONFIG->RgnNum = 1;
+        fisheye_config->RgnNum = 1;
         break;
     default:
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "UsageMode Error!\n");
@@ -148,7 +148,7 @@ static void BM_LOAD_FRAME_CONFIG(BM_FISHEYE_ATTR *FISHEYE_CONFIG)
     }
 }
 
-static void bm_generate_mesh_id(struct mesh_param *param, POINT_S dst_mesh_tbl[][4])
+static void bm_generate_mesh_id(bm_mesh_param *param, POINT_S dst_mesh_tbl[][4])
 {
     const int NUM_X_LINE_A_SLICE = DIV_UP(param->width, param->slice_num_w);
     const int NUM_Y_LINE_A_SLICE = ALIGN(DIV_UP(param->height, param->slice_num_h), NUMBER_Y_LINE_A_SUBTILE);
@@ -206,407 +206,407 @@ static void bm_generate_mesh_id(struct mesh_param *param, POINT_S dst_mesh_tbl[]
         mesh_id[id_idx++] = 0x00;
 }
 
-static void BM_LOAD_REGION_CONFIG(BM_FISHEYE_ATTR* FISHEYE_CONFIG, BM_FISHEYE_REGION_ATTR* FISHEYE_REGION)
+static void bm_load_region_config(bm_fisheye_attr* fisheye_config, bm_fisheye_region_attr* fisheye_region)
 {
     // to make sure parameters aligned to frame ratio
-    double width_sec = FISHEYE_CONFIG->OutW_disp / 40;
-    double height_sec = FISHEYE_CONFIG->OutH_disp / 40;
+    double width_sec = fisheye_config->OutW_disp / 40;
+    double height_sec = fisheye_config->OutH_disp / 40;
 
     // load default settings
-    if (FISHEYE_CONFIG->UsageMode == MODE_02_1O4R )
+    if (fisheye_config->UsageMode == MODE_02_1O4R )
     {
-        FISHEYE_REGION[0].RegionValid = 1;
-        FISHEYE_REGION[0].MeshVer = 16;
-        FISHEYE_REGION[0].MeshHor = 16;
-        FISHEYE_REGION[0].ViewMode = PROJECTION_REGION;
-        FISHEYE_REGION[0].ThetaX = 0.33 * M_PI;
-        FISHEYE_REGION[0].ThetaZ = 0;
-        FISHEYE_REGION[0].ThetaY = 0;
-        FISHEYE_REGION[0].ZoomH = 2048;                 // zooming factor for horizontal:   0 ~ 4095 to control view
-        FISHEYE_REGION[0].ZoomV = 3072;                 // zooming factor for vertical:     0 ~ 4095 to control view
-        FISHEYE_REGION[0].Pan  = UI_CTRL_VALUE_CENTER;  // center = 180, value = 0 ~ 360    => value = +- 180 degrees
-        FISHEYE_REGION[0].Tilt = UI_CTRL_VALUE_CENTER;  // center = 180, value = 0 ~ 360    => value = +-30 degrees
-        FISHEYE_REGION[0].OutW = (width_sec * 15);
-        FISHEYE_REGION[0].OutH = (height_sec * 20);
-        FISHEYE_REGION[0].OutX = 0;
-        FISHEYE_REGION[0].OutY = 0;
+        fisheye_region[0].RegionValid = 1;
+        fisheye_region[0].MeshVer = 16;
+        fisheye_region[0].MeshHor = 16;
+        fisheye_region[0].ViewMode = PROJECTION_REGION;
+        fisheye_region[0].ThetaX = 0.33 * M_PI;
+        fisheye_region[0].ThetaZ = 0;
+        fisheye_region[0].ThetaY = 0;
+        fisheye_region[0].ZoomH = 2048;                 // zooming factor for horizontal:   0 ~ 4095 to control view
+        fisheye_region[0].ZoomV = 3072;                 // zooming factor for vertical:     0 ~ 4095 to control view
+        fisheye_region[0].Pan  = UI_CTRL_VALUE_CENTER;  // center = 180, value = 0 ~ 360    => value = +- 180 degrees
+        fisheye_region[0].Tilt = UI_CTRL_VALUE_CENTER;  // center = 180, value = 0 ~ 360    => value = +-30 degrees
+        fisheye_region[0].OutW = (width_sec * 15);
+        fisheye_region[0].OutH = (height_sec * 20);
+        fisheye_region[0].OutX = 0;
+        fisheye_region[0].OutY = 0;
 
-        FISHEYE_REGION[1].RegionValid = 1;
-        FISHEYE_REGION[1].MeshVer = 16;
-        FISHEYE_REGION[1].MeshHor = 16;
-        FISHEYE_REGION[1].ViewMode = PROJECTION_REGION;
-        FISHEYE_REGION[1].ThetaX = 0.33 * M_PI;
-        FISHEYE_REGION[1].ThetaZ = 0.5 * M_PI;
-        FISHEYE_REGION[1].ThetaY = 0;
-        FISHEYE_REGION[1].ZoomH = 2048;
-        FISHEYE_REGION[1].ZoomV = 3072;
-        FISHEYE_REGION[1].Pan = UI_CTRL_VALUE_CENTER;           // theta-X
-        FISHEYE_REGION[1].Tilt = UI_CTRL_VALUE_CENTER;          // theta-Z
-        FISHEYE_REGION[1].OutW = (width_sec * 15);
-        FISHEYE_REGION[1].OutH = (height_sec * 20);
-        FISHEYE_REGION[1].OutX = (width_sec * 15);
-        FISHEYE_REGION[1].OutY = (height_sec * 0);
+        fisheye_region[1].RegionValid = 1;
+        fisheye_region[1].MeshVer = 16;
+        fisheye_region[1].MeshHor = 16;
+        fisheye_region[1].ViewMode = PROJECTION_REGION;
+        fisheye_region[1].ThetaX = 0.33 * M_PI;
+        fisheye_region[1].ThetaZ = 0.5 * M_PI;
+        fisheye_region[1].ThetaY = 0;
+        fisheye_region[1].ZoomH = 2048;
+        fisheye_region[1].ZoomV = 3072;
+        fisheye_region[1].Pan = UI_CTRL_VALUE_CENTER;           // theta-X
+        fisheye_region[1].Tilt = UI_CTRL_VALUE_CENTER;          // theta-Z
+        fisheye_region[1].OutW = (width_sec * 15);
+        fisheye_region[1].OutH = (height_sec * 20);
+        fisheye_region[1].OutX = (width_sec * 15);
+        fisheye_region[1].OutY = (height_sec * 0);
 
-        FISHEYE_REGION[2].RegionValid = 1;
-        FISHEYE_REGION[2].MeshVer = 16;
-        FISHEYE_REGION[2].MeshHor = 16;
-        FISHEYE_REGION[2].ViewMode = PROJECTION_REGION;
-        FISHEYE_REGION[2].ThetaX = 0.33 * M_PI;
-        FISHEYE_REGION[2].ThetaZ = M_PI;
-        FISHEYE_REGION[2].ThetaY = 0;
-        FISHEYE_REGION[2].ZoomH = 2048;
-        FISHEYE_REGION[2].ZoomV = 3072;
-        FISHEYE_REGION[2].Pan = UI_CTRL_VALUE_CENTER;           // theta-X
-        FISHEYE_REGION[2].Tilt = UI_CTRL_VALUE_CENTER;          // theta-Z
-        FISHEYE_REGION[2].OutW = (width_sec * 15);
-        FISHEYE_REGION[2].OutH = (height_sec * 20);
-        FISHEYE_REGION[2].OutX = (width_sec * 0);
-        FISHEYE_REGION[2].OutY = (height_sec * 20);
+        fisheye_region[2].RegionValid = 1;
+        fisheye_region[2].MeshVer = 16;
+        fisheye_region[2].MeshHor = 16;
+        fisheye_region[2].ViewMode = PROJECTION_REGION;
+        fisheye_region[2].ThetaX = 0.33 * M_PI;
+        fisheye_region[2].ThetaZ = M_PI;
+        fisheye_region[2].ThetaY = 0;
+        fisheye_region[2].ZoomH = 2048;
+        fisheye_region[2].ZoomV = 3072;
+        fisheye_region[2].Pan = UI_CTRL_VALUE_CENTER;           // theta-X
+        fisheye_region[2].Tilt = UI_CTRL_VALUE_CENTER;          // theta-Z
+        fisheye_region[2].OutW = (width_sec * 15);
+        fisheye_region[2].OutH = (height_sec * 20);
+        fisheye_region[2].OutX = (width_sec * 0);
+        fisheye_region[2].OutY = (height_sec * 20);
 
-        FISHEYE_REGION[3].RegionValid = 1;
-        FISHEYE_REGION[3].MeshVer = 16;
-        FISHEYE_REGION[3].MeshHor = 16;
-        FISHEYE_REGION[3].ViewMode = PROJECTION_REGION;
-        FISHEYE_REGION[3].ThetaX = 0.33 * M_PI;
-        FISHEYE_REGION[3].ThetaZ = 1.5 * M_PI;
-        FISHEYE_REGION[3].ThetaY = 0;
-        FISHEYE_REGION[3].ZoomH = 2048;
-        FISHEYE_REGION[3].ZoomV = 3072;
-        FISHEYE_REGION[3].Pan = UI_CTRL_VALUE_CENTER;           // theta-X
-        FISHEYE_REGION[3].Tilt = UI_CTRL_VALUE_CENTER;          // theta-Z
-        FISHEYE_REGION[3].OutW = (width_sec * 15);
-        FISHEYE_REGION[3].OutH = (height_sec * 20);
-        FISHEYE_REGION[3].OutX = (width_sec * 15);
-        FISHEYE_REGION[3].OutY = (height_sec * 20);
+        fisheye_region[3].RegionValid = 1;
+        fisheye_region[3].MeshVer = 16;
+        fisheye_region[3].MeshHor = 16;
+        fisheye_region[3].ViewMode = PROJECTION_REGION;
+        fisheye_region[3].ThetaX = 0.33 * M_PI;
+        fisheye_region[3].ThetaZ = 1.5 * M_PI;
+        fisheye_region[3].ThetaY = 0;
+        fisheye_region[3].ZoomH = 2048;
+        fisheye_region[3].ZoomV = 3072;
+        fisheye_region[3].Pan = UI_CTRL_VALUE_CENTER;           // theta-X
+        fisheye_region[3].Tilt = UI_CTRL_VALUE_CENTER;          // theta-Z
+        fisheye_region[3].OutW = (width_sec * 15);
+        fisheye_region[3].OutH = (height_sec * 20);
+        fisheye_region[3].OutX = (width_sec * 15);
+        fisheye_region[3].OutY = (height_sec * 20);
 
-        FISHEYE_REGION[4].RegionValid = 0;
+        fisheye_region[4].RegionValid = 0;
     }
-    else if (FISHEYE_CONFIG->UsageMode == MODE_03_4R)
+    else if (fisheye_config->UsageMode == MODE_03_4R)
     {
-        FISHEYE_REGION[0].RegionValid = 1;
-        FISHEYE_REGION[0].MeshVer = 16;
-        FISHEYE_REGION[0].MeshHor = 16;
-        FISHEYE_REGION[0].ViewMode = PROJECTION_REGION;
-        FISHEYE_REGION[0].ThetaX = 0.33 * M_PI;
-        FISHEYE_REGION[0].ThetaZ = 0;
-        FISHEYE_REGION[0].ThetaY = 0;
-        FISHEYE_REGION[0].ZoomH = 1024;                 // zooming factor for horizontal:0 ~ 4095 to control view
-        FISHEYE_REGION[0].ZoomV = 3072;                 // zooming factor for vertical:0 ~ 4095 to control view
-        FISHEYE_REGION[0].Pan = UI_CTRL_VALUE_CENTER;   // center = 180, value = 0 ~ 360 => value = +- 180 degrees
-        FISHEYE_REGION[0].Tilt = UI_CTRL_VALUE_CENTER;  // center = 180, value = 0 ~ 360 => value = +-30 degrees
-        FISHEYE_REGION[0].OutW = (width_sec * 20);
-        FISHEYE_REGION[0].OutH = (height_sec * 20);
-        FISHEYE_REGION[0].OutX = 0;//(width_sec * 2);
-        FISHEYE_REGION[0].OutY = 0;//(height_sec * 2);
+        fisheye_region[0].RegionValid = 1;
+        fisheye_region[0].MeshVer = 16;
+        fisheye_region[0].MeshHor = 16;
+        fisheye_region[0].ViewMode = PROJECTION_REGION;
+        fisheye_region[0].ThetaX = 0.33 * M_PI;
+        fisheye_region[0].ThetaZ = 0;
+        fisheye_region[0].ThetaY = 0;
+        fisheye_region[0].ZoomH = 1024;                 // zooming factor for horizontal:0 ~ 4095 to control view
+        fisheye_region[0].ZoomV = 3072;                 // zooming factor for vertical:0 ~ 4095 to control view
+        fisheye_region[0].Pan = UI_CTRL_VALUE_CENTER;   // center = 180, value = 0 ~ 360 => value = +- 180 degrees
+        fisheye_region[0].Tilt = UI_CTRL_VALUE_CENTER;  // center = 180, value = 0 ~ 360 => value = +-30 degrees
+        fisheye_region[0].OutW = (width_sec * 20);
+        fisheye_region[0].OutH = (height_sec * 20);
+        fisheye_region[0].OutX = 0;//(width_sec * 2);
+        fisheye_region[0].OutY = 0;//(height_sec * 2);
 
-        FISHEYE_REGION[1].RegionValid = 1;
-        FISHEYE_REGION[1].MeshVer = 16;
-        FISHEYE_REGION[1].MeshHor = 16;
-        FISHEYE_REGION[1].ViewMode = PROJECTION_REGION;
-        FISHEYE_REGION[1].ThetaX = 0.33 * M_PI;
-        FISHEYE_REGION[1].ThetaZ = 0.5 * M_PI;
-        FISHEYE_REGION[1].ThetaY = 0;
-        FISHEYE_REGION[1].ZoomH = 1024;
-        FISHEYE_REGION[1].ZoomV = 3072;
-        FISHEYE_REGION[1].Pan = UI_CTRL_VALUE_CENTER;           // theta-X
-        FISHEYE_REGION[1].Tilt = UI_CTRL_VALUE_CENTER;          // theta-Z
-        FISHEYE_REGION[1].OutW = (width_sec * 20);
-        FISHEYE_REGION[1].OutH = (height_sec * 20);
-        FISHEYE_REGION[1].OutX = (width_sec * 20);
-        FISHEYE_REGION[1].OutY = (height_sec * 0);
+        fisheye_region[1].RegionValid = 1;
+        fisheye_region[1].MeshVer = 16;
+        fisheye_region[1].MeshHor = 16;
+        fisheye_region[1].ViewMode = PROJECTION_REGION;
+        fisheye_region[1].ThetaX = 0.33 * M_PI;
+        fisheye_region[1].ThetaZ = 0.5 * M_PI;
+        fisheye_region[1].ThetaY = 0;
+        fisheye_region[1].ZoomH = 1024;
+        fisheye_region[1].ZoomV = 3072;
+        fisheye_region[1].Pan = UI_CTRL_VALUE_CENTER;           // theta-X
+        fisheye_region[1].Tilt = UI_CTRL_VALUE_CENTER;          // theta-Z
+        fisheye_region[1].OutW = (width_sec * 20);
+        fisheye_region[1].OutH = (height_sec * 20);
+        fisheye_region[1].OutX = (width_sec * 20);
+        fisheye_region[1].OutY = (height_sec * 0);
 
-        FISHEYE_REGION[2].RegionValid = 1;
-        FISHEYE_REGION[2].MeshVer = 16;
-        FISHEYE_REGION[2].MeshHor = 16;
-        FISHEYE_REGION[2].ViewMode = PROJECTION_REGION;
-        FISHEYE_REGION[2].ThetaX = 0.33 * M_PI;
-        FISHEYE_REGION[2].ThetaZ = M_PI;
-        FISHEYE_REGION[2].ThetaY = 0;
-        FISHEYE_REGION[2].ZoomH = 1024;
-        FISHEYE_REGION[2].ZoomV = 3072;
-        FISHEYE_REGION[2].Pan = UI_CTRL_VALUE_CENTER;           // theta-X
-        FISHEYE_REGION[2].Tilt = UI_CTRL_VALUE_CENTER;          // theta-Z
-        FISHEYE_REGION[2].OutW = (width_sec * 20);
-        FISHEYE_REGION[2].OutH = (height_sec * 20);
-        FISHEYE_REGION[2].OutX = (width_sec * 0);
-        FISHEYE_REGION[2].OutY = (height_sec * 20);
+        fisheye_region[2].RegionValid = 1;
+        fisheye_region[2].MeshVer = 16;
+        fisheye_region[2].MeshHor = 16;
+        fisheye_region[2].ViewMode = PROJECTION_REGION;
+        fisheye_region[2].ThetaX = 0.33 * M_PI;
+        fisheye_region[2].ThetaZ = M_PI;
+        fisheye_region[2].ThetaY = 0;
+        fisheye_region[2].ZoomH = 1024;
+        fisheye_region[2].ZoomV = 3072;
+        fisheye_region[2].Pan = UI_CTRL_VALUE_CENTER;           // theta-X
+        fisheye_region[2].Tilt = UI_CTRL_VALUE_CENTER;          // theta-Z
+        fisheye_region[2].OutW = (width_sec * 20);
+        fisheye_region[2].OutH = (height_sec * 20);
+        fisheye_region[2].OutX = (width_sec * 0);
+        fisheye_region[2].OutY = (height_sec * 20);
 
-        FISHEYE_REGION[3].RegionValid = 1;
-        FISHEYE_REGION[3].MeshVer = 16;
-        FISHEYE_REGION[3].MeshHor = 16;
-        FISHEYE_REGION[3].ViewMode = PROJECTION_REGION;
-        FISHEYE_REGION[3].ThetaX = 0.33 * M_PI;
-        FISHEYE_REGION[3].ThetaZ = 1.5 * M_PI;
-        FISHEYE_REGION[3].ThetaY = 0;
-        FISHEYE_REGION[3].ZoomH = 1024;
-        FISHEYE_REGION[3].ZoomV = 3072;
-        FISHEYE_REGION[3].Pan = UI_CTRL_VALUE_CENTER;           // theta-X
-        FISHEYE_REGION[3].Tilt = UI_CTRL_VALUE_CENTER;          // theta-Z
-        FISHEYE_REGION[3].OutW = (width_sec * 20);
-        FISHEYE_REGION[3].OutH = (height_sec * 20);
-        FISHEYE_REGION[3].OutX = (width_sec * 20);
-        FISHEYE_REGION[3].OutY = (height_sec * 20);
+        fisheye_region[3].RegionValid = 1;
+        fisheye_region[3].MeshVer = 16;
+        fisheye_region[3].MeshHor = 16;
+        fisheye_region[3].ViewMode = PROJECTION_REGION;
+        fisheye_region[3].ThetaX = 0.33 * M_PI;
+        fisheye_region[3].ThetaZ = 1.5 * M_PI;
+        fisheye_region[3].ThetaY = 0;
+        fisheye_region[3].ZoomH = 1024;
+        fisheye_region[3].ZoomV = 3072;
+        fisheye_region[3].Pan = UI_CTRL_VALUE_CENTER;           // theta-X
+        fisheye_region[3].Tilt = UI_CTRL_VALUE_CENTER;          // theta-Z
+        fisheye_region[3].OutW = (width_sec * 20);
+        fisheye_region[3].OutH = (height_sec * 20);
+        fisheye_region[3].OutX = (width_sec * 20);
+        fisheye_region[3].OutY = (height_sec * 20);
 
-        FISHEYE_REGION[4].RegionValid = 0;
+        fisheye_region[4].RegionValid = 0;
     }
-    else if (FISHEYE_CONFIG->UsageMode == MODE_04_1P2R)
+    else if (fisheye_config->UsageMode == MODE_04_1P2R)
     {
         // Region #1 => Panorama 180
-        FISHEYE_REGION[0].RegionValid = 1;
-        FISHEYE_REGION[0].MeshVer = 16;
-        FISHEYE_REGION[0].MeshHor = 16;
-        FISHEYE_REGION[0].ViewMode = PROJECTION_PANORAMA_180;
-        //FISHEYE_REGION[0].ThetaX = 0;
-        //FISHEYE_REGION[0].ThetaY = 0;
-        //FISHEYE_REGION[0].ThetaZ = 0;
-        FISHEYE_REGION[0].ZoomH = 4096;                 // value = 0 ~ 4095, symmeterically control horizontal View Range, ex:  value = 4095 => hor view angle = -90 ~ + 90
-        FISHEYE_REGION[0].ZoomV = 1920;                 // value = 0 ~ 4095, symmetrically control vertical view range. ex: value = 4096, ver view angle = -90 ~ + 90
-        FISHEYE_REGION[0].Pan   = UI_CTRL_VALUE_CENTER;         // value range = 0 ~ 360, => -180 ~ 0 ~ +180
-        FISHEYE_REGION[0].Tilt  = UI_CTRL_VALUE_CENTER;         // value = 0 ~ 360, center = 180 ( original ) => -180 ~ 0 ~ + 180
-        FISHEYE_REGION[0].OutW  = (width_sec * 40);
-        FISHEYE_REGION[0].OutH  = (height_sec * 22);
-        FISHEYE_REGION[0].OutX  = 0;                    //(width_sec * 1);
-        FISHEYE_REGION[0].OutY  = 0;                    //height_sec * 1);
-        //FISHEYE_REGION[0].InRadius = 50;              // a ratio to represent OutRadius length. 1 => full origina redius. value/512 is the value.
-        //FISHEYE_REGION[0].OutRadius = 450;            // a ratio to represent OutRadius length. 1 => full origina redius. value/512 is the value.
-        //FISHEYE_REGION[0].PanEnd = 180;
+        fisheye_region[0].RegionValid = 1;
+        fisheye_region[0].MeshVer = 16;
+        fisheye_region[0].MeshHor = 16;
+        fisheye_region[0].ViewMode = PROJECTION_PANORAMA_180;
+        //fisheye_region[0].ThetaX = 0;
+        //fisheye_region[0].ThetaY = 0;
+        //fisheye_region[0].ThetaZ = 0;
+        fisheye_region[0].ZoomH = 4096;                 // value = 0 ~ 4095, symmeterically control horizontal View Range, ex:  value = 4095 => hor view angle = -90 ~ + 90
+        fisheye_region[0].ZoomV = 1920;                 // value = 0 ~ 4095, symmetrically control vertical view range. ex: value = 4096, ver view angle = -90 ~ + 90
+        fisheye_region[0].Pan   = UI_CTRL_VALUE_CENTER;         // value range = 0 ~ 360, => -180 ~ 0 ~ +180
+        fisheye_region[0].Tilt  = UI_CTRL_VALUE_CENTER;         // value = 0 ~ 360, center = 180 ( original ) => -180 ~ 0 ~ + 180
+        fisheye_region[0].OutW  = (width_sec * 40);
+        fisheye_region[0].OutH  = (height_sec * 22);
+        fisheye_region[0].OutX  = 0;                    //(width_sec * 1);
+        fisheye_region[0].OutY  = 0;                    //height_sec * 1);
+        //fisheye_region[0].InRadius = 50;              // a ratio to represent OutRadius length. 1 => full origina redius. value/512 is the value.
+        //fisheye_region[0].OutRadius = 450;            // a ratio to represent OutRadius length. 1 => full origina redius. value/512 is the value.
+        //fisheye_region[0].PanEnd = 180;
 
-        FISHEYE_REGION[1].RegionValid = 1;
-        FISHEYE_REGION[1].MeshVer = 8;
-        FISHEYE_REGION[1].MeshHor = 8;
-        FISHEYE_REGION[1].ViewMode = PROJECTION_REGION;
-        FISHEYE_REGION[1].ThetaX = M_PI / 4;
-        FISHEYE_REGION[1].ThetaZ = M_PI / 2;
-        FISHEYE_REGION[1].ThetaY = 0;
-        FISHEYE_REGION[1].ZoomH = 2048;
-        FISHEYE_REGION[1].ZoomV = 2048;
-        FISHEYE_REGION[1].Pan = UI_CTRL_VALUE_CENTER;           // theta-X
-        FISHEYE_REGION[1].Tilt = UI_CTRL_VALUE_CENTER;          // theta-Z
-        FISHEYE_REGION[1].OutW = (width_sec * 20);
-        FISHEYE_REGION[1].OutH = (height_sec * 18);
-        FISHEYE_REGION[1].OutX = (width_sec * 0);
-        FISHEYE_REGION[1].OutY = (height_sec * 22);
+        fisheye_region[1].RegionValid = 1;
+        fisheye_region[1].MeshVer = 8;
+        fisheye_region[1].MeshHor = 8;
+        fisheye_region[1].ViewMode = PROJECTION_REGION;
+        fisheye_region[1].ThetaX = M_PI / 4;
+        fisheye_region[1].ThetaZ = M_PI / 2;
+        fisheye_region[1].ThetaY = 0;
+        fisheye_region[1].ZoomH = 2048;
+        fisheye_region[1].ZoomV = 2048;
+        fisheye_region[1].Pan = UI_CTRL_VALUE_CENTER;           // theta-X
+        fisheye_region[1].Tilt = UI_CTRL_VALUE_CENTER;          // theta-Z
+        fisheye_region[1].OutW = (width_sec * 20);
+        fisheye_region[1].OutH = (height_sec * 18);
+        fisheye_region[1].OutX = (width_sec * 0);
+        fisheye_region[1].OutY = (height_sec * 22);
 
-        FISHEYE_REGION[2].RegionValid = 1;
-        FISHEYE_REGION[2].MeshVer = 8;
-        FISHEYE_REGION[2].MeshHor = 8;
-        FISHEYE_REGION[2].ViewMode = PROJECTION_REGION;
-        FISHEYE_REGION[2].ThetaX = M_PI / 4;
-        FISHEYE_REGION[2].ThetaZ = M_PI;
-        FISHEYE_REGION[2].ThetaY = 0;
-        FISHEYE_REGION[2].ZoomH = 2048;
-        FISHEYE_REGION[2].ZoomV = 2048;
-        FISHEYE_REGION[2].Pan = UI_CTRL_VALUE_CENTER;           // theta-X
-        FISHEYE_REGION[2].Tilt = UI_CTRL_VALUE_CENTER;          // theta-Z
-        FISHEYE_REGION[2].OutW = (width_sec * 20);
-        FISHEYE_REGION[2].OutH = (height_sec * 18);
-        FISHEYE_REGION[2].OutX = (width_sec * 20);
-        FISHEYE_REGION[2].OutY = (height_sec * 22);
+        fisheye_region[2].RegionValid = 1;
+        fisheye_region[2].MeshVer = 8;
+        fisheye_region[2].MeshHor = 8;
+        fisheye_region[2].ViewMode = PROJECTION_REGION;
+        fisheye_region[2].ThetaX = M_PI / 4;
+        fisheye_region[2].ThetaZ = M_PI;
+        fisheye_region[2].ThetaY = 0;
+        fisheye_region[2].ZoomH = 2048;
+        fisheye_region[2].ZoomV = 2048;
+        fisheye_region[2].Pan = UI_CTRL_VALUE_CENTER;           // theta-X
+        fisheye_region[2].Tilt = UI_CTRL_VALUE_CENTER;          // theta-Z
+        fisheye_region[2].OutW = (width_sec * 20);
+        fisheye_region[2].OutH = (height_sec * 18);
+        fisheye_region[2].OutX = (width_sec * 20);
+        fisheye_region[2].OutY = (height_sec * 22);
 
-        FISHEYE_REGION[3].RegionValid = 0;
-        FISHEYE_REGION[4].RegionValid = 0;
+        fisheye_region[3].RegionValid = 0;
+        fisheye_region[4].RegionValid = 0;
     }
-    else if (FISHEYE_CONFIG->UsageMode == MODE_05_1P2R)
+    else if (fisheye_config->UsageMode == MODE_05_1P2R)
     {
         // Region #1 => Panorama 180
-        FISHEYE_REGION[0].RegionValid = 1;
-        FISHEYE_REGION[0].MeshVer = 16;
-        FISHEYE_REGION[0].MeshHor = 16;
-        FISHEYE_REGION[0].ViewMode = PROJECTION_PANORAMA_180;
-        //FISHEYE_REGION[0].ThetaX = 0;
-        //FISHEYE_REGION[0].ThetaY = 0;
-        //FISHEYE_REGION[0].ThetaZ = 0;
-        FISHEYE_REGION[0].ZoomH = 3000;                 // value = 0 ~ 4095, symmeterically control horizontal View Range, ex:  value = 4095 => hor view angle = -90 ~ + 90
-        FISHEYE_REGION[0].ZoomV = 2048;                 // value = 0 ~ 4095, symmetrically control vertical view range. ex: value = 4096, ver view angle = -90 ~ + 90
-        FISHEYE_REGION[0].Pan  = UI_CTRL_VALUE_CENTER;          // value range = 0 ~ 360, => -180 ~ 0 ~ +180
-        FISHEYE_REGION[0].Tilt = UI_CTRL_VALUE_CENTER;          // value = 0 ~ 360, center = 180 ( original ) => -180 ~ 0 ~ + 180
-        FISHEYE_REGION[0].OutW = (width_sec * 27 );
-        FISHEYE_REGION[0].OutH = (height_sec * 40);
-        FISHEYE_REGION[0].OutX = 0;                 //(width_sec * 1);
-        FISHEYE_REGION[0].OutY = 0;                 //height_sec * 1);
-        //FISHEYE_REGION[0].InRadius = 50;          // a ratio to represent OutRadius length. 1 => full origina redius. value/512 is the value.
-        //FISHEYE_REGION[0].OutRadius = 450;        // a ratio to represent OutRadius length. 1 => full origina redius. value/512 is the value.
-        //FISHEYE_REGION[0].PanEnd = 180;
+        fisheye_region[0].RegionValid = 1;
+        fisheye_region[0].MeshVer = 16;
+        fisheye_region[0].MeshHor = 16;
+        fisheye_region[0].ViewMode = PROJECTION_PANORAMA_180;
+        //fisheye_region[0].ThetaX = 0;
+        //fisheye_region[0].ThetaY = 0;
+        //fisheye_region[0].ThetaZ = 0;
+        fisheye_region[0].ZoomH = 3000;                 // value = 0 ~ 4095, symmeterically control horizontal View Range, ex:  value = 4095 => hor view angle = -90 ~ + 90
+        fisheye_region[0].ZoomV = 2048;                 // value = 0 ~ 4095, symmetrically control vertical view range. ex: value = 4096, ver view angle = -90 ~ + 90
+        fisheye_region[0].Pan  = UI_CTRL_VALUE_CENTER;          // value range = 0 ~ 360, => -180 ~ 0 ~ +180
+        fisheye_region[0].Tilt = UI_CTRL_VALUE_CENTER;          // value = 0 ~ 360, center = 180 ( original ) => -180 ~ 0 ~ + 180
+        fisheye_region[0].OutW = (width_sec * 27 );
+        fisheye_region[0].OutH = (height_sec * 40);
+        fisheye_region[0].OutX = 0;                 //(width_sec * 1);
+        fisheye_region[0].OutY = 0;                 //height_sec * 1);
+        //fisheye_region[0].InRadius = 50;          // a ratio to represent OutRadius length. 1 => full origina redius. value/512 is the value.
+        //fisheye_region[0].OutRadius = 450;        // a ratio to represent OutRadius length. 1 => full origina redius. value/512 is the value.
+        //fisheye_region[0].PanEnd = 180;
 
-        FISHEYE_REGION[1].RegionValid = 1;
-        FISHEYE_REGION[1].MeshVer = 8;
-        FISHEYE_REGION[1].MeshHor = 8;
-        FISHEYE_REGION[1].ViewMode = PROJECTION_REGION;
-        FISHEYE_REGION[1].ThetaX = M_PI / 4;
-        FISHEYE_REGION[1].ThetaZ = M_PI / 2;
-        FISHEYE_REGION[1].ThetaY = 0;
-        FISHEYE_REGION[1].ZoomH = 2048;
-        FISHEYE_REGION[1].ZoomV = 2048;
-        FISHEYE_REGION[1].Pan = UI_CTRL_VALUE_CENTER;           // theta-X
-        FISHEYE_REGION[1].Tilt = UI_CTRL_VALUE_CENTER;          // theta-Z
-        FISHEYE_REGION[1].OutW = (width_sec * 13);
-        FISHEYE_REGION[1].OutH = (height_sec * 20);
-        FISHEYE_REGION[1].OutX = (width_sec * 27);
-        FISHEYE_REGION[1].OutY = (height_sec * 0);
+        fisheye_region[1].RegionValid = 1;
+        fisheye_region[1].MeshVer = 8;
+        fisheye_region[1].MeshHor = 8;
+        fisheye_region[1].ViewMode = PROJECTION_REGION;
+        fisheye_region[1].ThetaX = M_PI / 4;
+        fisheye_region[1].ThetaZ = M_PI / 2;
+        fisheye_region[1].ThetaY = 0;
+        fisheye_region[1].ZoomH = 2048;
+        fisheye_region[1].ZoomV = 2048;
+        fisheye_region[1].Pan = UI_CTRL_VALUE_CENTER;           // theta-X
+        fisheye_region[1].Tilt = UI_CTRL_VALUE_CENTER;          // theta-Z
+        fisheye_region[1].OutW = (width_sec * 13);
+        fisheye_region[1].OutH = (height_sec * 20);
+        fisheye_region[1].OutX = (width_sec * 27);
+        fisheye_region[1].OutY = (height_sec * 0);
 
-        FISHEYE_REGION[2].RegionValid = 1;
-        FISHEYE_REGION[2].MeshVer = 8;
-        FISHEYE_REGION[2].MeshHor = 8;
-        FISHEYE_REGION[2].ViewMode = PROJECTION_REGION;
-        FISHEYE_REGION[2].ThetaX = M_PI / 4;
-        FISHEYE_REGION[2].ThetaZ = M_PI;
-        FISHEYE_REGION[2].ThetaY = 0;
-        FISHEYE_REGION[2].ZoomH = 2048;
-        FISHEYE_REGION[2].ZoomV = 2048;
-        FISHEYE_REGION[2].Pan = UI_CTRL_VALUE_CENTER;           // theta-X
-        FISHEYE_REGION[2].Tilt = UI_CTRL_VALUE_CENTER;          // theta-Z
-        FISHEYE_REGION[2].OutW = (width_sec * 13);
-        FISHEYE_REGION[2].OutH = (height_sec * 20);
-        FISHEYE_REGION[2].OutX = (width_sec * 27);
-        FISHEYE_REGION[2].OutY = (height_sec * 20);
+        fisheye_region[2].RegionValid = 1;
+        fisheye_region[2].MeshVer = 8;
+        fisheye_region[2].MeshHor = 8;
+        fisheye_region[2].ViewMode = PROJECTION_REGION;
+        fisheye_region[2].ThetaX = M_PI / 4;
+        fisheye_region[2].ThetaZ = M_PI;
+        fisheye_region[2].ThetaY = 0;
+        fisheye_region[2].ZoomH = 2048;
+        fisheye_region[2].ZoomV = 2048;
+        fisheye_region[2].Pan = UI_CTRL_VALUE_CENTER;           // theta-X
+        fisheye_region[2].Tilt = UI_CTRL_VALUE_CENTER;          // theta-Z
+        fisheye_region[2].OutW = (width_sec * 13);
+        fisheye_region[2].OutH = (height_sec * 20);
+        fisheye_region[2].OutX = (width_sec * 27);
+        fisheye_region[2].OutY = (height_sec * 20);
 
-        FISHEYE_REGION[3].RegionValid = 0;
-        FISHEYE_REGION[4].RegionValid = 0;
+        fisheye_region[3].RegionValid = 0;
+        fisheye_region[4].RegionValid = 0;
 
 
     }
-    else if (FISHEYE_CONFIG->UsageMode == MODE_06_1P)
+    else if (fisheye_config->UsageMode == MODE_06_1P)
     {
         // Region #1 => Panorama 180
-        FISHEYE_REGION[0].RegionValid = 1;
-        FISHEYE_REGION[0].MeshVer = 30;
-        FISHEYE_REGION[0].MeshHor = 30;
-        FISHEYE_REGION[0].ViewMode = PROJECTION_PANORAMA_180;
-        //FISHEYE_REGION[0].ThetaX = 0;
-        //FISHEYE_REGION[0].ThetaY = 0;
-        //FISHEYE_REGION[0].ThetaZ = 0;
-        FISHEYE_REGION[0].ZoomH = 4096; // value = 0 ~ 4095, symmeterically control horizontal View Range, ex:  value = 4095 => hor view angle = -90 ~ + 90
-        FISHEYE_REGION[0].ZoomV = 2800; // value = 0 ~ 4095, symmetrically control vertical view range. ex: value = 4096, ver view angle = -90 ~ + 90
-        FISHEYE_REGION[0].Pan  = UI_CTRL_VALUE_CENTER;  // value range = 0 ~ 360, => -180 ~ 0 ~ +180
-        FISHEYE_REGION[0].Tilt = UI_CTRL_VALUE_CENTER;  // value = 0 ~ 360, center = 180 ( original ) => -180 ~ 0 ~ + 180
-        FISHEYE_REGION[0].OutW = (width_sec * 40 );
-        FISHEYE_REGION[0].OutH = (height_sec * 40);
-        FISHEYE_REGION[0].OutX = 0; //(width_sec * 1);
-        FISHEYE_REGION[0].OutY = 0; //height_sec * 1);
-        //FISHEYE_REGION[0].InRadius = 50;      // a ratio to represent OutRadius length. 1 => full origina redius. value/512 is the value.
-        //FISHEYE_REGION[0].OutRadius = 450;    // a ratio to represent OutRadius length. 1 => full origina redius. value/512 is the value.
-        //FISHEYE_REGION[0].PanEnd = 180;
+        fisheye_region[0].RegionValid = 1;
+        fisheye_region[0].MeshVer = 30;
+        fisheye_region[0].MeshHor = 30;
+        fisheye_region[0].ViewMode = PROJECTION_PANORAMA_180;
+        //fisheye_region[0].ThetaX = 0;
+        //fisheye_region[0].ThetaY = 0;
+        //fisheye_region[0].ThetaZ = 0;
+        fisheye_region[0].ZoomH = 4096; // value = 0 ~ 4095, symmeterically control horizontal View Range, ex:  value = 4095 => hor view angle = -90 ~ + 90
+        fisheye_region[0].ZoomV = 2800; // value = 0 ~ 4095, symmetrically control vertical view range. ex: value = 4096, ver view angle = -90 ~ + 90
+        fisheye_region[0].Pan  = UI_CTRL_VALUE_CENTER;  // value range = 0 ~ 360, => -180 ~ 0 ~ +180
+        fisheye_region[0].Tilt = UI_CTRL_VALUE_CENTER;  // value = 0 ~ 360, center = 180 ( original ) => -180 ~ 0 ~ + 180
+        fisheye_region[0].OutW = (width_sec * 40 );
+        fisheye_region[0].OutH = (height_sec * 40);
+        fisheye_region[0].OutX = 0; //(width_sec * 1);
+        fisheye_region[0].OutY = 0; //height_sec * 1);
+        //fisheye_region[0].InRadius = 50;      // a ratio to represent OutRadius length. 1 => full origina redius. value/512 is the value.
+        //fisheye_region[0].OutRadius = 450;    // a ratio to represent OutRadius length. 1 => full origina redius. value/512 is the value.
+        //fisheye_region[0].PanEnd = 180;
 
-        FISHEYE_REGION[1].RegionValid = 0;
-        FISHEYE_REGION[2].RegionValid = 0;
-        FISHEYE_REGION[3].RegionValid = 0;
-        FISHEYE_REGION[4].RegionValid = 0;
-    } else if (FISHEYE_CONFIG->UsageMode == MODE_07_2P ) {
+        fisheye_region[1].RegionValid = 0;
+        fisheye_region[2].RegionValid = 0;
+        fisheye_region[3].RegionValid = 0;
+        fisheye_region[4].RegionValid = 0;
+    } else if (fisheye_config->UsageMode == MODE_07_2P ) {
         //_Panorama360View2;
-        FISHEYE_REGION[0].RegionValid = 1;
-        FISHEYE_REGION[0].MeshVer = 16;
-        FISHEYE_REGION[0].MeshHor = 16;
-        FISHEYE_REGION[0].ViewMode = PROJECTION_PANORAMA_360;
-        FISHEYE_REGION[0].ThetaX = M_PI / 4;
-        FISHEYE_REGION[0].ThetaZ = 0;
-        FISHEYE_REGION[0].ThetaY = 0;
-        //FISHEYE_REGION[0].ZoomH = 4095;               // Not Used in Panorama 360 Mode.
-        FISHEYE_REGION[0].ZoomV = 4095;                 // To ZoomIn OutRadius
-        FISHEYE_REGION[0].Pan = 40;                     // for panorama 360 => Pan is the label start position angle ( in degrees
-        FISHEYE_REGION[0].Tilt = 200;                   // to add shift offset vertical angle.
-        FISHEYE_REGION[0].OutW = (width_sec * 40);
-        FISHEYE_REGION[0].OutH = (height_sec * 20);
-        FISHEYE_REGION[0].OutX = (width_sec * 0);
-        FISHEYE_REGION[0].OutY = (height_sec * 0);
-        FISHEYE_REGION[0].InRadius = 300;               // a ratio to represent OutRadius length. 1 => full origina redius. value/512 is the value.
-        FISHEYE_REGION[0].OutRadius = 3712;             // a ratio to represent OutRadius length. 1 => full origina redius. value/512 is the value.
-        FISHEYE_REGION[0].PanEnd = 220;
+        fisheye_region[0].RegionValid = 1;
+        fisheye_region[0].MeshVer = 16;
+        fisheye_region[0].MeshHor = 16;
+        fisheye_region[0].ViewMode = PROJECTION_PANORAMA_360;
+        fisheye_region[0].ThetaX = M_PI / 4;
+        fisheye_region[0].ThetaZ = 0;
+        fisheye_region[0].ThetaY = 0;
+        //fisheye_region[0].ZoomH = 4095;               // Not Used in Panorama 360 Mode.
+        fisheye_region[0].ZoomV = 4095;                 // To ZoomIn OutRadius
+        fisheye_region[0].Pan = 40;                     // for panorama 360 => Pan is the label start position angle ( in degrees
+        fisheye_region[0].Tilt = 200;                   // to add shift offset vertical angle.
+        fisheye_region[0].OutW = (width_sec * 40);
+        fisheye_region[0].OutH = (height_sec * 20);
+        fisheye_region[0].OutX = (width_sec * 0);
+        fisheye_region[0].OutY = (height_sec * 0);
+        fisheye_region[0].InRadius = 300;               // a ratio to represent OutRadius length. 1 => full origina redius. value/512 is the value.
+        fisheye_region[0].OutRadius = 3712;             // a ratio to represent OutRadius length. 1 => full origina redius. value/512 is the value.
+        fisheye_region[0].PanEnd = 220;
 
-        FISHEYE_REGION[1].RegionValid = 1;
-        FISHEYE_REGION[1].MeshVer = 16;
-        FISHEYE_REGION[1].MeshHor = 16;
-        FISHEYE_REGION[1].ViewMode = PROJECTION_PANORAMA_360;
-        FISHEYE_REGION[1].ThetaX = M_PI / 4;
-        FISHEYE_REGION[1].ThetaZ = 0;
-        FISHEYE_REGION[1].ThetaY = 0;
-        //FISHEYE_REGION[1].ZoomH = 4095;               // Not Used in Panorama 360 Mode.
-        FISHEYE_REGION[1].ZoomV = 4095;                 // To ZoomIn OutRadius
-        FISHEYE_REGION[1].Pan  = 220;                   // for panorama 360 => Pan is the label start position angle ( in degrees
-        FISHEYE_REGION[1].Tilt = 200;                   // to add shift offset vertical angle.
-        FISHEYE_REGION[1].OutW = (width_sec * 40);
-        FISHEYE_REGION[1].OutH = (height_sec * 20);
-        FISHEYE_REGION[1].OutX = (width_sec * 0);
-        FISHEYE_REGION[1].OutY = (height_sec * 20);
-        FISHEYE_REGION[1].InRadius = 300;               // a ratio to represent OutRadius length. 1 = full origina redius.  value/512 is the value.
-        FISHEYE_REGION[1].OutRadius = 3712;             // a ratio to represent OutRadius length. 1 = full origina redius.  value/512 is the value.
-        FISHEYE_REGION[1].PanEnd = 40;                  //
+        fisheye_region[1].RegionValid = 1;
+        fisheye_region[1].MeshVer = 16;
+        fisheye_region[1].MeshHor = 16;
+        fisheye_region[1].ViewMode = PROJECTION_PANORAMA_360;
+        fisheye_region[1].ThetaX = M_PI / 4;
+        fisheye_region[1].ThetaZ = 0;
+        fisheye_region[1].ThetaY = 0;
+        //fisheye_region[1].ZoomH = 4095;               // Not Used in Panorama 360 Mode.
+        fisheye_region[1].ZoomV = 4095;                 // To ZoomIn OutRadius
+        fisheye_region[1].Pan  = 220;                   // for panorama 360 => Pan is the label start position angle ( in degrees
+        fisheye_region[1].Tilt = 200;                   // to add shift offset vertical angle.
+        fisheye_region[1].OutW = (width_sec * 40);
+        fisheye_region[1].OutH = (height_sec * 20);
+        fisheye_region[1].OutX = (width_sec * 0);
+        fisheye_region[1].OutY = (height_sec * 20);
+        fisheye_region[1].InRadius = 300;               // a ratio to represent OutRadius length. 1 = full origina redius.  value/512 is the value.
+        fisheye_region[1].OutRadius = 3712;             // a ratio to represent OutRadius length. 1 = full origina redius.  value/512 is the value.
+        fisheye_region[1].PanEnd = 40;                  //
 
-        FISHEYE_REGION[2].RegionValid = 0;
-        FISHEYE_REGION[3].RegionValid = 0;
-        FISHEYE_REGION[4].RegionValid = 0;
-    } else if (FISHEYE_CONFIG->UsageMode == MODE_PANORAMA_180) {
-        FISHEYE_REGION[0].RegionValid = 1;
-        FISHEYE_REGION[0].MeshVer = 16;
-        FISHEYE_REGION[0].MeshHor = 16;
-        FISHEYE_REGION[0].ViewMode = PROJECTION_PANORAMA_180;
-        //FISHEYE_REGION[0].ThetaX = M_PI / 4;
-        //FISHEYE_REGION[0].ThetaZ = 0;
-        //FISHEYE_REGION[0].ThetaY = 0;
-        FISHEYE_REGION[0].ZoomH = 4096;                 // Not Used in Panorama 360 Mode.
-        FISHEYE_REGION[0].ZoomV = 4096;                 // To ZoomIn OutRadius
-        FISHEYE_REGION[0].Pan = 180;                    // for panorama 360 => Pan is the label start position angle ( in degrees
-        FISHEYE_REGION[0].Tilt = 180;                   // to add shift offset vertical angle.
-        FISHEYE_REGION[0].OutW = (width_sec * 40);
-        FISHEYE_REGION[0].OutH = (height_sec * 40);
-        FISHEYE_REGION[0].OutX = 0;                 //(width_sec * 1);
-        FISHEYE_REGION[0].OutY = 0;                 //height_sec * 1);
-        //FISHEYE_REGION[0].InRadius = 50;          // a ratio to represent OutRadius length. 1 => full origina redius. value/512 is the value.
-        //FISHEYE_REGION[0].OutRadius = 450;        // a ratio to represent OutRadius length. 1 => full origina redius. value/512 is the value.
-        //FISHEYE_REGION[0].PanEnd = 180;
+        fisheye_region[2].RegionValid = 0;
+        fisheye_region[3].RegionValid = 0;
+        fisheye_region[4].RegionValid = 0;
+    } else if (fisheye_config->UsageMode == MODE_PANORAMA_180) {
+        fisheye_region[0].RegionValid = 1;
+        fisheye_region[0].MeshVer = 16;
+        fisheye_region[0].MeshHor = 16;
+        fisheye_region[0].ViewMode = PROJECTION_PANORAMA_180;
+        //fisheye_region[0].ThetaX = M_PI / 4;
+        //fisheye_region[0].ThetaZ = 0;
+        //fisheye_region[0].ThetaY = 0;
+        fisheye_region[0].ZoomH = 4096;                 // Not Used in Panorama 360 Mode.
+        fisheye_region[0].ZoomV = 4096;                 // To ZoomIn OutRadius
+        fisheye_region[0].Pan = 180;                    // for panorama 360 => Pan is the label start position angle ( in degrees
+        fisheye_region[0].Tilt = 180;                   // to add shift offset vertical angle.
+        fisheye_region[0].OutW = (width_sec * 40);
+        fisheye_region[0].OutH = (height_sec * 40);
+        fisheye_region[0].OutX = 0;                 //(width_sec * 1);
+        fisheye_region[0].OutY = 0;                 //height_sec * 1);
+        //fisheye_region[0].InRadius = 50;          // a ratio to represent OutRadius length. 1 => full origina redius. value/512 is the value.
+        //fisheye_region[0].OutRadius = 450;        // a ratio to represent OutRadius length. 1 => full origina redius. value/512 is the value.
+        //fisheye_region[0].PanEnd = 180;
 
-        FISHEYE_REGION[1].RegionValid = 0;
-        FISHEYE_REGION[2].RegionValid = 0;
-        FISHEYE_REGION[3].RegionValid = 0;
-        FISHEYE_REGION[4].RegionValid = 0;
-    } else if (FISHEYE_CONFIG->UsageMode == MODE_PANORAMA_360) {
+        fisheye_region[1].RegionValid = 0;
+        fisheye_region[2].RegionValid = 0;
+        fisheye_region[3].RegionValid = 0;
+        fisheye_region[4].RegionValid = 0;
+    } else if (fisheye_config->UsageMode == MODE_PANORAMA_360) {
         //_Panorama360View2;
-        FISHEYE_REGION[0].RegionValid = 1;
-        FISHEYE_REGION[0].MeshVer = 8;
-        FISHEYE_REGION[0].MeshHor = 8;
-        FISHEYE_REGION[0].ViewMode = PROJECTION_PANORAMA_360;
-        FISHEYE_REGION[0].ThetaX = M_PI / 4;
-        FISHEYE_REGION[0].ThetaZ = 0;
-        FISHEYE_REGION[0].ThetaY = 0;
-        //FISHEYE_REGION[0].ZoomH = 4095;               // Not Used in Panorama 360 Mode.
-        FISHEYE_REGION[0].ZoomV = 4095;                 // To ZoomIn OutRadius
-        FISHEYE_REGION[0].Pan = 0;                      // for panorama 360 => Pan is the label start position angle ( in degrees
-        FISHEYE_REGION[0].Tilt = 180;                   // to add shift offset vertical angle.
-        FISHEYE_REGION[0].OutW = (width_sec * 40);
-        FISHEYE_REGION[0].OutH = (height_sec * 40) * 4 / 6;
-        FISHEYE_REGION[0].OutX = 0;                     //(width_sec * 1);
-        FISHEYE_REGION[0].OutY = (height_sec * 40) / 6;         //(height_sec * 1);
-        FISHEYE_REGION[0].InRadius = 800;               // a ratio to represent OutRadius length. 1 => full origina redius. value = 0 ~ 4095,
-        FISHEYE_REGION[0].OutRadius = 4096;             // a ratio to represent OutRadius length. 1 => full origina redius. value = 0 ~ 4095
-        FISHEYE_REGION[0].PanEnd = 359;
+        fisheye_region[0].RegionValid = 1;
+        fisheye_region[0].MeshVer = 8;
+        fisheye_region[0].MeshHor = 8;
+        fisheye_region[0].ViewMode = PROJECTION_PANORAMA_360;
+        fisheye_region[0].ThetaX = M_PI / 4;
+        fisheye_region[0].ThetaZ = 0;
+        fisheye_region[0].ThetaY = 0;
+        //fisheye_region[0].ZoomH = 4095;               // Not Used in Panorama 360 Mode.
+        fisheye_region[0].ZoomV = 4095;                 // To ZoomIn OutRadius
+        fisheye_region[0].Pan = 0;                      // for panorama 360 => Pan is the label start position angle ( in degrees
+        fisheye_region[0].Tilt = 180;                   // to add shift offset vertical angle.
+        fisheye_region[0].OutW = (width_sec * 40);
+        fisheye_region[0].OutH = (height_sec * 40) * 4 / 6;
+        fisheye_region[0].OutX = 0;                     //(width_sec * 1);
+        fisheye_region[0].OutY = (height_sec * 40) / 6;         //(height_sec * 1);
+        fisheye_region[0].InRadius = 800;               // a ratio to represent OutRadius length. 1 => full origina redius. value = 0 ~ 4095,
+        fisheye_region[0].OutRadius = 4096;             // a ratio to represent OutRadius length. 1 => full origina redius. value = 0 ~ 4095
+        fisheye_region[0].PanEnd = 359;
 
-        FISHEYE_REGION[1].RegionValid = 0;
-        FISHEYE_REGION[2].RegionValid = 0;
-        FISHEYE_REGION[3].RegionValid = 0;
-        FISHEYE_REGION[4].RegionValid = 0;
-    } else if (FISHEYE_CONFIG->UsageMode == MODE_STEREO_FIT) {
-        FISHEYE_REGION[0].RegionValid   = 1;
-        FISHEYE_REGION[0].MeshVer      = 128;
-        FISHEYE_REGION[0].MeshHor      = 128;
-        FISHEYE_REGION[0].ViewMode      = PROJECTION_STEREO_FIT;
-        FISHEYE_REGION[0].ThetaX      = M_PI / 4;
-        FISHEYE_REGION[0].ThetaZ      = 0;
-        FISHEYE_REGION[0].ThetaY      = 0;
-        //FISHEYE_REGION[0].ZoomH = 4095;            // Not Used in Panorama 360 Mode.
-        FISHEYE_REGION[0].ZoomV         = 4095;               // To ZoomIn OutRadius
-        FISHEYE_REGION[0].Pan         = 0;                  // for panorama 360 => Pan is the label start position angle ( in degrees
-        FISHEYE_REGION[0].Tilt         = 180;               // to add shift offset vertical angle.
-        FISHEYE_REGION[0].OutW         = FISHEYE_CONFIG->OutW_disp;
-        FISHEYE_REGION[0].OutH         = FISHEYE_CONFIG->OutH_disp;
-        FISHEYE_REGION[0].OutX         = 0;                  //(width_sec * 1);
-        FISHEYE_REGION[0].OutY         = 0;                  //(height_sec * 1);
-        FISHEYE_REGION[0].InRadius      = 0;            // a ratio to represent OutRadius lenght. 1 => full origina redius.   value = 0 ~ 4095,
-        FISHEYE_REGION[0].OutRadius      = 4095;            // a ratio to represent OutRadius lenght. 1 => full origina redius.   value = 0 ~ 4095
-        FISHEYE_REGION[0].PanEnd      = 359;
+        fisheye_region[1].RegionValid = 0;
+        fisheye_region[2].RegionValid = 0;
+        fisheye_region[3].RegionValid = 0;
+        fisheye_region[4].RegionValid = 0;
+    } else if (fisheye_config->UsageMode == MODE_STEREO_FIT) {
+        fisheye_region[0].RegionValid   = 1;
+        fisheye_region[0].MeshVer      = 128;
+        fisheye_region[0].MeshHor      = 128;
+        fisheye_region[0].ViewMode      = PROJECTION_STEREO_FIT;
+        fisheye_region[0].ThetaX      = M_PI / 4;
+        fisheye_region[0].ThetaZ      = 0;
+        fisheye_region[0].ThetaY      = 0;
+        //fisheye_region[0].ZoomH = 4095;            // Not Used in Panorama 360 Mode.
+        fisheye_region[0].ZoomV         = 4095;               // To ZoomIn OutRadius
+        fisheye_region[0].Pan         = 0;                  // for panorama 360 => Pan is the label start position angle ( in degrees
+        fisheye_region[0].Tilt         = 180;               // to add shift offset vertical angle.
+        fisheye_region[0].OutW         = fisheye_config->OutW_disp;
+        fisheye_region[0].OutH         = fisheye_config->OutH_disp;
+        fisheye_region[0].OutX         = 0;                  //(width_sec * 1);
+        fisheye_region[0].OutY         = 0;                  //(height_sec * 1);
+        fisheye_region[0].InRadius      = 0;            // a ratio to represent OutRadius lenght. 1 => full origina redius.   value = 0 ~ 4095,
+        fisheye_region[0].OutRadius      = 4095;            // a ratio to represent OutRadius lenght. 1 => full origina redius.   value = 0 ~ 4095
+        fisheye_region[0].PanEnd      = 359;
         //
-        FISHEYE_REGION[1].RegionValid = 0;
-        FISHEYE_REGION[2].RegionValid = 0;
-        FISHEYE_REGION[3].RegionValid = 0;
-        FISHEYE_REGION[4].RegionValid = 0;
+        fisheye_region[1].RegionValid = 0;
+        fisheye_region[2].RegionValid = 0;
+        fisheye_region[3].RegionValid = 0;
+        fisheye_region[4].RegionValid = 0;
     } else {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "Not done yet!\n");
         //system("pause");
@@ -615,21 +615,68 @@ static void BM_LOAD_REGION_CONFIG(BM_FISHEYE_ATTR* FISHEYE_CONFIG, BM_FISHEYE_RE
 
 static void bm_image_to_cvi_frame(bm_image *image, PIXEL_FORMAT_E enPixelFormat, VIDEO_FRAME_INFO_S *stVideoFrame)
 {
-    stVideoFrame->stVFrame.enCompressMode = COMPRESS_MODE_NONE;
-    stVideoFrame->stVFrame.enPixelFormat = enPixelFormat;
-    stVideoFrame->stVFrame.enVideoFormat = VIDEO_FORMAT_LINEAR;
-    stVideoFrame->stVFrame.enColorGamut = COLOR_GAMUT_BT709;
-    stVideoFrame->stVFrame.u32Width = image->width;
-    stVideoFrame->stVFrame.u32Height = image->height;
-    for(int i = 0; i < image->image_private->plane_num; i++){
-        stVideoFrame->stVFrame.u32Stride[i] =  image->image_private->memory_layout[i].pitch_stride;
-        stVideoFrame->stVFrame.u32Length[i] = image->image_private->memory_layout[i].size;
-        stVideoFrame->stVFrame.u64PhyAddr[i] = image->image_private->data[i].u.device.device_addr;
-    }
-    stVideoFrame->stVFrame.u32TimeRef = 0;
-    stVideoFrame->stVFrame.u64PTS = 0;
-    stVideoFrame->stVFrame.enDynamicRange = DYNAMIC_RANGE_SDR8;
-    stVideoFrame->u32PoolId = 0;
+	int planar_to_seperate = 0;
+	if((image->image_format == FORMAT_RGB_PLANAR || image->image_format == FORMAT_BGR_PLANAR))
+		planar_to_seperate = 1;
+
+	stVideoFrame->stVFrame.enCompressMode = COMPRESS_MODE_NONE;
+	stVideoFrame->stVFrame.enPixelFormat = enPixelFormat;
+	stVideoFrame->stVFrame.enVideoFormat = VIDEO_FORMAT_LINEAR;
+	stVideoFrame->stVFrame.u32Width = image->width;
+	stVideoFrame->stVFrame.u32Height = image->height;
+	if((!is_full_image(image->image_format)) || image->image_format == FORMAT_COMPRESSED)
+		stVideoFrame->stVFrame.u32Width = stVideoFrame->stVFrame.u32Width & (~0x1);
+	if(is_yuv420_image(image->image_format) || image->image_format == FORMAT_COMPRESSED)
+		stVideoFrame->stVFrame.u32Height = stVideoFrame->stVFrame.u32Height & (~0x1);
+	for (int i = 0; i < image->image_private->plane_num; ++i) {
+		if((i == 3) && (image->image_format == FORMAT_COMPRESSED)){
+			stVideoFrame->stVFrame.u64ExtPhyAddr = image->image_private->data[i].u.device.device_addr;
+			stVideoFrame->stVFrame.u32ExtLength = image->image_private->memory_layout[i].size;
+			stVideoFrame->stVFrame.pu8ExtVirtAddr = (unsigned char*)image->image_private->data[i].u.system.system_addr;
+			stVideoFrame->stVFrame.enCompressMode = COMPRESS_MODE_FRAME;
+		} else if((i > 0) && (image->image_format == FORMAT_COMPRESSED)){
+			continue;
+		} else {
+			stVideoFrame->stVFrame.u32Stride[i] = image->image_private->memory_layout[i].pitch_stride;
+			stVideoFrame->stVFrame.u32Length[i] = image->image_private->memory_layout[i].size;
+			stVideoFrame->stVFrame.u64PhyAddr[i] = image->image_private->data[i].u.device.device_addr;
+			stVideoFrame->stVFrame.pu8VirAddr[i] = (unsigned char*)image->image_private->data[i].u.system.system_addr;
+		}
+	}
+
+	if(planar_to_seperate){
+		for (int i = 1; i < 3; ++i) {
+			stVideoFrame->stVFrame.u32Stride[i] = image->image_private->memory_layout[0].pitch_stride;
+			stVideoFrame->stVFrame.u32Length[i] = image->image_private->memory_layout[0].pitch_stride * image->height;
+			stVideoFrame->stVFrame.u64PhyAddr[i] = image->image_private->data[0].u.device.device_addr + image->image_private->memory_layout[0].pitch_stride * image->height * i;
+		}
+	}
+
+	if(image->image_format == FORMAT_COMPRESSED){
+		for (int i = 1, j = 2; i < 3; ++i, --j) {
+			stVideoFrame->stVFrame.u32Stride[i] = image->image_private->memory_layout[j].pitch_stride;
+			stVideoFrame->stVFrame.u32Length[i] = image->image_private->memory_layout[j].size;
+			stVideoFrame->stVFrame.u64PhyAddr[i] = image->image_private->data[j].u.device.device_addr;
+			stVideoFrame->stVFrame.pu8VirAddr[i] = (unsigned char*)image->image_private->data[j].u.system.system_addr;
+		}
+	}
+
+	if((enPixelFormat == PIXEL_FORMAT_UINT8_C3_PLANAR || enPixelFormat == PIXEL_FORMAT_INT8_C3_PLANAR ||
+		enPixelFormat == PIXEL_FORMAT_BF16_C3_PLANAR || enPixelFormat == PIXEL_FORMAT_FP16_C3_PLANAR || enPixelFormat == PIXEL_FORMAT_FP32_C3_PLANAR) &&
+		(image->image_format == FORMAT_BGR_PLANAR || image->image_format == FORMAT_BGRP_SEPARATE)){
+		stVideoFrame->stVFrame.u32Stride[0] = stVideoFrame->stVFrame.u32Stride[2];
+		stVideoFrame->stVFrame.u32Length[0] = stVideoFrame->stVFrame.u32Length[2];
+		stVideoFrame->stVFrame.u64PhyAddr[0] = stVideoFrame->stVFrame.u64PhyAddr[2];
+		stVideoFrame->stVFrame.u32Stride[2] = image->image_private->memory_layout[0].pitch_stride;
+		stVideoFrame->stVFrame.u32Length[2] = image->image_private->memory_layout[0].pitch_stride * image->height;
+		stVideoFrame->stVFrame.u64PhyAddr[2] = image->image_private->data[0].u.device.device_addr;
+	}
+
+	stVideoFrame->stVFrame.u32Align = 1;
+	stVideoFrame->stVFrame.u32TimeRef = 0;
+	stVideoFrame->stVFrame.u64PTS = 0;
+	stVideoFrame->stVFrame.enDynamicRange = DYNAMIC_RANGE_SDR8;
+	stVideoFrame->u32PoolId = 0xffff;
 }
 
 static void dwa_mesh_gen_get_size(SIZE_S in_size, SIZE_S out_size, u32 *mesh_id_size, u32 *mesh_tbl_size)
@@ -650,7 +697,7 @@ static CVI_U8 get_idle_tsk_mesh(bm_handle_t handle)
     CVI_U8 i = DWA_MAX_TSK_MESH;
 
     for (i = 0; i < DWA_MAX_TSK_MESH; i++) {
-        if (strcmp(dwa_tskMesh[i].Name, "") == 0 && !dwa_tskMesh[i].paddr && !dwa_tskMesh[i].vaddr)
+        if (strcmp(dwa_tskMesh[i].Name, "") == 0 && !dwa_tskMesh[i].mem.u.device.device_addr && !dwa_tskMesh[i].mem.u.system.system_addr)
             break;
     }
 
@@ -658,68 +705,71 @@ static CVI_U8 get_idle_tsk_mesh(bm_handle_t handle)
         bm_device_mem_t mem;
         uncommonly_used_idx++;
         uncommonly_used_idx = uncommonly_used_idx % DWA_MAX_TSK_MESH;
-        mem.u.device.device_addr = dwa_tskMesh[uncommonly_used_idx].paddr;
+        mem = dwa_tskMesh[uncommonly_used_idx].mem;
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "device_addr = %lx, dmabuf_fd = %d, size = %d\n", mem.u.device.device_addr, mem.u.device.dmabuf_fd, mem.size);
         bm_free_device(handle, mem);
         return uncommonly_used_idx;
     }
     return i;
 }
 
-static void bm_ldc_attr_map(const LDC_ATTR_S *pstLDCAttr, SIZE_S out_size, BM_FISHEYE_ATTR *FISHEYE_CONFIG
-    , BM_FISHEYE_REGION_ATTR *FISHEYE_REGION)
+static void bm_ldc_attr_map(const LDC_ATTR_S *pstLDCAttr,
+                            SIZE_S out_size,
+                            bm_fisheye_attr *fisheye_config,
+                            bm_fisheye_region_attr *fisheye_region)
 {
-    FISHEYE_CONFIG->MntMode = 0;
-    FISHEYE_CONFIG->OutW_disp = out_size.u32Width;
-    FISHEYE_CONFIG->OutH_disp = out_size.u32Height;
-    FISHEYE_CONFIG->InCenterX = out_size.u32Width >> 1;
-    FISHEYE_CONFIG->InCenterY = out_size.u32Height >> 1;
+    fisheye_config->MntMode = 0;
+    fisheye_config->OutW_disp = out_size.u32Width;
+    fisheye_config->OutH_disp = out_size.u32Height;
+    fisheye_config->InCenterX = out_size.u32Width >> 1;
+    fisheye_config->InCenterY = out_size.u32Height >> 1;
     // TODO: how to handl radius
-    FISHEYE_CONFIG->InRadius = MIN2(FISHEYE_CONFIG->InCenterX, FISHEYE_CONFIG->InCenterY);
-    FISHEYE_CONFIG->FStrength = 0;
-    FISHEYE_CONFIG->TCoef  = 0;
+    fisheye_config->InRadius = MIN(fisheye_config->InCenterX, fisheye_config->InCenterY);
+    fisheye_config->FStrength = 0;
+    fisheye_config->TCoef  = 0;
 
-    FISHEYE_CONFIG->RgnNum = 1;
+    fisheye_config->RgnNum = 1;
 
     bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "OutW_disp(%d) OutH_disp(%d)\n"
-        , FISHEYE_CONFIG->OutW_disp, FISHEYE_CONFIG->OutH_disp);
+        , fisheye_config->OutW_disp, fisheye_config->OutH_disp);
 
     for (int i = 0; i < MAX_REGION_NUM; ++i)
-        FISHEYE_REGION[i].RegionValid = 0;
+        fisheye_region[i].RegionValid = 0;
 
-    for (int i = 0; i < FISHEYE_CONFIG->RgnNum; ++i) {
-        FISHEYE_REGION[i].RegionValid = 1;
+    for (int i = 0; i < fisheye_config->RgnNum; ++i) {
+        fisheye_region[i].RegionValid = 1;
 
-        //FISHEYE_REGION[i].ZoomH = pstLDCAttr->bAspect;
-        FISHEYE_REGION[i].ZoomV = pstLDCAttr->bAspect;
-        FISHEYE_REGION[i].Pan = pstLDCAttr->s32XYRatio;
-        FISHEYE_REGION[i].PanEnd = pstLDCAttr->s32DistortionRatio;
-        FISHEYE_REGION[i].Tilt = 180;
-        FISHEYE_REGION[i].OutW = FISHEYE_CONFIG->OutW_disp;
-        FISHEYE_REGION[i].OutH = FISHEYE_CONFIG->OutH_disp;
-        FISHEYE_REGION[i].OutX = 0;
-        FISHEYE_REGION[i].OutY = 0;
-        FISHEYE_REGION[i].InRadius = pstLDCAttr->s32CenterXOffset;
-        FISHEYE_REGION[i].OutRadius = pstLDCAttr->s32CenterYOffset;
-        FISHEYE_REGION[i].MeshVer = 16;
-        FISHEYE_REGION[i].MeshHor = 16;
+        //fisheye_region[i].ZoomH = pstLDCAttr->bAspect;
+        fisheye_region[i].ZoomV = pstLDCAttr->bAspect;
+        fisheye_region[i].Pan = pstLDCAttr->s32XYRatio;
+        fisheye_region[i].PanEnd = pstLDCAttr->s32DistortionRatio;
+        fisheye_region[i].Tilt = 180;
+        fisheye_region[i].OutW = fisheye_config->OutW_disp;
+        fisheye_region[i].OutH = fisheye_config->OutH_disp;
+        fisheye_region[i].OutX = 0;
+        fisheye_region[i].OutY = 0;
+        fisheye_region[i].InRadius = pstLDCAttr->s32CenterXOffset;
+        fisheye_region[i].OutRadius = pstLDCAttr->s32CenterYOffset;
+        fisheye_region[i].MeshVer = 16;
+        fisheye_region[i].MeshHor = 16;
         if (pstLDCAttr->stGridInfoAttr.Enable) //use new ldc c models
-            FISHEYE_REGION[i].ViewMode = PROJECTION_STEREO_FIT;
+            fisheye_region[i].ViewMode = PROJECTION_STEREO_FIT;
         else
-            FISHEYE_REGION[i].ViewMode = PROJECTION_LDC;
-        FISHEYE_REGION[i].ThetaX = pstLDCAttr->s32XRatio;
-        FISHEYE_REGION[i].ThetaZ = pstLDCAttr->s32YRatio;
-        FISHEYE_REGION[i].ThetaY = 0;
+            fisheye_region[i].ViewMode = PROJECTION_LDC;
+        fisheye_region[i].ThetaX = pstLDCAttr->s32XRatio;
+        fisheye_region[i].ThetaZ = pstLDCAttr->s32YRatio;
+        fisheye_region[i].ThetaY = 0;
 
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "Region(%d) ViewMode(%d) MeshVer(%d) MeshHor(%d)\n"
-            , i, FISHEYE_REGION[i].ViewMode, FISHEYE_REGION[i].MeshVer, FISHEYE_REGION[i].MeshHor);
+            , i, fisheye_region[i].ViewMode, fisheye_region[i].MeshVer, fisheye_region[i].MeshHor);
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "bAspect(%d) XYRatio(%d) DistortionRatio(%d)\n"
-            , (bool)FISHEYE_REGION[i].ZoomV, FISHEYE_REGION[i].Pan, FISHEYE_REGION[i].PanEnd);
+            , (bool)fisheye_region[i].ZoomV, fisheye_region[i].Pan, fisheye_region[i].PanEnd);
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "XRatio(%d) XYRatio(%d)\n"
-            , (int)FISHEYE_REGION[i].ThetaX, (int)FISHEYE_REGION[i].ThetaZ);
+            , (int)fisheye_region[i].ThetaX, (int)fisheye_region[i].ThetaZ);
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "CenterXOffset(%lf) CenterYOffset(%lf) Rect(%d %d %d %d)\n"
-            , FISHEYE_REGION[i].InRadius, FISHEYE_REGION[i].OutRadius
-            , FISHEYE_REGION[i].OutX, FISHEYE_REGION[i].OutY
-            , FISHEYE_REGION[i].OutW, FISHEYE_REGION[i].OutH);
+            , fisheye_region[i].InRadius, fisheye_region[i].OutRadius
+            , fisheye_region[i].OutX, fisheye_region[i].OutY
+            , fisheye_region[i].OutW, fisheye_region[i].OutH);
     }
 }
 
@@ -1084,47 +1134,6 @@ int mesh_scan_preproc_3(int dst_width, int dst_height
     return id_idx;
 }
 
-void bm_get_frame_mesh_list(BM_FISHEYE_ATTR* FISHEYE_CONFIG, BM_FISHEYE_REGION_ATTR* FISHEYE_REGION)
-{
-    // pack all regions' mesh info, including src & dst.
-    int rgnNum = FISHEYE_CONFIG->RgnNum;
-    int meshNumRgn;
-    int frameMeshIdx = 0;
-    int rotate_index = FISHEYE_CONFIG->rotate_index;
-    int view_w = FISHEYE_CONFIG->OutW_disp;
-    int view_h = FISHEYE_CONFIG->OutH_disp;
-
-    for (int i = 0; i < rgnNum; i++) {
-        if (FISHEYE_REGION[i].RegionValid == 1) {
-            meshNumRgn = (FISHEYE_REGION[i].MeshHor * FISHEYE_REGION[i].MeshVer);
-
-            // go through each region loop
-            for (int meshidx = 0; meshidx < meshNumRgn; meshidx++) {
-                // each mesh has 4 knots
-                for (int knotidx = 0; knotidx < 4; knotidx++) {
-                    // do rotaion:
-                    double x_src = FISHEYE_REGION[i].SrcRgnMeshInfo[meshidx].knot[knotidx].xcor;
-                    double y_src = FISHEYE_REGION[i].SrcRgnMeshInfo[meshidx].knot[knotidx].ycor;
-                    double x_dst = FISHEYE_REGION[i].DstRgnMeshInfo[meshidx].knot[knotidx].xcor;
-                    double y_dst = FISHEYE_REGION[i].DstRgnMeshInfo[meshidx].knot[knotidx].ycor;
-
-                    double x_dst_out, y_dst_out;
-                    _do_mesh_rotate(rotate_index, view_h, view_w, x_dst, y_dst, &x_dst_out, &y_dst_out);
-
-                    FISHEYE_CONFIG->DstRgnMeshInfo[frameMeshIdx].knot[knotidx].xcor = x_dst_out; //FISHEYE_REGION[i].DstRgnMeshInfo[meshidx].knot[knotidx].xcor;
-                    FISHEYE_CONFIG->DstRgnMeshInfo[frameMeshIdx].knot[knotidx].ycor = y_dst_out; //FISHEYE_REGION[i].DstRgnMeshInfo[meshidx].knot[knotidx].ycor;
-                    FISHEYE_CONFIG->SrcRgnMeshInfo[frameMeshIdx].knot[knotidx].xcor = x_src; //FISHEYE_REGION[i].SrcRgnMeshInfo[meshidx].knot[knotidx].xcor;
-                    FISHEYE_CONFIG->SrcRgnMeshInfo[frameMeshIdx].knot[knotidx].ycor = y_src; //FISHEYE_REGION[i].SrcRgnMeshInfo[meshidx].knot[knotidx].ycor;
-                }
-                frameMeshIdx += 1;
-            }
-        }
-    }
-
-    // update mesh index number
-    FISHEYE_CONFIG->TotalMeshNum = frameMeshIdx;
-}
-
 void _do_mesh_rotate(int rotate_index, int view_h, int view_w, double xin, double yin, double *xout, double *yout)
 {
     double RMATRIX[2][2];
@@ -1194,25 +1203,66 @@ void _do_mesh_rotate(int rotate_index, int view_h, int view_w, double xin, doubl
     }
 }
 
-static void _LDC_View(BM_FISHEYE_REGION_ATTR* FISHEYE_REGION, int rgn_idx, double x0, double y0)
+void bm_get_frame_mesh_list(bm_fisheye_attr* fisheye_config, bm_fisheye_region_attr* fisheye_region)
 {
-    if (FISHEYE_REGION[rgn_idx].ViewMode != PROJECTION_LDC)
+    // pack all regions' mesh info, including src & dst.
+    int rgnNum = fisheye_config->RgnNum;
+    int meshNumRgn;
+    int frameMeshIdx = 0;
+    int rotate_index = fisheye_config->rotate_index;
+    int view_w = fisheye_config->OutW_disp;
+    int view_h = fisheye_config->OutH_disp;
+
+    for (int i = 0; i < rgnNum; i++) {
+        if (fisheye_region[i].RegionValid == 1) {
+            meshNumRgn = (fisheye_region[i].MeshHor * fisheye_region[i].MeshVer);
+
+            // go through each region loop
+            for (int meshidx = 0; meshidx < meshNumRgn; meshidx++) {
+                // each mesh has 4 knots
+                for (int knotidx = 0; knotidx < 4; knotidx++) {
+                    // do rotaion:
+                    double x_src = fisheye_region[i].SrcRgnMeshInfo[meshidx].knot[knotidx].xcor;
+                    double y_src = fisheye_region[i].SrcRgnMeshInfo[meshidx].knot[knotidx].ycor;
+                    double x_dst = fisheye_region[i].DstRgnMeshInfo[meshidx].knot[knotidx].xcor;
+                    double y_dst = fisheye_region[i].DstRgnMeshInfo[meshidx].knot[knotidx].ycor;
+
+                    double x_dst_out, y_dst_out;
+                    _do_mesh_rotate(rotate_index, view_h, view_w, x_dst, y_dst, &x_dst_out, &y_dst_out);
+
+                    fisheye_config->DstRgnMeshInfo[frameMeshIdx].knot[knotidx].xcor = x_dst_out; //fisheye_region[i].DstRgnMeshInfo[meshidx].knot[knotidx].xcor;
+                    fisheye_config->DstRgnMeshInfo[frameMeshIdx].knot[knotidx].ycor = y_dst_out; //fisheye_region[i].DstRgnMeshInfo[meshidx].knot[knotidx].ycor;
+                    fisheye_config->SrcRgnMeshInfo[frameMeshIdx].knot[knotidx].xcor = x_src; //fisheye_region[i].SrcRgnMeshInfo[meshidx].knot[knotidx].xcor;
+                    fisheye_config->SrcRgnMeshInfo[frameMeshIdx].knot[knotidx].ycor = y_src; //fisheye_region[i].SrcRgnMeshInfo[meshidx].knot[knotidx].ycor;
+                }
+                frameMeshIdx += 1;
+            }
+        }
+    }
+
+    // update mesh index number
+    fisheye_config->TotalMeshNum = frameMeshIdx;
+}
+
+static void _ldc_view(bm_fisheye_region_attr* fisheye_region, int rgn_idx, double x0, double y0)
+{
+    if (fisheye_region[rgn_idx].ViewMode != PROJECTION_LDC)
         return;
 
-    int view_w = FISHEYE_REGION[rgn_idx].OutW;
-    int view_h = FISHEYE_REGION[rgn_idx].OutH;
-    int mesh_horcnt = FISHEYE_REGION[rgn_idx].MeshHor;
-    int mesh_vercnt = FISHEYE_REGION[rgn_idx].MeshVer;
+    int view_w = fisheye_region[rgn_idx].OutW;
+    int view_h = fisheye_region[rgn_idx].OutH;
+    int mesh_horcnt = fisheye_region[rgn_idx].MeshHor;
+    int mesh_vercnt = fisheye_region[rgn_idx].MeshVer;
 
 
     // register:
-    bool bAspect    = (bool)FISHEYE_REGION[0].ZoomV;
-    int XYRatio     = minmax(FISHEYE_REGION[0].Pan, 0, 100);
-    int XRatio      = minmax(FISHEYE_REGION[0].ThetaX, 0, 100);
-    int YRatio      = minmax(FISHEYE_REGION[0].ThetaZ, 0, 100);
-    int CenterXOffset   = minmax(FISHEYE_REGION[0].InRadius, -511, 511);
-    int CenterYOffset   = minmax(FISHEYE_REGION[0].OutRadius, -511, 511);
-    int DistortionRatio = minmax(FISHEYE_REGION[0].PanEnd, -300, 500);
+    bool bAspect    = (bool)fisheye_region[0].ZoomV;
+    int XYRatio     = minmax(fisheye_region[0].Pan, 0, 100);
+    int XRatio      = minmax(fisheye_region[0].ThetaX, 0, 100);
+    int YRatio      = minmax(fisheye_region[0].ThetaZ, 0, 100);
+    int CenterXOffset   = minmax(fisheye_region[0].InRadius, -511, 511);
+    int CenterYOffset   = minmax(fisheye_region[0].OutRadius, -511, 511);
+    int DistortionRatio = minmax(fisheye_region[0].PanEnd, -300, 500);
 
     double norm = sqrt((view_w / 2) * (view_w / 2) + (view_h / 2) * (view_h / 2));
 
@@ -1230,11 +1280,11 @@ static void _LDC_View(BM_FISHEYE_REGION_ATTR* FISHEYE_REGION, int rgn_idx, doubl
     new_y0 +=  (CenterYOffset/OFFSET_SCALE);
 #endif
 
-    double Aspect_gainX = MAX2(ud_gain, lr_gain);
-    double Aspect_gainY = MAX2(ud_gain, lr_gain);
+    double Aspect_gainX = MAX(ud_gain, lr_gain);
+    double Aspect_gainY = MAX(ud_gain, lr_gain);
 
 
-    Vector2D dist2d;
+    bm_vector2d dist2d;
 
     // go through all meshes in thus regions
     for (int i = 0; i < (mesh_horcnt * mesh_vercnt); i++) {
@@ -1242,10 +1292,10 @@ static void _LDC_View(BM_FISHEYE_REGION_ATTR* FISHEYE_REGION, int rgn_idx, doubl
         for (int knotidx = 0; knotidx < 4; knotidx++) {
             // display window center locate @ (0,0), mesh info shife back to center O.
             // for each region, rollback center is (0,0)
-            double x = FISHEYE_REGION[rgn_idx].DstRgnMeshInfo[i].knot[knotidx].xcor
-                - FISHEYE_REGION[rgn_idx].OutX - FISHEYE_REGION[rgn_idx].OutW / 2;
-            double y = FISHEYE_REGION[rgn_idx].DstRgnMeshInfo[i].knot[knotidx].ycor
-                - FISHEYE_REGION[rgn_idx].OutY - FISHEYE_REGION[rgn_idx].OutH / 2;
+            double x = fisheye_region[rgn_idx].DstRgnMeshInfo[i].knot[knotidx].xcor
+                - fisheye_region[rgn_idx].OutX - fisheye_region[rgn_idx].OutW / 2;
+            double y = fisheye_region[rgn_idx].DstRgnMeshInfo[i].knot[knotidx].ycor
+                - fisheye_region[rgn_idx].OutY - fisheye_region[rgn_idx].OutH / 2;
 
 #if OFFSET_SCALE // new method
             x = minmax(x, (-view_w+ CenterXOffsetScale) / 2 + 1, (view_w+ CenterXOffsetScale) / 2 - 1);
@@ -1275,36 +1325,36 @@ static void _LDC_View(BM_FISHEYE_REGION_ATTR* FISHEYE_REGION, int rgn_idx, doubl
 
             // update source mesh-info here
 #if OFFSET_SCALE
-            FISHEYE_REGION[rgn_idx].SrcRgnMeshInfo[i].knot[knotidx].xcor = dist2d.x + new_x0;
-            FISHEYE_REGION[rgn_idx].SrcRgnMeshInfo[i].knot[knotidx].ycor = dist2d.y + new_y0;
+            fisheye_region[rgn_idx].SrcRgnMeshInfo[i].knot[knotidx].xcor = dist2d.x + new_x0;
+            fisheye_region[rgn_idx].SrcRgnMeshInfo[i].knot[knotidx].ycor = dist2d.y + new_y0;
 #else
-            FISHEYE_REGION[rgn_idx].SrcRgnMeshInfo[i].knot[knotidx].xcor = dist2d.x + x0 + CenterXOffset;
-            FISHEYE_REGION[rgn_idx].SrcRgnMeshInfo[i].knot[knotidx].ycor = dist2d.y + y0 + CenterYOffset;
+            fisheye_region[rgn_idx].SrcRgnMeshInfo[i].knot[knotidx].xcor = dist2d.x + x0 + CenterXOffset;
+            fisheye_region[rgn_idx].SrcRgnMeshInfo[i].knot[knotidx].ycor = dist2d.y + y0 + CenterYOffset;
 #endif
         }
     }
 }
 
 
-static void GenRotMatrix3D_YXZ(RotMatrix3D* mat, BM_FISHEYE_REGION_ATTR* FISHEYE_REGION_IDX)
+static void gen_rot_matrix3d_yxz(bm_rotMatrix3d* mat, bm_fisheye_region_attr* fisheye_region_idx)
 {
     // This Rotation Matrix Order = R = Rz*Rx*Ry
     // rotation order = θy -> θx -> θz
     //_LOAD_REGION_CONFIG;
     // initital position
-    double tmp_phy_x = FISHEYE_REGION_IDX->ThetaX;  //phy_x;
-    double tmp_phy_y = FISHEYE_REGION_IDX->ThetaY;  //phy_y;    // Not Used for Now.
-    double tmp_phy_z = FISHEYE_REGION_IDX->ThetaZ;  //phy_z;
+    double tmp_phy_x = fisheye_region_idx->ThetaX;  //phy_x;
+    double tmp_phy_y = fisheye_region_idx->ThetaY;  //phy_y;    // Not Used for Now.
+    double tmp_phy_z = fisheye_region_idx->ThetaZ;  //phy_z;
 
-    //_LOAD_REGION_CONFIG(FISHEYE_CONFIG, FISHEYE_REGION);
+    //_LOAD_REGION_CONFIG(fisheye_config, fisheye_region);
     // UI Control
-    double ctrl_tilt, ctrl_pan;// = minmax(FISHEYE_REGION_IDX[rgn_idx].Tilt - UI_CTRL_VALUE_CENTER, -UI_CTRL_VALUE_CENTER, UI_CTRL_VALUE_CENTER);
-    //double ctrl_pan  = minmax(FISHEYE_REGION_IDX[rgn_idx].Pan - UI_CTRL_VALUE_CENTER, -UI_CTRL_VALUE_CENTER, UI_CTRL_VALUE_CENTER);
+    double ctrl_tilt, ctrl_pan;// = minmax(fisheye_region_idx[rgn_idx].Tilt - UI_CTRL_VALUE_CENTER, -UI_CTRL_VALUE_CENTER, UI_CTRL_VALUE_CENTER);
+    //double ctrl_pan  = minmax(fisheye_region_idx[rgn_idx].Pan - UI_CTRL_VALUE_CENTER, -UI_CTRL_VALUE_CENTER, UI_CTRL_VALUE_CENTER);
 
-    if (FISHEYE_REGION_IDX->ViewMode == PROJECTION_REGION)
+    if (fisheye_region_idx->ViewMode == PROJECTION_REGION)
     {
-        ctrl_tilt = minmax(FISHEYE_REGION_IDX->Tilt - UI_CTRL_VALUE_CENTER, -UI_CTRL_VALUE_CENTER, UI_CTRL_VALUE_CENTER);
-        ctrl_pan  = minmax(FISHEYE_REGION_IDX->Pan  - UI_CTRL_VALUE_CENTER, -UI_CTRL_VALUE_CENTER, UI_CTRL_VALUE_CENTER);
+        ctrl_tilt = minmax(fisheye_region_idx->Tilt - UI_CTRL_VALUE_CENTER, -UI_CTRL_VALUE_CENTER, UI_CTRL_VALUE_CENTER);
+        ctrl_pan  = minmax(fisheye_region_idx->Pan  - UI_CTRL_VALUE_CENTER, -UI_CTRL_VALUE_CENTER, UI_CTRL_VALUE_CENTER);
     }
     else
     {
@@ -1336,7 +1386,7 @@ static void GenRotMatrix3D_YXZ(RotMatrix3D* mat, BM_FISHEYE_REGION_ATTR* FISHEYE
 }
 
 
-static void Normalize3D(Vector3D* v)
+static void normalize_3d(bm_vector3d* v)
 {
     double x3d, y3d, z3d, d;
 
@@ -1350,11 +1400,11 @@ static void Normalize3D(Vector3D* v)
 }
 
 
-static void Equidistant(Vector3D* v3d, Vector2D* v2d, double f)
+static void equidistant(bm_vector3d* v3d, bm_vector2d* v2d, double f)
 {
     double rd, ri, theta, phy;
 
-    Normalize3D(v3d);
+    normalize_3d(v3d);
 
     // calculate theta from the angle between (0,0,1) and (x3d, y3d, z3d)
     theta = acos(v3d->z);
@@ -1371,7 +1421,7 @@ static void Equidistant(Vector3D* v3d, Vector2D* v2d, double f)
     phy = atan(rd / f);
 
     // calculate new distorted vector (x,y,z) = (0,0,1) * (1-rd/ri) + (x3d, y3d, z3d) * (rd/ri)
-    Vector3D v3d_p;
+    bm_vector3d v3d_p;
 
     v3d_p.x = v3d->x * phy / theta;
     v3d_p.y = v3d->y * phy / theta;
@@ -1382,10 +1432,10 @@ static void Equidistant(Vector3D* v3d, Vector2D* v2d, double f)
     v2d->y = (f / v3d_p.z) * v3d_p.y;
 }
 
-static void Rotate3D(Vector3D* v3d, RotMatrix3D* mat)
+static void Rotate3D(bm_vector3d* v3d, bm_rotMatrix3d* mat)
 {
     //int i, j;
-    Vector3D v1;
+    bm_vector3d v1;
 
     v1.x = mat->coef[0][0] * v3d->x + mat->coef[0][1] * v3d->y +
         mat->coef[0][2] * v3d->z + mat->coef[0][3];
@@ -1399,28 +1449,28 @@ static void Rotate3D(Vector3D* v3d, RotMatrix3D* mat)
     v3d->z = v1.z;
 }
 
-static void _Panorama180View2(BM_FISHEYE_REGION_ATTR* FISHEYE_REGION, int rgn_idx, FISHEYE_MOUNT_MODE_E MOUNT, double x0, double y0, double r)
+static void _Panorama180View2(bm_fisheye_region_attr* fisheye_region, int rgn_idx, FISHEYE_MOUNT_MODE_E MOUNT, double x0, double y0, double r)
 {
-    if (FISHEYE_REGION[rgn_idx].ViewMode != PROJECTION_PANORAMA_180)
+    if (fisheye_region[rgn_idx].ViewMode != PROJECTION_PANORAMA_180)
         return;
     if (MOUNT != FISHEYE_WALL_MOUNT) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "mount_mode(%d) not supported in Panorama180\n", MOUNT);
         return;
     }
 
-    int view_w = FISHEYE_REGION[rgn_idx].OutW;
-    int view_h = FISHEYE_REGION[rgn_idx].OutH;
-    int tot_mesh_cnt = FISHEYE_REGION[rgn_idx].MeshHor * FISHEYE_REGION[rgn_idx].MeshVer;
+    int view_w = fisheye_region[rgn_idx].OutW;
+    int view_h = fisheye_region[rgn_idx].OutH;
+    int tot_mesh_cnt = fisheye_region[rgn_idx].MeshHor * fisheye_region[rgn_idx].MeshVer;
 
     // bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "view_w = %d, view_h = %d, \n", view_w, view_h);
     // bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "mesh_horcnt = %d,\n", mesh_horcnt);
     // bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "mesh_vercnt = %d,\n", mesh_vercnt);
 
     // UI PARAMETERS
-    int _UI_horViewOffset = FISHEYE_REGION[rgn_idx].Pan;        // value range = 0 ~ 360, => -180 ~ 0 ~ +180
-    int _UI_verViewOffset = FISHEYE_REGION[rgn_idx].Tilt;       // value = 0 ~ 360, center = 180 ( original ) => -180 ~ 0 ~ + 180
-    int _UI_horViewRange  = FISHEYE_REGION[rgn_idx].ZoomH;      // value = 0 ~ 4095, symmeterically control horizontal View Range, ex:  value = 4095 => hor view angle = -90 ~ + 90
-    int _UI_verViewRange  = FISHEYE_REGION[rgn_idx].ZoomV;      // value = 0 ~ 4095, symmetrically control vertical view range. ex: value = 4096, ver view angle = -90 ~ + 90
+    int _UI_horViewOffset = fisheye_region[rgn_idx].Pan;        // value range = 0 ~ 360, => -180 ~ 0 ~ +180
+    int _UI_verViewOffset = fisheye_region[rgn_idx].Tilt;       // value = 0 ~ 360, center = 180 ( original ) => -180 ~ 0 ~ + 180
+    int _UI_horViewRange  = fisheye_region[rgn_idx].ZoomH;      // value = 0 ~ 4095, symmeterically control horizontal View Range, ex:  value = 4095 => hor view angle = -90 ~ + 90
+    int _UI_verViewRange  = fisheye_region[rgn_idx].ZoomV;      // value = 0 ~ 4095, symmetrically control vertical view range. ex: value = 4096, ver view angle = -90 ~ + 90
 
     _UI_verViewRange = (_UI_verViewRange == 4095) ? 4096 : _UI_verViewRange;
     _UI_horViewRange = (_UI_horViewRange == 4095) ? 4096 : _UI_horViewRange;
@@ -1456,12 +1506,12 @@ static void _Panorama180View2(BM_FISHEYE_REGION_ATTR* FISHEYE_REGION, int rgn_id
 
     //system("pause");
 
-    RotMatrix3D mat0;
+    bm_rotMatrix3d mat0;
 
-    Vector3D pix3d;
-    Vector2D dist2d;
-    int X_offset = FISHEYE_REGION[rgn_idx].OutX + FISHEYE_REGION[rgn_idx].OutW / 2;
-    int Y_offset = FISHEYE_REGION[rgn_idx].OutY + FISHEYE_REGION[rgn_idx].OutH / 2;
+    bm_vector3d pix3d;
+    bm_vector2d dist2d;
+    int X_offset = fisheye_region[rgn_idx].OutX + fisheye_region[rgn_idx].OutW / 2;
+    int Y_offset = fisheye_region[rgn_idx].OutY + fisheye_region[rgn_idx].OutH / 2;
 
     for (int i = 0; i < tot_mesh_cnt; i++)
     {
@@ -1469,8 +1519,8 @@ static void _Panorama180View2(BM_FISHEYE_REGION_ATTR* FISHEYE_REGION, int rgn_id
         // each mesh has 4 knots
         for (int knotidx = 0; knotidx < 4; knotidx++)
         {
-            double x = FISHEYE_REGION[rgn_idx].DstRgnMeshInfo[i].knot[knotidx].xcor - X_offset;
-            double y = FISHEYE_REGION[rgn_idx].DstRgnMeshInfo[i].knot[knotidx].ycor - Y_offset;
+            double x = fisheye_region[rgn_idx].DstRgnMeshInfo[i].knot[knotidx].xcor - X_offset;
+            double y = fisheye_region[rgn_idx].DstRgnMeshInfo[i].knot[knotidx].ycor - Y_offset;
             //double z = r;
 
             // initial pseudo plane cooridinates as vp3d
@@ -1483,7 +1533,7 @@ static void _Panorama180View2(BM_FISHEYE_REGION_ATTR* FISHEYE_REGION, int rgn_id
 
             // if (knotidx == 0)
             // {
-            //     bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "(x,y)=(%f,%f) FISHEYE_REGION[rgn_idx].DstRgnMeshInfo[i].knot[knotidx].xcor = %f, ", x, y, FISHEYE_REGION[rgn_idx].DstRgnMeshInfo[i].knot[knotidx].xcor);
+            //     bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "(x,y)=(%f,%f) fisheye_region[rgn_idx].DstRgnMeshInfo[i].knot[knotidx].xcor = %f, ", x, y, fisheye_region[rgn_idx].DstRgnMeshInfo[i].knot[knotidx].xcor);
             //     bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "hor_deg = %f, ver_deg = %f,\n\r",theta_hor_cur, theta_ver_cur);
             //     bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "hor_rad = %f,  ver_rad = %f, \n\r", theta_hor_cur_rad, theta_ver_cur_rad);
             // }
@@ -1492,11 +1542,11 @@ static void _Panorama180View2(BM_FISHEYE_REGION_ATTR* FISHEYE_REGION, int rgn_id
             double theta_y = theta_ver_cur_rad;
             double theta_z = (M_PI / 2);
 
-            FISHEYE_REGION[rgn_idx].ThetaX = theta_x;
-            FISHEYE_REGION[rgn_idx].ThetaY = theta_y;
-            FISHEYE_REGION[rgn_idx].ThetaZ = theta_z;
+            fisheye_region[rgn_idx].ThetaX = theta_x;
+            fisheye_region[rgn_idx].ThetaY = theta_y;
+            fisheye_region[rgn_idx].ThetaZ = theta_z;
 
-            GenRotMatrix3D_YXZ(&mat0, &FISHEYE_REGION[rgn_idx]);
+            gen_rot_matrix3d_yxz(&mat0, &fisheye_region[rgn_idx]);
 
             pix3d.x = 0;
             pix3d.y = 0;
@@ -1505,15 +1555,15 @@ static void _Panorama180View2(BM_FISHEYE_REGION_ATTR* FISHEYE_REGION, int rgn_id
             Rotate3D(&pix3d, &mat0);
 
             // generate new 3D vector thru rotated pixel
-            //Normalize3D(&pix3d);
+            // normalize_3d(&pix3d);
 
             // generate 2D location on distorted image
-            //Equidistant_Panorama(&pix3d, &dist2d, r);
-            Equidistant(&pix3d, &dist2d, r);
+            // equidistant_panorama(&pix3d, &dist2d, r);
+            equidistant(&pix3d, &dist2d, r);
 
             // update source mesh-info here
-            FISHEYE_REGION[rgn_idx].SrcRgnMeshInfo[i].knot[knotidx].xcor = dist2d.x + x0;
-            FISHEYE_REGION[rgn_idx].SrcRgnMeshInfo[i].knot[knotidx].ycor = dist2d.y + y0;
+            fisheye_region[rgn_idx].SrcRgnMeshInfo[i].knot[knotidx].xcor = dist2d.x + x0;
+            fisheye_region[rgn_idx].SrcRgnMeshInfo[i].knot[knotidx].ycor = dist2d.y + y0;
 
             bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "(x2d)(%f,%f),\n\r",dist2d.x + x0, dist2d.y + y0);
 
@@ -1521,7 +1571,7 @@ static void _Panorama180View2(BM_FISHEYE_REGION_ATTR* FISHEYE_REGION, int rgn_id
     }
 }
 
-static void Equidistant_Panorama(Vector3D* v3d, Vector2D* v2d, double f)
+static void equidistant_panorama(bm_vector3d* v3d, bm_vector2d* v2d, double f)
 {
     double rd, theta;
 
@@ -1540,7 +1590,7 @@ static void Equidistant_Panorama(Vector3D* v3d, Vector2D* v2d, double f)
     phy = atan(rd / f);
 
     // calculate new distorted vector (x,y,z) = (0,0,1) * (1-rd/ri) + (x3d, y3d, z3d) * (rd/ri)
-    Vector3D v3d_p;
+    bm_vector3d v3d_p;
     v3d_p.x = v3d->x * phy / theta;
     v3d_p.y = v3d->y * phy / theta;
     v3d_p.z = v3d->z * phy / theta + (1 - phy / theta);
@@ -1567,39 +1617,39 @@ static void Equidistant_Panorama(Vector3D* v3d, Vector2D* v2d, double f)
 #endif
 }
 
-static void _Panorama360View2(BM_FISHEYE_REGION_ATTR* FISHEYE_REGION, int rgn_idx, FISHEYE_MOUNT_MODE_E MOUNT, double x0, double y0, double r)
+static void _panorama360View2(bm_fisheye_region_attr* fisheye_region, int rgn_idx, FISHEYE_MOUNT_MODE_E MOUNT, double x0, double y0, double r)
 {
-    if (FISHEYE_REGION[rgn_idx].ViewMode != PROJECTION_PANORAMA_360)
+    if (fisheye_region[rgn_idx].ViewMode != PROJECTION_PANORAMA_360)
         return;
     if ((MOUNT != FISHEYE_CEILING_MOUNT) && (MOUNT != FISHEYE_DESKTOP_MOUNT)) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "mount_mode(%d) not supported in Panorama360\n", MOUNT);
         return;
     }
 
-    int view_w = FISHEYE_REGION[rgn_idx].OutW;
-    int view_h = FISHEYE_REGION[rgn_idx].OutH;
-    int tot_mesh_cnt = FISHEYE_REGION[rgn_idx].MeshHor * FISHEYE_REGION[rgn_idx].MeshVer;
+    int view_w = fisheye_region[rgn_idx].OutW;
+    int view_h = fisheye_region[rgn_idx].OutH;
+    int tot_mesh_cnt = fisheye_region[rgn_idx].MeshHor * fisheye_region[rgn_idx].MeshVer;
 
-    //Vector2D vp2d;
-    //Vector3D vp3d;
-    //RotMatrix3D mat0;
+    //bm_vector2d vp2d;
+    //bm_vector3d vp3d;
+    //bm_rotMatrix3d mat0;
 
-    Vector3D pix3d;
-    Vector2D dist2d;
+    bm_vector3d pix3d;
+    bm_vector2d dist2d;
 
     // UI PARAMETERS
-    //float _UI_start_angle     = FISHEYE_REGION[rgn_idx].Pan;              // value from 0=360, 0 ~ 356 is the range of adjustment.
-    float _UI_view_offset       = FISHEYE_REGION[rgn_idx].Tilt;             // value = 0 ~ 360, center = 180 ( original ), OR create offset to shift OutRadius & InRadius ( = adjust theta angle in our implementation )
-    float _UI_inradius      = FISHEYE_REGION[rgn_idx].InRadius;             // value = 0 ~ 4095
-    float _UI_outradius     = FISHEYE_REGION[rgn_idx].OutRadius;            // value = 0 ~ 4095
-    float _UI_zoom_outradius    = FISHEYE_REGION[rgn_idx].ZoomV;            // a ratio to zoom OutRadius length.
+    //float _UI_start_angle     = fisheye_region[rgn_idx].Pan;              // value from 0=360, 0 ~ 356 is the range of adjustment.
+    float _UI_view_offset       = fisheye_region[rgn_idx].Tilt;             // value = 0 ~ 360, center = 180 ( original ), OR create offset to shift OutRadius & InRadius ( = adjust theta angle in our implementation )
+    float _UI_inradius      = fisheye_region[rgn_idx].InRadius;             // value = 0 ~ 4095
+    float _UI_outradius     = fisheye_region[rgn_idx].OutRadius;            // value = 0 ~ 4095
+    float _UI_zoom_outradius    = fisheye_region[rgn_idx].ZoomV;            // a ratio to zoom OutRadius length.
 
     _UI_inradius  = (_UI_inradius >= 4095)  ? 4096 : _UI_inradius;
     _UI_outradius = (_UI_outradius >= 4095) ? 4096 : _UI_outradius;
     _UI_zoom_outradius = (_UI_zoom_outradius >= 4095) ? 4096 : _UI_zoom_outradius;
 
-    int start_angle_degrees  = FISHEYE_REGION[rgn_idx].Pan;
-    int end_angle__degrees   = FISHEYE_REGION[rgn_idx].PanEnd;
+    int start_angle_degrees  = fisheye_region[rgn_idx].Pan;
+    int end_angle__degrees   = fisheye_region[rgn_idx].PanEnd;
 
 
     float raw_outradius_pxl = (_UI_outradius * r )/ 4096;
@@ -1633,8 +1683,8 @@ static void _Panorama360View2(BM_FISHEYE_REGION_ATTR* FISHEYE_REGION, int rgn_id
     int total_angle = (360 + (end_angle__degrees - start_angle_degrees)) % 360;
     int half_w = view_w / 2;
     int half_h = view_h / 2;
-    int X_offset = FISHEYE_REGION[rgn_idx].OutX + FISHEYE_REGION[rgn_idx].OutW / 2;
-    int Y_offset = FISHEYE_REGION[rgn_idx].OutY + FISHEYE_REGION[rgn_idx].OutH / 2;
+    int X_offset = fisheye_region[rgn_idx].OutX + fisheye_region[rgn_idx].OutW / 2;
+    int Y_offset = fisheye_region[rgn_idx].OutY + fisheye_region[rgn_idx].OutH / 2;
 
     for (int i = 0; i < tot_mesh_cnt; i++)
     {
@@ -1643,8 +1693,8 @@ static void _Panorama360View2(BM_FISHEYE_REGION_ATTR* FISHEYE_REGION, int rgn_id
         {
             double phi_degrees, phi_rad, theta_rv;
 
-            double x = FISHEYE_REGION[rgn_idx].DstRgnMeshInfo[i].knot[knotidx].xcor - X_offset;
-            double y = FISHEYE_REGION[rgn_idx].DstRgnMeshInfo[i].knot[knotidx].ycor - Y_offset;
+            double x = fisheye_region[rgn_idx].DstRgnMeshInfo[i].knot[knotidx].xcor - X_offset;
+            double y = fisheye_region[rgn_idx].DstRgnMeshInfo[i].knot[knotidx].ycor - Y_offset;
 
             if(MOUNT == FISHEYE_DESKTOP_MOUNT) {
                 phi_degrees = (total_angle * (half_w - x )) / (double)view_w;
@@ -1669,37 +1719,37 @@ static void _Panorama360View2(BM_FISHEYE_REGION_ATTR* FISHEYE_REGION, int rgn_id
             pix3d.x = xc;
             pix3d.y = yc;
             pix3d.z = zc;
-            //Equidistant(&pix3d, &dist2d, r);
+            //equidistant(&pix3d, &dist2d, r);
 
-            Equidistant_Panorama(&pix3d, &dist2d, r);
+            equidistant_panorama(&pix3d, &dist2d, r);
 
             // update source mesh-info here
-            FISHEYE_REGION[rgn_idx].SrcRgnMeshInfo[i].knot[knotidx].xcor = dist2d.x + x0;
-            FISHEYE_REGION[rgn_idx].SrcRgnMeshInfo[i].knot[knotidx].ycor = dist2d.y + y0;
+            fisheye_region[rgn_idx].SrcRgnMeshInfo[i].knot[knotidx].xcor = dist2d.x + x0;
+            fisheye_region[rgn_idx].SrcRgnMeshInfo[i].knot[knotidx].ycor = dist2d.y + y0;
         }
     }
 
 }
 
-static void _RegionView2(BM_FISHEYE_REGION_ATTR* FISHEYE_REGION, int rgn_idx, FISHEYE_MOUNT_MODE_E MOUNT, double x0, double y0, double r)
+static void _regionView2(bm_fisheye_region_attr* fisheye_region, int rgn_idx, FISHEYE_MOUNT_MODE_E MOUNT, double x0, double y0, double r)
 {
-    if (FISHEYE_REGION[rgn_idx].ViewMode != PROJECTION_REGION)
+    if (fisheye_region[rgn_idx].ViewMode != PROJECTION_REGION)
         return;
 
-    //int view_w = FISHEYE_REGION[rgn_idx].OutW;
-    //int view_h = FISHEYE_REGION[rgn_idx].OutH;
-    int tot_mesh_cnt = FISHEYE_REGION[rgn_idx].MeshHor * FISHEYE_REGION[rgn_idx].MeshVer;
+    //int view_w = fisheye_region[rgn_idx].OutW;
+    //int view_h = fisheye_region[rgn_idx].OutH;
+    int tot_mesh_cnt = fisheye_region[rgn_idx].MeshHor * fisheye_region[rgn_idx].MeshVer;
 
     // rotation matrix to point out view center of this region.
-    RotMatrix3D mat0;
-    GenRotMatrix3D_YXZ(&mat0, &FISHEYE_REGION[rgn_idx]);
+    bm_rotMatrix3d mat0;
+    gen_rot_matrix3d_yxz(&mat0, &fisheye_region[rgn_idx]);
 
-    Vector3D pix3d;
-    Vector2D dist2d;
-    int X_offset = FISHEYE_REGION[rgn_idx].OutX + FISHEYE_REGION[rgn_idx].OutW / 2;
-    int Y_offset = FISHEYE_REGION[rgn_idx].OutY + FISHEYE_REGION[rgn_idx].OutH / 2;
-    double w_ratio = 1.0 * (FISHEYE_REGION[rgn_idx].ZoomH - 2048) / 2048;
-    double h_ratio = 1.0 * (FISHEYE_REGION[rgn_idx].ZoomV - 2048) / 2048;
+    bm_vector3d pix3d;
+    bm_vector2d dist2d;
+    int X_offset = fisheye_region[rgn_idx].OutX + fisheye_region[rgn_idx].OutW / 2;
+    int Y_offset = fisheye_region[rgn_idx].OutY + fisheye_region[rgn_idx].OutH / 2;
+    double w_ratio = 1.0 * (fisheye_region[rgn_idx].ZoomH - 2048) / 2048;
+    double h_ratio = 1.0 * (fisheye_region[rgn_idx].ZoomV - 2048) / 2048;
 
     // go through all meshes in thus regions
     // mat0 is decided by view angle defined in re gion config.
@@ -1710,8 +1760,8 @@ static void _RegionView2(BM_FISHEYE_REGION_ATTR* FISHEYE_REGION, int rgn_idx, FI
         {
             // display window center locate @ (0,0), mesh info shife back to center O.
             // for each region, rollback center is (0,0)
-            double x = FISHEYE_REGION[rgn_idx].DstRgnMeshInfo[i].knot[knotidx].xcor - X_offset;
-            double y = FISHEYE_REGION[rgn_idx].DstRgnMeshInfo[i].knot[knotidx].ycor - Y_offset;
+            double x = fisheye_region[rgn_idx].DstRgnMeshInfo[i].knot[knotidx].xcor - X_offset;
+            double y = fisheye_region[rgn_idx].DstRgnMeshInfo[i].knot[knotidx].ycor - Y_offset;
             double z = r;
 
 
@@ -1734,17 +1784,17 @@ static void _RegionView2(BM_FISHEYE_REGION_ATTR* FISHEYE_REGION, int rgn_idx, FI
 
             // Region Porjection Model
             Rotate3D(&pix3d, &mat0);
-            Equidistant(&pix3d, &dist2d, r);
+            equidistant(&pix3d, &dist2d, r);
 
             // update source mesh-info here
-            FISHEYE_REGION[rgn_idx].SrcRgnMeshInfo[i].knot[knotidx].xcor = dist2d.x + x0;
-            FISHEYE_REGION[rgn_idx].SrcRgnMeshInfo[i].knot[knotidx].ycor = dist2d.y + y0;
-            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "rgn(%d) mesh(%d) node(%d) (%lf %lf)\n", rgn_idx, i, knotidx, FISHEYE_REGION[rgn_idx].SrcRgnMeshInfo[i].knot[knotidx].xcor, FISHEYE_REGION[rgn_idx].SrcRgnMeshInfo[i].knot[knotidx].ycor);
+            fisheye_region[rgn_idx].SrcRgnMeshInfo[i].knot[knotidx].xcor = dist2d.x + x0;
+            fisheye_region[rgn_idx].SrcRgnMeshInfo[i].knot[knotidx].ycor = dist2d.y + y0;
+            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "rgn(%d) mesh(%d) node(%d) (%lf %lf)\n", rgn_idx, i, knotidx, fisheye_region[rgn_idx].SrcRgnMeshInfo[i].knot[knotidx].xcor, fisheye_region[rgn_idx].SrcRgnMeshInfo[i].knot[knotidx].ycor);
         }
     }
 }
 
-int dwa_load_meshdata(char *grid, BM_MESH_DATA_ALL_S *pmeshdata, const char *bindName)
+int dwa_load_meshdata(char *grid, bm_mesh_data_all_s *pmeshdata, const char *bindName)
 {
     int info[100] = {0};
 
@@ -1798,87 +1848,460 @@ int dwa_load_meshdata(char *grid, BM_MESH_DATA_ALL_S *pmeshdata, const char *bin
     return 0;
 }
 
-static int generate_mesh_on_fisheye(
-    const GRID_INFO_ATTR_S* pstGridInfoAttr,
-    BM_FISHEYE_ATTR* FISHEYE_CONFIG,
-    BM_FISHEYE_REGION_ATTR* FISHEYE_REGION,
-    int X_TILE_NUMBER,
-    int Y_TILE_NUMBER,
-    uint16_t *reorder_mesh_id_list,
-    int **reorder_mesh_tbl,
-    uint64_t mesh_tbl_phy_addr,
-    void *ptr)
+int _bm_load_region_config(bm_fisheye_region_attr *fisheye_region, int rgn, bm_mesh_data_all_s *meshd)
+{
+    if (meshd == NULL || !fisheye_region) {
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "meshdata  or fisheye_region is NULL.\n");
+        return -1;
+    }
+    fisheye_region[rgn].RegionValid = true;
+    //fisheye_region[rgn].ViewMode = PROJECTION_STEREO_FIT;
+
+    // update region info from memory
+    int horcnt = meshd->mesh_horcnt;
+    int vercnt = meshd->mesh_vercnt;
+    int meshw = meshd->mesh_w;
+    int meshh = meshd->mesh_h;
+    int rx = meshd->unit_rx;
+    int ry = meshd->unit_ry;
+
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "horcnt, vercnt, meshw, meshh, rx, ry: %d %d %d %d %d %d\n"
+        , horcnt, vercnt, meshw, meshh, rx, ry);
+    fisheye_region[rgn].MeshVer = vercnt;
+    fisheye_region[rgn].MeshHor = horcnt;
+    fisheye_region[rgn].OutW = meshw * horcnt;  // fisheye_config->OutW_disp; // Note: !! It's roi width
+    fisheye_region[rgn].OutH = meshh * vercnt;  // fisheye_config->OutH_disp;
+    fisheye_region[rgn].OutX = meshw * rx;      // (width_sec * 1);
+    fisheye_region[rgn].OutY = meshh * ry;      // (height_sec * 1);
+
+    return 0;
+}
+
+void bm_dwa_node_to_mesh(bm_fisheye_region_attr *fisheye_region, int rgn)
+{
+    // for debug
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "node_to_mesh\n");
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "rgn(%d)(%d)(%d)\n",rgn,fisheye_region[0].MeshHor,fisheye_region[0].MeshVer);
+    int maxWMeshNum  = fisheye_region[0].MeshHor;
+    int maxHMeshNum = fisheye_region[0].MeshVer;
+    //Node done, load to Mesh
+    for (int mesh_yidx = 0; mesh_yidx < maxHMeshNum; mesh_yidx++) {
+        for (int mesh_xidx = 0; mesh_xidx < maxWMeshNum; mesh_xidx++) {
+            // destination node to mesh
+            fisheye_region[rgn].DstRgnMeshInfo[mesh_yidx * maxWMeshNum + mesh_xidx].knot[0].xcor =
+                fisheye_region[rgn].DstRgnNodeInfo[mesh_yidx * (maxWMeshNum + 1) + mesh_xidx].node.xcor;
+            fisheye_region[rgn].DstRgnMeshInfo[mesh_yidx * maxWMeshNum + mesh_xidx].knot[0].ycor =
+                fisheye_region[rgn].DstRgnNodeInfo[mesh_yidx * (maxWMeshNum + 1) + mesh_xidx].node.ycor;
+
+            fisheye_region[rgn].DstRgnMeshInfo[mesh_yidx * maxWMeshNum + mesh_xidx].knot[1].xcor =
+                fisheye_region[rgn].DstRgnNodeInfo[mesh_yidx * (maxWMeshNum + 1) + mesh_xidx + 1].node.xcor;
+            fisheye_region[rgn].DstRgnMeshInfo[mesh_yidx * maxWMeshNum + mesh_xidx].knot[1].ycor =
+                fisheye_region[rgn].DstRgnNodeInfo[mesh_yidx * (maxWMeshNum + 1) + mesh_xidx + 1].node.ycor;
+
+            fisheye_region[rgn].DstRgnMeshInfo[mesh_yidx * maxWMeshNum + mesh_xidx].knot[3].xcor =
+                fisheye_region[rgn].DstRgnNodeInfo[(mesh_yidx + 1) * (maxWMeshNum + 1) + mesh_xidx + 1].node.xcor;
+            fisheye_region[rgn].DstRgnMeshInfo[mesh_yidx * maxWMeshNum + mesh_xidx].knot[3].ycor =
+                fisheye_region[rgn].DstRgnNodeInfo[(mesh_yidx + 1) * (maxWMeshNum + 1) + mesh_xidx + 1].node.ycor;
+
+            fisheye_region[rgn].DstRgnMeshInfo[mesh_yidx * maxWMeshNum + mesh_xidx].knot[2].xcor =
+                fisheye_region[rgn].DstRgnNodeInfo[(mesh_yidx + 1) * (maxWMeshNum + 1) + mesh_xidx].node.xcor;
+            fisheye_region[rgn].DstRgnMeshInfo[mesh_yidx * maxWMeshNum + mesh_xidx].knot[2].ycor =
+                fisheye_region[rgn].DstRgnNodeInfo[(mesh_yidx + 1) * (maxWMeshNum + 1) + mesh_xidx].node.ycor;
+
+            // source node to mesh
+            fisheye_region[rgn].SrcRgnMeshInfo[mesh_yidx * maxWMeshNum + mesh_xidx].knot[0].xcor =
+                fisheye_region[rgn].SrcRgnNodeInfo[mesh_yidx * (maxWMeshNum + 1) + mesh_xidx].node.xcor;
+            fisheye_region[rgn].SrcRgnMeshInfo[mesh_yidx * maxWMeshNum + mesh_xidx].knot[0].ycor =
+                fisheye_region[rgn].SrcRgnNodeInfo[mesh_yidx * (maxWMeshNum + 1) + mesh_xidx].node.ycor;
+
+            fisheye_region[rgn].SrcRgnMeshInfo[mesh_yidx * maxWMeshNum + mesh_xidx].knot[1].xcor =
+                fisheye_region[rgn].SrcRgnNodeInfo[mesh_yidx * (maxWMeshNum + 1) + mesh_xidx + 1].node.xcor;
+            fisheye_region[rgn].SrcRgnMeshInfo[mesh_yidx * maxWMeshNum + mesh_xidx].knot[1].ycor =
+                fisheye_region[rgn].SrcRgnNodeInfo[mesh_yidx * (maxWMeshNum + 1) + mesh_xidx + 1].node.ycor;
+
+            fisheye_region[rgn].SrcRgnMeshInfo[mesh_yidx * maxWMeshNum + mesh_xidx].knot[3].xcor =
+                fisheye_region[rgn].SrcRgnNodeInfo[(mesh_yidx + 1) * (maxWMeshNum + 1) + mesh_xidx + 1].node.xcor;
+            fisheye_region[rgn].SrcRgnMeshInfo[mesh_yidx * maxWMeshNum + mesh_xidx].knot[3].ycor =
+                fisheye_region[rgn].SrcRgnNodeInfo[(mesh_yidx + 1) * (maxWMeshNum + 1) + mesh_xidx + 1].node.ycor;
+
+            fisheye_region[rgn].SrcRgnMeshInfo[mesh_yidx * maxWMeshNum + mesh_xidx].knot[2].xcor =
+                fisheye_region[rgn].SrcRgnNodeInfo[(mesh_yidx + 1) * (maxWMeshNum + 1) + mesh_xidx].node.xcor;
+            fisheye_region[rgn].SrcRgnMeshInfo[mesh_yidx * maxWMeshNum + mesh_xidx].knot[2].ycor =
+                fisheye_region[rgn].SrcRgnNodeInfo[(mesh_yidx + 1) * (maxWMeshNum + 1) + mesh_xidx].node.ycor;
+        }
+    }
+}
+
+int bm_get_region_all_mesh_data_memory(bm_fisheye_region_attr *fisheye_region, int view_w, int view_h, int rgn, bm_mesh_data_all_s *pmeshinfo)
+{
+    if (!fisheye_region[rgn].RegionValid) {
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "region[%d] is not invalid\n", rgn);
+        return -1;
+    }
+    // int mesh_horcnt, mesh_vercnt;
+
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "points to grids, hw mesh\n");
+    fisheye_region[rgn].MeshHor = pmeshinfo->mesh_horcnt;// grid_info[0];//mesh_horcnt;
+    fisheye_region[rgn].MeshVer = pmeshinfo->mesh_vercnt;//mesh_vercnt;
+
+    // mesh_horcnt = pmeshinfo->mesh_horcnt;
+    // mesh_vercnt = pmeshinfo->mesh_vercnt;
+
+    //int view_w = fisheye_region[rgn].OutW;
+    //int view_h = fisheye_region[rgn].OutH;
+    //int mesh_horcnt = fisheye_region[rgn].MeshHor;
+    //int mesh_vercnt = fisheye_region[rgn].MeshVer;
+
+    // register:
+#if !WITHOUT_BIAS
+#if !DPU_MODE
+    bool bAspect = (bool)fisheye_region[rgn].ZoomV;
+    int XYRatio = minmax(fisheye_region[rgn].Pan, 0, 100);
+    int XRatio, YRatio;
+
+    if (bAspect) {
+        XRatio = YRatio = XYRatio;
+    } else {
+        XRatio = minmax(fisheye_region[rgn].ThetaX, 0, 100);
+        YRatio = minmax(fisheye_region[rgn].ThetaZ, 0, 100);
+    }
+
+    int CenterXOffset = minmax(fisheye_region[rgn].InRadius, -511, 511);
+    int CenterYOffset = minmax(fisheye_region[rgn].OutRadius, -511, 511);
+    CenterXOffset = CenterYOffset = 0;
+#endif
+#endif
+    //int DistortionRatio = minmax(fisheye_region[rgn].PanEnd, -300, 500);
+    //double norm = sqrt((view_w / 2) * (view_w / 2) + (view_h / 2) * (view_h / 2));
+
+    // 1st loop: to find mesh infos. on source ( backward projection )
+    // hit index for buffer
+
+    // for debug
+    // bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "view_h = %d src,\n", view_h);
+    // bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "view_w = %d,\n", view_w);
+    // bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "mesh_horcnt = %d,\n", mesh_horcnt);
+    // bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "mesh_vercnt = %d,\n", mesh_vercnt);
+    int meshidx = pmeshinfo->num_pairs;
+    //int offsetX = 50 * 2;
+    //float scale_value = 1.0;
+
+    for (int i = 0; i < meshidx; i++) {
+        fisheye_region[rgn].SrcRgnMeshInfo[i].knot[0].xcor = pmeshinfo->pmesh_src[8 * i];
+        fisheye_region[rgn].SrcRgnMeshInfo[i].knot[0].ycor = pmeshinfo->pmesh_src[8 * i + 1];
+        fisheye_region[rgn].SrcRgnMeshInfo[i].knot[1].xcor = pmeshinfo->pmesh_src[8 * i + 2];
+        fisheye_region[rgn].SrcRgnMeshInfo[i].knot[1].ycor = pmeshinfo->pmesh_src[8 * i + 3];
+        fisheye_region[rgn].SrcRgnMeshInfo[i].knot[2].xcor = pmeshinfo->pmesh_src[8 * i + 4];
+        fisheye_region[rgn].SrcRgnMeshInfo[i].knot[2].ycor = pmeshinfo->pmesh_src[8 * i + 5];
+        fisheye_region[rgn].SrcRgnMeshInfo[i].knot[3].xcor = pmeshinfo->pmesh_src[8 * i + 6];
+        fisheye_region[rgn].SrcRgnMeshInfo[i].knot[3].ycor = pmeshinfo->pmesh_src[8 * i + 7];
+#if WITHOUT_BIAS
+        fisheye_region[rgn].DstRgnMeshInfo[i].knot[0].xcor = pmeshinfo->pmesh_dst[8 * i];
+        fisheye_region[rgn].DstRgnMeshInfo[i].knot[0].ycor = pmeshinfo->pmesh_dst[8 * i + 1];
+        fisheye_region[rgn].DstRgnMeshInfo[i].knot[1].xcor = pmeshinfo->pmesh_dst[8 * i + 2];
+        fisheye_region[rgn].DstRgnMeshInfo[i].knot[1].ycor = pmeshinfo->pmesh_dst[8 * i + 3];
+        fisheye_region[rgn].DstRgnMeshInfo[i].knot[2].xcor = pmeshinfo->pmesh_dst[8 * i + 4];
+        fisheye_region[rgn].DstRgnMeshInfo[i].knot[2].ycor = pmeshinfo->pmesh_dst[8 * i + 5];
+        fisheye_region[rgn].DstRgnMeshInfo[i].knot[3].xcor = pmeshinfo->pmesh_dst[8 * i + 6];
+        fisheye_region[rgn].DstRgnMeshInfo[i].knot[3].ycor = pmeshinfo->pmesh_dst[8 * i + 7];
+#else
+        int x, y;
+
+        for (int j = 0; j < 4; j++) {
+            x = pmeshinfo->pmesh_dst[2 * j];
+            y = pmeshinfo->pmesh_dst[2 * j + 1];
+#if !DPU_MODE
+            x = x - CenterXOffset;
+            y = y - CenterYOffset;
+
+            if (bAspect) {
+                x = x * (1 - 0.333 * (50 - XYRatio) / 100);
+                y = y * (1 - 0.333 * (50 - XYRatio) / 100);
+            } else {
+                x = x * (1 - 0.333 * (50 - XRatio) / 100);
+                y = y * (1 - 0.333 * (50 - YRatio) / 100);
+            }
+#endif
+            fisheye_region[rgn].DstRgnMeshInfo[i].knot[j].xcor = x;
+            fisheye_region[rgn].DstRgnMeshInfo[i].knot[j].ycor = y;
+        }
+#endif
+    }
+
+    // update Node structure
+    // Construct node tied to each other.
+    int node_index = pmeshinfo->node_index;
+    for (int i = 0; i < node_index; i++) {
+        fisheye_region[rgn].SrcRgnNodeInfo[i].node.xcor = pmeshinfo->pnode_src[2 * i];
+        fisheye_region[rgn].SrcRgnNodeInfo[i].node.ycor = pmeshinfo->pnode_src[2 * i + 1];
+        fisheye_region[rgn].SrcRgnNodeInfo[i].node.xbias = 0;
+        fisheye_region[rgn].SrcRgnNodeInfo[i].node.ybias = 0;
+        fisheye_region[rgn].SrcRgnNodeInfo[i].valid = true;
+
+        fisheye_region[rgn].DstRgnNodeInfo[i].node.xbias = 0;
+        fisheye_region[rgn].DstRgnNodeInfo[i].node.ybias = 0;
+        fisheye_region[rgn].DstRgnNodeInfo[i].valid = true;
+#if WITHOUT_BIAS
+        fisheye_region[rgn].DstRgnNodeInfo[i].node.xcor = pmeshinfo->pnode_dst[2 * i];
+        fisheye_region[rgn].DstRgnNodeInfo[i].node.ycor = pmeshinfo->pnode_dst[2 * i + 1];
+#else
+        int x = pmeshinfo->pnode_dst[2 * i];
+        int y = pmeshinfo->pnode_dst[2 * i + 1];
+#if !DPU_MODE
+        x = x - CenterXOffset;
+        y = y - CenterYOffset;
+
+        if (bAspect) {
+            x = x * (1 - 0.333 * (50 - XYRatio) / 100);
+            y = y * (1 - 0.333 * (50 - XYRatio) / 100);
+        } else {
+            x = x * (1 - 0.333 * (50 - XRatio) / 100);
+            y = y * (1 - 0.333 * (50 - YRatio) / 100);
+        }
+#endif
+
+        fisheye_region[rgn].DstRgnNodeInfo[i].node.xcor = x;
+        fisheye_region[rgn].DstRgnNodeInfo[i].node.ycor = y;
+#endif
+    }
+
+    //update node structure to mesh => all meshes are surrounded by points
+    bm_dwa_node_to_mesh(fisheye_region, rgn);
+
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "PASS load mesh!!!!\n\r");    // for debug
+
+    return 0;
+}
+
+int bm_get_region_mesh_list(bm_fisheye_region_attr *fisheye_region, int rgn_idx, bm_mesh_data_all_s *p_mesh_data)
+{
+    if (!fisheye_region) {
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "invalid param, fisheye_region is NULL.\n");
+        return -1;
+    }
+    if (!p_mesh_data) {
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "invalid param, pMeshData is NULL.\n");
+        return -2;
+    }
+    int tw = p_mesh_data->imgw;
+    int th = p_mesh_data->imgh;
+    int max_mesh_cnt = floor(tw / 16) * floor(th / 16);
+
+    if (p_mesh_data->balloc) {
+        if (p_mesh_data->_nbr_mesh_x * p_mesh_data->_nbr_mesh_y > max_mesh_cnt) {
+            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "mesh_x, mesh_y is too large.\n");
+            return -1;
+        }
+    } else {
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "g_MeshData is not alloc.\n");
+        return -1;
+    }
+
+    // load output region from meshdata
+    if (_bm_load_region_config(fisheye_region, rgn_idx, p_mesh_data)) {
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "load region cfg fail from meshdata.\n");
+        return -1;
+    }
+
+    if (bm_get_region_all_mesh_data_memory(fisheye_region, tw, th, 0, p_mesh_data)) {
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "get region meshdata fail.\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+void bm_get_region_src_mesh_list(FISHEYE_MOUNT_MODE_E MOUNT, bm_fisheye_region_attr* fisheye_region, int rgn_idx, double x0, double y0, double r)
+{
+    // ViewModeType to decide mapping & UI contrl parameters.
+    bm_projection_mode ViewModeType = fisheye_region[rgn_idx].ViewMode;
+
+    if (ViewModeType == PROJECTION_REGION)
+        _regionView2(fisheye_region, rgn_idx, MOUNT, x0, y0, r);
+    else if (ViewModeType == PROJECTION_PANORAMA_360)
+        _panorama360View2(fisheye_region, rgn_idx, MOUNT, x0, y0, r);
+    else if (ViewModeType == PROJECTION_PANORAMA_180)
+        _Panorama180View2(fisheye_region, rgn_idx, MOUNT, x0, y0, r);
+    else if (ViewModeType == PROJECTION_LDC)
+        _ldc_view(fisheye_region, rgn_idx, x0, y0);
+    else
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "ERROR!!! THIS CASE SHOULDNOTHAPPEN!!!!!!\n\r");
+}
+
+void bm_get_region_dst_mesh_list(bm_fisheye_region_attr* fisheye_region, int rgn_idx)
+{
+    if (fisheye_region[rgn_idx].RegionValid != 1)
+        return;
+
+    // Destination Mesh-Info Allocation
+    int view_w = fisheye_region[rgn_idx].OutW;
+    int view_h = fisheye_region[rgn_idx].OutH;
+    int mesh_horcnt = fisheye_region[rgn_idx].MeshHor;
+    int mesh_vercnt = fisheye_region[rgn_idx].MeshVer;
+
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "view_w(%d) view_h(%d) mesh_horcnt(%d) mesh_vercnt(%d)\n", view_w, view_h, mesh_horcnt, mesh_vercnt);
+    int knot_horcnt = mesh_horcnt + 1;
+    int knot_vercnt = mesh_vercnt + 1;
+    // tmp internal buffer
+    // maximum knot number = 1024 (pre-set)
+    bm_coordinate2d *meshknot_hit_buf = malloc(sizeof(bm_coordinate2d) * (knot_horcnt * knot_vercnt + 1));
+
+    // 1st loop: to find mesh infos. on source ( backward projection )
+    // hit index for buffer
+    int knotcnt = 0;
+    int mesh_w = (view_w / mesh_horcnt);
+    int mesh_h = (view_h / mesh_vercnt);
+    int half_w = view_w / 2;
+    int half_h = view_h / 2;
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "mesh_w(%d) mesh_h(%d)\n", mesh_w, mesh_h);
+#if 0
+    for (int y = -half_h; y < half_h; ++y) {
+        bool yknot_hit = ((y + half_h) % mesh_h) == 0;
+        bool LastMeshFixY = ((y + half_h) == (mesh_h * mesh_vercnt)) && (view_h != mesh_h * mesh_vercnt);
+
+        for (int x = -half_w; x < half_w; x++) {
+            bool xknot_hit = ((x + half_w) % mesh_w) == 0;
+            bool hitknot = ((xknot_hit && yknot_hit)
+                    || (((x + 1) == (half_w)) && yknot_hit)
+                    || (xknot_hit && ((y + 1) == (half_h)))
+                    || (((x + 1) == (half_w)) && ((y + 1) == (half_h))));
+
+            // LastMeshFix is to fix unequal mesh block counts.
+            bool LastMeshFixX = ((x + half_w) == (mesh_w * mesh_horcnt)) && (view_w != mesh_w * mesh_horcnt);
+
+            hitknot = hitknot && !(LastMeshFixX || LastMeshFixY);
+
+            if (hitknot) {
+                meshknot_hit_buf[knotcnt].xcor = fisheye_region[rgn_idx].OutX + (x + half_w);
+                meshknot_hit_buf[knotcnt].ycor = fisheye_region[rgn_idx].OutY + (y + half_h);
+                bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "%d(%lf %lf)\n", knotcnt, meshknot_hit_buf[knotcnt].xcor, meshknot_hit_buf[knotcnt].ycor);
+                knotcnt += 1;
+            }
+        }
+    }
+#else
+    int y = -half_h;
+    for (int j = knot_horcnt; j > 0; --j) {
+        int x = -half_w;
+        for (int i = knot_horcnt; i > 0; --i) {
+            meshknot_hit_buf[knotcnt].xcor = fisheye_region[rgn_idx].OutX + (x + half_w);
+            meshknot_hit_buf[knotcnt].ycor = fisheye_region[rgn_idx].OutY + (y + half_h);
+            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "%d(%lf %lf)\n", knotcnt, meshknot_hit_buf[knotcnt].xcor, meshknot_hit_buf[knotcnt].ycor);
+            knotcnt += 1;
+            x += mesh_w;
+            if (i == 2)
+                x = half_w;
+        }
+        y += mesh_h;
+        if (j == 2)
+            y = half_h;
+    }
+#endif
+
+    meshknot_hit_buf[knotcnt].xcor = 0xFFFFFFFF;    //End of Knot List.
+    meshknot_hit_buf[knotcnt].ycor = 0xFFFFFFFF;    //End of Knot List
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "knotcnt(%d)\n", knotcnt);       // for debug
+    // tmp for debug
+
+    for (int j = 0; j < mesh_vercnt; j++) {
+        for (int i = 0; i < mesh_horcnt; i++) {
+            int meshidx = j * mesh_horcnt + i;
+            int knotidx = j * (mesh_horcnt + 1) + i;    // knot num = mesh num +1 ( @ horizon )
+
+            fisheye_region[rgn_idx].DstRgnMeshInfo[meshidx].knot[0].xcor = meshknot_hit_buf[knotidx].xcor;
+            fisheye_region[rgn_idx].DstRgnMeshInfo[meshidx].knot[0].ycor = meshknot_hit_buf[knotidx].ycor;
+            fisheye_region[rgn_idx].DstRgnMeshInfo[meshidx].knot[1].xcor = meshknot_hit_buf[knotidx + 1].xcor;
+            fisheye_region[rgn_idx].DstRgnMeshInfo[meshidx].knot[1].ycor = meshknot_hit_buf[knotidx + 1].ycor;
+            fisheye_region[rgn_idx].DstRgnMeshInfo[meshidx].knot[2].xcor = meshknot_hit_buf[knotidx + (mesh_horcnt + 1)].xcor;
+            fisheye_region[rgn_idx].DstRgnMeshInfo[meshidx].knot[2].ycor = meshknot_hit_buf[knotidx + (mesh_horcnt + 1)].ycor;
+            fisheye_region[rgn_idx].DstRgnMeshInfo[meshidx].knot[3].xcor = meshknot_hit_buf[knotidx + 1 + (mesh_horcnt + 1)].xcor;
+            fisheye_region[rgn_idx].DstRgnMeshInfo[meshidx].knot[3].ycor = meshknot_hit_buf[knotidx + 1 + (mesh_horcnt + 1)].ycor;
+        }
+    }
+
+    free(meshknot_hit_buf);
+}
+
+static int generate_mesh_on_fisheye(const GRID_INFO_ATTR_S* pstGridInfoAttr,
+                                    bm_fisheye_attr* fisheye_config,
+                                    bm_fisheye_region_attr* fisheye_region,
+                                    int X_TILE_NUMBER,
+                                    int Y_TILE_NUMBER,
+                                    uint16_t *reorder_mesh_id_list,
+                                    int **reorder_mesh_tbl,
+                                    uint64_t mesh_tbl_phy_addr,
+                                    void *ptr)
 {
     int mesh_tbl_num;   // get number of meshes
     double x0, y0, r;   // infos of src_img, (x0,y0) = center of image,  r = radius of image.
 
     struct timespec start, end;
-    BM_MESH_DATA_ALL_S g_MeshData[MESH_DATA_MAX_NUM];
+    bm_mesh_data_all_s g_mesh_data[MESH_DATA_MAX_NUM];
 
     clock_gettime(CLOCK_MONOTONIC, &start);
 
-    x0 = FISHEYE_CONFIG->InCenterX;
-    y0 = FISHEYE_CONFIG->InCenterY;
-    r = FISHEYE_CONFIG->InRadius;
+    x0 = fisheye_config->InCenterX;
+    y0 = fisheye_config->InCenterY;
+    r = fisheye_config->InRadius;
     // In Each Mode, for Every Region:
-    for (int rgn_idx = 0; rgn_idx < FISHEYE_CONFIG->RgnNum; rgn_idx++) {
+    for (int rgn_idx = 0; rgn_idx < fisheye_config->RgnNum; rgn_idx++) {
         // check region valid first
-        if (!FISHEYE_REGION[rgn_idx].RegionValid) {
+        if (!fisheye_region[rgn_idx].RegionValid) {
             bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,"Region invalid.\n");
             return -1;
         }
-        if (FISHEYE_REGION[rgn_idx].ViewMode == PROJECTION_STEREO_FIT) {
+        if (fisheye_region[rgn_idx].ViewMode == PROJECTION_STEREO_FIT) {
             char *grid = (char *)ptr;
-            if (dwa_load_meshdata(grid, &g_MeshData[rgn_idx], pstGridInfoAttr->gridBindName)) {
+            if (dwa_load_meshdata(grid, &g_mesh_data[rgn_idx], pstGridInfoAttr->gridBindName)) {
                 bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "dwa_load_meshdata failed.\n");
                 return -1;
             }
-            if (bm_get_region_mesh_list(FISHEYE_REGION, rgn_idx, &g_MeshData[rgn_idx])) {
-                bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "invalid param, FISHEYE_REGION is NULL.\n");
+            if (bm_get_region_mesh_list(fisheye_region, rgn_idx, &g_mesh_data[rgn_idx])) {
+                bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "invalid param, fisheye_region is NULL.\n");
                 return -1;
             }
-            SAFE_FREE_POINTER(g_MeshData[rgn_idx].pgrid_src);
-            SAFE_FREE_POINTER(g_MeshData[rgn_idx].pgrid_dst);
-            SAFE_FREE_POINTER(g_MeshData[rgn_idx].pmesh_src);
-            SAFE_FREE_POINTER(g_MeshData[rgn_idx].pmesh_dst);
-            SAFE_FREE_POINTER(g_MeshData[rgn_idx].pnode_src);
-            SAFE_FREE_POINTER(g_MeshData[rgn_idx].pnode_dst);
+            SAFE_FREE_POINTER(g_mesh_data[rgn_idx].pgrid_src);
+            SAFE_FREE_POINTER(g_mesh_data[rgn_idx].pgrid_dst);
+            SAFE_FREE_POINTER(g_mesh_data[rgn_idx].pmesh_src);
+            SAFE_FREE_POINTER(g_mesh_data[rgn_idx].pmesh_dst);
+            SAFE_FREE_POINTER(g_mesh_data[rgn_idx].pnode_src);
+            SAFE_FREE_POINTER(g_mesh_data[rgn_idx].pnode_dst);
             //SAFE_FREE_POINTER(pMeshData->_pmapx);
             //SAFE_FREE_POINTER(pMeshData->_pmapy);
-            g_MeshData[rgn_idx].balloc = false;
+            g_mesh_data[rgn_idx].balloc = false;
         } else {
             UNUSED(pstGridInfoAttr);
             // get & store region mesh info.
-            bm_get_region_dst_mesh_list(FISHEYE_REGION, rgn_idx);
+            bm_get_region_dst_mesh_list(fisheye_region, rgn_idx);
 
             // Get Source Mesh-Info Projected from Destination by Differet ViewModw.
-            bm_get_region_src_mesh_list(FISHEYE_CONFIG->MntMode, FISHEYE_REGION, rgn_idx, x0, y0, r);
+            bm_get_region_src_mesh_list(fisheye_config->MntMode, fisheye_region, rgn_idx, x0, y0, r);
         }
     }
     //combine all region meshs - mesh projection done.
-    bm_get_frame_mesh_list(FISHEYE_CONFIG, FISHEYE_REGION);
+    bm_get_frame_mesh_list(fisheye_config, fisheye_region);
 
-    mesh_tbl_num = FISHEYE_CONFIG->TotalMeshNum;
+    mesh_tbl_num = fisheye_config->TotalMeshNum;
     float src_x_mesh_tbl[mesh_tbl_num][4];
     float src_y_mesh_tbl[mesh_tbl_num][4];
     float dst_x_mesh_tbl[mesh_tbl_num][4];
     float dst_y_mesh_tbl[mesh_tbl_num][4];
-    for (int mesh_idx = 0; mesh_idx < FISHEYE_CONFIG->TotalMeshNum; mesh_idx++) {
+    for (int mesh_idx = 0; mesh_idx < fisheye_config->TotalMeshNum; mesh_idx++) {
         for (int knotidx = 0; knotidx < 4; knotidx++) {
-            src_x_mesh_tbl[mesh_idx][knotidx] = FISHEYE_CONFIG->SrcRgnMeshInfo[mesh_idx].knot[knotidx].xcor;
-            src_y_mesh_tbl[mesh_idx][knotidx] = FISHEYE_CONFIG->SrcRgnMeshInfo[mesh_idx].knot[knotidx].ycor;
-            dst_x_mesh_tbl[mesh_idx][knotidx] = FISHEYE_CONFIG->DstRgnMeshInfo[mesh_idx].knot[knotidx].xcor;
-            dst_y_mesh_tbl[mesh_idx][knotidx] = FISHEYE_CONFIG->DstRgnMeshInfo[mesh_idx].knot[knotidx].ycor;
+            src_x_mesh_tbl[mesh_idx][knotidx] = fisheye_config->SrcRgnMeshInfo[mesh_idx].knot[knotidx].xcor;
+            src_y_mesh_tbl[mesh_idx][knotidx] = fisheye_config->SrcRgnMeshInfo[mesh_idx].knot[knotidx].ycor;
+            dst_x_mesh_tbl[mesh_idx][knotidx] = fisheye_config->DstRgnMeshInfo[mesh_idx].knot[knotidx].xcor;
+            dst_y_mesh_tbl[mesh_idx][knotidx] = fisheye_config->DstRgnMeshInfo[mesh_idx].knot[knotidx].ycor;
         }
     }
 
     int dst_height, dst_width;
-    if (FISHEYE_CONFIG->rotate_index == 1 || FISHEYE_CONFIG->rotate_index == 3) {
-        dst_height = FISHEYE_CONFIG->OutW_disp;
-        dst_width  = FISHEYE_CONFIG->OutH_disp;
+    if (fisheye_config->rotate_index == 1 || fisheye_config->rotate_index == 3) {
+        dst_height = fisheye_config->OutW_disp;
+        dst_width  = fisheye_config->OutH_disp;
     } else {
-        dst_height = FISHEYE_CONFIG->OutH_disp;
-        dst_width  = FISHEYE_CONFIG->OutW_disp;
+        dst_height = fisheye_config->OutH_disp;
+        dst_width  = fisheye_config->OutW_disp;
     }
 
     bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "mesh_tbl_num = %d\n", mesh_tbl_num);      // for debug
@@ -1917,382 +2340,7 @@ static int generate_mesh_on_fisheye(
     bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "mesh id list size (bytes) = %d\n", (reorder_mesh_id_list_entry_num * 2));
 
     clock_gettime(CLOCK_MONOTONIC, &end);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "time consumed: %fms\n",(FLOAT)get_diff_in_us(start, end) / 1000);     // for debug
-    return 0;
-}
-
-void bm_get_region_src_mesh_list(FISHEYE_MOUNT_MODE_E MOUNT, BM_FISHEYE_REGION_ATTR* FISHEYE_REGION, int rgn_idx, double x0, double y0, double r)
-{
-    // ViewModeType to decide mapping & UI contrl parameters.
-    PROJECTION_MODE ViewModeType = FISHEYE_REGION[rgn_idx].ViewMode;
-
-    if (ViewModeType == PROJECTION_REGION)
-        _RegionView2( FISHEYE_REGION, rgn_idx, MOUNT, x0, y0, r);
-    else if (ViewModeType == PROJECTION_PANORAMA_360)
-        _Panorama360View2( FISHEYE_REGION, rgn_idx, MOUNT, x0, y0, r);
-    else if (ViewModeType == PROJECTION_PANORAMA_180)
-        _Panorama180View2(FISHEYE_REGION, rgn_idx, MOUNT, x0, y0, r);
-    else if (ViewModeType == PROJECTION_LDC)
-        _LDC_View(FISHEYE_REGION, rgn_idx, x0, y0);
-    else
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "ERROR!!! THIS CASE SHOULDNOTHAPPEN!!!!!!\n\r");
-}
-
-void bm_get_region_dst_mesh_list(BM_FISHEYE_REGION_ATTR* FISHEYE_REGION, int rgn_idx)
-{
-    if (FISHEYE_REGION[rgn_idx].RegionValid != 1)
-        return;
-
-    // Destination Mesh-Info Allocation
-    int view_w = FISHEYE_REGION[rgn_idx].OutW;
-    int view_h = FISHEYE_REGION[rgn_idx].OutH;
-    int mesh_horcnt = FISHEYE_REGION[rgn_idx].MeshHor;
-    int mesh_vercnt = FISHEYE_REGION[rgn_idx].MeshVer;
-
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "view_w(%d) view_h(%d) mesh_horcnt(%d) mesh_vercnt(%d)\n", view_w, view_h, mesh_horcnt, mesh_vercnt);
-    int knot_horcnt = mesh_horcnt + 1;
-    int knot_vercnt = mesh_vercnt + 1;
-    // tmp internal buffer
-    // maximum knot number = 1024 (pre-set)
-    COORDINATE2D *meshknot_hit_buf = malloc(sizeof(COORDINATE2D) * (knot_horcnt * knot_vercnt + 1));
-
-    // 1st loop: to find mesh infos. on source ( backward projection )
-    // hit index for buffer
-    int knotcnt = 0;
-    int mesh_w = (view_w / mesh_horcnt);
-    int mesh_h = (view_h / mesh_vercnt);
-    int half_w = view_w / 2;
-    int half_h = view_h / 2;
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "mesh_w(%d) mesh_h(%d)\n", mesh_w, mesh_h);
-#if 0
-    for (int y = -half_h; y < half_h; ++y) {
-        bool yknot_hit = ((y + half_h) % mesh_h) == 0;
-        bool LastMeshFixY = ((y + half_h) == (mesh_h * mesh_vercnt)) && (view_h != mesh_h * mesh_vercnt);
-
-        for (int x = -half_w; x < half_w; x++) {
-            bool xknot_hit = ((x + half_w) % mesh_w) == 0;
-            bool hitknot = ((xknot_hit && yknot_hit)
-                    || (((x + 1) == (half_w)) && yknot_hit)
-                    || (xknot_hit && ((y + 1) == (half_h)))
-                    || (((x + 1) == (half_w)) && ((y + 1) == (half_h))));
-
-            // LastMeshFix is to fix unequal mesh block counts.
-            bool LastMeshFixX = ((x + half_w) == (mesh_w * mesh_horcnt)) && (view_w != mesh_w * mesh_horcnt);
-
-            hitknot = hitknot && !(LastMeshFixX || LastMeshFixY);
-
-            if (hitknot) {
-                meshknot_hit_buf[knotcnt].xcor = FISHEYE_REGION[rgn_idx].OutX + (x + half_w);
-                meshknot_hit_buf[knotcnt].ycor = FISHEYE_REGION[rgn_idx].OutY + (y + half_h);
-                bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "%d(%lf %lf)\n", knotcnt, meshknot_hit_buf[knotcnt].xcor, meshknot_hit_buf[knotcnt].ycor);
-                knotcnt += 1;
-            }
-        }
-    }
-#else
-    int y = -half_h;
-    for (int j = knot_horcnt; j > 0; --j) {
-        int x = -half_w;
-        for (int i = knot_horcnt; i > 0; --i) {
-            meshknot_hit_buf[knotcnt].xcor = FISHEYE_REGION[rgn_idx].OutX + (x + half_w);
-            meshknot_hit_buf[knotcnt].ycor = FISHEYE_REGION[rgn_idx].OutY + (y + half_h);
-            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "%d(%lf %lf)\n", knotcnt, meshknot_hit_buf[knotcnt].xcor, meshknot_hit_buf[knotcnt].ycor);
-            knotcnt += 1;
-            x += mesh_w;
-            if (i == 2)
-                x = half_w;
-        }
-        y += mesh_h;
-        if (j == 2)
-            y = half_h;
-    }
-#endif
-
-    meshknot_hit_buf[knotcnt].xcor = 0xFFFFFFFF;    //End of Knot List.
-    meshknot_hit_buf[knotcnt].ycor = 0xFFFFFFFF;    //End of Knot List
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "knotcnt(%d)\n", knotcnt);       // for debug
-    // tmp for debug
-
-    for (int j = 0; j < mesh_vercnt; j++) {
-        for (int i = 0; i < mesh_horcnt; i++) {
-            int meshidx = j * mesh_horcnt + i;
-            int knotidx = j * (mesh_horcnt + 1) + i;    // knot num = mesh num +1 ( @ horizon )
-
-            FISHEYE_REGION[rgn_idx].DstRgnMeshInfo[meshidx].knot[0].xcor = meshknot_hit_buf[knotidx].xcor;
-            FISHEYE_REGION[rgn_idx].DstRgnMeshInfo[meshidx].knot[0].ycor = meshknot_hit_buf[knotidx].ycor;
-            FISHEYE_REGION[rgn_idx].DstRgnMeshInfo[meshidx].knot[1].xcor = meshknot_hit_buf[knotidx + 1].xcor;
-            FISHEYE_REGION[rgn_idx].DstRgnMeshInfo[meshidx].knot[1].ycor = meshknot_hit_buf[knotidx + 1].ycor;
-            FISHEYE_REGION[rgn_idx].DstRgnMeshInfo[meshidx].knot[2].xcor = meshknot_hit_buf[knotidx + (mesh_horcnt + 1)].xcor;
-            FISHEYE_REGION[rgn_idx].DstRgnMeshInfo[meshidx].knot[2].ycor = meshknot_hit_buf[knotidx + (mesh_horcnt + 1)].ycor;
-            FISHEYE_REGION[rgn_idx].DstRgnMeshInfo[meshidx].knot[3].xcor = meshknot_hit_buf[knotidx + 1 + (mesh_horcnt + 1)].xcor;
-            FISHEYE_REGION[rgn_idx].DstRgnMeshInfo[meshidx].knot[3].ycor = meshknot_hit_buf[knotidx + 1 + (mesh_horcnt + 1)].ycor;
-        }
-    }
-
-    free(meshknot_hit_buf);
-}
-
-int bm_get_region_all_mesh_data_memory(BM_FISHEYE_REGION_ATTR *FISHEYE_REGION
-    , int view_w, int view_h, int rgn, BM_MESH_DATA_ALL_S *pmeshinfo)
-{
-    if (!FISHEYE_REGION[rgn].RegionValid) {
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "region[%d] is not invalid\n", rgn);
-        return -1;
-    }
-    // int mesh_horcnt, mesh_vercnt;
-
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "points to grids, hw mesh\n");
-    FISHEYE_REGION[rgn].MeshHor = pmeshinfo->mesh_horcnt;// grid_info[0];//mesh_horcnt;
-    FISHEYE_REGION[rgn].MeshVer = pmeshinfo->mesh_vercnt;//mesh_vercnt;
-
-    // mesh_horcnt = pmeshinfo->mesh_horcnt;
-    // mesh_vercnt = pmeshinfo->mesh_vercnt;
-
-    //int view_w = FISHEYE_REGION[rgn].OutW;
-    //int view_h = FISHEYE_REGION[rgn].OutH;
-    //int mesh_horcnt = FISHEYE_REGION[rgn].MeshHor;
-    //int mesh_vercnt = FISHEYE_REGION[rgn].MeshVer;
-
-    // register:
-#if !WITHOUT_BIAS
-#if !DPU_MODE
-    bool bAspect = (bool)FISHEYE_REGION[rgn].ZoomV;
-    int XYRatio = minmax(FISHEYE_REGION[rgn].Pan, 0, 100);
-    int XRatio, YRatio;
-
-    if (bAspect) {
-        XRatio = YRatio = XYRatio;
-    } else {
-        XRatio = minmax(FISHEYE_REGION[rgn].ThetaX, 0, 100);
-        YRatio = minmax(FISHEYE_REGION[rgn].ThetaZ, 0, 100);
-    }
-
-    int CenterXOffset = minmax(FISHEYE_REGION[rgn].InRadius, -511, 511);
-    int CenterYOffset = minmax(FISHEYE_REGION[rgn].OutRadius, -511, 511);
-    CenterXOffset = CenterYOffset = 0;
-#endif
-#endif
-    //int DistortionRatio = minmax(FISHEYE_REGION[rgn].PanEnd, -300, 500);
-    //double norm = sqrt((view_w / 2) * (view_w / 2) + (view_h / 2) * (view_h / 2));
-
-    // 1st loop: to find mesh infos. on source ( backward projection )
-    // hit index for buffer
-
-    // for debug
-    // bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "view_h = %d src,\n", view_h);
-    // bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "view_w = %d,\n", view_w);
-    // bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "mesh_horcnt = %d,\n", mesh_horcnt);
-    // bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "mesh_vercnt = %d,\n", mesh_vercnt);
-    int meshidx = pmeshinfo->num_pairs;
-    //int offsetX = 50 * 2;
-    //float scale_value = 1.0;
-
-    for (int i = 0; i < meshidx; i++) {
-        FISHEYE_REGION[rgn].SrcRgnMeshInfo[i].knot[0].xcor = pmeshinfo->pmesh_src[8 * i];
-        FISHEYE_REGION[rgn].SrcRgnMeshInfo[i].knot[0].ycor = pmeshinfo->pmesh_src[8 * i + 1];
-        FISHEYE_REGION[rgn].SrcRgnMeshInfo[i].knot[1].xcor = pmeshinfo->pmesh_src[8 * i + 2];
-        FISHEYE_REGION[rgn].SrcRgnMeshInfo[i].knot[1].ycor = pmeshinfo->pmesh_src[8 * i + 3];
-        FISHEYE_REGION[rgn].SrcRgnMeshInfo[i].knot[2].xcor = pmeshinfo->pmesh_src[8 * i + 4];
-        FISHEYE_REGION[rgn].SrcRgnMeshInfo[i].knot[2].ycor = pmeshinfo->pmesh_src[8 * i + 5];
-        FISHEYE_REGION[rgn].SrcRgnMeshInfo[i].knot[3].xcor = pmeshinfo->pmesh_src[8 * i + 6];
-        FISHEYE_REGION[rgn].SrcRgnMeshInfo[i].knot[3].ycor = pmeshinfo->pmesh_src[8 * i + 7];
-#if WITHOUT_BIAS
-        FISHEYE_REGION[rgn].DstRgnMeshInfo[i].knot[0].xcor = pmeshinfo->pmesh_dst[8 * i];
-        FISHEYE_REGION[rgn].DstRgnMeshInfo[i].knot[0].ycor = pmeshinfo->pmesh_dst[8 * i + 1];
-        FISHEYE_REGION[rgn].DstRgnMeshInfo[i].knot[1].xcor = pmeshinfo->pmesh_dst[8 * i + 2];
-        FISHEYE_REGION[rgn].DstRgnMeshInfo[i].knot[1].ycor = pmeshinfo->pmesh_dst[8 * i + 3];
-        FISHEYE_REGION[rgn].DstRgnMeshInfo[i].knot[2].xcor = pmeshinfo->pmesh_dst[8 * i + 4];
-        FISHEYE_REGION[rgn].DstRgnMeshInfo[i].knot[2].ycor = pmeshinfo->pmesh_dst[8 * i + 5];
-        FISHEYE_REGION[rgn].DstRgnMeshInfo[i].knot[3].xcor = pmeshinfo->pmesh_dst[8 * i + 6];
-        FISHEYE_REGION[rgn].DstRgnMeshInfo[i].knot[3].ycor = pmeshinfo->pmesh_dst[8 * i + 7];
-#else
-        int x, y;
-
-        for (int j = 0; j < 4; j++) {
-            x = pmeshinfo->pmesh_dst[2 * j];
-            y = pmeshinfo->pmesh_dst[2 * j + 1];
-#if !DPU_MODE
-            x = x - CenterXOffset;
-            y = y - CenterYOffset;
-
-            if (bAspect) {
-                x = x * (1 - 0.333 * (50 - XYRatio) / 100);
-                y = y * (1 - 0.333 * (50 - XYRatio) / 100);
-            } else {
-                x = x * (1 - 0.333 * (50 - XRatio) / 100);
-                y = y * (1 - 0.333 * (50 - YRatio) / 100);
-            }
-#endif
-            FISHEYE_REGION[rgn].DstRgnMeshInfo[i].knot[j].xcor = x;
-            FISHEYE_REGION[rgn].DstRgnMeshInfo[i].knot[j].ycor = y;
-        }
-#endif
-    }
-
-    // update Node structure
-    // Construct node tied to each other.
-    int node_index = pmeshinfo->node_index;
-    for (int i = 0; i < node_index; i++) {
-        FISHEYE_REGION[rgn].SrcRgnNodeInfo[i].node.xcor = pmeshinfo->pnode_src[2 * i];
-        FISHEYE_REGION[rgn].SrcRgnNodeInfo[i].node.ycor = pmeshinfo->pnode_src[2 * i + 1];
-        FISHEYE_REGION[rgn].SrcRgnNodeInfo[i].node.xbias = 0;
-        FISHEYE_REGION[rgn].SrcRgnNodeInfo[i].node.ybias = 0;
-        FISHEYE_REGION[rgn].SrcRgnNodeInfo[i].valid = true;
-
-        FISHEYE_REGION[rgn].DstRgnNodeInfo[i].node.xbias = 0;
-        FISHEYE_REGION[rgn].DstRgnNodeInfo[i].node.ybias = 0;
-        FISHEYE_REGION[rgn].DstRgnNodeInfo[i].valid = true;
-#if WITHOUT_BIAS
-        FISHEYE_REGION[rgn].DstRgnNodeInfo[i].node.xcor = pmeshinfo->pnode_dst[2 * i];
-        FISHEYE_REGION[rgn].DstRgnNodeInfo[i].node.ycor = pmeshinfo->pnode_dst[2 * i + 1];
-#else
-        int x = pmeshinfo->pnode_dst[2 * i];
-        int y = pmeshinfo->pnode_dst[2 * i + 1];
-#if !DPU_MODE
-        x = x - CenterXOffset;
-        y = y - CenterYOffset;
-
-        if (bAspect) {
-            x = x * (1 - 0.333 * (50 - XYRatio) / 100);
-            y = y * (1 - 0.333 * (50 - XYRatio) / 100);
-        } else {
-            x = x * (1 - 0.333 * (50 - XRatio) / 100);
-            y = y * (1 - 0.333 * (50 - YRatio) / 100);
-        }
-#endif
-
-        FISHEYE_REGION[rgn].DstRgnNodeInfo[i].node.xcor = x;
-        FISHEYE_REGION[rgn].DstRgnNodeInfo[i].node.ycor = y;
-#endif
-    }
-
-    //update node structure to mesh => all meshes are surrounded by points
-    bm_dwa_node_to_mesh(FISHEYE_REGION, rgn);
-
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "PASS load mesh!!!!\n\r");    // for debug
-
-    return 0;
-}
-
-int bm_get_region_mesh_list(BM_FISHEYE_REGION_ATTR *FISHEYE_REGION, int rgn_idx, BM_MESH_DATA_ALL_S *pMeshData)
-{
-    if (!FISHEYE_REGION) {
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "invalid param, FISHEYE_REGION is NULL.\n");
-        return -1;
-    }
-    if (!pMeshData) {
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "invalid param, pMeshData is NULL.\n");
-        return -2;
-    }
-    int tw = pMeshData->imgw;
-    int th = pMeshData->imgh;
-    int max_mesh_cnt = floor(tw / 16) * floor(th / 16);
-
-    if (pMeshData->balloc) {
-        if (pMeshData->_nbr_mesh_x * pMeshData->_nbr_mesh_y > max_mesh_cnt) {
-            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "mesh_x, mesh_y is too large.\n");
-            return -1;
-        }
-    } else {
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "g_MeshData is not alloc.\n");
-        return -1;
-    }
-
-    // load output region from meshdata
-    if (bm_load_region_config(FISHEYE_REGION, rgn_idx, pMeshData)) {
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "load region cfg fail from meshdata.\n");
-        return -1;
-    }
-
-    if (bm_get_region_all_mesh_data_memory(FISHEYE_REGION, tw, th, 0, pMeshData)) {
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "get region meshdata fail.\n");
-        return -1;
-    }
-
-    return 0;
-}
-
-void bm_dwa_node_to_mesh(BM_FISHEYE_REGION_ATTR *FISHEYE_REGION, int rgn)
-{
-    // for debug
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "node_to_mesh\n");
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "rgn(%d)(%d)(%d)\n",rgn,FISHEYE_REGION[0].MeshHor,FISHEYE_REGION[0].MeshVer);
-    int maxWMeshNum  = FISHEYE_REGION[0].MeshHor;
-    int maxHMeshNum = FISHEYE_REGION[0].MeshVer;
-    //Node done, load to Mesh
-    for (int mesh_yidx = 0; mesh_yidx < maxHMeshNum; mesh_yidx++) {
-        for (int mesh_xidx = 0; mesh_xidx < maxWMeshNum; mesh_xidx++) {
-            // destination node to mesh
-            FISHEYE_REGION[rgn].DstRgnMeshInfo[mesh_yidx * maxWMeshNum + mesh_xidx].knot[0].xcor =
-                FISHEYE_REGION[rgn].DstRgnNodeInfo[mesh_yidx * (maxWMeshNum + 1) + mesh_xidx].node.xcor;
-            FISHEYE_REGION[rgn].DstRgnMeshInfo[mesh_yidx * maxWMeshNum + mesh_xidx].knot[0].ycor =
-                FISHEYE_REGION[rgn].DstRgnNodeInfo[mesh_yidx * (maxWMeshNum + 1) + mesh_xidx].node.ycor;
-
-            FISHEYE_REGION[rgn].DstRgnMeshInfo[mesh_yidx * maxWMeshNum + mesh_xidx].knot[1].xcor =
-                FISHEYE_REGION[rgn].DstRgnNodeInfo[mesh_yidx * (maxWMeshNum + 1) + mesh_xidx + 1].node.xcor;
-            FISHEYE_REGION[rgn].DstRgnMeshInfo[mesh_yidx * maxWMeshNum + mesh_xidx].knot[1].ycor =
-                FISHEYE_REGION[rgn].DstRgnNodeInfo[mesh_yidx * (maxWMeshNum + 1) + mesh_xidx + 1].node.ycor;
-
-            FISHEYE_REGION[rgn].DstRgnMeshInfo[mesh_yidx * maxWMeshNum + mesh_xidx].knot[3].xcor =
-                FISHEYE_REGION[rgn].DstRgnNodeInfo[(mesh_yidx + 1) * (maxWMeshNum + 1) + mesh_xidx + 1].node.xcor;
-            FISHEYE_REGION[rgn].DstRgnMeshInfo[mesh_yidx * maxWMeshNum + mesh_xidx].knot[3].ycor =
-                FISHEYE_REGION[rgn].DstRgnNodeInfo[(mesh_yidx + 1) * (maxWMeshNum + 1) + mesh_xidx + 1].node.ycor;
-
-            FISHEYE_REGION[rgn].DstRgnMeshInfo[mesh_yidx * maxWMeshNum + mesh_xidx].knot[2].xcor =
-                FISHEYE_REGION[rgn].DstRgnNodeInfo[(mesh_yidx + 1) * (maxWMeshNum + 1) + mesh_xidx].node.xcor;
-            FISHEYE_REGION[rgn].DstRgnMeshInfo[mesh_yidx * maxWMeshNum + mesh_xidx].knot[2].ycor =
-                FISHEYE_REGION[rgn].DstRgnNodeInfo[(mesh_yidx + 1) * (maxWMeshNum + 1) + mesh_xidx].node.ycor;
-
-            // source node to mesh
-            FISHEYE_REGION[rgn].SrcRgnMeshInfo[mesh_yidx * maxWMeshNum + mesh_xidx].knot[0].xcor =
-                FISHEYE_REGION[rgn].SrcRgnNodeInfo[mesh_yidx * (maxWMeshNum + 1) + mesh_xidx].node.xcor;
-            FISHEYE_REGION[rgn].SrcRgnMeshInfo[mesh_yidx * maxWMeshNum + mesh_xidx].knot[0].ycor =
-                FISHEYE_REGION[rgn].SrcRgnNodeInfo[mesh_yidx * (maxWMeshNum + 1) + mesh_xidx].node.ycor;
-
-            FISHEYE_REGION[rgn].SrcRgnMeshInfo[mesh_yidx * maxWMeshNum + mesh_xidx].knot[1].xcor =
-                FISHEYE_REGION[rgn].SrcRgnNodeInfo[mesh_yidx * (maxWMeshNum + 1) + mesh_xidx + 1].node.xcor;
-            FISHEYE_REGION[rgn].SrcRgnMeshInfo[mesh_yidx * maxWMeshNum + mesh_xidx].knot[1].ycor =
-                FISHEYE_REGION[rgn].SrcRgnNodeInfo[mesh_yidx * (maxWMeshNum + 1) + mesh_xidx + 1].node.ycor;
-
-            FISHEYE_REGION[rgn].SrcRgnMeshInfo[mesh_yidx * maxWMeshNum + mesh_xidx].knot[3].xcor =
-                FISHEYE_REGION[rgn].SrcRgnNodeInfo[(mesh_yidx + 1) * (maxWMeshNum + 1) + mesh_xidx + 1].node.xcor;
-            FISHEYE_REGION[rgn].SrcRgnMeshInfo[mesh_yidx * maxWMeshNum + mesh_xidx].knot[3].ycor =
-                FISHEYE_REGION[rgn].SrcRgnNodeInfo[(mesh_yidx + 1) * (maxWMeshNum + 1) + mesh_xidx + 1].node.ycor;
-
-            FISHEYE_REGION[rgn].SrcRgnMeshInfo[mesh_yidx * maxWMeshNum + mesh_xidx].knot[2].xcor =
-                FISHEYE_REGION[rgn].SrcRgnNodeInfo[(mesh_yidx + 1) * (maxWMeshNum + 1) + mesh_xidx].node.xcor;
-            FISHEYE_REGION[rgn].SrcRgnMeshInfo[mesh_yidx * maxWMeshNum + mesh_xidx].knot[2].ycor =
-                FISHEYE_REGION[rgn].SrcRgnNodeInfo[(mesh_yidx + 1) * (maxWMeshNum + 1) + mesh_xidx].node.ycor;
-        }
-    }
-}
-
-int bm_load_region_config(BM_FISHEYE_REGION_ATTR *FISHEYE_REGION, int rgn, BM_MESH_DATA_ALL_S *meshd)
-{
-    if (meshd == NULL || !FISHEYE_REGION) {
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "meshdata  or FISHEYE_REGION is NULL.\n");
-        return -1;
-    }
-    FISHEYE_REGION[rgn].RegionValid = true;
-    //FISHEYE_REGION[rgn].ViewMode = PROJECTION_STEREO_FIT;
-
-    // update region info from memory
-    int horcnt = meshd->mesh_horcnt;
-    int vercnt = meshd->mesh_vercnt;
-    int meshw = meshd->mesh_w;
-    int meshh = meshd->mesh_h;
-    int rx = meshd->unit_rx;
-    int ry = meshd->unit_ry;
-
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "horcnt, vercnt, meshw, meshh, rx, ry: %d %d %d %d %d %d\n"
-        , horcnt, vercnt, meshw, meshh, rx, ry);
-    FISHEYE_REGION[rgn].MeshVer = vercnt;
-    FISHEYE_REGION[rgn].MeshHor = horcnt;
-    FISHEYE_REGION[rgn].OutW = meshw * horcnt;  // FISHEYE_CONFIG->OutW_disp; // Note: !! It's roi width
-    FISHEYE_REGION[rgn].OutH = meshh * vercnt;  // FISHEYE_CONFIG->OutH_disp;
-    FISHEYE_REGION[rgn].OutX = meshw * rx;      // (width_sec * 1);
-    FISHEYE_REGION[rgn].OutY = meshh * ry;      // (height_sec * 1);
-
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "time consumed: %fms\n",(float)get_diff_in_us(start, end) / 1000);     // for debug
     return 0;
 }
 
@@ -2334,7 +2382,7 @@ static bm_status_t bm_dwa_rotation_check_size(ROTATION_E enRotation, const GDC_T
     return BM_SUCCESS;
 }
 
-static bm_status_t bm_get_valid_tsk_mesh_by_name(bm_handle_t handle, const CHAR *name, u8 *idx)
+static bm_status_t bm_get_valid_tsk_mesh_by_name(bm_handle_t handle, const char *name, u8 *idx)
 {
     u8 i = DWA_MAX_TSK_MESH;
 
@@ -2345,7 +2393,7 @@ static bm_status_t bm_get_valid_tsk_mesh_by_name(bm_handle_t handle, const CHAR 
     }
     for (i = 0; i < DWA_MAX_TSK_MESH; i++) {
         if (strcmp(dwa_tskMesh[i].Name, name) == 0 /*&& dwa_tskMesh[i].paddr*/) {
-            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "got remain tsk mesh[%d-%s-%llx]\n", i, dwa_tskMesh[i].Name, dwa_tskMesh[i].paddr);       // for debug
+            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "got remain tsk mesh[%d-%s-%llx]\n", i, dwa_tskMesh[i].Name, dwa_tskMesh[i].mem.u.device.device_addr);       // for debug
             *idx = i;
             bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "idx = (%d)\n", *idx);       // for debug
             return BM_SUCCESS;
@@ -2363,26 +2411,29 @@ static bm_status_t bm_get_valid_tsk_mesh_by_name(bm_handle_t handle, const CHAR 
     }
 }
 
-static void bm_dwa_mesh_gen_rotation(SIZE_S in_size, SIZE_S out_size, ROTATION_E rot
-    , uint64_t mesh_phy_addr, void *mesh_vir_addr)
+static void bm_dwa_mesh_gen_rotation(SIZE_S in_size,
+                                     SIZE_S out_size,
+                                     ROTATION_E rot,
+                                     uint64_t mesh_phy_addr,
+                                     void *mesh_vir_addr)
 {
-    BM_FISHEYE_ATTR *FISHEYE_CONFIG;
+    bm_fisheye_attr *fisheye_config;
     LDC_ATTR_S stLDCAttr = { .bAspect = true, .s32XYRatio = 100,
         .s32CenterXOffset = 0, .s32CenterYOffset = 0, .s32DistortionRatio = 0 };
-    BM_FISHEYE_REGION_ATTR *FISHEYE_REGION;
+    bm_fisheye_region_attr *fisheye_region;
     int nMeshhor, nMeshVer;
 
-    FISHEYE_CONFIG = (BM_FISHEYE_ATTR*)calloc(1, sizeof(*FISHEYE_CONFIG));
-    if (!FISHEYE_CONFIG) {
+    fisheye_config = (bm_fisheye_attr*)calloc(1, sizeof(*fisheye_config));
+    if (!fisheye_config) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "memory insufficient for fisheye config\n");
-        free(FISHEYE_CONFIG);
+        free(fisheye_config);
         return;
     }
-    FISHEYE_REGION = (BM_FISHEYE_REGION_ATTR*)calloc(1, sizeof(*FISHEYE_REGION) * MAX_REGION_NUM);
-    if (!FISHEYE_REGION) {
+    fisheye_region = (bm_fisheye_region_attr*)calloc(1, sizeof(*fisheye_region) * MAX_REGION_NUM);
+    if (!fisheye_region) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "memory insufficient for fisheye region config\n");
-        free(FISHEYE_CONFIG);
-        free(FISHEYE_REGION);
+        free(fisheye_config);
+        free(fisheye_region);
         return;
     }
 
@@ -2390,12 +2441,12 @@ static void bm_dwa_mesh_gen_rotation(SIZE_S in_size, SIZE_S out_size, ROTATION_E
         , in_size.u32Width, in_size.u32Height
         , out_size.u32Width, out_size.u32Height);
 
-    bm_ldc_attr_map(&stLDCAttr, in_size, FISHEYE_CONFIG, FISHEYE_REGION);
+    bm_ldc_attr_map(&stLDCAttr, in_size, fisheye_config, fisheye_region);
     dwa_get_mesh_size(&nMeshhor, &nMeshVer);
-    FISHEYE_REGION[0].MeshHor = nMeshhor;
-    FISHEYE_REGION[0].MeshVer = nMeshVer;
+    fisheye_region[0].MeshHor = nMeshhor;
+    fisheye_region[0].MeshVer = nMeshVer;
 
-    FISHEYE_CONFIG->rotate_index = rot;
+    fisheye_config->rotate_index = rot;
 
     int X_TILE_NUMBER, Y_TILE_NUMBER;
     u32 mesh_id_size, mesh_tbl_size;
@@ -2419,99 +2470,102 @@ static void bm_dwa_mesh_gen_rotation(SIZE_S in_size, SIZE_S out_size, ROTATION_E
 
     // Provide virtual address to write mesh.
     reorder_mesh_tbl[0] = mesh_vir_addr + (mesh_tbl_phy_addr - mesh_id_phy_addr);
-    generate_mesh_on_fisheye(NULL, FISHEYE_CONFIG, FISHEYE_REGION, X_TILE_NUMBER, Y_TILE_NUMBER
+    generate_mesh_on_fisheye(NULL, fisheye_config, fisheye_region, X_TILE_NUMBER, Y_TILE_NUMBER
         , (uint16_t *)mesh_vir_addr
         , reorder_mesh_tbl, mesh_tbl_phy_addr, (void *)NULL);
 
-    free(FISHEYE_CONFIG);
-    free(FISHEYE_REGION);
+    free(fisheye_config);
+    free(fisheye_region);
 }
 
-static void bm_fisheye_attr_map(const FISHEYE_ATTR_S *pstFisheyeAttr, SIZE_S out_size, BM_FISHEYE_ATTR *FISHEYE_CONFIG, BM_FISHEYE_REGION_ATTR *FISHEYE_REGION)
+static void bm_fisheye_attr_map(const FISHEYE_ATTR_S *pstFisheyeAttr,
+                                SIZE_S out_size,
+                                bm_fisheye_attr *fisheye_config,
+                                bm_fisheye_region_attr *fisheye_region)
 {
-    FISHEYE_CONFIG->MntMode = pstFisheyeAttr->enMountMode;
-    FISHEYE_CONFIG->OutW_disp = out_size.u32Width;
-    FISHEYE_CONFIG->OutH_disp = out_size.u32Height;
-    FISHEYE_CONFIG->InCenterX = pstFisheyeAttr->s32HorOffset;
-    FISHEYE_CONFIG->InCenterY = pstFisheyeAttr->s32VerOffset;
+    fisheye_config->MntMode = pstFisheyeAttr->enMountMode;
+    fisheye_config->OutW_disp = out_size.u32Width;
+    fisheye_config->OutH_disp = out_size.u32Height;
+    fisheye_config->InCenterX = pstFisheyeAttr->s32HorOffset;
+    fisheye_config->InCenterY = pstFisheyeAttr->s32VerOffset;
     // TODO: how to handl radius
-    FISHEYE_CONFIG->InRadius = MIN2(FISHEYE_CONFIG->InCenterX, FISHEYE_CONFIG->InCenterY);
-    FISHEYE_CONFIG->FStrength = pstFisheyeAttr->s32FanStrength;
-    FISHEYE_CONFIG->TCoef  = pstFisheyeAttr->u32TrapezoidCoef;
+    fisheye_config->InRadius = MIN(fisheye_config->InCenterX, fisheye_config->InCenterY);
+    fisheye_config->FStrength = pstFisheyeAttr->s32FanStrength;
+    fisheye_config->TCoef  = pstFisheyeAttr->u32TrapezoidCoef;
 
-    FISHEYE_CONFIG->RgnNum = pstFisheyeAttr->u32RegionNum;
+    fisheye_config->RgnNum = pstFisheyeAttr->u32RegionNum;
 
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "OutW_disp(%d) OutH_disp(%d)\n", FISHEYE_CONFIG->OutW_disp, FISHEYE_CONFIG->OutH_disp);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "InCenterX(%d) InCenterY(%d)\n", FISHEYE_CONFIG->InCenterX, FISHEYE_CONFIG->InCenterY);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "FStrength(%lf) TCoef(%lf) RgnNum(%d)\n", FISHEYE_CONFIG->FStrength, FISHEYE_CONFIG->TCoef, FISHEYE_CONFIG->RgnNum);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "OutW_disp(%d) OutH_disp(%d)\n", fisheye_config->OutW_disp, fisheye_config->OutH_disp);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "InCenterX(%d) InCenterY(%d)\n", fisheye_config->InCenterX, fisheye_config->InCenterY);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "FStrength(%lf) TCoef(%lf) RgnNum(%d)\n", fisheye_config->FStrength, fisheye_config->TCoef, fisheye_config->RgnNum);
 
     for (int i = 0; i < MAX_REGION_NUM; ++i)
-        FISHEYE_REGION[i].RegionValid = 0;
+        fisheye_region[i].RegionValid = 0;
 
-    for (int i = 0; i < FISHEYE_CONFIG->RgnNum; ++i) {
-        FISHEYE_REGION[i].RegionValid = 1;
+    for (int i = 0; i < fisheye_config->RgnNum; ++i) {
+        fisheye_region[i].RegionValid = 1;
 
-        FISHEYE_REGION[i].ZoomH = pstFisheyeAttr->astFishEyeRegionAttr[i].u32HorZoom;
-        FISHEYE_REGION[i].ZoomV = pstFisheyeAttr->astFishEyeRegionAttr[i].u32VerZoom;
-        FISHEYE_REGION[i].Pan = pstFisheyeAttr->astFishEyeRegionAttr[i].u32Pan;
-        FISHEYE_REGION[i].Tilt = pstFisheyeAttr->astFishEyeRegionAttr[i].u32Tilt;
-        FISHEYE_REGION[i].OutW = pstFisheyeAttr->astFishEyeRegionAttr[i].stOutRect.u32Width;
-        FISHEYE_REGION[i].OutH = pstFisheyeAttr->astFishEyeRegionAttr[i].stOutRect.u32Height;
-        FISHEYE_REGION[i].OutX = pstFisheyeAttr->astFishEyeRegionAttr[i].stOutRect.s32X;
-        FISHEYE_REGION[i].OutY = pstFisheyeAttr->astFishEyeRegionAttr[i].stOutRect.s32Y;
-        FISHEYE_REGION[i].InRadius = pstFisheyeAttr->astFishEyeRegionAttr[i].u32InRadius;
-        FISHEYE_REGION[i].OutRadius = pstFisheyeAttr->astFishEyeRegionAttr[i].u32OutRadius;
+        fisheye_region[i].ZoomH = pstFisheyeAttr->astFishEyeRegionAttr[i].u32HorZoom;
+        fisheye_region[i].ZoomV = pstFisheyeAttr->astFishEyeRegionAttr[i].u32VerZoom;
+        fisheye_region[i].Pan = pstFisheyeAttr->astFishEyeRegionAttr[i].u32Pan;
+        fisheye_region[i].Tilt = pstFisheyeAttr->astFishEyeRegionAttr[i].u32Tilt;
+        fisheye_region[i].OutW = pstFisheyeAttr->astFishEyeRegionAttr[i].stOutRect.u32Width;
+        fisheye_region[i].OutH = pstFisheyeAttr->astFishEyeRegionAttr[i].stOutRect.u32Height;
+        fisheye_region[i].OutX = pstFisheyeAttr->astFishEyeRegionAttr[i].stOutRect.s32X;
+        fisheye_region[i].OutY = pstFisheyeAttr->astFishEyeRegionAttr[i].stOutRect.s32Y;
+        fisheye_region[i].InRadius = pstFisheyeAttr->astFishEyeRegionAttr[i].u32InRadius;
+        fisheye_region[i].OutRadius = pstFisheyeAttr->astFishEyeRegionAttr[i].u32OutRadius;
         if (pstFisheyeAttr->astFishEyeRegionAttr[i].enViewMode == FISHEYE_VIEW_NORMAL) {
-            FISHEYE_REGION[i].MeshVer = 16;
-            FISHEYE_REGION[i].MeshHor = 16;
-            FISHEYE_REGION[i].ViewMode = PROJECTION_REGION;
-            FISHEYE_REGION[i].ThetaX = 0.4*M_PI;
-            FISHEYE_REGION[i].ThetaZ = 0;
-            FISHEYE_REGION[i].ThetaY = 0;
+            fisheye_region[i].MeshVer = 16;
+            fisheye_region[i].MeshHor = 16;
+            fisheye_region[i].ViewMode = PROJECTION_REGION;
+            fisheye_region[i].ThetaX = 0.4*M_PI;
+            fisheye_region[i].ThetaZ = 0;
+            fisheye_region[i].ThetaY = 0;
         } else if (pstFisheyeAttr->astFishEyeRegionAttr[i].enViewMode == FISHEYE_VIEW_180_PANORAMA) {
-            FISHEYE_REGION[i].MeshVer = 32;
-            FISHEYE_REGION[i].MeshHor = 32;
-            FISHEYE_REGION[i].ViewMode = PROJECTION_PANORAMA_180;
+            fisheye_region[i].MeshVer = 32;
+            fisheye_region[i].MeshHor = 32;
+            fisheye_region[i].ViewMode = PROJECTION_PANORAMA_180;
         } else if (pstFisheyeAttr->astFishEyeRegionAttr[i].enViewMode == FISHEYE_VIEW_360_PANORAMA) {
-            FISHEYE_REGION[i].MeshVer = (FISHEYE_CONFIG->RgnNum == 1) ? 64 : 32;
-            FISHEYE_REGION[i].MeshHor = (FISHEYE_CONFIG->RgnNum == 1) ? 64 : 32;
-            FISHEYE_REGION[i].ViewMode = PROJECTION_PANORAMA_360;
-            FISHEYE_REGION[i].ThetaX = M_PI / 4;
-            FISHEYE_REGION[i].ThetaZ = 0;
-            FISHEYE_REGION[i].ThetaY = 0;
-            FISHEYE_REGION[i].PanEnd = FISHEYE_REGION[i].Pan
+            fisheye_region[i].MeshVer = (fisheye_config->RgnNum == 1) ? 64 : 32;
+            fisheye_region[i].MeshHor = (fisheye_config->RgnNum == 1) ? 64 : 32;
+            fisheye_region[i].ViewMode = PROJECTION_PANORAMA_360;
+            fisheye_region[i].ThetaX = M_PI / 4;
+            fisheye_region[i].ThetaZ = 0;
+            fisheye_region[i].ThetaY = 0;
+            fisheye_region[i].PanEnd = fisheye_region[i].Pan
                 + 360 * pstFisheyeAttr->astFishEyeRegionAttr[i].u32HorZoom / 4096;
         }
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "Region(%d) ViewMode(%d) MeshVer(%d) MeshHor(%d)\n"
-            , i, FISHEYE_REGION[i].ViewMode, FISHEYE_REGION[i].MeshVer, FISHEYE_REGION[i].MeshHor);
+            , i, fisheye_region[i].ViewMode, fisheye_region[i].MeshVer, fisheye_region[i].MeshHor);
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "ZoomH(%lf) ZoomV(%lf) Pan(%d) Tilt(%d) PanEnd(%d)\n"
-            , FISHEYE_REGION[i].ZoomH, FISHEYE_REGION[i].ZoomV
-            , FISHEYE_REGION[i].Pan, FISHEYE_REGION[i].Tilt, FISHEYE_REGION[i].PanEnd);
+            , fisheye_region[i].ZoomH, fisheye_region[i].ZoomV
+            , fisheye_region[i].Pan, fisheye_region[i].Tilt, fisheye_region[i].PanEnd);
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "InRadius(%lf) OutRadius(%lf) Rect(%d %d %d %d)\n"
-            , FISHEYE_REGION[i].InRadius, FISHEYE_REGION[i].OutRadius
-            , FISHEYE_REGION[i].OutX, FISHEYE_REGION[i].OutY
-            , FISHEYE_REGION[i].OutW, FISHEYE_REGION[i].OutH);
+            , fisheye_region[i].InRadius, fisheye_region[i].OutRadius
+            , fisheye_region[i].OutX, fisheye_region[i].OutY
+            , fisheye_region[i].OutW, fisheye_region[i].OutH);
     }
 }
 
-static bm_status_t dwa_mesh_gen_fisheye(SIZE_S in_size, SIZE_S out_size, const FISHEYE_ATTR_S *pstFisheyeAttr
-    , uint64_t mesh_phy_addr, void *mesh_vir_addr, ROTATION_E rot, char *grid)
+static bm_status_t dwa_mesh_gen_fisheye(SIZE_S in_size, SIZE_S out_size, const FISHEYE_ATTR_S *pstFisheyeAttr,
+                                        uint64_t mesh_phy_addr, void *mesh_vir_addr, ROTATION_E rot, char *grid)
 {
-    BM_FISHEYE_ATTR *FISHEYE_CONFIG;
-    BM_FISHEYE_REGION_ATTR *FISHEYE_REGION;
+    bm_fisheye_attr *fisheye_config;
+    bm_fisheye_region_attr *fisheye_region;
     bmcv_usage_mode UseMode;
 
-    FISHEYE_CONFIG = (BM_FISHEYE_ATTR *)calloc(1, sizeof(*FISHEYE_CONFIG));
-    if (!FISHEYE_CONFIG) {
+    fisheye_config = (bm_fisheye_attr *)calloc(1, sizeof(*fisheye_config));
+    if (!fisheye_config) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "memory insufficient for fisheye config\n");
-        free(FISHEYE_CONFIG);
+        free(fisheye_config);
         return BM_ERR_NOMEM;
     }
-    FISHEYE_REGION = (BM_FISHEYE_REGION_ATTR *)calloc(1, sizeof(*FISHEYE_REGION) * MAX_REGION_NUM);
-    if (!FISHEYE_REGION) {
+    fisheye_region = (bm_fisheye_region_attr *)calloc(1, sizeof(*fisheye_region) * MAX_REGION_NUM);
+    if (!fisheye_region) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "memory insufficient for fisheye region config\n");
-        free(FISHEYE_CONFIG);
-        free(FISHEYE_REGION);
+        free(fisheye_config);
+        free(fisheye_region);
         return BM_ERR_NOMEM;
     }
 
@@ -2530,28 +2584,28 @@ static bm_status_t dwa_mesh_gen_fisheye(SIZE_S in_size, SIZE_S out_size, const F
         double x0, y0, r;   // infos of src_img, (x0,y0) = center of image,  r = radius of image.
         x0 = pstFisheyeAttr->s32HorOffset;
         y0 = pstFisheyeAttr->s32VerOffset;
-        r = MIN2(x0, y0);
+        r = MIN(x0, y0);
 
-        FISHEYE_CONFIG->Enable = true;
-        FISHEYE_CONFIG->BgEnable = true;
-        FISHEYE_CONFIG->MntMode = pstFisheyeAttr->enMountMode;
-        FISHEYE_CONFIG->UsageMode = UseMode;
-        FISHEYE_CONFIG->OutW_disp = out_size.u32Width;
-        FISHEYE_CONFIG->OutH_disp = out_size.u32Height;
-        FISHEYE_CONFIG->BgColor.R = 0;
-        FISHEYE_CONFIG->BgColor.G = 0;
-        FISHEYE_CONFIG->BgColor.B = 0;
-        FISHEYE_CONFIG->InCenterX = x0; // front-end set.
-        FISHEYE_CONFIG->InCenterY = y0; // front-end set.
-        FISHEYE_CONFIG->InRadius = r;   // front-end set.
-        FISHEYE_CONFIG->FStrength = pstFisheyeAttr->s32FanStrength;
+        fisheye_config->Enable = true;
+        fisheye_config->BgEnable = true;
+        fisheye_config->MntMode = pstFisheyeAttr->enMountMode;
+        fisheye_config->UsageMode = UseMode;
+        fisheye_config->OutW_disp = out_size.u32Width;
+        fisheye_config->OutH_disp = out_size.u32Height;
+        fisheye_config->BgColor.R = 0;
+        fisheye_config->BgColor.G = 0;
+        fisheye_config->BgColor.B = 0;
+        fisheye_config->InCenterX = x0; // front-end set.
+        fisheye_config->InCenterY = y0; // front-end set.
+        fisheye_config->InRadius = r;   // front-end set.
+        fisheye_config->FStrength = pstFisheyeAttr->s32FanStrength;
 
-        BM_LOAD_FRAME_CONFIG(FISHEYE_CONFIG);
-        BM_LOAD_REGION_CONFIG(FISHEYE_CONFIG, FISHEYE_REGION);
+        bm_load_frame_config(fisheye_config);
+        bm_load_region_config(fisheye_config, fisheye_region);
     } else
-        bm_fisheye_attr_map(pstFisheyeAttr, out_size, FISHEYE_CONFIG, FISHEYE_REGION);
+        bm_fisheye_attr_map(pstFisheyeAttr, out_size, fisheye_config, fisheye_region);
 
-    FISHEYE_CONFIG->rotate_index = rot;
+    fisheye_config->rotate_index = rot;
 
     int X_TILE_NUMBER, Y_TILE_NUMBER;
     CVI_U32 mesh_id_size, mesh_tbl_size;
@@ -2576,20 +2630,20 @@ static bm_status_t dwa_mesh_gen_fisheye(SIZE_S in_size, SIZE_S out_size, const F
     // Provide virtual address to write mesh.
     reorder_mesh_tbl[0] = mesh_vir_addr + (mesh_tbl_phy_addr - mesh_id_phy_addr);
     if (pstFisheyeAttr->stGridInfoAttr.Enable == true)
-        generate_mesh_on_fisheye(&(pstFisheyeAttr->stGridInfoAttr), FISHEYE_CONFIG, FISHEYE_REGION, X_TILE_NUMBER, Y_TILE_NUMBER
+        generate_mesh_on_fisheye(&(pstFisheyeAttr->stGridInfoAttr), fisheye_config, fisheye_region, X_TILE_NUMBER, Y_TILE_NUMBER
         , (uint16_t *)mesh_vir_addr
         , reorder_mesh_tbl, mesh_tbl_phy_addr, grid);
     else
-        generate_mesh_on_fisheye(NULL, FISHEYE_CONFIG, FISHEYE_REGION, X_TILE_NUMBER, Y_TILE_NUMBER
+        generate_mesh_on_fisheye(NULL, fisheye_config, fisheye_region, X_TILE_NUMBER, Y_TILE_NUMBER
         , (uint16_t *)mesh_vir_addr
         , reorder_mesh_tbl, mesh_tbl_phy_addr, (void *)NULL);
-    free(FISHEYE_CONFIG);
-    free(FISHEYE_REGION);
+    free(fisheye_config);
+    free(fisheye_region);
 
     return BM_SUCCESS;
 }
 
-static void generate_mesh_on_faces(struct mesh_param *param, const AFFINE_ATTR_S *pstAttr)
+static void generate_mesh_on_faces(bm_mesh_param *param, const AFFINE_ATTR_S *pstAttr)
 {
     const u8 w_knot_num = param->width/pstAttr->stDestSize.u32Width + 1;
     const u8 h_knot_num = param->height/pstAttr->stDestSize.u32Height + 1;
@@ -2666,7 +2720,7 @@ static void dwa_mesh_gen_affine(SIZE_S in_size, SIZE_S out_size, const AFFINE_AT
                 , mesh_id_phy_addr, mesh_tbl_phy_addr);
     bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "mesh_id_size(%d) mesh_tbl_size(%d)\n", mesh_id_size, mesh_tbl_size);
 
-    struct mesh_param param;
+    bm_mesh_param param;
 
     param.width = owidth;
     param.height = oheight;
@@ -2680,22 +2734,22 @@ static void dwa_mesh_gen_affine(SIZE_S in_size, SIZE_S out_size, const AFFINE_AT
 }
 
 static bm_status_t dwa_mesh_gen_ldc(SIZE_S in_size, SIZE_S out_size, const LDC_ATTR_S *pstLDCAttr,
-            uint64_t mesh_phy_addr, void *mesh_vir_addr, ROTATION_E rot, char *grid)
+                                    uint64_t mesh_phy_addr, void *mesh_vir_addr, ROTATION_E rot, char *grid)
 {
-    BM_FISHEYE_ATTR *FISHEYE_CONFIG;
-    BM_FISHEYE_REGION_ATTR *FISHEYE_REGION;
+    bm_fisheye_attr *fisheye_config;
+    bm_fisheye_region_attr *fisheye_region;
 
-    FISHEYE_CONFIG = (BM_FISHEYE_ATTR*)calloc(1, sizeof(*FISHEYE_CONFIG));
-    if (!FISHEYE_CONFIG) {
+    fisheye_config = (bm_fisheye_attr*)calloc(1, sizeof(*fisheye_config));
+    if (!fisheye_config) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "memory insufficient for fisheye config\n");
-        free(FISHEYE_CONFIG);
+        free(fisheye_config);
         return BM_ERR_FAILURE;
     }
-    FISHEYE_REGION = (BM_FISHEYE_REGION_ATTR*)calloc(1, sizeof(*FISHEYE_REGION) * MAX_REGION_NUM);
-    if (!FISHEYE_REGION) {
+    fisheye_region = (bm_fisheye_region_attr*)calloc(1, sizeof(*fisheye_region) * MAX_REGION_NUM);
+    if (!fisheye_region) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "memory insufficient for fisheye region config\n");
-        free(FISHEYE_CONFIG);
-        free(FISHEYE_REGION);
+        free(fisheye_config);
+        free(fisheye_region);
         return BM_ERR_FAILURE;
     }
 
@@ -2703,8 +2757,8 @@ static bm_status_t dwa_mesh_gen_ldc(SIZE_S in_size, SIZE_S out_size, const LDC_A
         , in_size.u32Width, in_size.u32Height
         , out_size.u32Width, out_size.u32Height);
 
-    bm_ldc_attr_map(pstLDCAttr, out_size, FISHEYE_CONFIG, FISHEYE_REGION);
-    FISHEYE_CONFIG->rotate_index = rot;
+    bm_ldc_attr_map(pstLDCAttr, out_size, fisheye_config, fisheye_region);
+    fisheye_config->rotate_index = rot;
 
     int X_TILE_NUMBER, Y_TILE_NUMBER;
     u32 mesh_id_size;
@@ -2730,35 +2784,35 @@ static bm_status_t dwa_mesh_gen_ldc(SIZE_S in_size, SIZE_S out_size, const LDC_A
     // Provide virtual address to write mesh.
     reorder_mesh_tbl[0] = mesh_vir_addr + (mesh_tbl_phy_addr - mesh_id_phy_addr);
     if (pstLDCAttr->stGridInfoAttr.Enable == true)
-        generate_mesh_on_fisheye(&(pstLDCAttr->stGridInfoAttr), FISHEYE_CONFIG, FISHEYE_REGION, X_TILE_NUMBER, Y_TILE_NUMBER
+        generate_mesh_on_fisheye(&(pstLDCAttr->stGridInfoAttr), fisheye_config, fisheye_region, X_TILE_NUMBER, Y_TILE_NUMBER
             , (uint16_t *)mesh_vir_addr, reorder_mesh_tbl, mesh_tbl_phy_addr, grid);
     else
-        generate_mesh_on_fisheye(&(pstLDCAttr->stGridInfoAttr), FISHEYE_CONFIG, FISHEYE_REGION, X_TILE_NUMBER, Y_TILE_NUMBER
+        generate_mesh_on_fisheye(&(pstLDCAttr->stGridInfoAttr), fisheye_config, fisheye_region, X_TILE_NUMBER, Y_TILE_NUMBER
             , (uint16_t *)mesh_vir_addr, reorder_mesh_tbl, mesh_tbl_phy_addr, (void *)NULL);
 
-    free(FISHEYE_CONFIG);
-    free(FISHEYE_REGION);
+    free(fisheye_config);
+    free(fisheye_region);
 
     return BM_SUCCESS;
 }
 
 static bm_status_t dwa_mesh_gen_warp(SIZE_S in_size, SIZE_S out_size, const WARP_ATTR_S *pstWarpAttr,
-            uint64_t mesh_phy_addr, void *mesh_vir_addr, char *grid)
+                                     uint64_t mesh_phy_addr, void *mesh_vir_addr, char *grid)
 {
-    BM_FISHEYE_ATTR *FISHEYE_CONFIG;
-    BM_FISHEYE_REGION_ATTR *FISHEYE_REGION;
+    bm_fisheye_attr *fisheye_config;
+    bm_fisheye_region_attr *fisheye_region;
 
-    FISHEYE_CONFIG = (BM_FISHEYE_ATTR*)calloc(1, sizeof(*FISHEYE_CONFIG));
-    if (!FISHEYE_CONFIG) {
+    fisheye_config = (bm_fisheye_attr*)calloc(1, sizeof(*fisheye_config));
+    if (!fisheye_config) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "memory insufficient for fisheye config\n");
-        free(FISHEYE_CONFIG);
+        free(fisheye_config);
         return BM_ERR_FAILURE;
     }
-    FISHEYE_REGION = (BM_FISHEYE_REGION_ATTR*)calloc(1, sizeof(*FISHEYE_REGION) * MAX_REGION_NUM);
-    if (!FISHEYE_REGION) {
+    fisheye_region = (bm_fisheye_region_attr*)calloc(1, sizeof(*fisheye_region) * MAX_REGION_NUM);
+    if (!fisheye_region) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "memory insufficient for fisheye region config\n");
-        free(FISHEYE_CONFIG);
-        free(FISHEYE_REGION);
+        free(fisheye_config);
+        free(fisheye_region);
         return BM_ERR_FAILURE;
     }
 
@@ -2766,18 +2820,18 @@ static bm_status_t dwa_mesh_gen_warp(SIZE_S in_size, SIZE_S out_size, const WARP
         , in_size.u32Width, in_size.u32Height
         , out_size.u32Width, out_size.u32Height);
 
-    FISHEYE_CONFIG->MntMode = 0;
-    FISHEYE_CONFIG->OutW_disp = out_size.u32Width;
-    FISHEYE_CONFIG->OutH_disp = out_size.u32Height;
-    FISHEYE_CONFIG->FStrength = 0;
-    FISHEYE_CONFIG->TCoef = 0;
+    fisheye_config->MntMode = 0;
+    fisheye_config->OutW_disp = out_size.u32Width;
+    fisheye_config->OutH_disp = out_size.u32Height;
+    fisheye_config->FStrength = 0;
+    fisheye_config->TCoef = 0;
 
-    FISHEYE_CONFIG->RgnNum = 1;
+    fisheye_config->RgnNum = 1;
 
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "OutW_disp(%d) OutH_disp(%d)\n", FISHEYE_CONFIG->OutW_disp, FISHEYE_CONFIG->OutH_disp);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "OutW_disp(%d) OutH_disp(%d)\n", fisheye_config->OutW_disp, fisheye_config->OutH_disp);
 
-    FISHEYE_REGION[0].RegionValid = 1;
-    FISHEYE_REGION[0].ViewMode = PROJECTION_STEREO_FIT;
+    fisheye_region[0].RegionValid = 1;
+    fisheye_region[0].ViewMode = PROJECTION_STEREO_FIT;
 
     int X_TILE_NUMBER, Y_TILE_NUMBER;
     u32 mesh_id_size;
@@ -2802,10 +2856,10 @@ static bm_status_t dwa_mesh_gen_warp(SIZE_S in_size, SIZE_S out_size, const WARP
 
     // Provide virtual address to write mesh.
     reorder_mesh_tbl[0] = mesh_vir_addr + (mesh_tbl_phy_addr - mesh_id_phy_addr);
-    generate_mesh_on_fisheye(&(pstWarpAttr->stGridInfoAttr), FISHEYE_CONFIG, FISHEYE_REGION, X_TILE_NUMBER, Y_TILE_NUMBER
+    generate_mesh_on_fisheye(&(pstWarpAttr->stGridInfoAttr), fisheye_config, fisheye_region, X_TILE_NUMBER, Y_TILE_NUMBER
         , (uint16_t *)mesh_vir_addr, reorder_mesh_tbl, mesh_tbl_phy_addr, grid);
-    free(FISHEYE_CONFIG);
-    free(FISHEYE_REGION);
+    free(fisheye_config);
+    free(fisheye_region);
 
     return BM_SUCCESS;
 }
@@ -2867,8 +2921,7 @@ static bm_status_t bm_dwa_add_ldc_task(bm_handle_t handle, int fd, GDC_HANDLE hH
         }
         free(buffer);
 
-        dwa_tskMesh[idx].paddr = paddr;
-        dwa_tskMesh[idx].vaddr = 0;
+        dwa_tskMesh[idx].mem = pmem;
     }
     pthread_mutex_unlock(&mutex);
 
@@ -2879,10 +2932,10 @@ static bm_status_t bm_dwa_add_ldc_task(bm_handle_t handle, int fd, GDC_HANDLE hH
     //memcpy(attr.au64privateData, pstTask->au64privateData, sizeof(attr.au64privateData));
     memcpy(&attr.stLdcAttr, pstLDCAttr, sizeof(*pstLDCAttr));
     attr.reserved = pstTask->reserved;
-    attr.au64privateData[0] = dwa_tskMesh[idx].paddr;
+    attr.au64privateData[0] = dwa_tskMesh[idx].mem.u.device.device_addr;
 
-    pstTask->au64privateData[0] = dwa_tskMesh[idx].paddr;
-    pstTask->au64privateData[1] = (u64)((uintptr_t)dwa_tskMesh[idx].vaddr);
+    pstTask->au64privateData[0] = dwa_tskMesh[idx].mem.u.device.device_addr;
+    pstTask->au64privateData[1] = (u64)((uintptr_t)dwa_tskMesh[idx].mem.u.system.system_addr);
     return dwa_add_ldc_task(fd, &attr);
 }
 
@@ -2941,8 +2994,7 @@ static bm_status_t bm_dwa_add_rotation_task(bm_handle_t handle, int fd, DWA_HAND
         }
         free(buffer);
 
-        dwa_tskMesh[idx].paddr = paddr;
-        dwa_tskMesh[idx].vaddr = 0;
+        dwa_tskMesh[idx].mem = pmem;
     }
     pthread_mutex_unlock(&mutex);
     memset(&attr, 0, sizeof(attr));
@@ -2952,10 +3004,10 @@ static bm_status_t bm_dwa_add_rotation_task(bm_handle_t handle, int fd, DWA_HAND
     //memcpy(attr.au64privateData, pstTask->au64privateData, sizeof(attr.au64privateData));
     attr.reserved = pstTask->reserved;
     attr.enRotation = enRotation;
-    attr.au64privateData[0] = dwa_tskMesh[idx].paddr;
+    attr.au64privateData[0] = dwa_tskMesh[idx].mem.u.device.device_addr;
 
-    pstTask->au64privateData[0] = dwa_tskMesh[idx].paddr;
-    pstTask->au64privateData[1] = (u64)((uintptr_t)dwa_tskMesh[idx].vaddr);
+    pstTask->au64privateData[0] = dwa_tskMesh[idx].mem.u.device.device_addr;
+    pstTask->au64privateData[1] = (u64)((uintptr_t)dwa_tskMesh[idx].mem.u.system.system_addr);
     return dwa_add_rotation_task(fd, &attr);
 }
 
@@ -3047,8 +3099,7 @@ static bm_status_t bm_dwa_add_correction_task(bm_handle_t handle, int fd, GDC_HA
         }
         free(buffer);
 
-        dwa_tskMesh[idx].paddr = paddr;
-        dwa_tskMesh[idx].vaddr = 0;
+        dwa_tskMesh[idx].mem = pmem;
     }
     pthread_mutex_unlock(&mutex);
 
@@ -3059,10 +3110,10 @@ static bm_status_t bm_dwa_add_correction_task(bm_handle_t handle, int fd, GDC_HA
     //memcpy(attr.au64privateData, pstTask->au64privateData, sizeof(attr.au64privateData));
     memcpy(&attr.stFishEyeAttr, pstFishEyeAttr, sizeof(*pstFishEyeAttr));
     attr.reserved = pstTask->reserved;
-    attr.au64privateData[0] = dwa_tskMesh[idx].paddr;
+    attr.au64privateData[0] = dwa_tskMesh[idx].mem.u.device.device_addr;
 
-    pstTask->au64privateData[0] = dwa_tskMesh[idx].paddr;
-    pstTask->au64privateData[1] = (u64)((uintptr_t)dwa_tskMesh[idx].vaddr);
+    pstTask->au64privateData[0] = dwa_tskMesh[idx].mem.u.device.device_addr;
+    pstTask->au64privateData[1] = (u64)((uintptr_t)dwa_tskMesh[idx].mem.u.system.system_addr);
     return dwa_add_correction_task(fd, &attr);
 
 }
@@ -3104,12 +3155,12 @@ static bm_status_t bm_dwa_add_affine_task(bm_handle_t handle, int fd, GDC_HANDLE
         }
         if ((pstAffineAttr->astRegionAttr[i][1].x < pstAffineAttr->astRegionAttr[i][0].x) ||
             (pstAffineAttr->astRegionAttr[i][3].x < pstAffineAttr->astRegionAttr[i][2].x)) {
-            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "u32RegionNum(%d) point1/3's x should be bigger thant 0/2's\n", i);
+            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "u32RegionNum(%d) point1/3's x should be bigger than 0/2's\n", i);
             return BM_ERR_FAILURE;
         }
         if ((pstAffineAttr->astRegionAttr[i][2].y < pstAffineAttr->astRegionAttr[i][0].y) ||
             (pstAffineAttr->astRegionAttr[i][3].y < pstAffineAttr->astRegionAttr[i][1].y)) {
-            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "u32RegionNum(%d) point2/3's y should be bigger thant 0/1's\n", i);
+            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "u32RegionNum(%d) point2/3's y should be bigger than 0/1's\n", i);
             return BM_ERR_FAILURE;
         }
     }
@@ -3149,8 +3200,7 @@ static bm_status_t bm_dwa_add_affine_task(bm_handle_t handle, int fd, GDC_HANDLE
         }
         free(buffer);
 
-        dwa_tskMesh[idx].paddr = paddr;
-        dwa_tskMesh[idx].vaddr = 0;
+        dwa_tskMesh[idx].mem = pmem;
     }
     pthread_mutex_unlock(&mutex);
 
@@ -3161,10 +3211,10 @@ static bm_status_t bm_dwa_add_affine_task(bm_handle_t handle, int fd, GDC_HANDLE
     //memcpy(attr.au64privateData, pstTask->au64privateData, sizeof(attr.au64privateData));
     memcpy(&attr.stAffineAttr, pstAffineAttr, sizeof(*pstAffineAttr));
     attr.reserved = pstTask->reserved;
-    attr.au64privateData[0] = dwa_tskMesh[idx].paddr;
+    attr.au64privateData[0] = dwa_tskMesh[idx].mem.u.device.device_addr;
 
-    pstTask->au64privateData[0] = dwa_tskMesh[idx].paddr;
-    pstTask->au64privateData[1] = (u64)((uintptr_t)dwa_tskMesh[idx].vaddr);
+    pstTask->au64privateData[0] = dwa_tskMesh[idx].mem.u.device.device_addr;
+    pstTask->au64privateData[1] = (u64)((uintptr_t)dwa_tskMesh[idx].mem.u.system.system_addr);
     return dwa_add_affine_task(fd, &attr);
 }
 
@@ -3228,8 +3278,7 @@ static bm_status_t bm_dwa_add_dewarp_task(bm_handle_t handle, int fd, GDC_HANDLE
         }
         free(buffer);
 
-        dwa_tskMesh[idx].paddr = paddr;
-        dwa_tskMesh[idx].vaddr = 0;
+        dwa_tskMesh[idx].mem = pmem;
     }
     pthread_mutex_unlock(&mutex);
 
@@ -3240,10 +3289,10 @@ static bm_status_t bm_dwa_add_dewarp_task(bm_handle_t handle, int fd, GDC_HANDLE
     //memcpy(attr.au64privateData, pstTask->au64privateData, sizeof(attr.au64privateData));
     memcpy(&attr.stWarpAttr, pstWarpAttr, sizeof(*pstWarpAttr));
     attr.reserved = pstTask->reserved;
-    attr.au64privateData[0] = dwa_tskMesh[idx].paddr;
+    attr.au64privateData[0] = dwa_tskMesh[idx].mem.u.device.device_addr;
 
-    pstTask->au64privateData[0] = dwa_tskMesh[idx].paddr;
-    pstTask->au64privateData[1] = (u64)((uintptr_t)dwa_tskMesh[idx].vaddr);
+    pstTask->au64privateData[0] = dwa_tskMesh[idx].mem.u.device.device_addr;
+    pstTask->au64privateData[1] = (u64)((uintptr_t)dwa_tskMesh[idx].mem.u.system.system_addr);
     return dwa_add_warp_task(fd, &attr);
 }
 
@@ -3251,9 +3300,9 @@ static bm_status_t bm_dwa_add_task(bm_handle_t handle, int fd, bm_dwa_basic_para
 {
     ROTATION_E enRotation;
     AFFINE_ATTR_S *stAffineAttr;
-    BM_DEWARP_ATTR_AND_GRID *dewarp_attr_and_grid;
-    BM_GDC_ATTR_AND_GRID *gdc_attr_and_grid;
-    BM_FISHEYE_ATTR_AND_GRID *fisheye_attr_and_grid;
+    bm_dewarp_attr_and_grid *dewarp_attr_and_grid;
+    bm_gdc_attr_and_grid *gdc_attr_and_grid;
+    bm_fisheye_attr_and_grid *fisheye_attr_and_grid;
 
     s32 ret = BM_ERR_FAILURE;
 
@@ -3264,7 +3313,7 @@ static bm_status_t bm_dwa_add_task(bm_handle_t handle, int fd, bm_dwa_basic_para
 
     switch(param->op){
         case DWA_TEST_FISHEYE:
-            fisheye_attr_and_grid = (BM_FISHEYE_ATTR_AND_GRID *)ptr;
+            fisheye_attr_and_grid = (bm_fisheye_attr_and_grid *)ptr;
 
             ret = bm_dwa_add_correction_task(handle, fd, param->hHandle, &param->stTask, &(fisheye_attr_and_grid->fisheye_attr), fisheye_attr_and_grid->grid);
             if(ret) {
@@ -3281,7 +3330,7 @@ static bm_status_t bm_dwa_add_task(bm_handle_t handle, int fd, bm_dwa_basic_para
             break;
         case DWA_TEST_LDC:
             enRotation = (ROTATION_E)param->stTask.reserved;
-            gdc_attr_and_grid = (BM_GDC_ATTR_AND_GRID *)ptr;
+            gdc_attr_and_grid = (bm_gdc_attr_and_grid *)ptr;
 
             ret = bm_dwa_add_ldc_task(handle, fd, param->hHandle, &param->stTask, &(gdc_attr_and_grid->ldc_attr), enRotation, gdc_attr_and_grid->grid);
             if (ret){
@@ -3297,7 +3346,7 @@ static bm_status_t bm_dwa_add_task(bm_handle_t handle, int fd, bm_dwa_basic_para
             }
             break;
         case DWA_TEST_DEWARP:
-            dewarp_attr_and_grid = (BM_DEWARP_ATTR_AND_GRID *)ptr;
+            dewarp_attr_and_grid = (bm_dewarp_attr_and_grid *)ptr;
 
             ret = bm_dwa_add_dewarp_task(handle, fd, param->hHandle, &param->stTask, &(dewarp_attr_and_grid->dewarp_attr), dewarp_attr_and_grid->grid);
             if(ret){
@@ -3341,7 +3390,7 @@ static bm_status_t bm_dwa_begin_job(int fd, DWA_HANDLE *phHandle)
     return BM_SUCCESS;
 }
 
-static bm_status_t bm_dwa_set_job_identity(int fd, DWA_HANDLE hHandle, DWA_IDENTITY_ATTR_S *identity_attr)
+static bm_status_t bm_dwa_set_job_identity(int fd, DWA_HANDLE hHandle, GDC_IDENTITY_ATTR_S *identity_attr)
 {
     MOD_CHECK_NULL_PTR(CVI_ID_DWA, identity_attr);
 
@@ -3358,9 +3407,9 @@ static bm_status_t bm_dwa_set_job_identity(int fd, DWA_HANDLE hHandle, DWA_IDENT
 }
 
 static bm_status_t bm_dwa_send_frame(int fd,
-                                bm_image *input_image,
-                                bm_image *output_image,
-                                bm_dwa_basic_param *param)
+                                     bm_image *input_image,
+                                     bm_image *output_image,
+                                     bm_dwa_basic_param *param)
 {
     bm_status_t ret = BM_SUCCESS;
     PIXEL_FORMAT_E pixel_format = 0;
@@ -3403,7 +3452,8 @@ bm_status_t bm_dwa_get_frame(int fd,
     bm_image_format_to_cvi(output_image->image_format, output_image->data_type, &pixel_format);
     bm_image_to_cvi_frame(output_image, pixel_format, &param->stVideoFrameOut);
 
-    memcpy(&param->stTask.stImgOut, &param->stVideoFrameOut, sizeof(param->stVideoFrameOut));
+    // memcpy(&param->stTask.stImgOut, &param->stVideoFrameOut, sizeof(param->stVideoFrameOut));
+    memcpy(&param->stVideoFrameOut, &param->stTask.stImgOut, sizeof(param->stTask.stImgOut));
 
     for(int i = 0; i < output_image->image_private->plane_num; i++){
         output_image->image_private->data[i].u.device.device_addr = param->stVideoFrameOut.stVFrame.u64PhyAddr[i];
@@ -3412,7 +3462,7 @@ bm_status_t bm_dwa_get_frame(int fd,
     return ret;
 }
 
-bm_status_t bm_dwa_get_chn_frame(int fd, DWA_IDENTITY_ATTR_S *identity_attr, VIDEO_FRAME_INFO_S *pstFrameInfo, int s32MilliSec)
+bm_status_t bm_dwa_get_chn_frame(int fd, GDC_IDENTITY_ATTR_S *identity_attr, VIDEO_FRAME_INFO_S *pstFrameInfo, int s32MilliSec)
 {
     bm_status_t ret;
     struct dwa_chn_frm_cfg cfg;
@@ -3507,12 +3557,12 @@ static bm_status_t bm_dwa_basic(bm_handle_t handle,
         goto fail;
     }
 
-    ret = bm_dwa_get_chn_frame(fd, &param->identity, &param->stVideoFrameOut, 500);
-    if (ret != BM_SUCCESS) {
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "bm_dwa_get_chn_frame failed!\n");
-        ret = BM_ERR_FAILURE;
-        goto fail;
-    }
+    // ret = bm_dwa_get_chn_frame(fd, &param->identity, &param->stVideoFrameOut, 500);
+    // if (ret != BM_SUCCESS) {
+    //     bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "bm_dwa_get_chn_frame failed!\n");
+    //     ret = BM_ERR_FAILURE;
+    //     goto fail;
+    // }
 
     ret = bm_dwa_get_frame(fd, &output_image, param);
     if (ret != BM_SUCCESS) {
@@ -3552,7 +3602,7 @@ bm_status_t bmcv_dwa_rot_internel(bm_handle_t          handle,
     param.identity.enModId = CVI_ID_DWA;
     param.identity.u32ID = 0;
 
-    param.identity.syncIo = false;
+    param.identity.syncIo = true;
     param.op = DWA_TEST_ROT;
 
     rot_name.param = param;
@@ -3575,7 +3625,7 @@ bm_status_t bmcv_dwa_gdc_internel(bm_handle_t          handle,
     bm_status_t ret = BM_SUCCESS;
     bm_dwa_basic_param param;
     bm_gdc_name gdc_name;
-    BM_GDC_ATTR_AND_GRID gdc_with_grid;
+    bm_gdc_attr_and_grid gdc_with_grid;
     char md5_str[MD5_STRING_LENGTH + 1];
     memset(&gdc_name, 0, sizeof(gdc_name));
     memset(&param, 0, sizeof(param));
@@ -3591,7 +3641,7 @@ bm_status_t bmcv_dwa_gdc_internel(bm_handle_t          handle,
     param.identity.enModId = CVI_ID_DWA;
     param.identity.u32ID = 0;
 
-    param.identity.syncIo = false;
+    param.identity.syncIo = true;
     param.op = DWA_TEST_LDC;
 
     if (ldc_attr.grid_info.size == 0) {
@@ -3651,7 +3701,7 @@ bm_status_t bmcv_dwa_fisheye_internel(bm_handle_t          handle,
     bm_dwa_basic_param param;
     FISHEYE_ATTR_S dwa_fisheye_attr;
     bm_fisheye_name fisheye_name;
-    BM_FISHEYE_ATTR_AND_GRID fisheye_with_grid;
+    bm_fisheye_attr_and_grid fisheye_with_grid;
     char md5_str[MD5_STRING_LENGTH + 1];
     memset(&param, 0, sizeof(param));
     memset(&dwa_fisheye_attr, 0, sizeof(dwa_fisheye_attr));
@@ -3665,7 +3715,7 @@ bm_status_t bmcv_dwa_fisheye_internel(bm_handle_t          handle,
     bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "param.enPixelFormat = [%d]\n", param.enPixelFormat);
     param.identity.enModId = CVI_ID_DWA;
     param.identity.u32ID = 0;
-    param.identity.syncIo = false;
+    param.identity.syncIo = true;
 
     param.op = DWA_TEST_FISHEYE;
 
@@ -3733,7 +3783,7 @@ bm_status_t bmcv_dwa_affine_internel(bm_handle_t          handle,
     bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "param.enPixelFormat = [%d]\n", param.enPixelFormat);
     param.identity.enModId = CVI_ID_DWA;
     param.identity.u32ID = 0;
-    param.identity.syncIo = false;
+    param.identity.syncIo = true;
 
     param.op = DWA_TEST_AFFINE;
 
@@ -3762,7 +3812,7 @@ bm_status_t bmcv_dwa_dewarp_internel(bm_handle_t          handle,
     bm_status_t ret = BM_SUCCESS;
     bm_dwa_basic_param param;
     bm_dewarp_name dewarp_name;
-    BM_DEWARP_ATTR_AND_GRID dewarp_with_grid;
+    bm_dewarp_attr_and_grid dewarp_with_grid;
     memset(&param, 0, sizeof(param));
     memset(&dewarp_name, 0, sizeof(dewarp_name));
     memset(&dewarp_with_grid, 0, sizeof(dewarp_with_grid));
@@ -3776,7 +3826,7 @@ bm_status_t bmcv_dwa_dewarp_internel(bm_handle_t          handle,
     bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "param.enPixelFormat = [%d]\n", param.enPixelFormat);
     param.identity.enModId = CVI_ID_DWA;
     param.identity.u32ID = 0;
-    param.identity.syncIo = false;
+    param.identity.syncIo = true;
 
     param.op = DWA_TEST_DEWARP;
 

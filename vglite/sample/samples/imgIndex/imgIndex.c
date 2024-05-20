@@ -24,7 +24,7 @@ char *error_type[] =
     error = Function; \
     if (IS_ERROR(error)) \
     { \
-        printf("[%s: %d] failed.error type is %s\n", __func__, __LINE__,error_type[error]);\
+        printf("[%s: %d] error type is %s\n", __func__, __LINE__,error_type[error]);\
         goto ErrorHandler; \
     }
 static int   fb_width = 320, fb_height = 480;
@@ -180,7 +180,7 @@ int main(int argc, const char * argv[])
     
     // Initialize vg_lite engine.
     vg_lite_error_t error = VG_LITE_SUCCESS;
-    CHECK_ERROR(vg_lite_init(0, 0));
+    CHECK_ERROR(vg_lite_init(fb_width, fb_height));
     
     filter = VG_LITE_FILTER_BI_LINEAR;
 

@@ -32,7 +32,7 @@ char* error_type[] =
     error = Function; \
     if (IS_ERROR(error)) \
     { \
-        printf("[%s: %d] failed.error type is %s\n", __func__, __LINE__,error_type[error]);\
+        printf("[%s: %d] error type is %s\n", __func__, __LINE__,error_type[error]);\
         goto ErrorHandler; \
     }
 
@@ -57,6 +57,8 @@ int main(int argc, const char* argv[])
     srcbuf.width = fb_width;
     srcbuf.height = fb_height;
     srcbuf.format = VG_LITE_RGBA8888;
+    if (vg_lite_query_feature(gcFEATURE_BIT_VG_16PIXELS_ALIGN))
+        srcbuf.width = ((srcbuf.width + 15) & ~0xf);
     CHECK_ERROR(vg_lite_allocate(&srcbuf));
     memset(srcbuf.memory, 0xffffffff, srcbuf.stride * srcbuf.height);
     memcpy(srcbuf.memory, &color_data[0], 8);
@@ -65,6 +67,8 @@ int main(int argc, const char* argv[])
     dstbuf.width = fb_width;
     dstbuf.height = fb_height;
     dstbuf.format = VG_LITE_RGBA8888;
+    if (vg_lite_query_feature(gcFEATURE_BIT_VG_16PIXELS_ALIGN))
+        dstbuf.width = ((dstbuf.width + 15) & ~0xf);
     CHECK_ERROR(vg_lite_allocate(&dstbuf));
 
     CHECK_ERROR(vg_lite_blit(&dstbuf, &srcbuf, &matrix, VG_LITE_BLEND_NONE, 0, filter));

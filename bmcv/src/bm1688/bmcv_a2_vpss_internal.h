@@ -61,6 +61,7 @@ typedef enum bmcv_vpss_csc_type {
 typedef struct bmcv_csc_cfg {
 	u8 is_fancy;
 	u8 is_user_defined_matrix;
+	bmcv_flip_mode flip_mode;
 	bmcv_vpss_csc_type csc_type;
 	bmcv_vpss_csc_matrix csc_matrix;
 } bmcv_csc_cfg;

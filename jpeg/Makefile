@@ -2,12 +2,12 @@
 #
 # The API of JPEG in Linux
 #
-# CHIP:        bm1686
+# CHIP:        bm1688
 # PRODUCTFORM: soc
 # SUBTYPE:     asic, palladium, fpga
 ########################################################################
 
-CHIP ?= bm1686
+CHIP ?= bm1688
 PRODUCTFORM ?= soc
 SUBTYPE ?= asic
 INSTALL_DIR ?= ./install
@@ -34,8 +34,8 @@ AR  = $(CROSS_CC_PREFIX)ar
 CFLAGS += -fPIC -Wall -Wl,--fatal-warning
 CFLAGS += -I./inc -I../3rdparty/libbmcv/include -I../3rdparty/osdrv
 
-ifeq ($(CHIP), bm1686)
-    CFLAGS += -DCHIP_BM1684  # change to CHIP_BM1686?
+ifeq ($(CHIP), bm1688)
+    CFLAGS += -DCHIP_BM1684  # change to CHIP_BM1688?
 else
     $(error UNDEFINED CHIP)
 endif

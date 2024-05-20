@@ -338,7 +338,7 @@ vg_lite_error_t Render()
     while(SFT_CASES[i] != NULL) {
         error = SFT_CASES[i++]();
         if(error) {
-            printf("[%s]Pattern_Draw_Test %d failed.error type is %s\n", __func__, __LINE__,error_type[error]);
+            printf("[%s]Pattern_Draw_Test %d error type is %s\n", __func__, __LINE__,error_type[error]);
             return error;
         }
     }

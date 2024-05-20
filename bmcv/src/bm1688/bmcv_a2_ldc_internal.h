@@ -32,11 +32,22 @@
 #define TWOS_COMPLEMENT 1 // ifndef: sign bit representation:
 #define USE_OLD 0
 
-#define BM_LDC_PRT(fmt...)                               \
+#define LDC_ALIGN 64
+#define LDC_MAX_TSK_MESH (32)
+#define TILESIZE 64 // HW: data Tile Size
+#define HW_MESH_SIZE 8
+
+#define MESH_NUM_ATILE (TILESIZE / HW_MESH_SIZE) // how many mesh in A TILE
+
+#define BM_LDC_PRT(fmt...)                                \
     do {                                                  \
         printf("[%s]-%d: ", __func__, __LINE__);          \
         printf(fmt);                                      \
     } while (0)
+
+typedef struct COORD2D_INT_HW {
+    u8 xcor[3]; // s13.10, 24bit
+} __attribute__((packed)) bm_coord2d_int_hw;
 
 typedef struct _MESH_DATA_ALL_S {
     char grid_name[64];
@@ -58,47 +69,37 @@ typedef struct _MESH_DATA_ALL_S {
     float _homography[10];
     int corners[10];
     float *_pmapx, *_pmapy;
-} MESH_DATA_ALL_S;
+} bm_mesh_data_all_s;
 
-typedef MESH_DATA_ALL_S meshdata_all;
+typedef bm_mesh_data_all_s bm_meshdata_all;
 
 typedef struct COORD2D {
     double xcor;
     double ycor;
-} COORD2D;
+} bm_coord2d;
 
 typedef struct MESH_STRUCT {
-    COORD2D knot[4];
+    bm_coord2d knot[4];
     int idx;
-} MESH_STRUCT;
+} bm_mesh_struct;
 
 typedef struct Vector2D {
     double x;
     double y;
-} Vector2D;
+} bm_vector2D;
 
 typedef struct COORD2D_INT {
     int xcor;
     int ycor;
-} COORD2D_INT;
+} bm_coord2d_int;
 
 typedef struct _TSK_MESH_ATTR_S {
     char Name[32];
     u64 paddr;
     void *vaddr;
-} TSK_MESH_ATTR_S;
+} bm_tsk_mesh_attr_s;
 
-typedef struct _BM_VB_CAL_CONFIG_S {
-    u32 u32VBSize;
-
-    u32 u32MainStride;
-    u32 u32CStride;
-    u32 u32MainSize;
-    u32 u32MainYSize;
-    u32 u32MainCSize;
-    u16 u16AddrAlign;
-    u8  plane_num;
-} BM_VB_CAL_CONFIG_S;
+typedef struct _VB_CAL_CONFIG_S bm_vb_cal_config_s;
 
 typedef struct LDC_ATTR {
     int Enable; // dewarp engine on/off
@@ -112,41 +113,41 @@ typedef struct LDC_ATTR {
     int InRadius; // input fisheye radius in pixels.
 
     // frame-based dst mesh info. maximum num=128*28 = 16384 meshes.
-    MESH_STRUCT DstRgnMeshInfo[MAX_FRAME_MESH_NUM];
+    bm_mesh_struct DstRgnMeshInfo[MAX_FRAME_MESH_NUM];
 
     // frame-based src mesh info.
-    MESH_STRUCT SrcRgnMeshInfo[MAX_FRAME_MESH_NUM];
+    bm_mesh_struct SrcRgnMeshInfo[MAX_FRAME_MESH_NUM];
 
     // frame-based dst mesh info. maximum num=128*28 = 16384 meshes.
-    MESH_STRUCT DstRgnMeshInfoExt[9 * MAX_FRAME_MESH_NUM];
+    bm_mesh_struct DstRgnMeshInfoExt[9 * MAX_FRAME_MESH_NUM];
 
     // frame-based src mesh info.
-    MESH_STRUCT SrcRgnMeshInfoExt[9 * MAX_FRAME_MESH_NUM];
+    bm_mesh_struct SrcRgnMeshInfoExt[9 * MAX_FRAME_MESH_NUM];
 
     // frame-based dst mesh info. maximum num=128*28 = 16384 meshes.
-    MESH_STRUCT DstRgnMeshInfoExt2ND[9 * MAX_FRAME_MESH_NUM];
+    bm_mesh_struct DstRgnMeshInfoExt2ND[9 * MAX_FRAME_MESH_NUM];
 
     // frame-based src mesh info.
-    MESH_STRUCT SrcRgnMeshInfoExt2ND[9 * MAX_FRAME_MESH_NUM];
+    bm_mesh_struct SrcRgnMeshInfoExt2ND[9 * MAX_FRAME_MESH_NUM];
 
     // frame-based dst mesh info. maximum num=128*28 = 16384 meshes.
-    MESH_STRUCT DstRgnMeshInfo_1st[MAX_FRAME_MESH_NUM];
+    bm_mesh_struct DstRgnMeshInfo_1st[MAX_FRAME_MESH_NUM];
 
     // frame-based src mesh info.
-    MESH_STRUCT SrcRgnMeshInfo_1st[MAX_FRAME_MESH_NUM];
+    bm_mesh_struct SrcRgnMeshInfo_1st[MAX_FRAME_MESH_NUM];
 
     // frame-based dst mesh info. maximum num=128*28 = 16384 meshes.
-    MESH_STRUCT DstRgnMeshInfo_2nd[MAX_FRAME_MESH_NUM];
+    bm_mesh_struct DstRgnMeshInfo_2nd[MAX_FRAME_MESH_NUM];
 
     // frame-based src mesh info.
-    MESH_STRUCT SrcRgnMeshInfo_2nd[MAX_FRAME_MESH_NUM];
+    bm_mesh_struct SrcRgnMeshInfo_2nd[MAX_FRAME_MESH_NUM];
 
     // How many tile is sliced in a frame horizontally.
     int SliceX_Num;
 
     // How many tile is sliced in a frame vertically.
     int SliceY_Num;
-} LDC_ATTR;
+} bm_ldc_attr;
 
 typedef struct LDC_RGN_ATTR {
     int RgnIndex; // region index
@@ -174,19 +175,19 @@ typedef struct LDC_RGN_ATTR {
     int RegionValid; // label valid/ invalid for each region
 
     // initial buffer to store destination mesh info. max: 32*32
-    MESH_STRUCT DstRgnMeshInfo[MAX_FRAME_MESH_NUM];
+    bm_mesh_struct DstRgnMeshInfo[MAX_FRAME_MESH_NUM];
 
     // extend to 3x3 range.
-    MESH_STRUCT DstRgnMeshInfoExt[9 * MAX_FRAME_MESH_NUM];
+    bm_mesh_struct DstRgnMeshInfoExt[9 * MAX_FRAME_MESH_NUM];
 
     // initial buffer to store source mesh info
-    MESH_STRUCT SrcRgnMeshInfo[MAX_FRAME_MESH_NUM];
+    bm_mesh_struct SrcRgnMeshInfo[MAX_FRAME_MESH_NUM];
 
     // extend to 3x3 range.
-    MESH_STRUCT SrcRgnMeshInfoExt[9 * MAX_FRAME_MESH_NUM];
-} LDC_RGN_ATTR;
+    bm_mesh_struct SrcRgnMeshInfoExt[9 * MAX_FRAME_MESH_NUM];
+} bm_ldc_rgn_attr;
 
-typedef struct {
+typedef struct _reg_ldc{
     int ldc_en;
 
     int stage2_rotate_type; // 0: +90, 1: -90
@@ -201,35 +202,14 @@ typedef struct {
     int src_xend_s1;
     int src_xstr_s2;
     int src_xend_s2;
-} _reg_ldc;
-
-typedef struct _BM_LDC_IDENTITY_ATTR_S {
-    char Name[32];
-    MOD_ID_E enModId;
-    u32 u32ID;
-    bool syncIo;
-} BM_LDC_IDENTITY_ATTR_S;
-
-/*
- * stImgIn: Input picture
- * stImgOut: Output picture
- * au64privateData[4]: RW; Private data of task
- * reserved: RW; Debug information,state of current picture
- */
-typedef struct _BM_LDC_TASK_ATTR_S {
-    VIDEO_FRAME_INFO_S stImgIn;
-    VIDEO_FRAME_INFO_S stImgOut;
-    uint64_t au64privateData[4];
-    uint64_t reserved;
-    char name[32];
-} BM_LDC_TASK_ATTR_S;
+} bm_reg_ldc;
 
 typedef enum _BM_LDC_OP {
     BM_LDC_ROT = 0,
     BM_LDC_GDC,
     BM_LDC_GDC_GEN_MESH,
     BM_LDC_GDC_LOAD_MESH,
-} BM_LDC_OP;
+} bm_ldc_op;
 
 typedef struct _BM_LDC_BASIC_PARAM {
     SIZE_S size_in;
@@ -239,18 +219,18 @@ typedef struct _BM_LDC_BASIC_PARAM {
     VIDEO_FRAME_INFO_S stVideoFrameOut;
     PIXEL_FORMAT_E enPixelFormat;
     GDC_HANDLE hHandle;
-    BM_LDC_TASK_ATTR_S stTask;
-    BM_LDC_IDENTITY_ATTR_S identity;        // Define the identity attribute of GDC (To support multi-path), each job has a unique id
-    BM_LDC_OP op;
+    GDC_TASK_ATTR_S stTask;
+    GDC_IDENTITY_ATTR_S identity;        // Define the identity attribute of GDC (To support multi-path), each job has a unique id
+    bm_ldc_op op;
     bool needPef;
-} BM_LDC_BASIC_PARAM;
+} bm_ldc_basic_param;
 
 typedef struct _BM_GEN_MESH_PARAM {
     LDC_ATTR_S           ldc_attr;
     bm_device_mem_t      dmem;
-} BM_GEN_MESH_PARAM;
+} bm_gen_mesh_param;
 
 typedef struct _BM_GDC_ATTR_AND_GRID_INFO {
     LDC_ATTR_S ldc_attr;
     char *grid;
-} BM_GDC_ATTR_AND_GRID_INFO;
+} bm_gdc_attr_and_grid_info;

@@ -42,7 +42,7 @@ static vg_lite_buffer_t buffer;     /*offscreen framebuffer object for rendering
 static vg_lite_buffer_t * fb;
 
 static vg_lite_buffer_t image;
-static vg_lite_color_transfrom_t color_transformations = {1.2, 0.5, 1.2, 0.5, 1.2, 0.5, 1.2, 0.5};
+static vg_lite_color_transform_t color_transformations = {1.2, 0.5, 1.2, 0.5, 1.2, 0.5, 1.2, 0.5};
 static char path_data[] = {
     2, 0, 0,
     4, 5, 10,

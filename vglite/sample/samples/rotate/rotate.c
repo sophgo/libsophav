@@ -32,7 +32,7 @@ char *error_type[] =
     error = Function; \
     if (IS_ERROR(error)) \
     { \
-        printf("[%s: %d] failed.error type is %s\n", __func__, __LINE__,error_type[error]);\
+        printf("[%s: %d] error type is %s\n", __func__, __LINE__,error_type[error]);\
         goto ErrorHandler; \
     }
 static int   fb_width = 320, fb_height = 480;
@@ -83,7 +83,8 @@ int main(int argc, const char * argv[])
     // Allocate the off-screen buffer.
     buffer.width  = fb_width;
     buffer.height = fb_height;
-    buffer.format = VG_LITE_RGB565;
+    buffer.format = VG_LITE_ARGB8888;
+    printf("VG_LITE_ARGB8888\n");
 
     CHECK_ERROR(vg_lite_allocate(&buffer));
     fb = &buffer;
@@ -106,7 +107,7 @@ int main(int argc, const char * argv[])
     CHECK_ERROR(vg_lite_blit(fb, &image, &matrix, VG_LITE_BLEND_NONE, 0, filter));
     CHECK_ERROR(vg_lite_finish());
     // Save PNG file.
-    vg_lite_save_png("rotate.png", fb);
+    vg_lite_save_png("rotate_argb8888.png", fb);
 
 ErrorHandler:
     // Cleanup.

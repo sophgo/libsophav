@@ -31,7 +31,7 @@ bm_status_t bmcv_as_strided(bm_handle_t handle, bm_device_mem_t input, bm_device
     }
 
     switch(chipid) {
-        case BM1686:
+        case BM1688:
             ret = bm_tpu_kernel_launch(handle, "cv_as_strided", (u8 *)&api,
                                                 sizeof(api), core_id);
             if (ret != BM_SUCCESS) {

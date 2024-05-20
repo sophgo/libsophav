@@ -102,7 +102,7 @@ bm_status_t bmcv_batch_topk(
   api.batch_stride = src_batch_stride;
   api.dtype = 8;
 
-  unsigned int chipid = BM1686;
+  unsigned int chipid = BM1688;
   int core_id = 0;
   ret = bm_get_chipid(handle, &chipid);
   if (BM_SUCCESS != ret) {
@@ -110,7 +110,7 @@ bm_status_t bmcv_batch_topk(
   }
 
   switch (chipid) {
-    case BM1686:{
+    case BM1688:{
       bm_status_t status = BM_SUCCESS;
       status = bm_tpu_kernel_launch(handle, "cv_batch_topk", (u8 *)&api, sizeof(api), core_id);
       if (BM_SUCCESS != status) {

@@ -22,10 +22,19 @@ int test_threads_num = 1;
 int src_h = 1080, src_w = 1920, dev_id = 0;
 bm_image_format_ext src_fmt = FORMAT_YUV420P;
 char *src_name = "/opt/sophon/libsophon-current/bin/res/1920x1080_yuv420.bin", *dst_name = "out/fill_rect_1920x1080_yuv420.bin";
-bmcv_rect_t rect = {.start_x = 100, .start_y = 100, .crop_w = 200, .crop_h = 200};
+bmcv_rect_t rect[9] = {{.start_x = 0, .start_y = 0, .crop_w = 500, .crop_h = 300},
+                        {.start_x = 640, .start_y = 0, .crop_w = 500, .crop_h = 300},
+                        {.start_x = 1280, .start_y = 0, .crop_w = 500, .crop_h = 300},
+                        {.start_x = 0, .start_y = 360, .crop_w = 500, .crop_h = 300},
+                        {.start_x = 640, .start_y = 360, .crop_w = 500, .crop_h = 300},
+                        {.start_x = 1280, .start_y = 360, .crop_w = 500, .crop_h = 300},
+                        {.start_x = 0, .start_y = 720, .crop_w = 500, .crop_h = 300},
+                        {.start_x = 640, .start_y = 720, .crop_w = 500, .crop_h = 300},
+                        {.start_x = 1280, .start_y = 720, .crop_w = 500, .crop_h = 300}};
+int rect_num = 9;
 bmcv_resize_algorithm algorithm = BMCV_INTER_LINEAR;
 bm_handle_t handle = NULL;
-char *md5 = "574cb74529a30f3d5ff1a94df0d578e9";
+char *md5 = "8f205dc41a8bf193e6da2adb7a2c8b14";
 
 static void * fill_rect(void* arg) {
     bm_status_t ret;
@@ -57,10 +66,10 @@ static void * fill_rect(void* arg) {
     for(i = 0;i < loop_time; i++){
         gettimeofday(&tv_start, NULL);
 
-        bmcv_image_fill_rectangle(handle, src, 1, &rect, 255, 0, 0);
+        bmcv_image_fill_rectangle(handle, src, rect_num, rect, 255, 0, 0);
 
         gettimeofday(&tv_end, NULL);
-        if((ctx.i == 0) && (i == 0)){
+        if(i == 0){
             if(md5 == NULL)
                 bm_write_bin(src, dst_name);
             else{
@@ -75,6 +84,7 @@ static void * fill_rect(void* arg) {
                 bm_image_copy_device_to_host(src, (void **)out_ptr);
                 if(md5_cmp(output_ptr, (unsigned char*)md5, byte_size)!=0){
                     bm_write_bin(src, "error_cmp.bin");
+                    bm_image_destroy(&src);
                     exit(-1);
                 }
                 free(output_ptr);
@@ -134,12 +144,13 @@ int main(int argc, char **argv) {
         src_h = atoi(argv[2]);
         src_fmt = (bm_image_format_ext)atoi(argv[3]);
         src_name = argv[4];
-        rect.start_x = atoi(argv[5]);
-        rect.start_y = atoi(argv[6]);
-        rect.crop_w = atoi(argv[7]);
-        rect.crop_h = atoi(argv[8]);
+        rect[0].start_x = atoi(argv[5]);
+        rect[0].start_y = atoi(argv[6]);
+        rect[0].crop_w = atoi(argv[7]);
+        rect[0].crop_h = atoi(argv[8]);
         dst_name = argv[9];
         dev_id = atoi(argv[10]);
+        rect_num = 1;
     }
     if (argc == 2){
         if (atoi(argv[1]) < 0){

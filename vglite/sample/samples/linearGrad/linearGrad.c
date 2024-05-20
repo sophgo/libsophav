@@ -1,4 +1,3 @@
-
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -6,11 +5,19 @@
 #include "vg_lite.h"
 #include "vg_lite_util.h"
 
-#define DEFAULT_SIZE   320.0f;
-#define DEFAULT_WIDTH 320
-#define DEFAULT_HEIGHT 480
-
+#define DEFAULT_SIZE 320.0f;
+#define DEFAULT_WIDTH 480
+#define DEFAULT_HEIGHT 320
 #define __func__ __FUNCTION__
+#define IS_ERROR(status)         (status > 0)
+#define CHECK_ERROR(Function) \
+    error = Function; \
+    if (IS_ERROR(error)) \
+    { \
+        printf("[%s: %d] error type is %s\n", __func__, __LINE__,error_type[error]);\
+        goto ErrorHandler; \
+    }
+
 char *error_type[] = 
 {
     "VG_LITE_SUCCESS",
@@ -22,42 +29,19 @@ char *error_type[] =
     "VG_LITE_GENERIC_IO",
     "VG_LITE_NOT_SUPPORT",
 };
-#define IS_ERROR(status)         (status > 0)
-#define CHECK_ERROR(Function) \
-    error = Function; \
-    if (IS_ERROR(error)) \
-    { \
-        printf("[%s: %d] failed.error type is %s\n", __func__, __LINE__,error_type[error]);\
-        goto ErrorHandler; \
-    }
-static int   fb_width = DEFAULT_WIDTH, fb_height = DEFAULT_HEIGHT;
 
+static int fb_width = DEFAULT_WIDTH, fb_height = DEFAULT_HEIGHT;
 static vg_lite_buffer_t buffer;     //offscreen framebuffer object for rendering.
 static vg_lite_buffer_t * fb;
 static vg_lite_buffer_t image;
 int frames = 1; //Frames to render
-/*
-*-----*
-/       \
-/         \
-*           *
-|          /
-|         X
-|          \
-*           *
-\         /
-\       /
-*-----*
-*/
+
 static char path_data[] = {
-    2, 0, 0, // moveto   -5,-10
-    4, 100, 0,  // lineto    5,-10
-    4, 70, 50,  // lineto    5,-10
-    4, 100, 100,  // lineto   10, -5
-    4, 0, 100,    // lineto    0,  0
-    4, 40, 80,  // lineto    5,-10
-    4, 0, 0,   // lineto   10,  5
-    0, // end
+    2, 0, 0,   // moveto   0,0
+    4, 80, 0,  // lineto   80,0
+    4, 80, 80, // lineto   80,80
+    4, 0, 80,  // lineto   0,80
+    0,         // end
 };
 
 static vg_lite_path_t path = {
@@ -90,8 +74,8 @@ int main(int argc, const char * argv[])
 {
     vg_lite_filter_t filter;
     vg_lite_linear_gradient_t grad;
-    uint32_t ramps[] = {0xff000000, 0xffff0000, 0xff00ff00, 0xff0000ff, 0xffffffff};
-    uint32_t stops[] = {0, 66, 122, 200, 255};
+    uint32_t ramps[] = { 0xffeeaa00, 0xffff0000, 0xff00ff00, 0xff0000ff, 0xff00ffaa, 0xff00ffee};
+    uint32_t stops[] = { 28, 86, 142, 220, 270, 300};
     vg_lite_matrix_t *matGrad;
     vg_lite_matrix_t matPath;
     int fcount = 0;
@@ -120,21 +104,21 @@ int main(int argc, const char * argv[])
             return 0;
         }
 
-        vg_lite_set_grad(&grad, 5, ramps, stops);
-        vg_lite_update_grad(&grad);
+        CHECK_ERROR(vg_lite_set_grad(&grad, (sizeof(ramps)/sizeof(ramps[0])), ramps, stops));
+        CHECK_ERROR(vg_lite_update_grad(&grad));
         matGrad = vg_lite_get_grad_matrix(&grad);
-        vg_lite_identity(matGrad);
-        vg_lite_rotate(30.0f, matGrad);
+        CHECK_ERROR(vg_lite_identity(matGrad));
 
         // Clear the buffer with blue.
-        CHECK_ERROR(vg_lite_clear(fb, NULL, 0xffaabbcc));
-        vg_lite_identity(&matPath);
-        vg_lite_scale(4.0f, 4.0f, &matPath);
+        CHECK_ERROR(vg_lite_clear(fb, NULL, 0xffffffff));
+        CHECK_ERROR(vg_lite_identity(&matPath));
+        CHECK_ERROR(vg_lite_scale(3.0f, 3.0f, &matPath));
+        CHECK_ERROR(vg_lite_rotate(20.0f, matGrad));
 
         // Fill the path using an image.
         CHECK_ERROR(vg_lite_draw_grad(fb, &path, VG_LITE_FILL_EVEN_ODD, &matPath, &grad, VG_LITE_BLEND_NONE));
         CHECK_ERROR(vg_lite_finish());
-        vg_lite_clear_grad(&grad);
+        CHECK_ERROR(vg_lite_clear_grad(&grad));
         frames--;
         printf("frame %d done\n", fcount++);
     }

@@ -88,7 +88,7 @@ bm_status_t bmcv_image_copy_to_(bm_handle_t         handle,
     int bgr_or_rgb        = COPY_TO_BGR;
     int channel           = 3;
     int planner_or_packed = PLANNER;
-    unsigned int chipid = BM1686;
+    unsigned int chipid = BM1688;
     bm_status_t ret = BM_SUCCESS;
 
     ret = bm_get_chipid(handle, &chipid);
@@ -195,7 +195,7 @@ bm_status_t bmcv_image_copy_to_(bm_handle_t         handle,
 
     int core_id = 0;
     switch(chipid) {
-        case BM1686:
+        case BM1688:
             if(BM_SUCCESS != bm_tpu_kernel_launch(handle, "sg_cv_copy_to", (u8 *)&arg, sizeof(arg), core_id)){
                     printf("copy_to launch api error\r\n");
                     return BM_ERR_FAILURE;

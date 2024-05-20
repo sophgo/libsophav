@@ -261,7 +261,7 @@ int array_cmp_fix8b(void *p_exp, void *p_got, int sign, int len, int delta)
 bm_status_t sg_malloc_device_mem(bm_handle_t handle, sg_device_mem_st *pmem, unsigned int size) {
     if (BM_SUCCESS != bm_malloc_device_byte(handle, &(pmem->bm_device_mem), size)) {
         pmem->flag = 0;
-        return BM_ERR_DEVNOTREADY;
+        return BM_ERR_NOMEM;
     }
     pmem->flag = 1;
     return BM_SUCCESS;
@@ -269,7 +269,7 @@ bm_status_t sg_malloc_device_mem(bm_handle_t handle, sg_device_mem_st *pmem, uns
 
 bm_status_t sg_image_alloc_dev_mem(bm_image image, int heap_id) {
     if (BM_SUCCESS != bm_image_alloc_dev_mem(image, heap_id)) {
-        return BM_ERR_DEVNOTREADY;
+        return BM_ERR_NOMEM;
     }
     return BM_SUCCESS;
 }
@@ -616,11 +616,11 @@ bm_status_t update_memory_layout(bm_handle_t     handle,
     ret = bm_get_chipid(handle, &chipid);
     if (ret != BM_SUCCESS) {
         printf("get chipid is error !\n");
-        return BM_ERR_FAILURE;
+        return BM_ERR_DEVNOTREADY;
     }
 
     switch(chipid) {
-        case BM1686:
+        case BM1688:
             ret = bm_tpu_kernel_launch(handle, "cv_width_align", (u8 *)&api, \
                                                 sizeof(api), core_id);
             if(BM_SUCCESS != ret){
@@ -630,7 +630,7 @@ bm_status_t update_memory_layout(bm_handle_t     handle,
             break;
         default:
             printf("BM_NOT_SUPPORTED!\n");
-            ret = BM_NOT_SUPPORTED;
+            ret = BM_ERR_NOFEATURE;
             break;
     }
 
@@ -969,7 +969,7 @@ bm_status_t bm_get_mem_fd(int* fd){
         mem_fd = open("/dev/mem", O_RDWR | O_SYNC);
     if(mem_fd < 0){
         BMCV_ERR_LOG("open mem fail\n");
-        ret = BM_ERR_FAILURE;
+        ret = BM_ERR_DEVNOTREADY;
     } else {
         *fd = mem_fd;
         mem_use_num++;
@@ -987,7 +987,7 @@ bm_status_t bm_get_vpss_fd(int* fd){
     pthread_mutex_unlock(&fd_mutex);
     if(vpss_fd < 0){
         BMCV_ERR_LOG("open vpss fail\n");
-        ret = BM_ERR_FAILURE;
+        ret = BM_ERR_DEVNOTREADY;
     } else {
         *fd = vpss_fd;
     }
@@ -1002,7 +1002,7 @@ bm_status_t bm_get_dpu_fd(int* fd){
     pthread_mutex_unlock(&fd_mutex);
     if(dpu_fd < 0){
         BMCV_ERR_LOG("open dpu fail\n");
-        ret = BM_ERR_FAILURE;
+        ret = BM_ERR_DEVNOTREADY;
     } else {
         *fd = dpu_fd;
     }
@@ -1018,7 +1018,7 @@ bm_status_t bm_get_dwa_fd(int* fd){
     pthread_mutex_unlock(&fd_mutex);
     if(dwa_fd < 0){
         BMCV_ERR_LOG("open dwa fail\n");
-        ret = BM_ERR_FAILURE;
+        ret = BM_ERR_DEVNOTREADY;
     } else {
         *fd = dwa_fd;
     }
@@ -1033,7 +1033,7 @@ bm_status_t bm_get_ldc_fd(int* fd){
     pthread_mutex_unlock(&fd_mutex);
     if(ldc_fd < 0){
         BMCV_ERR_LOG("open ldc fail\n");
-        ret = BM_ERR_FAILURE;
+        ret = BM_ERR_DEVNOTREADY;
     } else {
         *fd = ldc_fd;
     }
@@ -1133,18 +1133,6 @@ int close_device(int *fd)
 
   return 0;
 }
-
-bm_status_t bmcv_base64_enc(
-        bm_handle_t     handle,
-        bm_device_mem_t src,
-        bm_device_mem_t dst,
-        unsigned long   len[2]){return BM_SUCCESS;};
-
-bm_status_t bmcv_base64_dec(
-        bm_handle_t     handle,
-        bm_device_mem_t src,
-        bm_device_mem_t dst,
-        unsigned long   len[2]){return BM_SUCCESS;};
 
 bm_status_t bmcv_nms(
         bm_handle_t     handle,

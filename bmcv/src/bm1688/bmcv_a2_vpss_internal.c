@@ -183,20 +183,17 @@ bm_status_t simple_check_bm_vpss_input_param(
 	int                     frame_number
 )
 {
-	if (handle == NULL)
-	{
+	if (handle == NULL) {
 		bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "handle is nullptr");
-		return BM_ERR_FAILURE;
+		return BM_ERR_DEVNOTREADY;
 	}
-	if (input_or_output == NULL)
-	{
+	if (input_or_output == NULL) {
 		bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "input or output is nullptr");
-		return BM_ERR_FAILURE;
+		return BM_ERR_DATA;
 	}
-	if((frame_number > VPSS_MAX_GRP_NUM) || (frame_number <= 0))
-	{
+	if ((frame_number > VPSS_MAX_GRP_NUM) || (frame_number <= 0)) {
 		bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "input num should less than 512");
-		return BM_NOT_SUPPORTED;
+		return BM_ERR_PARAM;
 	}
 
 	return BM_SUCCESS;
@@ -214,50 +211,45 @@ bm_status_t check_bm_vpss_bm_image_param(
 
 	for (frame_idx = 0; frame_idx < frame_number; frame_idx++) {
 
-		if(!input[frame_idx].image_private->attached ||
-			 !output[frame_idx].image_private->attached)
-		{
+		if (!input[frame_idx].image_private->attached ||
+			 !output[frame_idx].image_private->attached) {
 			bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
 				"not correctly create bm_image ,frame [%d] input or output not attache mem %s: %s: %d\n",
 				frame_idx,filename(__FILE__), __func__, __LINE__);
 			return BM_ERR_PARAM;
 		}
-		if(input[frame_idx].data_type != DATA_TYPE_EXT_1N_BYTE)
-		{
+		if (input[frame_idx].data_type != DATA_TYPE_EXT_1N_BYTE) {
 			bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
 				"input only support DATA_TYPE_EXT_1N_BYTE,frame [%d], %s: %s: %d\n",
 				frame_idx, filename(__FILE__), __func__, __LINE__);
-			return BM_NOT_SUPPORTED;
+			return BM_ERR_DATA;
 		}
 
-		 if((output[frame_idx].data_type != DATA_TYPE_EXT_FLOAT32) &&
-				(output[frame_idx].data_type != DATA_TYPE_EXT_1N_BYTE) &&
-				(output[frame_idx].data_type != DATA_TYPE_EXT_1N_BYTE_SIGNED) &&
-				(output[frame_idx].data_type != DATA_TYPE_EXT_FP16) &&
-				(output[frame_idx].data_type != DATA_TYPE_EXT_BF16))
-		 {
-			 bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
-				 "bm_vpss [%d] output data type %d not support %s: %s: %d\n",
-				 frame_idx ,output[frame_idx].data_type, filename(__FILE__), __func__, __LINE__);
-			 return BM_NOT_SUPPORTED;
-		 }
+		if ((output[frame_idx].data_type != DATA_TYPE_EXT_FLOAT32) &&
+			(output[frame_idx].data_type != DATA_TYPE_EXT_1N_BYTE) &&
+			(output[frame_idx].data_type != DATA_TYPE_EXT_1N_BYTE_SIGNED) &&
+			(output[frame_idx].data_type != DATA_TYPE_EXT_FP16) &&
+			(output[frame_idx].data_type != DATA_TYPE_EXT_BF16)) {
+			bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
+				"bm_vpss [%d] output data type %d not support %s: %s: %d\n",
+				frame_idx ,output[frame_idx].data_type, filename(__FILE__), __func__, __LINE__);
+			return BM_ERR_DATA;
+		}
 
-		if((bm_image_get_stride(input[frame_idx], stride) != BM_SUCCESS) ||
-			 (bm_image_get_stride(output[frame_idx], stride) != BM_SUCCESS))
-		{
+		if ((bm_image_get_stride(input[frame_idx], stride) != BM_SUCCESS) ||
+			 (bm_image_get_stride(output[frame_idx], stride) != BM_SUCCESS)) {
 			bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
 				"not correctly create input bm_image , frame [%d],input or output get stride err %s: %s: %d\n",
 				frame_idx,filename(__FILE__), __func__, __LINE__);
-			return BM_ERR_FAILURE;
+			return BM_ERR_DATA;
 		}
 
 		plane_num = bm_image_get_plane_num(input[frame_idx]);
-		if(plane_num == 0 || bm_image_get_device_mem(input[frame_idx], device_mem) != BM_SUCCESS)
-		{
+		if (plane_num == 0 || bm_image_get_device_mem(input[frame_idx], device_mem) != BM_SUCCESS) {
 			bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
 				"not correctly create input[%d] bm_image, get plane num or device mem err %s: %s: %d\n",
 				frame_idx, filename(__FILE__), __func__, __LINE__);
-			return BM_ERR_FAILURE;
+			return BM_ERR_DATA;
 		}
 #ifndef USING_CMODEL
 		u64 device_addr = 0;
@@ -265,32 +257,29 @@ bm_status_t check_bm_vpss_bm_image_param(
 
 		for (i = 0; i < plane_num; i++) {
 			device_addr = device_mem[i].u.device.device_addr;
-			if((device_addr > 0x4ffffffff) || (device_addr < 0x100000000))
-			{
+			if ((device_addr > 0x4ffffffff) || (device_addr < 0x100000000)) {
 				bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
 				  "input[%d] device memory should between 0x100000000 and 0x4ffffffff %u, %s: %s: %d\n",
 				  frame_idx, device_addr, filename(__FILE__), __func__, __LINE__);
-				return BM_ERR_FAILURE;
+				return BM_ERR_DATA;
 			}
 		}
 #endif
 		plane_num = bm_image_get_plane_num(output[frame_idx]);
-		if(plane_num == 0 || bm_image_get_device_mem(output[frame_idx], device_mem) != BM_SUCCESS)
-		{
+		if (plane_num == 0 || bm_image_get_device_mem(output[frame_idx], device_mem) != BM_SUCCESS) {
 			bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
 				"not correctly create output[%d] bm_image, get plane num or device mem err %s: %s: %d\n",
 				frame_idx, filename(__FILE__), __func__, __LINE__);
-			return BM_ERR_FAILURE;
+			return BM_ERR_DATA;
 		}
 #ifndef USING_CMODEL
 		for (i = 0; i < plane_num; i++) {
 			device_addr = device_mem[i].u.device.device_addr;
-			if((device_addr > 0x4ffffffff) || (device_addr < 0x100000000))
-			{
+			if ((device_addr > 0x4ffffffff) || (device_addr < 0x100000000)) {
 				bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
 				  "output[%d] device memory should between 0x100000000 and 0x4ffffffff %u, %s: %s: %d\n",
 				  frame_idx, device_addr, filename(__FILE__), __func__, __LINE__);
-				return BM_ERR_FAILURE;
+				return BM_ERR_DATA;
 			}
 		}
 #endif
@@ -314,9 +303,8 @@ bm_status_t check_bm_vpss_csctype(
 		input_color_space = is_csc_yuv_or_rgb(input[idx].image_format);
 		output_color_space = is_csc_yuv_or_rgb(output[idx].image_format);
 
-		if((is_csc_yuv_or_rgb(input[0].image_format) != is_csc_yuv_or_rgb(input[idx].image_format)) ||
-			(is_csc_yuv_or_rgb(output[0].image_format) != is_csc_yuv_or_rgb(output[idx].image_format)))
-		{
+		if ((is_csc_yuv_or_rgb(input[0].image_format) != is_csc_yuv_or_rgb(input[idx].image_format)) ||
+			(is_csc_yuv_or_rgb(output[0].image_format) != is_csc_yuv_or_rgb(output[idx].image_format))) {
 			ret = BM_ERR_PARAM;
 			bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
 				"bm_vpss Input and output color space changes will cause hardware hang,"
@@ -332,107 +320,106 @@ bm_status_t check_bm_vpss_csctype(
 	if (*csc_type <= CSC_RGB2YPbPr_BT709)
 		csc_cfg->csc_type = *csc_type;
 
-	switch(*csc_type)
-		{
-			case CSC_YCbCr2RGB_BT601:
-			case CSC_YPbPr2RGB_BT601:
-			case CSC_YPbPr2RGB_BT709:
-			case CSC_YCbCr2RGB_BT709:
-				if(COLOR_SPACE_YUV != input_color_space)
-				{
-					ret = BM_NOT_SUPPORTED;
-					break;
-				}
-				if((COLOR_SPACE_RGB != output_color_space) &&
-					 (COLOR_SPACE_HSV != output_color_space) &&
-					 (COLOR_SPACE_RGBY != output_color_space))
-				{
-					ret = BM_NOT_SUPPORTED;
-					break;
-				}
+	switch(*csc_type) {
+		case CSC_YCbCr2RGB_BT601:
+		case CSC_YPbPr2RGB_BT601:
+		case CSC_YPbPr2RGB_BT709:
+		case CSC_YCbCr2RGB_BT709:
+			if (COLOR_SPACE_YUV != input_color_space)
+			{
+				ret = BM_ERR_PARAM;
 				break;
-			case CSC_RGB2YCbCr_BT709:
-			case CSC_RGB2YPbPr_BT601:
-			case CSC_RGB2YCbCr_BT601:
-			case CSC_RGB2YPbPr_BT709:
-				if(COLOR_SPACE_RGB != input_color_space)
-				{
-					ret = BM_NOT_SUPPORTED;
-					break;
-				}
-				if((COLOR_SPACE_YUV != output_color_space) &&
-					 (COLOR_SPACE_RGBY != output_color_space))
-				{
-					ret = BM_NOT_SUPPORTED;
-					break;
-				}
+			}
+			if ((COLOR_SPACE_RGB != output_color_space) &&
+					(COLOR_SPACE_HSV != output_color_space) &&
+					(COLOR_SPACE_RGBY != output_color_space))
+			{
+				ret = BM_ERR_PARAM;
 				break;
-			case CSC_USER_DEFINED_MATRIX:
-				if(NULL == matrix)
-				{
-					ret = BM_NOT_SUPPORTED;
-					bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
-						"bm_vpss csc_type param %d is CSC_USER_DEFINED_MATRIX ,"
-						"matrix can not be null, %s: %s: %d\n",
-						*csc_type, filename(__FILE__), __func__, __LINE__);
-					return ret;
-				} else {
-					csc_cfg->is_user_defined_matrix = true;
-					csc_cfg->csc_matrix.coef[0][0] = matrix->csc_coe00 < 0 ? BIT(13)|(unsigned short)(-matrix->csc_coe00) : (unsigned short)matrix->csc_coe00;
-					csc_cfg->csc_matrix.coef[0][1] = matrix->csc_coe01 < 0 ? BIT(13)|(unsigned short)(-matrix->csc_coe01) : (unsigned short)matrix->csc_coe01;
-					csc_cfg->csc_matrix.coef[0][2] = matrix->csc_coe02 < 0 ? BIT(13)|(unsigned short)(-matrix->csc_coe02) : (unsigned short)matrix->csc_coe02;
-					csc_cfg->csc_matrix.coef[1][0] = matrix->csc_coe10 < 0 ? BIT(13)|(unsigned short)(-matrix->csc_coe10) : (unsigned short)matrix->csc_coe10;
-					csc_cfg->csc_matrix.coef[1][1] = matrix->csc_coe11 < 0 ? BIT(13)|(unsigned short)(-matrix->csc_coe11) : (unsigned short)matrix->csc_coe11;
-					csc_cfg->csc_matrix.coef[1][2] = matrix->csc_coe12 < 0 ? BIT(13)|(unsigned short)(-matrix->csc_coe12) : (unsigned short)matrix->csc_coe12;
-					csc_cfg->csc_matrix.coef[2][0] = matrix->csc_coe20 < 0 ? BIT(13)|(unsigned short)(-matrix->csc_coe20) : (unsigned short)matrix->csc_coe20;
-					csc_cfg->csc_matrix.coef[2][1] = matrix->csc_coe21 < 0 ? BIT(13)|(unsigned short)(-matrix->csc_coe21) : (unsigned short)matrix->csc_coe21;
-					csc_cfg->csc_matrix.coef[2][2] = matrix->csc_coe22 < 0 ? BIT(13)|(unsigned short)(-matrix->csc_coe22) : (unsigned short)matrix->csc_coe22;
-					csc_cfg->csc_matrix.add[0] = matrix->csc_add0 < 0 ? 0 : (unsigned char)matrix->csc_add0;
-					csc_cfg->csc_matrix.add[1] = matrix->csc_add1 < 0 ? 0 : (unsigned char)matrix->csc_add1;
-					csc_cfg->csc_matrix.add[2] = matrix->csc_add2 < 0 ? 0 : (unsigned char)matrix->csc_add2;
-					csc_cfg->csc_matrix.sub[0] = matrix->csc_sub0 < 0 ? 0 : (unsigned char)matrix->csc_sub0;
-					csc_cfg->csc_matrix.sub[1] = matrix->csc_sub1 < 0 ? 0 : (unsigned char)matrix->csc_sub1;
-					csc_cfg->csc_matrix.sub[2] = matrix->csc_sub2 < 0 ? 0 : (unsigned char)matrix->csc_sub2;
-				}
-			case CSC_MAX_ENUM:
-				if((input_color_space == COLOR_SPACE_YUV) && (output_color_space == COLOR_SPACE_RGB))
-					csc_cfg->csc_type = VPSS_CSC_YCbCr2RGB_BT601;
-				if((input_color_space == COLOR_SPACE_RGB) && (output_color_space == COLOR_SPACE_YUV))
-					csc_cfg->csc_type = VPSS_CSC_RGB2YCbCr_BT601;
-				if((input_color_space == COLOR_SPACE_YUV) && (output_color_space == COLOR_SPACE_YUV))
-					csc_cfg->csc_type = VPSS_CSC_YCbCr2YCbCr_BT601;
-				if((input_color_space == COLOR_SPACE_RGB) && (output_color_space == COLOR_SPACE_RGB))
-					csc_cfg->csc_type = VPSS_CSC_RGB2RGB;
+			}
+			break;
+		case CSC_RGB2YCbCr_BT709:
+		case CSC_RGB2YPbPr_BT601:
+		case CSC_RGB2YCbCr_BT601:
+		case CSC_RGB2YPbPr_BT709:
+			if (COLOR_SPACE_RGB != input_color_space)
+			{
+				ret = BM_ERR_PARAM;
 				break;
-			case CSC_FANCY_PbPr_BT601:
-				if((input_color_space == COLOR_SPACE_YUV) && (output_color_space == COLOR_SPACE_RGB))
-					csc_cfg->csc_type = VPSS_CSC_YPbPr2RGB_BT601;
-				if((input_color_space == COLOR_SPACE_RGB) && (output_color_space == COLOR_SPACE_YUV))
-					csc_cfg->csc_type = VPSS_CSC_RGB2YPbPr_BT601;
-				if((input_color_space == COLOR_SPACE_YUV) && (output_color_space == COLOR_SPACE_YUV))
-					csc_cfg->csc_type = VPSS_CSC_YPbPr2YPbPr_BT601;
-				if((input_color_space == COLOR_SPACE_RGB) && (output_color_space == COLOR_SPACE_RGB))
-					csc_cfg->csc_type = VPSS_CSC_RGB2RGB;
-				csc_cfg->is_fancy = true;
+			}
+			if ((COLOR_SPACE_YUV != output_color_space) &&
+					(COLOR_SPACE_RGBY != output_color_space))
+			{
+				ret = BM_ERR_PARAM;
 				break;
-			case CSC_FANCY_PbPr_BT709:
-				if((input_color_space == COLOR_SPACE_YUV) && (output_color_space == COLOR_SPACE_RGB))
-					csc_cfg->csc_type = VPSS_CSC_YPbPr2RGB_BT709;
-				if((input_color_space == COLOR_SPACE_RGB) && (output_color_space == COLOR_SPACE_YUV))
-					csc_cfg->csc_type = VPSS_CSC_RGB2YPbPr_BT709;
-				if((input_color_space == COLOR_SPACE_YUV) && (output_color_space == COLOR_SPACE_YUV))
-					csc_cfg->csc_type = VPSS_CSC_YPbPr2YPbPr_BT709;
-				if((input_color_space == COLOR_SPACE_RGB) && (output_color_space == COLOR_SPACE_RGB))
-					csc_cfg->csc_type = VPSS_CSC_RGB2RGB;
-				csc_cfg->is_fancy = true;
-				break;
-			default:
-				ret = BM_NOT_SUPPORTED;
+			}
+			break;
+		case CSC_USER_DEFINED_MATRIX:
+			if (NULL == matrix)
+			{
+				ret = BM_ERR_PARAM;
 				bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
-					"bm_vpss csc_type param %d not support,%s: %s: %d\n",
+					"bm_vpss csc_type param %d is CSC_USER_DEFINED_MATRIX ,"
+					"matrix can not be null, %s: %s: %d\n",
 					*csc_type, filename(__FILE__), __func__, __LINE__);
 				return ret;
-		}
+			} else {
+				csc_cfg->is_user_defined_matrix = true;
+				csc_cfg->csc_matrix.coef[0][0] = matrix->csc_coe00 < 0 ? BIT(13)|(unsigned short)(-matrix->csc_coe00) : (unsigned short)matrix->csc_coe00;
+				csc_cfg->csc_matrix.coef[0][1] = matrix->csc_coe01 < 0 ? BIT(13)|(unsigned short)(-matrix->csc_coe01) : (unsigned short)matrix->csc_coe01;
+				csc_cfg->csc_matrix.coef[0][2] = matrix->csc_coe02 < 0 ? BIT(13)|(unsigned short)(-matrix->csc_coe02) : (unsigned short)matrix->csc_coe02;
+				csc_cfg->csc_matrix.coef[1][0] = matrix->csc_coe10 < 0 ? BIT(13)|(unsigned short)(-matrix->csc_coe10) : (unsigned short)matrix->csc_coe10;
+				csc_cfg->csc_matrix.coef[1][1] = matrix->csc_coe11 < 0 ? BIT(13)|(unsigned short)(-matrix->csc_coe11) : (unsigned short)matrix->csc_coe11;
+				csc_cfg->csc_matrix.coef[1][2] = matrix->csc_coe12 < 0 ? BIT(13)|(unsigned short)(-matrix->csc_coe12) : (unsigned short)matrix->csc_coe12;
+				csc_cfg->csc_matrix.coef[2][0] = matrix->csc_coe20 < 0 ? BIT(13)|(unsigned short)(-matrix->csc_coe20) : (unsigned short)matrix->csc_coe20;
+				csc_cfg->csc_matrix.coef[2][1] = matrix->csc_coe21 < 0 ? BIT(13)|(unsigned short)(-matrix->csc_coe21) : (unsigned short)matrix->csc_coe21;
+				csc_cfg->csc_matrix.coef[2][2] = matrix->csc_coe22 < 0 ? BIT(13)|(unsigned short)(-matrix->csc_coe22) : (unsigned short)matrix->csc_coe22;
+				csc_cfg->csc_matrix.add[0] = matrix->csc_add0 < 0 ? 0 : (unsigned char)matrix->csc_add0;
+				csc_cfg->csc_matrix.add[1] = matrix->csc_add1 < 0 ? 0 : (unsigned char)matrix->csc_add1;
+				csc_cfg->csc_matrix.add[2] = matrix->csc_add2 < 0 ? 0 : (unsigned char)matrix->csc_add2;
+				csc_cfg->csc_matrix.sub[0] = matrix->csc_sub0 < 0 ? 0 : (unsigned char)matrix->csc_sub0;
+				csc_cfg->csc_matrix.sub[1] = matrix->csc_sub1 < 0 ? 0 : (unsigned char)matrix->csc_sub1;
+				csc_cfg->csc_matrix.sub[2] = matrix->csc_sub2 < 0 ? 0 : (unsigned char)matrix->csc_sub2;
+			}
+		case CSC_MAX_ENUM:
+			if ((input_color_space == COLOR_SPACE_YUV) && (output_color_space == COLOR_SPACE_RGB))
+				csc_cfg->csc_type = VPSS_CSC_YCbCr2RGB_BT601;
+			if ((input_color_space == COLOR_SPACE_RGB) && (output_color_space == COLOR_SPACE_YUV))
+				csc_cfg->csc_type = VPSS_CSC_RGB2YCbCr_BT601;
+			if ((input_color_space == COLOR_SPACE_YUV) && (output_color_space == COLOR_SPACE_YUV))
+				csc_cfg->csc_type = VPSS_CSC_YCbCr2YCbCr_BT601;
+			if ((input_color_space == COLOR_SPACE_RGB) && (output_color_space == COLOR_SPACE_RGB))
+				csc_cfg->csc_type = VPSS_CSC_RGB2RGB;
+			break;
+		case CSC_FANCY_PbPr_BT601:
+			if ((input_color_space == COLOR_SPACE_YUV) && (output_color_space == COLOR_SPACE_RGB))
+				csc_cfg->csc_type = VPSS_CSC_YPbPr2RGB_BT601;
+			if ((input_color_space == COLOR_SPACE_RGB) && (output_color_space == COLOR_SPACE_YUV))
+				csc_cfg->csc_type = VPSS_CSC_RGB2YPbPr_BT601;
+			if ((input_color_space == COLOR_SPACE_YUV) && (output_color_space == COLOR_SPACE_YUV))
+				csc_cfg->csc_type = VPSS_CSC_YPbPr2YPbPr_BT601;
+			if ((input_color_space == COLOR_SPACE_RGB) && (output_color_space == COLOR_SPACE_RGB))
+				csc_cfg->csc_type = VPSS_CSC_RGB2RGB;
+			csc_cfg->is_fancy = true;
+			break;
+		case CSC_FANCY_PbPr_BT709:
+			if ((input_color_space == COLOR_SPACE_YUV) && (output_color_space == COLOR_SPACE_RGB))
+				csc_cfg->csc_type = VPSS_CSC_YPbPr2RGB_BT709;
+			if ((input_color_space == COLOR_SPACE_RGB) && (output_color_space == COLOR_SPACE_YUV))
+				csc_cfg->csc_type = VPSS_CSC_RGB2YPbPr_BT709;
+			if ((input_color_space == COLOR_SPACE_YUV) && (output_color_space == COLOR_SPACE_YUV))
+				csc_cfg->csc_type = VPSS_CSC_YPbPr2YPbPr_BT709;
+			if ((input_color_space == COLOR_SPACE_RGB) && (output_color_space == COLOR_SPACE_RGB))
+				csc_cfg->csc_type = VPSS_CSC_RGB2RGB;
+			csc_cfg->is_fancy = true;
+			break;
+		default:
+			ret = BM_ERR_PARAM;
+			bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
+				"bm_vpss csc_type param %d not support,%s: %s: %d\n",
+				*csc_type, filename(__FILE__), __func__, __LINE__);
+			return ret;
+	}
 	return ret;
 }
 
@@ -449,47 +436,39 @@ bm_status_t check_bm_vpss_image_param(
 	bmcv_rect_t  src_crop_rect, dst_crop_rect;
 
 
-	if((frame_number > VPSS_MAX_GRP_NUM) || (frame_number <= 0))
-	{
+	if ((frame_number > VPSS_MAX_GRP_NUM) || (frame_number <= 0)) {
 		bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
 			" input num should less than %d  %s: %s: %d\n",
 			VPSS_MAX_GRP_NUM, filename(__FILE__), __func__, __LINE__);
-		return BM_NOT_SUPPORTED;
+		return BM_ERR_PARAM;
 	}
-	for (frame_idx = 0; frame_idx < frame_number; frame_idx++)
-	{
-		if(NULL == input_crop_rect)
-		{
+	for (frame_idx = 0; frame_idx < frame_number; frame_idx++) {
+		if (NULL == input_crop_rect) {
 			src_crop_rect.start_x = 0;
 			src_crop_rect.start_y = 0;
 			src_crop_rect.crop_w  = input[frame_idx].width;
 			src_crop_rect.crop_h  = input[frame_idx].height;
-		}
-		else{
+		} else
 			src_crop_rect = input_crop_rect[frame_idx];
-		}
 
-		if(NULL == padding_attr)
-		{
+		if (NULL == padding_attr) {
 			dst_crop_rect.start_x = 0;
 			dst_crop_rect.start_y = 0;
 			dst_crop_rect.crop_w  = output[frame_idx].width;
 			dst_crop_rect.crop_h  = output[frame_idx].height;
-		}
-		else{
-			if((padding_attr[frame_idx].if_memset != 0) && (padding_attr[frame_idx].if_memset != 1))
-			{
+		} else {
+			if ((padding_attr[frame_idx].if_memset != 0) && (padding_attr[frame_idx].if_memset != 1)) {
 				bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
 					"frame [%d], padding_attr if_memset wrong  %s: %s: %d\n",
 					frame_idx, filename(__FILE__), __func__, __LINE__);
 				return BM_ERR_PARAM;
 			}
-			if(padding_attr[frame_idx].if_memset == 1) {
+			if (padding_attr[frame_idx].if_memset == 1) {
 				dst_crop_rect.start_x = 0;
 				dst_crop_rect.start_y = 0;
 				dst_crop_rect.crop_w  = output[frame_idx].width;
 				dst_crop_rect.crop_h  = output[frame_idx].height;
-			} else if(padding_attr[frame_idx].if_memset == 0) {
+			} else if (padding_attr[frame_idx].if_memset == 0) {
 				dst_crop_rect.start_x = padding_attr[frame_idx].dst_crop_stx;
 				dst_crop_rect.start_y = padding_attr[frame_idx].dst_crop_sty;
 				dst_crop_rect.crop_w  = padding_attr[frame_idx].dst_crop_w;
@@ -497,7 +476,7 @@ bm_status_t check_bm_vpss_image_param(
 			}
 		}
 
-		if((input[frame_idx].width  > VPSS_MAX_W) ||
+		if ((input[frame_idx].width  > VPSS_MAX_W) ||
 			 (input[frame_idx].height > VPSS_MAX_H) ||
 			 (input[frame_idx].height < VPSS_MIN_H) ||
 			 (input[frame_idx].width  < VPSS_MIN_W) ||
@@ -512,8 +491,7 @@ bm_status_t check_bm_vpss_image_param(
 			 (dst_crop_rect.crop_w > VPSS_MAX_W) ||
 			 (dst_crop_rect.crop_h > VPSS_MAX_H) ||
 			 (dst_crop_rect.crop_w < VPSS_MIN_W) ||
-			 (dst_crop_rect.crop_h < VPSS_MIN_H) )
-		{
+			 (dst_crop_rect.crop_h < VPSS_MIN_H) ) {
 			bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,\
 				"bm_vpss frame_idx %d, width or height abnormal,"
 				"input[frame_idx].width %d,input[frame_idx].height %d,"
@@ -525,11 +503,11 @@ bm_status_t check_bm_vpss_image_param(
 				src_crop_rect.crop_h, output[frame_idx].width, output[frame_idx].height,
 				dst_crop_rect.crop_w,dst_crop_rect.crop_h,
 				filename(__FILE__), __func__, __LINE__);
-			return BM_NOT_SUPPORTED;
+			return BM_ERR_PARAM;
 		}
 #if 0
-		if(((!is_full_image(output[frame_idx].image_format)) && (output[frame_idx].width % 2 != 0)) ||
-			(is_yuv420_image(output[frame_idx].image_format) && (output[frame_idx].height % 2 != 0))){
+		if (((!is_full_image(output[frame_idx].image_format)) && (output[frame_idx].width % 2 != 0)) ||
+			(is_yuv420_image(output[frame_idx].image_format) && (output[frame_idx].height % 2 != 0))) {
 			bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,\
 				"bm_vpss frame_idx(%d), width or height not be 2 align,"
 				"output[frame_idx].width(%d),output[frame_idx].height(%d),"
@@ -538,34 +516,29 @@ bm_status_t check_bm_vpss_image_param(
 				frame_idx,output[frame_idx].width,output[frame_idx].height,
 				output[frame_idx].image_format,
 				filename(__FILE__), __func__, __LINE__);
-			return BM_NOT_SUPPORTED;
+			return BM_ERR_DATA;
 		}
 #endif
-		if((src_crop_rect.start_x < 0) ||
+		if ((src_crop_rect.start_x < 0) ||
 			 (src_crop_rect.start_y < 0) ||
 			 (dst_crop_rect.start_x < 0) ||
 			 (dst_crop_rect.start_y < 0) ||
 			 (src_crop_rect.start_x + src_crop_rect.crop_w > input[frame_idx].width) ||
 			 (src_crop_rect.start_y + src_crop_rect.crop_h > input[frame_idx].height) ||
 			 (dst_crop_rect.start_x + dst_crop_rect.crop_w > output[frame_idx].width) ||
-			 (dst_crop_rect.start_y + dst_crop_rect.crop_h > output[frame_idx].height)
-		)
-		{
+			 (dst_crop_rect.start_y + dst_crop_rect.crop_h > output[frame_idx].height)) {
 			bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
 				"frame [%d], input or output  crop is out of range  %s: %s: %d\n",
 				frame_idx, filename(__FILE__), __func__, __LINE__);
-			return BM_NOT_SUPPORTED;
+			return BM_ERR_PARAM;
 		}
 
-		if(NULL != border_param)
-		{
-			for(int i = 0; i < border_param[frame_idx].border_num; i++){
-				if(border_param[frame_idx].border_cfg[i].rect_border_enable == 1)
-				{
-					if((border_param[frame_idx].border_cfg[i].st_x > input[frame_idx].width) ||
+		if (NULL != border_param) {
+			for (int i = 0; i < border_param[frame_idx].border_num; i++) {
+				if (border_param[frame_idx].border_cfg[i].rect_border_enable == 1) {
+					if ((border_param[frame_idx].border_cfg[i].st_x > input[frame_idx].width) ||
 						(border_param[frame_idx].border_cfg[i].st_y > input[frame_idx].height) ||
-						(output[frame_idx].data_type != DATA_TYPE_EXT_1N_BYTE))
-					{
+						(output[frame_idx].data_type != DATA_TYPE_EXT_1N_BYTE)) {
 						bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
 							"bm_vpss draw rectangle param wrong, frame(%d) idx(%d) maybe st_x(%d),st_y(%d) wrong or data_type(%d) not supported, %s: %s: %d\n",
 							frame_idx, i, border_param[frame_idx].border_cfg[i].st_x, border_param[frame_idx].border_cfg[i].st_y, output[frame_idx].data_type, filename(__FILE__), __func__, __LINE__);
@@ -594,36 +567,29 @@ bm_status_t check_bm_vpss_param(
 
 	bm_status_t ret = BM_SUCCESS;
 
-	if((input == NULL) || (output == NULL))
-	{
+	if ((input == NULL) || (output == NULL)) {
 		bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
 			"input or output is nullptr , %s: %s: %d\n", filename(__FILE__), __func__, __LINE__);
 		return BM_ERR_PARAM;
 	}
 
 	ret = check_bm_vpss_bm_image_param(frame_number, input, output);
-	if(ret != BM_SUCCESS)
-	{
+	if (ret != BM_SUCCESS)
 		return ret;
-	}
 
 	ret = check_bm_vpss_image_param(frame_number, input, output, input_crop_rect, padding_attr, border_param);
-	if(ret != BM_SUCCESS)
-	{
+	if (ret != BM_SUCCESS)
 		return ret;
-	}
 
-	if((algorithm != BMCV_INTER_NEAREST) && (algorithm != BMCV_INTER_LINEAR) && (algorithm != BMCV_INTER_BICUBIC))
-	{
+	if ((algorithm != BMCV_INTER_NEAREST) && (algorithm != BMCV_INTER_LINEAR) && (algorithm != BMCV_INTER_BICUBIC)) {
 		bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
 			"bm_vpss not support algorithm %d,%s: %s: %d\n",
 			algorithm, filename(__FILE__), __func__, __LINE__);
-		return BM_NOT_SUPPORTED;
+		return BM_ERR_PARAM;
 	}
 
 	ret = check_bm_vpss_csctype(frame_number, input,output, csc_type, matrix, csc_cfg);
-	if(ret != BM_SUCCESS)
-	{
+	if (ret != BM_SUCCESS) {
 		bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
 			"bm_vpss csctype %d, %s: %s: %d\n",
 			*csc_type, filename(__FILE__), __func__, __LINE__);
@@ -637,22 +603,20 @@ bm_status_t check_bm_vpss_continuity(
 	int                     frame_number,
 	bm_image*               input_or_output)
 {
-	for (int i = 0; i < frame_number; i++)
-	{
-		if(input_or_output[i].image_private == NULL)
-		{
+	for (int i = 0; i < frame_number; i++) {
+		if (input_or_output[i].image_private == NULL) {
 			bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
 				"bm_image image_private cannot be empty, %s: %s: %d\n",
 				filename(__FILE__), __func__, __LINE__);
-			return BM_NOT_SUPPORTED;
+			return BM_ERR_DATA;
 		}
 	}
 	return BM_SUCCESS;
 }
 
-bm_status_t bm_image_format_to_cvi(bm_image_format_ext fmt, bm_image_data_format_ext datatype, PIXEL_FORMAT_E * cvi_fmt){
-	if(datatype != DATA_TYPE_EXT_1N_BYTE){
-		switch(datatype){
+bm_status_t bm_image_format_to_cvi(bm_image_format_ext fmt, bm_image_data_format_ext datatype, PIXEL_FORMAT_E * cvi_fmt) {
+	if (datatype != DATA_TYPE_EXT_1N_BYTE) {
+		switch(datatype) {
 			case DATA_TYPE_EXT_1N_BYTE_SIGNED:
 				*cvi_fmt = PIXEL_FORMAT_INT8_C3_PLANAR;
 				break;
@@ -667,11 +631,11 @@ bm_status_t bm_image_format_to_cvi(bm_image_format_ext fmt, bm_image_data_format
 				break;
 			default:
 				bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "datatype(%d) not supported, %s: %s: %d\n", datatype, filename(__FILE__), __func__, __LINE__);
-				return BM_NOT_SUPPORTED;
+				return BM_ERR_DATA;
 		}
 		return BM_SUCCESS;
 	}
-	switch(fmt){
+	switch(fmt) {
 		case FORMAT_YUV420P:
 		case FORMAT_COMPRESSED:
 			*cvi_fmt = PIXEL_FORMAT_YUV_PLANAR_420;
@@ -737,39 +701,13 @@ bm_status_t bm_image_format_to_cvi(bm_image_format_ext fmt, bm_image_data_format
 			break;
 		default:
 			bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "fmt(%d) not supported, %s: %s: %d\n", fmt, filename(__FILE__), __func__, __LINE__);
-			return BM_NOT_SUPPORTED;
+			return BM_ERR_DATA;
 	}
 	return BM_SUCCESS;
 }
 
-bm_status_t bm_csc_type_to_cvi(csc_type_t csc, COLOR_GAMUT_E * cvi_csc){
-	switch (csc)
-	{
-	case CSC_YCbCr2RGB_BT601:
-	case CSC_YPbPr2RGB_BT601:
-	case CSC_RGB2YCbCr_BT601:
-	case CSC_RGB2YPbPr_BT601:
-	case CSC_MAX_ENUM:
-		*cvi_csc = COLOR_GAMUT_BT601;
-		break;
-	case CSC_YCbCr2RGB_BT709:
-	case CSC_YPbPr2RGB_BT709:
-	case CSC_RGB2YCbCr_BT709:
-	case CSC_RGB2YPbPr_BT709:
-		*cvi_csc = COLOR_GAMUT_BT709;
-		break;
-	case CSC_USER_DEFINED_MATRIX:
-		*cvi_csc = COLOR_GAMUT_USER;
-	default:
-		bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "csc_type(%d) not supported, %s: %s: %d\n", csc, filename(__FILE__), __func__, __LINE__);
-		return BM_NOT_SUPPORTED;
-	}
-	return BM_SUCCESS;
-}
-
-bm_status_t bm_algorithm_to_cvi(bmcv_resize_algorithm algorithm, VPSS_SCALE_COEF_E * enCoef){
-	switch (algorithm)
-	{
+bm_status_t bm_algorithm_to_cvi(bmcv_resize_algorithm algorithm, VPSS_SCALE_COEF_E * enCoef) {
+	switch (algorithm) {
 	case BMCV_INTER_NEAREST:
 		*enCoef = VPSS_SCALE_COEF_NEAREST;
 		break;
@@ -781,7 +719,7 @@ bm_status_t bm_algorithm_to_cvi(bmcv_resize_algorithm algorithm, VPSS_SCALE_COEF
 		break;
 	default:
 		bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "algorithm(%d) not supported, %s: %s: %d\n", algorithm, filename(__FILE__), __func__, __LINE__);
-		return BM_NOT_SUPPORTED;
+		return BM_ERR_PARAM;
 	}
 	return BM_SUCCESS;
 }
@@ -789,7 +727,7 @@ bm_status_t bm_algorithm_to_cvi(bmcv_resize_algorithm algorithm, VPSS_SCALE_COEF
 bm_status_t bm_send_image_frame(bm_image image, VIDEO_FRAME_INFO_S *stVideoFrame, PIXEL_FORMAT_E enPixelFormat)
 {
 	int planar_to_seperate = 0;
-	if((image.image_format == FORMAT_RGB_PLANAR || image.image_format == FORMAT_BGR_PLANAR))
+	if ((image.image_format == FORMAT_RGB_PLANAR || image.image_format == FORMAT_BGR_PLANAR))
 		planar_to_seperate = 1;
 
 	stVideoFrame->stVFrame.enCompressMode = COMPRESS_MODE_NONE;
@@ -797,17 +735,17 @@ bm_status_t bm_send_image_frame(bm_image image, VIDEO_FRAME_INFO_S *stVideoFrame
 	stVideoFrame->stVFrame.enVideoFormat = VIDEO_FORMAT_LINEAR;
 	stVideoFrame->stVFrame.u32Width = image.width;
 	stVideoFrame->stVFrame.u32Height = image.height;
-	if((!is_full_image(image.image_format)) || image.image_format == FORMAT_COMPRESSED)
+	if ((!is_full_image(image.image_format)) || image.image_format == FORMAT_COMPRESSED)
 		stVideoFrame->stVFrame.u32Width = stVideoFrame->stVFrame.u32Width & (~0x1);
-	if(is_yuv420_image(image.image_format) || image.image_format == FORMAT_COMPRESSED)
+	if (is_yuv420_image(image.image_format) || image.image_format == FORMAT_COMPRESSED)
 		stVideoFrame->stVFrame.u32Height = stVideoFrame->stVFrame.u32Height & (~0x1);
 	for (int i = 0; i < image.image_private->plane_num; ++i) {
-		if((i == 3) && (image.image_format == FORMAT_COMPRESSED)){
+		if ((i == 3) && (image.image_format == FORMAT_COMPRESSED)) {
 			stVideoFrame->stVFrame.u64ExtPhyAddr = image.image_private->data[i].u.device.device_addr;
 			stVideoFrame->stVFrame.u32ExtLength = image.image_private->memory_layout[i].size;
 			stVideoFrame->stVFrame.pu8ExtVirtAddr = (unsigned char*)image.image_private->data[i].u.system.system_addr;
 			stVideoFrame->stVFrame.enCompressMode = COMPRESS_MODE_FRAME;
-		} else if((i > 0) && (image.image_format == FORMAT_COMPRESSED)){
+		} else if ((i > 0) && (image.image_format == FORMAT_COMPRESSED)) {
 			continue;
 		} else {
 			stVideoFrame->stVFrame.u32Stride[i] = image.image_private->memory_layout[i].pitch_stride;
@@ -817,7 +755,7 @@ bm_status_t bm_send_image_frame(bm_image image, VIDEO_FRAME_INFO_S *stVideoFrame
 		}
 	}
 
-	if(planar_to_seperate){
+	if (planar_to_seperate) {
 		for (int i = 1; i < 3; ++i) {
 			stVideoFrame->stVFrame.u32Stride[i] = image.image_private->memory_layout[0].pitch_stride;
 			stVideoFrame->stVFrame.u32Length[i] = image.image_private->memory_layout[0].pitch_stride * image.height;
@@ -825,7 +763,7 @@ bm_status_t bm_send_image_frame(bm_image image, VIDEO_FRAME_INFO_S *stVideoFrame
 		}
 	}
 
-	if(image.image_format == FORMAT_COMPRESSED){
+	if (image.image_format == FORMAT_COMPRESSED) {
 		for (int i = 1, j = 2; i < 3; ++i, --j) {
 			stVideoFrame->stVFrame.u32Stride[i] = image.image_private->memory_layout[j].pitch_stride;
 			stVideoFrame->stVFrame.u32Length[i] = image.image_private->memory_layout[j].size;
@@ -834,9 +772,9 @@ bm_status_t bm_send_image_frame(bm_image image, VIDEO_FRAME_INFO_S *stVideoFrame
 		}
 	}
 
-	if((enPixelFormat == PIXEL_FORMAT_UINT8_C3_PLANAR || enPixelFormat == PIXEL_FORMAT_INT8_C3_PLANAR ||
+	if ((enPixelFormat == PIXEL_FORMAT_UINT8_C3_PLANAR || enPixelFormat == PIXEL_FORMAT_INT8_C3_PLANAR ||
 		enPixelFormat == PIXEL_FORMAT_BF16_C3_PLANAR || enPixelFormat == PIXEL_FORMAT_FP16_C3_PLANAR || enPixelFormat == PIXEL_FORMAT_FP32_C3_PLANAR) &&
-		(image.image_format == FORMAT_BGR_PLANAR || image.image_format == FORMAT_BGRP_SEPARATE)){
+		(image.image_format == FORMAT_BGR_PLANAR || image.image_format == FORMAT_BGRP_SEPARATE)) {
 		stVideoFrame->stVFrame.u32Stride[0] = stVideoFrame->stVFrame.u32Stride[2];
 		stVideoFrame->stVFrame.u32Length[0] = stVideoFrame->stVFrame.u32Length[2];
 		stVideoFrame->stVFrame.u64PhyAddr[0] = stVideoFrame->stVFrame.u64PhyAddr[2];
@@ -854,7 +792,7 @@ bm_status_t bm_send_image_frame(bm_image image, VIDEO_FRAME_INFO_S *stVideoFrame
 	return BM_SUCCESS;
 }
 
-bm_status_t bm_vpss_set_grp_csc(u8 is_fancy, bmcv_vpss_csc_matrix *csc_cfg, struct vpss_grp_csc_cfg *cfg){
+bm_status_t bm_vpss_set_grp_csc(u8 is_fancy, bmcv_vpss_csc_matrix *csc_cfg, struct vpss_grp_csc_cfg *cfg) {
 	for (u8 i = 0; i < 3; i++) {
 		for (u8 j = 0; j < 3; j++)
 			cfg->coef[i][j] = csc_cfg->coef[i][j];
@@ -862,7 +800,7 @@ bm_status_t bm_vpss_set_grp_csc(u8 is_fancy, bmcv_vpss_csc_matrix *csc_cfg, stru
 		cfg->sub[i] = csc_cfg->sub[i];
 	}
 
-	if(!is_fancy)
+	if (!is_fancy)
 		cfg->is_copy_upsample = true;
 
 	cfg->enable = true;
@@ -870,7 +808,7 @@ bm_status_t bm_vpss_set_grp_csc(u8 is_fancy, bmcv_vpss_csc_matrix *csc_cfg, stru
 	return BM_SUCCESS;
 }
 
-bm_status_t bm_vpss_set_chn_csc(bmcv_vpss_csc_matrix *csc_cfg, struct vpss_chn_csc_cfg *cfg){
+bm_status_t bm_vpss_set_chn_csc(bmcv_vpss_csc_matrix *csc_cfg, struct vpss_chn_csc_cfg *cfg) {
 	for (u8 i = 0; i < 3; i++) {
 		for (u8 j = 0; j < 3; j++)
 			cfg->coef[i][j] = csc_cfg->coef[i][j];
@@ -883,33 +821,33 @@ bm_status_t bm_vpss_set_chn_csc(bmcv_vpss_csc_matrix *csc_cfg, struct vpss_chn_c
 	return BM_SUCCESS;
 }
 
-bm_status_t bm_vpss_set_csc(bmcv_csc_cfg *csc_cfg, bm_vpss_cfg *vpss_cfg){
+bm_status_t bm_vpss_set_csc(bmcv_csc_cfg *csc_cfg, bm_vpss_cfg *vpss_cfg) {
 	bmcv_vpss_csc_matrix csc_matrix;
-	if(csc_cfg->csc_type == VPSS_CSC_RGB2RGB)
+	if (csc_cfg->csc_type == VPSS_CSC_RGB2RGB)
 		return BM_SUCCESS;
-	if(csc_cfg->is_user_defined_matrix){
+	if (csc_cfg->is_user_defined_matrix) {
 		csc_matrix = csc_cfg->csc_matrix;
-		if(csc_cfg->csc_type == VPSS_CSC_RGB2YCbCr_BT601 || csc_cfg->csc_type == VPSS_CSC_RGB2YCbCr_BT709 || csc_cfg->csc_type == VPSS_CSC_RGB2YPbPr_BT601 || csc_cfg->csc_type == VPSS_CSC_RGB2YPbPr_BT709)
+		if (csc_cfg->csc_type == VPSS_CSC_RGB2YCbCr_BT601 || csc_cfg->csc_type == VPSS_CSC_RGB2YCbCr_BT709 || csc_cfg->csc_type == VPSS_CSC_RGB2YPbPr_BT601 || csc_cfg->csc_type == VPSS_CSC_RGB2YPbPr_BT709)
 			bm_vpss_set_chn_csc(&csc_matrix, &vpss_cfg->chn_csc_cfg);
 		else
 			bm_vpss_set_grp_csc(csc_cfg->is_fancy, &csc_matrix, &vpss_cfg->grp_csc_cfg);
 	} else {
-		if(csc_cfg->csc_type <= VPSS_CSC_RGB2YPbPr_BT709){
+		if (csc_cfg->csc_type <= VPSS_CSC_RGB2YPbPr_BT709) {
 			csc_matrix = csc_default_matrix[csc_cfg->csc_type];
-			if(csc_cfg->csc_type == VPSS_CSC_YCbCr2RGB_BT601 || csc_cfg->csc_type == VPSS_CSC_YCbCr2RGB_BT709 || csc_cfg->csc_type == VPSS_CSC_YPbPr2RGB_BT601 || csc_cfg->csc_type == VPSS_CSC_YPbPr2RGB_BT709)
+			if (csc_cfg->csc_type == VPSS_CSC_YCbCr2RGB_BT601 || csc_cfg->csc_type == VPSS_CSC_YCbCr2RGB_BT709 || csc_cfg->csc_type == VPSS_CSC_YPbPr2RGB_BT601 || csc_cfg->csc_type == VPSS_CSC_YPbPr2RGB_BT709)
 				bm_vpss_set_grp_csc(csc_cfg->is_fancy, &csc_matrix, &vpss_cfg->grp_csc_cfg);
 			else
 				bm_vpss_set_chn_csc(&csc_matrix, &vpss_cfg->chn_csc_cfg);
-		} else if (csc_cfg->csc_type == VPSS_CSC_YCbCr2YCbCr_BT601){
+		} else if (csc_cfg->csc_type == VPSS_CSC_YCbCr2YCbCr_BT601) {
 				bm_vpss_set_grp_csc(csc_cfg->is_fancy, &csc_default_matrix[VPSS_CSC_YCbCr2RGB_BT601], &vpss_cfg->grp_csc_cfg);
 				bm_vpss_set_chn_csc(&csc_default_matrix[VPSS_CSC_RGB2YCbCr_BT601], &vpss_cfg->chn_csc_cfg);
-		} else if (csc_cfg->csc_type == VPSS_CSC_YCbCr2YCbCr_BT709){
+		} else if (csc_cfg->csc_type == VPSS_CSC_YCbCr2YCbCr_BT709) {
 				bm_vpss_set_grp_csc(csc_cfg->is_fancy, &csc_default_matrix[VPSS_CSC_YCbCr2RGB_BT601], &vpss_cfg->grp_csc_cfg);
 				bm_vpss_set_chn_csc(&csc_default_matrix[VPSS_CSC_RGB2YCbCr_BT709], &vpss_cfg->chn_csc_cfg);
-		} else if (csc_cfg->csc_type == VPSS_CSC_YPbPr2YPbPr_BT601){
+		} else if (csc_cfg->csc_type == VPSS_CSC_YPbPr2YPbPr_BT601) {
 				bm_vpss_set_grp_csc(csc_cfg->is_fancy, &csc_default_matrix[VPSS_CSC_YPbPr2RGB_BT601], &vpss_cfg->grp_csc_cfg);
 				bm_vpss_set_chn_csc(&csc_default_matrix[VPSS_CSC_RGB2YPbPr_BT601], &vpss_cfg->chn_csc_cfg);
-		} else if (csc_cfg->csc_type == VPSS_CSC_YPbPr2YPbPr_BT709){
+		} else if (csc_cfg->csc_type == VPSS_CSC_YPbPr2YPbPr_BT709) {
 				bm_vpss_set_grp_csc(csc_cfg->is_fancy, &csc_default_matrix[VPSS_CSC_YPbPr2RGB_BT709], &vpss_cfg->grp_csc_cfg);
 				bm_vpss_set_chn_csc(&csc_default_matrix[VPSS_CSC_RGB2YPbPr_BT709], &vpss_cfg->chn_csc_cfg);
 		}
@@ -917,8 +855,8 @@ bm_status_t bm_vpss_set_csc(bmcv_csc_cfg *csc_cfg, bm_vpss_cfg *vpss_cfg){
 	return BM_SUCCESS;
 }
 
-bm_status_t bm_vpss_set_chn_draw_rect(bmcv_border* border_param, struct vpss_chn_draw_rect_cfg *draw_cfg){
-	for(int i = 0; i < border_param->border_num; i++){
+bm_status_t bm_vpss_set_chn_draw_rect(bmcv_border* border_param, struct vpss_chn_draw_rect_cfg *draw_cfg) {
+	for (int i = 0; i < border_param->border_num; i++) {
 		draw_cfg->stDrawRect.astRect[i].bEnable = true;
 		draw_cfg->stDrawRect.astRect[i].stRect.s32X = border_param->border_cfg[i].st_x;
 		draw_cfg->stDrawRect.astRect[i].stRect.s32Y = border_param->border_cfg[i].st_y;
@@ -943,13 +881,13 @@ bm_status_t bm_vpss_set_convertto(bmcv_convert_to_attr convertto_attr, struct vp
 	return BM_SUCCESS;
 }
 
-bm_status_t bm_vpss_chn_set_gop(bmcv_rgn_cfg* gop_attr, struct cvi_rgn_cfg *cfg){
+bm_status_t bm_vpss_chn_set_gop(bmcv_rgn_cfg* gop_attr, struct cvi_rgn_cfg *cfg) {
 	unsigned char layer_num = (gop_attr->rgn_num + 7) >> 3;
 	unsigned char gop_num = 0;
-	for(int i = 0; i < layer_num; i++){
+	for (int i = 0; i < layer_num; i++) {
 		gop_num = (i == layer_num - 1) ? (gop_attr->rgn_num - (i << 3)) : 8;
 		cfg[i].num_of_rgn = gop_num;
-		for(int j = 0; j < gop_num; j++)
+		for (int j = 0; j < gop_num; j++)
 			cfg[i].param[j] = gop_attr->param[(i * 8 + j)];
 	}
 	return BM_SUCCESS;
@@ -969,14 +907,14 @@ bm_status_t bm_vpss_chn_set_gop(bmcv_rgn_cfg* gop_attr, struct cvi_rgn_cfg *cfg)
 // 	bmcv_convert_to_attr* convert_to_attr,
 // 	bmcv_border* border_param,
 // 	coverex_cfg* coverex_param,
-// 	bmcv_rgn_cfg* gop_attr){
+// 	bmcv_rgn_cfg* gop_attr) {
 
 // 	bmlib_log("BMCV VPSS DUMP", BMLIB_LOG_ERROR, " %s: %s: %d\n", __FILE__, __func__, __LINE__);
 // 	bmlib_log("BMCV VPSS DUMP", BMLIB_LOG_ERROR, " frame_idx %d, grp_id %d, chn %d\n", frame_idx, grp_id, chn);
 // 	bmlib_log("BMCV VPSS DUMP", BMLIB_LOG_ERROR, " stVpssGrpAttr.u32MaxW %d, stVpssGrpAttr.u32MaxH %d\n", stVpssGrpAttr.u32MaxW, stVpssGrpAttr.u32MaxH);
 // 	bmlib_log("BMCV VPSS DUMP", BMLIB_LOG_ERROR, " stVpssGrpAttr.enPixelFormat %d\n", stVpssGrpAttr.enPixelFormat);
 // 	bmlib_log("BMCV VPSS DUMP", BMLIB_LOG_ERROR, " input.data_type %d\n", input->data_type);
-// 	for(int i = 0; i < input->image_private->plane_num; i++)
+// 	for (int i = 0; i < input->image_private->plane_num; i++)
 // 		bmlib_log("BMCV VPSS DUMP", BMLIB_LOG_ERROR, " plane idx %d, input.device_addr %lx, input.stride %d\n", i, input->image_private->data[i].u.device.device_addr, input->image_private->memory_layout[i].pitch_stride);
 // 	bmlib_log("BMCV VPSS DUMP", BMLIB_LOG_ERROR, " astVpssChnAttr.u32Width %d, astVpssChnAttr.u32Height %d\n", astVpssChnAttr.u32Width, astVpssChnAttr.u32Height);
 // 	bmlib_log("BMCV VPSS DUMP", BMLIB_LOG_ERROR, " astVpssChnAttr.u32Depth %d, astVpssChnAttr.stNormalize.bEnable %d\n", astVpssChnAttr.u32Depth, astVpssChnAttr.stNormalize.bEnable);
@@ -987,14 +925,14 @@ bm_status_t bm_vpss_chn_set_gop(bmcv_rgn_cfg* gop_attr, struct cvi_rgn_cfg *cfg)
 // 	bmlib_log("BMCV VPSS DUMP", BMLIB_LOG_ERROR, " astVpssChnAttr.stAspectRatio.stVideoRect.s32X %d, s32Y %d\n", astVpssChnAttr.stAspectRatio.stVideoRect.s32X, astVpssChnAttr.stAspectRatio.stVideoRect.s32Y);
 // 	bmlib_log("BMCV VPSS DUMP", BMLIB_LOG_ERROR, " astVpssChnAttr.stAspectRatio.stVideoRect.u32Width %d, u32Height %d\n", astVpssChnAttr.stAspectRatio.stVideoRect.u32Width, astVpssChnAttr.stAspectRatio.stVideoRect.u32Height);
 // 	bmlib_log("BMCV VPSS DUMP", BMLIB_LOG_ERROR, " astVpssChnAttr.stAspectRatio.u32BgColor %lx, astVpssChnAttr.enPixelFormat %d\n", astVpssChnAttr.stAspectRatio.u32BgColor, astVpssChnAttr.enPixelFormat);
-// 	for(int i = 0; i < output->image_private->plane_num; i++)
+// 	for (int i = 0; i < output->image_private->plane_num; i++)
 // 		bmlib_log("BMCV VPSS DUMP", BMLIB_LOG_ERROR, " plane idx %d, output.device_addr %lx, output.stride %d\n", i, output->image_private->data[i].u.device.device_addr, output->image_private->memory_layout[i].pitch_stride);
 // 	bmlib_log("BMCV VPSS DUMP", BMLIB_LOG_ERROR, " astVpssChnAttr.bMirror %d, astVpssChnAttr.bFlip %d\n", astVpssChnAttr.bMirror, astVpssChnAttr.bFlip);
 // 	bmlib_log("BMCV VPSS DUMP", BMLIB_LOG_ERROR, " pstCropInfo.bEnable %d, enCropCoordinate %d\n", pstCropInfo.bEnable, pstCropInfo.enCropCoordinate);
 // 	bmlib_log("BMCV VPSS DUMP", BMLIB_LOG_ERROR, " pstCropInfo.stCropRect.s32X %d, s32Y %d\n", pstCropInfo.stCropRect.s32X, pstCropInfo.stCropRect.s32Y);
 // 	bmlib_log("BMCV VPSS DUMP", BMLIB_LOG_ERROR, " pstCropInfo.stCropRect.u32Width %d, u32Height %d\n", pstCropInfo.stCropRect.u32Width, pstCropInfo.stCropRect.u32Height);
 // 	bmlib_log("BMCV VPSS DUMP", BMLIB_LOG_ERROR, " algorithm %d, csc_type %d is_fancy %d\n", algorithm, csc_cfg->csc_type, csc_cfg->is_fancy);
-// 	if(csc_cfg->is_user_defined_matrix){
+// 	if (csc_cfg->is_user_defined_matrix) {
 // 		bmlib_log("BMCV VPSS DUMP", BMLIB_LOG_ERROR, " matrix.csc_coe00 %d, csc_coe01 %d\n", csc_cfg->csc_matrix.coef[0][0], csc_cfg->csc_matrix.coef[0][1]);
 // 		bmlib_log("BMCV VPSS DUMP", BMLIB_LOG_ERROR, " matrix.csc_coe02 %d, csc_coe10 %d\n", csc_cfg->csc_matrix.coef[0][2], csc_cfg->csc_matrix.coef[1][0]);
 // 		bmlib_log("BMCV VPSS DUMP", BMLIB_LOG_ERROR, " matrix.csc_coe11 %d, csc_coe12 %d\n", csc_cfg->csc_matrix.coef[1][1], csc_cfg->csc_matrix.coef[1][2]);
@@ -1004,16 +942,16 @@ bm_status_t bm_vpss_chn_set_gop(bmcv_rgn_cfg* gop_attr, struct cvi_rgn_cfg *cfg)
 // 		bmlib_log("BMCV VPSS DUMP", BMLIB_LOG_ERROR, " matrix.csc_sub0 %d, csc_sub1 %d\n", csc_cfg->csc_matrix.add[0], csc_cfg->csc_matrix.sub[1]);
 // 		bmlib_log("BMCV VPSS DUMP", BMLIB_LOG_ERROR, " matrix.csc_sub2 %d\n", csc_cfg->csc_matrix.sub[2]);
 // 	}
-// 	if(convert_to_attr){
+// 	if (convert_to_attr) {
 // 		convert_to_attr += frame_idx;
 // 		bmlib_log("BMCV VPSS DUMP", BMLIB_LOG_ERROR, " convert_to_attr.alpha_0 %f, beta_0 %f\n", convert_to_attr->alpha_0, convert_to_attr->beta_0);
 // 		bmlib_log("BMCV VPSS DUMP", BMLIB_LOG_ERROR, " convert_to_attr.alpha_1 %f, beta_1 %f\n", convert_to_attr->alpha_1, convert_to_attr->beta_1);
 // 		bmlib_log("BMCV VPSS DUMP", BMLIB_LOG_ERROR, " convert_to_attr.alpha_2 %f, beta_2 %f\n", convert_to_attr->alpha_2, convert_to_attr->beta_2);
 // 	}
-// 	if(border_param){
+// 	if (border_param) {
 // 		border_param += frame_idx;
-// 		for(int i = 0; i < 4; i++){
-// 			if(border_param->border_cfg[i].rect_border_enable){
+// 		for (int i = 0; i < 4; i++) {
+// 			if (border_param->border_cfg[i].rect_border_enable) {
 // 				bmlib_log("BMCV VPSS DUMP", BMLIB_LOG_ERROR, " border_idx %d border_param.rect_border_enable %d, st_x %d\n", i, border_param->border_cfg[i].rect_border_enable, border_param->border_cfg[i].st_x);
 // 				bmlib_log("BMCV VPSS DUMP", BMLIB_LOG_ERROR, " border_idx %d border_param.st_y %d, width %d\n", i, border_param->border_cfg[i].st_y, border_param->border_cfg[i].width);
 // 				bmlib_log("BMCV VPSS DUMP", BMLIB_LOG_ERROR, " border_idx %d border_param.height %d, value_r %d\n", i, border_param->border_cfg[i].height, border_param->border_cfg[i].value_r);
@@ -1022,17 +960,17 @@ bm_status_t bm_vpss_chn_set_gop(bmcv_rgn_cfg* gop_attr, struct cvi_rgn_cfg *cfg)
 // 			}
 // 		}
 // 	}
-// 	if(coverex_param){
+// 	if (coverex_param) {
 // 		coverex_param += frame_idx;
-// 		for(int i = 0; i < coverex_param->cover_num; i++){
+// 		for (int i = 0; i < coverex_param->cover_num; i++) {
 // 			bmlib_log("BMCV VPSS DUMP", BMLIB_LOG_ERROR, " cover_idx %d coverex_param.enable %d, color %lx\n", i, coverex_param->coverex_param[i].enable, coverex_param->coverex_param[i].color);
 // 			bmlib_log("BMCV VPSS DUMP", BMLIB_LOG_ERROR, " cover_idx %d coverex_param.left %d, width %d\n", i, coverex_param->coverex_param[i].rect.left, coverex_param->coverex_param[i].rect.width);
 // 			bmlib_log("BMCV VPSS DUMP", BMLIB_LOG_ERROR, " cover_idx %d coverex_param.top %d, height %d\n", i, coverex_param->coverex_param[i].rect.top, coverex_param->coverex_param[i].rect.height);
 // 		}
 // 	}
-// 	if(gop_attr){
+// 	if (gop_attr) {
 // 		gop_attr += frame_idx;
-// 		for(int i = 0; i < gop_attr->rgn_num; i++){
+// 		for (int i = 0; i < gop_attr->rgn_num; i++) {
 // 			bmlib_log("BMCV VPSS DUMP", BMLIB_LOG_ERROR, " gop_idx %d param.fmt %d, stride %d\n", i, gop_attr->param[i].fmt, gop_attr->param[i].stride);
 // 			bmlib_log("BMCV VPSS DUMP", BMLIB_LOG_ERROR, " gop_idx %d param.phy_addr %lx\n", i, gop_attr->param[i].phy_addr);
 // 			bmlib_log("BMCV VPSS DUMP", BMLIB_LOG_ERROR, " gop_idx %d param.left %d, top %d\n", i, gop_attr->param[i].rect.left, gop_attr->param[i].rect.top);
@@ -1060,9 +998,9 @@ bm_status_t bm_vpss_asic(
 	bm_vpss_cfg vpss_cfg;
 	VPSS_CROP_INFO_S pstCropInfo;
 	ret = bm_get_vpss_fd(&fd);
-	if(ret != BM_SUCCESS) return ret;
+	if (ret != BM_SUCCESS) return ret;
 
-	for(int i = 0; i < frame_number; i++) {
+	for (int i = 0; i < frame_number; i++) {
 		memset(&vpss_cfg, 0, sizeof(bm_vpss_cfg));
 
 		vpss_cfg.grp_attr.stGrpAttr.stFrameRate.s32SrcFrameRate = 0x7fff;
@@ -1070,47 +1008,49 @@ bm_status_t bm_vpss_asic(
 		vpss_cfg.grp_attr.stGrpAttr.u32MaxW = input[i].width;
 		vpss_cfg.grp_attr.stGrpAttr.u32MaxH = input[i].height;
 
-		if((!is_full_image(input[i].image_format)) || input[i].image_format == FORMAT_COMPRESSED)
+		if ((!is_full_image(input[i].image_format)) || input[i].image_format == FORMAT_COMPRESSED)
 			vpss_cfg.grp_attr.stGrpAttr.u32MaxW = vpss_cfg.grp_attr.stGrpAttr.u32MaxW & (~0x1);
-		if(is_yuv420_image(input[i].image_format) || input[i].image_format == FORMAT_COMPRESSED)
+		if (is_yuv420_image(input[i].image_format) || input[i].image_format == FORMAT_COMPRESSED)
 			vpss_cfg.grp_attr.stGrpAttr.u32MaxH = vpss_cfg.grp_attr.stGrpAttr.u32MaxH & (~0x1);
 		ret = bm_image_format_to_cvi(input[i].image_format, input[i].data_type, &vpss_cfg.grp_attr.stGrpAttr.enPixelFormat);
-		if(ret != BM_SUCCESS) return ret;
+		if (ret != BM_SUCCESS) return ret;
 
 		vpss_cfg.chn_attr.stChnAttr.u32Width = output[i].width;
 		vpss_cfg.chn_attr.stChnAttr.u32Height = output[i].height;
-		if(!is_full_image(output[i].image_format))
+		if (!is_full_image(output[i].image_format))
 			vpss_cfg.chn_attr.stChnAttr.u32Width = vpss_cfg.chn_attr.stChnAttr.u32Width & (~0x1);
-		if(is_yuv420_image(output[i].image_format))
+		if (is_yuv420_image(output[i].image_format))
 			vpss_cfg.chn_attr.stChnAttr.u32Height = vpss_cfg.chn_attr.stChnAttr.u32Height & (~0x1);
 		vpss_cfg.chn_attr.stChnAttr.enVideoFormat = VIDEO_FORMAT_LINEAR;
 		ret = bm_image_format_to_cvi(output[i].image_format, output[i].data_type, &vpss_cfg.chn_attr.stChnAttr.enPixelFormat);
-		if(ret != BM_SUCCESS) return ret;
+		if (ret != BM_SUCCESS) return ret;
 
-		if(convert_to_attr != NULL && output[i].data_type == DATA_TYPE_EXT_1N_BYTE)
+		if (convert_to_attr != NULL && output[i].data_type == DATA_TYPE_EXT_1N_BYTE)
 			vpss_cfg.chn_attr.stChnAttr.enPixelFormat = PIXEL_FORMAT_UINT8_C3_PLANAR;
 
 		vpss_cfg.chn_attr.stChnAttr.stFrameRate.s32SrcFrameRate = 30;
 		vpss_cfg.chn_attr.stChnAttr.stFrameRate.s32DstFrameRate = 30;
 		vpss_cfg.chn_attr.stChnAttr.u32Depth = 1;
-		vpss_cfg.chn_attr.stChnAttr.bMirror = 0;
-		vpss_cfg.chn_attr.stChnAttr.bFlip = 0;
-		if((padding_attr != NULL) && (padding_attr[i].dst_crop_stx != 0 || padding_attr[i].dst_crop_sty != 0 ||
-				padding_attr[i].dst_crop_w != output[i].width || padding_attr[i].dst_crop_h != output[i].width)){
+		if (csc_cfg->flip_mode != NO_FLIP) {
+			vpss_cfg.chn_attr.stChnAttr.bMirror = (csc_cfg->flip_mode == HORIZONTAL_FLIP || csc_cfg->flip_mode == ROTATE_180);
+			vpss_cfg.chn_attr.stChnAttr.bFlip = (csc_cfg->flip_mode == VERTICAL_FLIP || csc_cfg->flip_mode == ROTATE_180);
+		}
+		if ((padding_attr != NULL) && (padding_attr[i].dst_crop_stx != 0 || padding_attr[i].dst_crop_sty != 0 ||
+				padding_attr[i].dst_crop_w != output[i].width || padding_attr[i].dst_crop_h != output[i].width)) {
 			vpss_cfg.chn_attr.stChnAttr.stAspectRatio.enMode = ASPECT_RATIO_MANUAL;
 			vpss_cfg.chn_attr.stChnAttr.stAspectRatio.stVideoRect.s32X = padding_attr[i].dst_crop_stx;
 			vpss_cfg.chn_attr.stChnAttr.stAspectRatio.stVideoRect.s32Y = padding_attr[i].dst_crop_sty;
 			vpss_cfg.chn_attr.stChnAttr.stAspectRatio.stVideoRect.u32Width = padding_attr[i].dst_crop_w;
 			vpss_cfg.chn_attr.stChnAttr.stAspectRatio.stVideoRect.u32Height = padding_attr[i].dst_crop_h;
-			if(!is_full_image(output[i].image_format))
+			if (!is_full_image(output[i].image_format))
 				vpss_cfg.chn_attr.stChnAttr.stAspectRatio.stVideoRect.u32Width = vpss_cfg.chn_attr.stChnAttr.stAspectRatio.stVideoRect.u32Width & (~0x1);
-			if(is_yuv420_image(output[i].image_format))
+			if (is_yuv420_image(output[i].image_format))
 				vpss_cfg.chn_attr.stChnAttr.stAspectRatio.stVideoRect.u32Height = vpss_cfg.chn_attr.stChnAttr.stAspectRatio.stVideoRect.u32Height & (~0x1);
-			if(padding_attr[i].if_memset == 1){
+			if (padding_attr[i].if_memset == 1) {
 				vpss_cfg.chn_attr.stChnAttr.stAspectRatio.bEnableBgColor = 1;
 				vpss_cfg.chn_attr.stChnAttr.stAspectRatio.u32BgColor = RGB_8BIT(padding_attr[i].padding_r, padding_attr[i].padding_g, padding_attr[i].padding_b);
 			}
-		}else{
+		} else {
 			vpss_cfg.chn_attr.stChnAttr.stAspectRatio.enMode = ASPECT_RATIO_MANUAL;
 			vpss_cfg.chn_attr.stChnAttr.stAspectRatio.stVideoRect.s32X = 0;
 			vpss_cfg.chn_attr.stChnAttr.stAspectRatio.stVideoRect.s32Y = 0;
@@ -1123,56 +1063,53 @@ bm_status_t bm_vpss_asic(
 
 		bm_vpss_set_csc(csc_cfg, &vpss_cfg);
 
-		if(input_crop_rect != NULL){
-			if(input_crop_rect[i].start_x != 0 || input_crop_rect[i].start_y != 0 ||
-					input_crop_rect[i].crop_w != input[i].width || input_crop_rect[i].crop_h != input[i].height){
+		if (input_crop_rect != NULL) {
+			if (input_crop_rect[i].start_x != 0 || input_crop_rect[i].start_y != 0 ||
+					input_crop_rect[i].crop_w != input[i].width || input_crop_rect[i].crop_h != input[i].height) {
 				pstCropInfo.bEnable = true;
 				pstCropInfo.enCropCoordinate = VPSS_CROP_ABS_COOR;
 				pstCropInfo.stCropRect.s32X = input_crop_rect[i].start_x;
 				pstCropInfo.stCropRect.s32Y = input_crop_rect[i].start_y;
 				pstCropInfo.stCropRect.u32Width = input_crop_rect[i].crop_w;
 				pstCropInfo.stCropRect.u32Height = input_crop_rect[i].crop_h;
-				if(pstCropInfo.stCropRect.u32Width > 4608 || pstCropInfo.stCropRect.u32Height > 8189)
+				if (pstCropInfo.stCropRect.u32Width > 4608 || pstCropInfo.stCropRect.u32Height > 8189)
 					vpss_cfg.chn_crop_cfg.stCropInfo = pstCropInfo;
 				else {
-					if((!is_full_image(input[i].image_format)) || input[i].image_format == FORMAT_COMPRESSED)
+					if ((!is_full_image(input[i].image_format)) || input[i].image_format == FORMAT_COMPRESSED)
 						pstCropInfo.stCropRect.u32Width = pstCropInfo.stCropRect.u32Width & (~0x1);
-					if(is_yuv420_image(input[i].image_format) || input[i].image_format == FORMAT_COMPRESSED)
+					if (is_yuv420_image(input[i].image_format) || input[i].image_format == FORMAT_COMPRESSED)
 						pstCropInfo.stCropRect.u32Height = pstCropInfo.stCropRect.u32Height & (~0x1);
 					vpss_cfg.grp_crop_cfg.stCropInfo = pstCropInfo;
 				}
 			}
 		}
 
-		if(convert_to_attr != NULL){
+		if (convert_to_attr != NULL)
 			bm_vpss_set_convertto(convert_to_attr[i], &vpss_cfg.chn_convert_cfg);
-		}
 
-		if(border_param != NULL && border_param[i].border_num > 0) {
+		if (border_param != NULL && border_param[i].border_num > 0)
 			bm_vpss_set_chn_draw_rect(border_param + i, &vpss_cfg.chn_draw_rect_cfg);
+
+		if (coverex_param != NULL && coverex_param[i].cover_num > 0) {
+			for (int j = 0; j < coverex_param[i].cover_num; j++)
+				vpss_cfg.coverex_cfg.rgn_coverex_cfg.rgn_coverex_param[j] = coverex_param[i].coverex_param[j];
 		}
 
-		if(coverex_param != NULL) {
-			for(int i = 0; i < coverex_param->cover_num; i++)
-				vpss_cfg.coverex_cfg.rgn_coverex_cfg.rgn_coverex_param[i] = coverex_param->coverex_param[i];
-		}
-
-		if(gop_attr != NULL && gop_attr->rgn_num > 0){
+		if (gop_attr != NULL && gop_attr->rgn_num > 0)
 			bm_vpss_chn_set_gop(gop_attr, vpss_cfg.rgn_cfg);
-		}
 
 		bm_send_image_frame(input[i], &vpss_cfg.snd_frm_cfg.stVideoFrame, vpss_cfg.grp_attr.stGrpAttr.enPixelFormat);
 
 		vpss_cfg.chn_frm_cfg.s32MilliSec = VPSS_TIMEOUT_MS;
 
-		for(int k = 0; k < 8; k++) {
+		for (int k = 0; k < 8; k++) {
 			bm_send_image_frame(output[i], &vpss_cfg.chn_frm_cfg.stVideoFrame, vpss_cfg.chn_attr.stChnAttr.enPixelFormat);
 			ret = (bm_status_t)ioctl(fd, CVI_VPSS_BM_SEND_FRAME, &vpss_cfg);
 			if (ret == BM_SUCCESS) break;
 			// dump_vpss_param(i, grp_id, VpssChn, input + i, output + i, stVpssGrpAttr, astVpssChnAttr[VpssChn],
 			// 	pstCropInfo, algorithm, csc_cfg, convert_to_attr, border_param, coverex_param, gop_attr);
 		}
-		if (ret != BM_SUCCESS){
+		if (ret != BM_SUCCESS) {
 			bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "ret(0x%lx), VPSS_BM_SEND_FRAME fail %s: %s: %d\n", (unsigned long)ret, __FILE__, __func__, __LINE__);
 			break;
 		}
@@ -1180,7 +1117,7 @@ bm_status_t bm_vpss_asic(
 	return ret;
 }
 
-int is_need_width_align_input(bm_image input){
+int is_need_width_align_input(bm_image input) {
 	if (((input.image_private->memory_layout[1].pitch_stride % 16) != 0) && is_yuv420_image(input.image_format))
 		return 1;
 	if ((input.image_private->data[0].u.device.device_addr % 2 != 0) &&
@@ -1200,13 +1137,13 @@ int is_need_width_align_input(bm_image input){
 	return 0;
 };
 
-int is_need_width_align_output(bm_image output){
+int is_need_width_align_output(bm_image output) {
 	if (output.image_format == FORMAT_NV12 || output.image_format == FORMAT_NV21 ||
 		output.image_format == FORMAT_NV16 || output.image_format == FORMAT_NV61 ||
 		output.image_format == FORMAT_YUV422_UYVY || output.image_format == FORMAT_YUV422_VYUY ||
 		output.image_format == FORMAT_YUV422_YUYV || output.image_format == FORMAT_YUV422_YVYU)
-		for(int i = 0; i < output.image_private->plane_num; i++)
-			if(output.image_private->data[i].u.device.device_addr % 2 != 0)
+		for (int i = 0; i < output.image_private->plane_num; i++)
+			if (output.image_private->data[i].u.device.device_addr % 2 != 0)
 				return 1;
 	return 0;
 };
@@ -1226,7 +1163,8 @@ bm_status_t bm_vpss_multi_parameter_processing(
 	bmcv_convert_to_attr*   convert_to_attr,
 	bmcv_border*            border_param,
 	coverex_cfg*          	coverex_param,
-	bmcv_rgn_cfg*           gop_attr)
+	bmcv_rgn_cfg*           gop_attr,
+	bmcv_flip_mode          flip_mode)
 {
 	bm_status_t ret = BM_SUCCESS;
 	bm_image input_align[frame_number];
@@ -1239,19 +1177,19 @@ bm_status_t bm_vpss_multi_parameter_processing(
 	for (i = 0; i < frame_number; i++) {
 		int dst_stride[3];
 		bm_image_get_stride(output[i], dst_stride);
-		if (output[i].image_private->attached && is_need_width_align_output(output[i])){
+		if (output[i].image_private->attached && is_need_width_align_output(output[i])) {
 			bm_image_detach(output[i]);
 		}
 		if (!output[i].image_private->attached) {
 			int align_stride[3];
-			for(int m = 0; m < output[i].image_private->plane_num; m++)
+			for (int m = 0; m < output[i].image_private->plane_num; m++)
 				align_stride[m] = ALIGN(dst_stride[m], 2);
 			fill_image_private(output + i, align_stride);
 			if (bm_image_alloc_dev_mem(output[i], BMCV_HEAP_ANY) != BM_SUCCESS) {
 				bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "output dev alloc fail %s: %s: %d\n", __FILE__, __func__, __LINE__);
 				for (int j = 0; j < frame_number; j++)
 					bm_image_detach(output[j]);
-				return BM_ERR_FAILURE;
+				return BM_ERR_NOMEM;
 			}
 			output_is_alloc_mem[i] = 1;
 		} else
@@ -1263,22 +1201,24 @@ bm_status_t bm_vpss_multi_parameter_processing(
 			int src_stride[3];
 			int align_stride[3];
 			bm_image_get_stride(input[i], src_stride);
-			for(int m = 0; m < input[i].image_private->plane_num; m++){
-				if((m == 0) && (!(input[i].image_format == FORMAT_NV12 || input[i].image_format == FORMAT_NV21 ||
+			for (int m = 0; m < input[i].image_private->plane_num; m++) {
+				if ((m == 0) && (!(input[i].image_format == FORMAT_NV12 || input[i].image_format == FORMAT_NV21 ||
 						input[i].image_format == FORMAT_NV16 || input[i].image_format == FORMAT_NV61 ||
 						input[i].image_format == FORMAT_YUV422_UYVY || input[i].image_format == FORMAT_YUV422_VYUY ||
 						input[i].image_format == FORMAT_YUV422_YUYV || input[i].image_format == FORMAT_YUV422_YVYU)))
 					align_stride[m] = src_stride[m];
-				else{
+				else {
 					align_stride[m] = ALIGN(src_stride[m], 16);
 				}
 			}
 			bm_image_create(handle, input[i].height, input[i].width, input[i].image_format, input[i].data_type, input_align + i, align_stride);
-			if(bm_image_alloc_dev_mem(input_align[i], BMCV_HEAP_ANY)!=BM_SUCCESS){
+			if (bm_image_alloc_dev_mem(input_align[i], BMCV_HEAP_ANY) != BM_SUCCESS) {
 				bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "input align alloc fail %s: %s: %d\n", __FILE__, __func__, __LINE__);
+				ret = BM_ERR_NOMEM;
 				goto fail;
 			}
-			if(bmcv_width_align(handle, input[i], input_align[i])!=BM_SUCCESS){
+			ret = bmcv_width_align(handle, input[i], input_align[i]);
+			if (ret != BM_SUCCESS) {
 				bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "bmcv_width_align fail %s: %s: %d\n", __FILE__, __func__, __LINE__);
 				goto fail;
 			}
@@ -1288,15 +1228,17 @@ bm_status_t bm_vpss_multi_parameter_processing(
 
 	ret = check_bm_vpss_param(
 		frame_number, input_align, output, input_crop_rect, padding_attr, algorithm, &csc_type, matrix, border_param, &csc_cfg);
-	if(ret != BM_SUCCESS) {
+	if (ret != BM_SUCCESS) {
 		bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "bm_vpss error parameters found,%s: %s: %d\n",
 			filename(__FILE__), __func__, __LINE__);
 		goto fail;
 	}
 
+	csc_cfg.flip_mode = flip_mode;
+
 	ret = bm_vpss_asic(
 		handle, frame_number, input_align, output, input_crop_rect, padding_attr, algorithm, &csc_cfg, convert_to_attr, border_param, coverex_param, gop_attr);
-	if(ret != BM_SUCCESS)
+	if (ret != BM_SUCCESS)
 		goto fail;
 
 	for (i = 0; i < frame_number; i++)
@@ -1305,7 +1247,7 @@ bm_status_t bm_vpss_multi_parameter_processing(
 	return ret;
 
 fail:
-	for (i = 0; i < frame_number; i++){
+	for (i = 0; i < frame_number; i++) {
 		if (is_need_width_align_input(input[i]))
 			bm_image_destroy(input_align + i);
 		if (output_is_alloc_mem[i])
@@ -1314,13 +1256,13 @@ fail:
 	return ret;
 }
 
-bm_status_t check_bm_vpss_convert_to_param(bm_image* input, bm_image* output, int input_num){
-	for(int i=0; i<input_num; i++){
-		if((input[0].image_format != input[i].image_format) || (output[0].image_format != output[i].image_format)){
+bm_status_t check_bm_vpss_convert_to_param(bm_image* input, bm_image* output, int input_num) {
+	for (int i = 0; i < input_num; i++) {
+		if ((input[0].image_format != input[i].image_format) || (output[0].image_format != output[i].image_format)) {
 				bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
 					"input and output different formats not supported, %s: %s: %d\n",
 					filename(__FILE__), __func__, __LINE__);
-				return BM_NOT_SUPPORTED;
+				return BM_ERR_DATA;
 		}
 	}
 	return BM_SUCCESS;
@@ -1337,27 +1279,24 @@ bm_status_t bm_vpss_convert_to(
 	bm_status_t ret = BM_SUCCESS;
 
 	ret = simple_check_bm_vpss_input_param(handle, input, input_num);
-	if(ret != BM_SUCCESS) {
+	if (ret != BM_SUCCESS)
 		return ret;
-	}
 
 	ret = check_bm_vpss_continuity(input_num, input);
-	if(ret != BM_SUCCESS) {
+	if (ret != BM_SUCCESS)
 		return ret;
-	}
+
 	ret = check_bm_vpss_continuity(input_num, output);
-	if(ret != BM_SUCCESS) {
+	if (ret != BM_SUCCESS)
 		return ret;
-	}
 
 	ret = check_bm_vpss_convert_to_param(input, output, input_num);
-	if(ret != BM_SUCCESS) {
+	if (ret != BM_SUCCESS)
 		return ret;
-	}
 
 	bmcv_convert_to_attr *convert_to_attr_inner = (bmcv_convert_to_attr *)malloc(sizeof(bmcv_convert_to_attr) * input_num);
 
-	if(input->image_format == FORMAT_BGR_PLANAR){
+	if (input->image_format == FORMAT_BGR_PLANAR) {
 		float exc = convert_to_attr.alpha_0;
 		convert_to_attr.alpha_0 = convert_to_attr.alpha_2;
 		convert_to_attr.alpha_2 = exc;
@@ -1366,12 +1305,12 @@ bm_status_t bm_vpss_convert_to(
 		convert_to_attr.beta_2 = exc;
 	}
 
-	for(int i=0; i<input_num; i++) {
+	for (int i = 0; i < input_num; i++) {
 		memcpy(&convert_to_attr_inner[i], &convert_to_attr, sizeof(bmcv_convert_to_attr));
 	}
 
 	ret = bm_vpss_multi_parameter_processing(
-		handle, input_num, input, output, NULL, NULL, BMCV_INTER_LINEAR, CSC_MAX_ENUM, NULL, convert_to_attr_inner, NULL, NULL, NULL);
+		handle, input_num, input, output, NULL, NULL, BMCV_INTER_LINEAR, CSC_MAX_ENUM, NULL, convert_to_attr_inner, NULL, NULL, NULL, NO_FLIP);
 
 	free(convert_to_attr_inner);
 	return ret;
@@ -1392,7 +1331,7 @@ bm_status_t bm_vpss_multi_input_multi_output(
 	bm_status_t ret = BM_SUCCESS;
 
 	ret = bm_vpss_multi_parameter_processing(
-		handle, frame_number, input, output, crop_rect, padding_attr, algorithm, csc_type, matrix, NULL, NULL, NULL, NULL);
+		handle, frame_number, input, output, crop_rect, padding_attr, algorithm, csc_type, matrix, NULL, NULL, NULL, NULL, NO_FLIP);
 
 	return ret;
 
@@ -1413,14 +1352,12 @@ bm_status_t bm_vpss_single_input_multi_output(
 	bm_status_t ret = BM_SUCCESS;
 
 	ret = check_bm_vpss_continuity(frame_number, output);
-	if(ret != BM_SUCCESS) {
+	if (ret != BM_SUCCESS)
 		return ret;
-	}
-
 
 	bm_image *input_inner = (bm_image *)malloc(sizeof(bm_image) * frame_number);
 
-	for(i = 0; i< frame_number; i++) {
+	for (i = 0; i< frame_number; i++) {
 		input_inner[i] = input;
 	}
 
@@ -1445,13 +1382,12 @@ bm_status_t bm_vpss_multi_input_single_output(
 	int i;
 	bm_status_t ret = BM_SUCCESS;
 	ret = check_bm_vpss_continuity( frame_number, input);
-	if(ret != BM_SUCCESS) {
+	if (ret != BM_SUCCESS)
 		return ret;
-	}
 
 	bm_image *output_inner = (bm_image *)malloc(sizeof(bm_image) * frame_number);
 
-	for(i = 0; i< frame_number; i++) {
+	for (i = 0; i< frame_number; i++) {
 		output_inner[i] = output;
 	}
 
@@ -1476,7 +1412,7 @@ bm_status_t bm_vpss_csc_matrix_convert(
 	bm_status_t ret = BM_SUCCESS;
 
 	ret = simple_check_bm_vpss_input_param(handle, output, output_num);
-	if(ret != BM_SUCCESS)
+	if (ret != BM_SUCCESS)
 		return ret;
 
 	ret = bm_vpss_single_input_multi_output(
@@ -1521,7 +1457,7 @@ bm_status_t bm_vpss_basic(
 	bm_status_t ret = BM_SUCCESS;
 
 	ret = simple_check_bm_vpss_input_param(handle, input, in_img_num);
-	if(ret != BM_SUCCESS) {
+	if (ret != BM_SUCCESS) {
 		return ret;
 	}
 
@@ -1529,7 +1465,7 @@ bm_status_t bm_vpss_basic(
 		if (crop_num_vec != NULL) {
 			bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, \
 				"crop_num_vec should be NULL err %s: %s: %d\n", __FILE__, __func__, __LINE__);
-			return BM_ERR_FAILURE;
+			return BM_ERR_PARAM;
 		}
 
 		out_img_num = in_img_num;
@@ -1539,7 +1475,7 @@ bm_status_t bm_vpss_basic(
 		if (crop_num_vec == NULL) {
 			bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, \
 				"crop_num_vec should not be NULL err %s: %s: %d\n", __FILE__, __func__, __LINE__);
-			return BM_ERR_FAILURE;
+			return BM_ERR_PARAM;
 		}
 
 		for (i = 0; i < in_img_num; i++) {
@@ -1556,20 +1492,18 @@ bm_status_t bm_vpss_basic(
 	}
 
 	ret = check_bm_vpss_continuity( in_img_num, input);
-	if(ret != BM_SUCCESS) {
+	if (ret != BM_SUCCESS)
 		return ret;
-	}
+
 	ret = check_bm_vpss_continuity( out_img_num, output);
-	if(ret != BM_SUCCESS) {
+	if (ret != BM_SUCCESS)
 		return ret;
-	}
 
 	ret = bm_vpss_multi_input_multi_output(
 		handle, out_img_num, input_inner, output, crop_rect, padding_attr, algorithm, csc_type, matrix);
 
-	if (crop_rect != NULL) {
+	if (crop_rect != NULL)
 		free(input_inner);
-	}
 	return ret;
 }
 
@@ -1602,14 +1536,12 @@ bm_status_t bm_vpss_cvt_padding(
 	csc_type_t csc_type = CSC_MAX_ENUM;
 
 	ret = simple_check_bm_vpss_input_param(handle, output, output_num);
-	if(ret != BM_SUCCESS)
-	{
+	if (ret != BM_SUCCESS)
 		return ret;
-	}
 
 	if (padding_attr == NULL) {
 			bmlib_log("VPSS_PADDING", BMLIB_LOG_ERROR, "vpp padding info is nullptr");
-			return BM_ERR_FAILURE;
+			return BM_ERR_PARAM;
 	}
 
 	ret = bm_vpss_single_input_multi_output(
@@ -1636,10 +1568,10 @@ bm_status_t bm_vpss_draw_rectangle(
 	draw_num = (rect_num >> 2) + 1;
 	bmcv_border* border_cfg = (bmcv_border *)malloc(sizeof(bmcv_border) * draw_num);
 	memset(border_cfg, 0, sizeof(bmcv_border) * draw_num);
-	for(int j = 0; j < draw_num; j++){
+	for (int j = 0; j < draw_num; j++) {
 		int draw_num_current = (j == (draw_num - 1)) ? (rect_num % 4) : 4;
 		border_cfg[j].border_num = draw_num_current;
-		for(int k = 0; k < draw_num_current; k++){
+		for (int k = 0; k < draw_num_current; k++) {
 			int draw_idx = ((j << 2) + k);
 			border_cfg[j].border_cfg[k].rect_border_enable = 1;
 			border_cfg[j].border_cfg[k].st_x = rects[draw_idx].start_x;
@@ -1655,12 +1587,12 @@ bm_status_t bm_vpss_draw_rectangle(
 
 	bm_image *border_image = (bm_image *)malloc(sizeof(bm_image) * draw_num);
 
-	for(i = 0; i< draw_num; i++) {
+	for (i = 0; i< draw_num; i++) {
 		border_image[i] = image;
 	}
 
 	ret = bm_vpss_multi_parameter_processing(
-		handle, draw_num, border_image, border_image, NULL, NULL, BMCV_INTER_LINEAR, CSC_MAX_ENUM, NULL, NULL, border_cfg, NULL, NULL);
+		handle, draw_num, border_image, border_image, NULL, NULL, BMCV_INTER_LINEAR, CSC_MAX_ENUM, NULL, NULL, border_cfg, NULL, NULL, NO_FLIP);
 
 	free(border_image);
 	free(border_cfg);
@@ -1678,7 +1610,7 @@ bm_status_t bm_vpss_csc_convert_to(
 	bmcv_resize_algorithm   algorithm,
 	csc_type_t              csc_type,
 	csc_matrix_t*           matrix,
-	bmcv_convert_to_attr*   convert_to_attr_){
+	bmcv_convert_to_attr*   convert_to_attr_) {
 
 	int out_crop_num = 0, i = 0, j = 0;
 	bm_image *input_inner, *output_inner;
@@ -1687,27 +1619,22 @@ bm_status_t bm_vpss_csc_convert_to(
 	bm_status_t ret = BM_SUCCESS;
 
 	ret = simple_check_bm_vpss_input_param(handle, input, img_num);
-	if(ret != BM_SUCCESS)
-	{
+	if (ret != BM_SUCCESS)
 		return ret;
-	}
 
 	ret = check_bm_vpss_continuity(img_num, input);
-	if(ret != BM_SUCCESS)
-	{
+	if (ret != BM_SUCCESS)
 		return ret;
-	}
+
 	ret = check_bm_vpss_continuity(out_crop_num, output);
-	if(ret != BM_SUCCESS)
-	{
+	if (ret != BM_SUCCESS)
 		return ret;
-	}
 
 	if (crop_rect == NULL) {
 		if (crop_num_vec != NULL) {
 			bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, \
 				"crop_num_vec should be NULL err %s: %s: %d\n", __FILE__, __func__, __LINE__);
-			return BM_ERR_FAILURE;
+			return BM_ERR_PARAM;
 		}
 
 		out_crop_num = img_num;
@@ -1715,7 +1642,7 @@ bm_status_t bm_vpss_csc_convert_to(
 		if (crop_num_vec == NULL) {
 			bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, \
 				"crop_num_vec should not be NULL err %s: %s: %d\n", __FILE__, __func__, __LINE__);
-			return BM_ERR_FAILURE;
+			return BM_ERR_PARAM;
 		}
 		for (i = 0; i < img_num; i++) {
 			out_crop_num += crop_num_vec[i];
@@ -1739,14 +1666,13 @@ bm_status_t bm_vpss_csc_convert_to(
 	}
 
 	convert_to_attr = (bmcv_convert_to_attr *)malloc(sizeof(bmcv_convert_to_attr) * out_crop_num);
-	for(int i=0; i<out_crop_num; i++)
+	for (int i = 0; i < out_crop_num; i++)
 		convert_to_attr[i] = convert_to_attr_[0];
 
 	ret = bm_vpss_multi_parameter_processing(
-		handle, out_crop_num, input_inner, output_inner, crop_rect, padding_attr, algorithm, csc_type, matrix, convert_to_attr, NULL, NULL, NULL);
+		handle, out_crop_num, input_inner, output_inner, crop_rect, padding_attr, algorithm, csc_type, matrix, convert_to_attr, NULL, NULL, NULL, NO_FLIP);
 
-	if (crop_rect != NULL)
-	{
+	if (crop_rect != NULL) {
 		free(input_inner);
 		free(output_inner);
 	}
@@ -1791,21 +1717,18 @@ bm_status_t bm_vpss_stitch(
 	bm_status_t ret = BM_SUCCESS;
 
 	ret = simple_check_bm_vpss_input_param(handle, input, input_num);
-	if(ret != BM_SUCCESS)
-	{
+	if (ret != BM_SUCCESS)
 		return ret;
-	}
 
 	if (dst_crop_rect == NULL) {
 		bmlib_log("VPP-STITCH", BMLIB_LOG_ERROR, "dst_crop_rect is nullptr");
-		return BM_ERR_FAILURE;
+		return BM_ERR_PARAM;
 	}
 
 	bmcv_padding_attr_t *padding_attr = (bmcv_padding_attr_t *)malloc(sizeof(bmcv_padding_attr_t) * input_num);
 
 	memset(padding_attr, 0, input_num *sizeof(bmcv_padding_attr_t));
-	for(i = 0; i < input_num; i++)
-	{
+	for (i = 0; i < input_num; i++) {
 		padding_attr[i].dst_crop_stx = dst_crop_rect[i].start_x;
 		padding_attr[i].dst_crop_sty = dst_crop_rect[i].start_y;
 		padding_attr[i].dst_crop_w   = dst_crop_rect[i].crop_w;
@@ -1833,7 +1756,7 @@ bm_status_t bm_vpss_mosaic_special(
 	bmcv_padding_attr_t * padding_enlarge = (bmcv_padding_attr_t *)malloc(sizeof(bmcv_padding_attr_t) * mosaic_num);
 	bmcv_rect_t * crop_pad = (bmcv_rect_t *)malloc(sizeof(bmcv_rect_t) * mosaic_num);
 	bmcv_rect_t * crop_enlarge = (bmcv_rect_t *)malloc(sizeof(bmcv_rect_t) * mosaic_num);
-	for(int i=0; i<mosaic_num; i++){
+	for (int i = 0; i < mosaic_num; i++) {
 		input[i] = image;
 		crop_pad[i].start_x = mosaic_rect[i].start_x;
 		crop_pad[i].start_y = mosaic_rect[i].start_y;
@@ -1851,23 +1774,23 @@ bm_status_t bm_vpss_mosaic_special(
 		int masaic_pad_w = mosaic_rect[i].crop_w > 128 ? mosaic_rect[i].crop_w : 128;
 		bm_image_create(handle, masaic_pad_h, masaic_pad_w, image.image_format, image.data_type, &masaic_pad[i], NULL);
 		ret = bm_image_alloc_dev_mem(masaic_pad[i], BMCV_HEAP_ANY);
-		if(ret != BM_SUCCESS){
+		if (ret != BM_SUCCESS) {
 				bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
 			"bm_image alloc dev mem fail %s: %s: %d\n", __FILE__, __func__, __LINE__);
 			goto fail2;
 		}
 	}
 	ret = bm_vpss_multi_parameter_processing(handle, mosaic_num, input, masaic_pad, crop_pad,
-			padding_pad, BMCV_INTER_NEAREST, CSC_MAX_ENUM, NULL, NULL, NULL, NULL, NULL);
-	if(ret != BM_SUCCESS)
+			padding_pad, BMCV_INTER_NEAREST, CSC_MAX_ENUM, NULL, NULL, NULL, NULL, NULL, NO_FLIP);
+	if (ret != BM_SUCCESS)
 		goto fail2;
-	for(int i=0; i<mosaic_num; i++){
+	for (int i = 0; i < mosaic_num; i++) {
 		output[i] = image;
 		int masaic_narrow_h = masaic_pad[i].height >> 3;
 		int masaic_narrow_w = masaic_pad[i].width >> 3;
 		bm_image_create(handle, masaic_narrow_h, masaic_narrow_w, image.image_format, image.data_type, &masaic_narrow[i], NULL);
 		ret = bm_image_alloc_dev_mem(masaic_narrow[i], BMCV_HEAP_ANY);
-		if(ret != BM_SUCCESS){
+		if (ret != BM_SUCCESS) {
 				bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
 			"bm_image alloc dev mem fail %s: %s: %d\n", __FILE__, __func__, __LINE__);
 			goto fail1;
@@ -1883,21 +1806,21 @@ bm_status_t bm_vpss_mosaic_special(
 		crop_enlarge[i].crop_h = crop_pad[i].crop_h;
 	}
 	ret = bm_vpss_multi_parameter_processing(handle, mosaic_num, masaic_pad, masaic_narrow, NULL,
-			NULL, BMCV_INTER_NEAREST, CSC_MAX_ENUM, NULL, NULL, NULL, NULL, NULL);
-	if(ret != BM_SUCCESS)
+			NULL, BMCV_INTER_NEAREST, CSC_MAX_ENUM, NULL, NULL, NULL, NULL, NULL, NO_FLIP);
+	if (ret != BM_SUCCESS)
 		goto fail1;
 	ret = bm_vpss_multi_parameter_processing(handle, mosaic_num, masaic_narrow, masaic_pad, NULL,
-			NULL, BMCV_INTER_NEAREST, CSC_MAX_ENUM, NULL, NULL, NULL, NULL, NULL);
-	if(ret != BM_SUCCESS)
+			NULL, BMCV_INTER_NEAREST, CSC_MAX_ENUM, NULL, NULL, NULL, NULL, NULL, NO_FLIP);
+	if (ret != BM_SUCCESS)
 		goto fail1;
 	ret = bm_vpss_multi_parameter_processing(handle, mosaic_num, masaic_pad, output, crop_enlarge,
-			padding_enlarge, BMCV_INTER_NEAREST, CSC_MAX_ENUM, NULL, NULL, NULL, NULL, NULL);
+			padding_enlarge, BMCV_INTER_NEAREST, CSC_MAX_ENUM, NULL, NULL, NULL, NULL, NULL, NO_FLIP);
 fail1:
-	for(int i=0; i<mosaic_num; i++){
+	for (int i = 0; i < mosaic_num; i++) {
 		bm_image_destroy(masaic_narrow + i);
 	}
 fail2:
-	for(int i=0; i<mosaic_num; i++){
+	for (int i = 0; i < mosaic_num; i++) {
 		bm_image_destroy(masaic_pad + i);
 	}
 	free(masaic_narrow);
@@ -1922,7 +1845,7 @@ bm_status_t bm_vpss_mosaic_normal(
 	bm_image * masaic_narrow = (bm_image *)malloc(sizeof(bm_image) * mosaic_num);
 	bmcv_rect_t * crop_narrow = (bmcv_rect_t *)malloc(sizeof(bmcv_rect_t) * mosaic_num);
 	bmcv_padding_attr_t * padding_enlarge = (bmcv_padding_attr_t *)malloc(sizeof(bmcv_padding_attr_t) * mosaic_num);
-	for(int i=0; i<mosaic_num; i++){
+	for (int i = 0; i < mosaic_num; i++) {
 		image[i] = input;
 		crop_narrow[i].start_x = mosaic_rect[i].start_x;
 		crop_narrow[i].start_y = mosaic_rect[i].start_y;
@@ -1935,18 +1858,18 @@ bm_status_t bm_vpss_mosaic_normal(
 		padding_enlarge[i].if_memset = 0;
 		bm_image_create(handle, mosaic_rect[i].crop_h >> 3, mosaic_rect[i].crop_w >> 3, input.image_format, input.data_type, &masaic_narrow[i], NULL);
 		ret = bm_image_alloc_dev_mem(masaic_narrow[i], BMCV_HEAP_ANY);
-		if(ret != BM_SUCCESS){
+		if (ret != BM_SUCCESS) {
 				bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
 			"bm_image alloc dev mem fail %s: %s: %d\n", __FILE__, __func__, __LINE__);
 			goto fail;
 		}
 	}
-	ret = bm_vpss_multi_parameter_processing(handle, mosaic_num, image, masaic_narrow, crop_narrow, NULL, BMCV_INTER_NEAREST, CSC_MAX_ENUM, NULL, NULL, NULL, NULL, NULL);
-	if(ret != BM_SUCCESS)
+	ret = bm_vpss_multi_parameter_processing(handle, mosaic_num, image, masaic_narrow, crop_narrow, NULL, BMCV_INTER_NEAREST, CSC_MAX_ENUM, NULL, NULL, NULL, NULL, NULL, NO_FLIP);
+	if (ret != BM_SUCCESS)
 		goto fail;
-	ret = bm_vpss_multi_parameter_processing(handle, mosaic_num, masaic_narrow, image, NULL, padding_enlarge, BMCV_INTER_NEAREST, CSC_MAX_ENUM, NULL, NULL, NULL, NULL, NULL);
+	ret = bm_vpss_multi_parameter_processing(handle, mosaic_num, masaic_narrow, image, NULL, padding_enlarge, BMCV_INTER_NEAREST, CSC_MAX_ENUM, NULL, NULL, NULL, NULL, NULL, NO_FLIP);
 fail:
-	for(int i=0; i<mosaic_num; i++)
+	for (int i = 0; i < mosaic_num; i++)
 		bm_image_destroy(masaic_narrow + i);
 	free(image);
 	free(masaic_narrow);
@@ -1965,20 +1888,19 @@ bm_status_t bm_vpss_mosaic(
 	int normal_num = 0, special_num = 0;
 	bmcv_rect_t * normal_masaic = (bmcv_rect_t *)malloc(sizeof(bmcv_rect_t) * mosaic_num);
 	bmcv_rect_t * special_masaic = (bmcv_rect_t *)malloc(sizeof(bmcv_rect_t) * mosaic_num);
-	for(int i=0; i<mosaic_num; i++){
-		if(mosaic_rect[i].crop_w < 128 || mosaic_rect[i].crop_h < 128){
+	for (int i = 0; i < mosaic_num; i++) {
+		if (mosaic_rect[i].crop_w < 128 || mosaic_rect[i].crop_h < 128) {
 				special_masaic[special_num] = mosaic_rect[i];
 				special_num += 1;
-		}
-		else{
+		} else {
 				normal_masaic[normal_num] = mosaic_rect[i];
 				normal_num += 1;
 		}
 	}
-	if(special_num > 0){
+	if (special_num > 0) {
 		ret = bm_vpss_mosaic_special(handle, special_num, image, special_masaic);
 	}
-	if(normal_num > 0){
+	if (normal_num > 0) {
 		ret = bm_vpss_mosaic_normal(handle, normal_num, image, normal_masaic);
 	}
 	free(normal_masaic);
@@ -1997,15 +1919,15 @@ bm_status_t bm_vpss_fill_rectangle(
 {
 	bm_status_t ret = BM_SUCCESS;
 	ret = simple_check_bm_vpss_input_param(handle, image, 1);
-	if(ret != BM_SUCCESS)
+	if (ret != BM_SUCCESS)
 		return ret;
-	coverex_cfg * coverex = (coverex_cfg *)malloc(sizeof(coverex_cfg) * rect_num);
-	int execution_num = (rect_num >> 2) + 1, end_cover_num = (rect_num % 4);
+	int execution_num = ((rect_num - 1) >> 2) + 1, end_cover_num = (rect_num % 4);
+	coverex_cfg * coverex = (coverex_cfg *)malloc(sizeof(coverex_cfg) * execution_num);
 	bm_image *input = (bm_image *)malloc(sizeof(bm_image) * execution_num);
-	for(int i = 0; i < execution_num; i++){
+	for (int i = 0; i < execution_num; i++) {
 		coverex[i].cover_num = (i == (execution_num - 1)) ? end_cover_num : 4;
 		input[i] = image[0];
-		for(int j = 0; j < coverex[i].cover_num; j++){
+		for (int j = 0; j < coverex[i].cover_num; j++) {
 			int fill_idx = (i << 2) + j;
 			coverex[i].coverex_param[j].enable = true;
 			coverex[i].coverex_param[j].color = ((r << 16) | (g << 8) | (b));
@@ -2016,7 +1938,7 @@ bm_status_t bm_vpss_fill_rectangle(
 		}
 	}
 	ret = bm_vpss_multi_parameter_processing(
-		handle, execution_num, input, input, NULL, NULL, BMCV_INTER_LINEAR, CSC_MAX_ENUM, NULL, NULL, NULL, coverex, NULL);
+		handle, execution_num, input, input, NULL, NULL, BMCV_INTER_LINEAR, CSC_MAX_ENUM, NULL, NULL, NULL, coverex, NULL, NO_FLIP);
 	free(coverex);
 	free(input);
 	return ret;
@@ -2034,11 +1956,11 @@ bm_status_t bm_vpss_overlay(
 	unsigned char overlay_num = 0;
 	bmcv_rgn_cfg gop_attr;
 	struct cvi_rgn_param *gop_cfg = (struct cvi_rgn_param *)malloc(sizeof(struct cvi_rgn_param) * rect_num);
-	for(int i = 0; i < overlay_time; i++){
+	for (int i = 0; i < overlay_time; i++) {
 		overlay_num = (i == (overlay_time - 1)) ? (rect_num - (i << 4)) : 16;
-		for(int j = 0; j < overlay_num; j++){
+		for (int j = 0; j < overlay_num; j++) {
 			int idx = ((i << 4) + j);
-			switch(overlay_image[idx].image_format){
+			switch(overlay_image[idx].image_format) {
 				case FORMAT_ARGB_PACKED:
 				    gop_cfg[idx].fmt = CVI_RGN_FMT_ARGB8888;
 					break;
@@ -2050,10 +1972,10 @@ bm_status_t bm_vpss_overlay(
 					break;
 				default:
 				    printf("image format not supported \n");
-					ret = BM_NOT_SUPPORTED;
+					ret = BM_ERR_DATA;
 					break;
 			}
-			if(ret != BM_SUCCESS) return ret;
+			if (ret != BM_SUCCESS) return ret;
 
 			// gop_cfg[idx].fmt = CVI_RGN_FMT_ARGB8888;
 			gop_cfg[idx].phy_addr = overlay_image[idx].image_private->data[0].u.device.device_addr;
@@ -2066,10 +1988,21 @@ bm_status_t bm_vpss_overlay(
 		gop_attr.rgn_num = overlay_num;
 		gop_attr.param = gop_cfg + (i << 4);
 		ret = bm_vpss_multi_parameter_processing(
-			handle, 1, &image, &image, NULL, NULL, BMCV_INTER_LINEAR, CSC_MAX_ENUM, NULL, NULL, NULL, NULL, &gop_attr);
-		if(ret != BM_SUCCESS)
+			handle, 1, &image, &image, NULL, NULL, BMCV_INTER_LINEAR, CSC_MAX_ENUM, NULL, NULL, NULL, NULL, &gop_attr, NO_FLIP);
+		if (ret != BM_SUCCESS)
 			break;
 	}
 	free(gop_cfg);
+	return ret;
+}
+
+bm_status_t bm_vpss_flip(
+  bm_handle_t          handle,
+  bm_image             input,
+  bm_image             output,
+  bmcv_flip_mode       flip_mode) {
+	bm_status_t ret = BM_SUCCESS;
+	ret = bm_vpss_multi_parameter_processing(
+		handle, 1, &input, &output, NULL, NULL, BMCV_INTER_LINEAR, CSC_MAX_ENUM, NULL, NULL, NULL, NULL, NULL, flip_mode);
 	return ret;
 }

@@ -148,7 +148,7 @@ bm_status_t bmcv_image_add_weighted(bm_handle_t handle, bm_image input1, float a
 
     int core_id = 0;
     switch(chipid) {
-        case BM1686:
+        case BM1688:
             ret = bm_tpu_kernel_launch(handle, "cv_add_weighted", (u8 *)&api, sizeof(api), core_id);
             if(BM_SUCCESS != ret){
                 bmlib_log("ADD_WEIGHTED", BMLIB_LOG_ERROR, "add_weighted sync api error\n");

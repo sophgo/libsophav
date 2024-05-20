@@ -180,7 +180,12 @@ void WritePlane(int width, int height, int stride, uint8_t* dst, uint8_t* src)
     }
 }
 
-int LoadYuvImage(int format, int interleave, int packed, int width, int height, BmJpuFramebuffer* framebuffer, BmJpuFramebufferSizes * calculated_sizes, uint8_t* dst, uint8_t* src)
+int LoadYuvImage(const EncConfigParam* enc_config,
+                const BmJpuEncOpenParams* enc_open_param,
+                const BmJpuFramebuffer* framebuffer,
+                const BmJpuFramebufferSizes * calculated_sizes,
+                uint8_t* dst,
+                const uint8_t* src)
 {
     int ret = 0;
     int cbcr_w, cbcr_h, stride,cbcr_stride,chromaSize,lumaSize, w,h,packed_stride;
@@ -192,62 +197,62 @@ int LoadYuvImage(int format, int interleave, int packed, int width, int height, 
     uint8_t* dst_y  = dst + framebuffer->y_offset;
     uint8_t* dst_cb = dst + framebuffer->cb_offset;
     uint8_t* dst_cr = dst + framebuffer->cr_offset;
-    switch(format)
+    switch(enc_config->srcFormat)
     {
     case FORMAT_420:
-        cbcr_h = height >> 1;
-        if(interleave == CBCR_SEPARATED)
-            cbcr_w = width >> 1;
+        cbcr_h = enc_config->picHeight >> 1;
+        if(enc_open_param->chroma_interleave == CBCR_SEPARATED)
+            cbcr_w = enc_config->picWidth >> 1;
         else
-            cbcr_w = width;
+            cbcr_w = enc_config->picWidth;
         break;
     case FORMAT_422:
-        cbcr_h = height;
-        if(interleave == CBCR_SEPARATED)
-            cbcr_w = width >> 1;
+        cbcr_h = enc_config->picHeight;
+        if(enc_open_param->chroma_interleave == CBCR_SEPARATED)
+            cbcr_w = enc_config->picWidth >> 1;
         else
-            cbcr_w = width;
+            cbcr_w = enc_config->picWidth;
         break;
     case FORMAT_444:
-        cbcr_w = width;
-        cbcr_h = height;
+        cbcr_w = enc_config->picWidth;
+        cbcr_h = enc_config->picHeight;
         break;
     case FORMAT_400:
         cbcr_w = 0;
         cbcr_h = 0;
         break;
     case FORMAT_224:
-        cbcr_w = width;
-        cbcr_h = height >> 1;
+        cbcr_w = enc_config->picWidth;
+        cbcr_h = enc_config->picHeight >> 1;
         break;
     default:
-        printf("not support the format image, format=%d",format);
+        printf("not support the format image, format=%d",enc_config->srcFormat);
         return -1;
     }
 
     chromaSize = cbcr_w * cbcr_h;
-    lumaSize = width * height;
-    if(!packed)  //planner mode
+    lumaSize = enc_config->picWidth * enc_config->picHeight;
+    if(!enc_open_param->packed_format)  //planner mode
     {
-        WritePlane(width, height, stride, dst_y,src);           // write Y
+        WritePlane(enc_config->picWidth, enc_config->picHeight, stride, dst_y,src);           // write Y
         WritePlane(cbcr_w, cbcr_h, cbcr_stride, dst_cb, src+lumaSize);   // write U or UV(interleave)
-        if(interleave == CBCR_SEPARATED)
+        if(enc_open_param->chroma_interleave == CBCR_SEPARATED)
             WritePlane(cbcr_w, cbcr_h, cbcr_stride, dst_cr, src+lumaSize + chromaSize);   // write V
     }
     else{   //packed mode
-        if(packed == PACKED_FORMAT_444)
+        if(enc_open_param->packed_format == PACKED_FORMAT_444)
         {
-            w = 3 * width;
+            w = 3 * enc_config->picWidth;
             packed_stride = 3 * stride;
         }
         else
         {
-            w = 2 * width;
+            w = 2 * enc_config->picWidth;
             packed_stride = 2 * stride;
         }
-        h = height;
+        h = enc_config->picHeight;
         lumaSize =w * h;
-        if(width == stride)
+        if(enc_config->picWidth == stride)
             memcpy(dst_y, src,lumaSize);
         else
             WritePlane(w, h, packed_stride, dst_y,src);
@@ -735,8 +740,7 @@ int EncodeTest(EncConfigParam *param)
         {
             memset((uint8_t*)p_virt_addr, 0x0, calculated_sizes.total_size);
         }
-        LoadYuvImage(encConfig.srcFormat, open_params.chroma_interleave, open_params.packed_format, encConfig.picWidth,
-             encConfig.picHeight, &framebuffer, &calculated_sizes, (uint8_t*)p_virt_addr, pSrcYuv);
+        LoadYuvImage(&encConfig, &open_params, &framebuffer, &calculated_sizes, (uint8_t*)p_virt_addr, pSrcYuv);
 
         /* Flush cache to the DMA buffer */
         bm_mem_flush_device_mem(handle, framebuffer.dma_buffer);
@@ -822,9 +826,12 @@ int EncodeTest(EncConfigParam *param)
 #else
                 gettimeofday(&end, NULL);
 #endif
+
+            if (ret == BM_JPU_ENC_RETURN_CODE_OK) {
                 difftime = (end.tv_sec + end.tv_usec / 1000.0 / 1000.0) - (start.tv_sec + start.tv_usec / 1000.0 / 1000.0);
                 printf("Encoder thread = %d, time(second) : %f,   jpu theory FPS: %d (not include memory/flush times), real FPS:%d\n",param->instanceIndex, difftime,
                     (int)(encConfig.loopNums/difftime2), (int)(encConfig.loopNums/difftime));
+            }
 #endif
             }
             if (!jpu_slt_en)

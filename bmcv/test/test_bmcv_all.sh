@@ -56,8 +56,11 @@ run_vpss() {
   run_command "test_vpss_stitch_thread 1920 1080 0 /opt/sophon/libsophon-current/bin/res/1920x1080_yuv420.bin 0 0 1920 1080 0 1080 1920 1080 1920 2160 out/stitch_1920x2160_yuv420.bin 0"
   run_command "test_vpss_water_thread 1920 1080 0 /opt/sophon/libsophon-current/bin/res/1920x1080_yuv420.bin /opt/sophon/libsophon-current/bin/res/128x128_sophgo.bin 16384 128 0 100 100 out/water_1920x1080.yuv420 0"
   run_command "test_vpss_overlay_thread 1920 1080 10 300 300 17 20 20 /opt/sophon/libsophon-current/bin/res/car_rgb888.rgb /opt/sophon/libsophon-current/bin/res/300x300_argb8888_dog.rgb 663ce7ae1f1b3154a66a6366a6332559"
-  run_command "test_vpss_overlay_thread 1920 1080 10 80 60 30 100 100 /opt/sophon/libsophon-current/bin/res/car_rgb888.rgb /opt/sophon/libsophon-current/bin/res/dog_s_80x60_pngto4444.bin  52e0003832180b4c74b71395c200c72e"
-  run_command "test_vpss_overlay_thread 1920 1080 10 80 60 32  200 200 /opt/sophon/libsophon-current/bin/res/car_rgb888.rgb /opt/sophon/libsophon-current/bin/res/dog_s_80x60_pngto1555.bin  a858701cb01131f1356f80c76e7813c0"
+  run_command "test_vpss_overlay_thread 1920 1080 10 80 60 30 100 100 /opt/sophon/libsophon-current/bin/res/car_rgb888.rgb /opt/sophon/libsophon-current/bin/res/dog_s_80x60_pngto4444.bin 52e0003832180b4c74b71395c200c72e"
+  run_command "test_vpss_overlay_thread 1920 1080 10 80 60 32  200 200 /opt/sophon/libsophon-current/bin/res/car_rgb888.rgb /opt/sophon/libsophon-current/bin/res/dog_s_80x60_pngto1555.bin a858701cb01131f1356f80c76e7813c0"
+  run_command "test_vpss_flip_thread 1920 1080 0 /opt/sophon/libsophon-current/bin/res/1920x1080_yuv420.bin 1 h_flip.bin 0 1 1 37890f4ab5d6458b57824de9e24ba94f"
+  run_command "test_vpss_flip_thread 1920 1080 0 /opt/sophon/libsophon-current/bin/res/1920x1080_yuv420.bin 2 v_flip.bin 0 1 1 a3a86425b349c6517a2506e4df2334f0"
+  run_command "test_vpss_flip_thread 1920 1080 0 /opt/sophon/libsophon-current/bin/res/1920x1080_yuv420.bin 3 hv_flip.bin 0 1 1 80062a883675498f41d3309cfc6ddb52"
 }
 
 run_tpu(){
@@ -339,12 +342,16 @@ run_ldc(){
   run_command "test_ldc_gdc_grid_info_thread ldc_data/1280x768.yuv ldc_data/out_grid_info.yuv 1280 768 4 4 ldc_data/grid_info_79_44_3476_80_45_1280x720.dat 336080 1 1 9fe88b54ed51a09a9d245b805b346435"
   run_command "test_ldc_gdc_grid_info_thread ldc_data/grid_info_in_nv21/left_00.yuv ldc_data/grid_info_out_nv21/out_left_00.yuv 1280 720 4 4 ldc_data/bianli_grid_info_79_44_3476_80_45_1280x720.dat 336080 1 1 c547898b0af47720760c4ef40145a772"
   # run_command "test_ldc_gdc_grid_info_thread 1 1"
+  # parameters loop test
+  # run_command "test_ldc_rot_thread 1 1 64 64"
+  # run_command "test_ldc_gdc_load_mesh_thread 1 1 64 64"
+  # run_command "test_ldc_gdc_thread 1 1 64 64"
 }
 
 run_dwa(){
-  run_command "test_dwa_rot_thread 128 128 14 dwa_data/128x128_sophgo.bin dwa_data/out_128x128_rot0.bin 0 0 1 1 e001fc14213febf4751fbd8d739d8f28"
-  run_command "test_dwa_rot_thread 128 128 14 dwa_data/128x128_sophgo.bin dwa_data/out_128x128_rot90.bin 1 0 1 1 49361e51b503d001848b769f7dff6e87"
-  run_command "test_dwa_rot_thread 128 128 14 dwa_data/128x128_sophgo.bin dwa_data/out_128x128_rot270.bin 3 0 1 1 b47f8bc0f5dbf60ff8cbe8fab5ca9cf6"
+  run_command "test_dwa_rot_thread 128 128 14 dwa_data/128x128_sophgo.bin dwa_data/out_128x128_rot0.bin 0 1 1 e001fc14213febf4751fbd8d739d8f28"
+  run_command "test_dwa_rot_thread 128 128 14 dwa_data/128x128_sophgo.bin dwa_data/out_128x128_rot90.bin 1 1 1 49361e51b503d001848b769f7dff6e87"
+  run_command "test_dwa_rot_thread 128 128 14 dwa_data/128x128_sophgo.bin dwa_data/out_128x128_rot270.bin 3 1 1 b47f8bc0f5dbf60ff8cbe8fab5ca9cf6"
   run_command "test_dwa_gdc_thread 1920 1080 0 dwa_data/1920x1080_barrel_0.3.yuv dwa_data/out_barrel_0.yuv 1 0 0 0 0 0 -200 1 1 0b8dfc8c16d1fa8b3024107a49471253"
   run_command "test_dwa_gdc_thread 1920 1080 0 dwa_data/1920x1080_barrel_0.3.yuv dwa_data/out_barrel_100.yuv 1 0 0 100 0 0 -200 1 1 6fb920bfec14140d4bcc48571b051ff9"
   run_command "test_dwa_gdc_thread 1920 1080 0 dwa_data/1920x1080_pincushion_0.3.yuv dwa_data/out_pincushion_0.yuv 1 0 0 0 0 0 400 1 1 6c05d5765415b17a3a458e2c08758ebf"
@@ -365,6 +372,10 @@ run_dwa(){
   run_command "test_dwa_dewarp_grid_info_thread 1280 720 14 dwa_data/imgR_1280X720.yonly.yuv dwa_data/out_dewarp_grid_R.yuv dwa_data/grid_info_79_44_3476_80_45_1280x720.dat 336080 1 1 562d0c6e4622f8e66920d35ab5e90881"
   run_command "test_dwa_fisheye_grid_info_thread 2240 2240 0 dwa_data/dc_src_2240x2240_L.yuv dwa_data/out_fisheye_grid_L.yuv 1 dwa_data/L_grid_info_68_68_4624_70_70_dst_2240x2240_src_2240x2240.dat 446496 1 1 0820daea4ead2344e5ae4c1f7165abfa"
   run_command "test_dwa_fisheye_grid_info_thread 2240 2240 0 dwa_data/dc_src_2240x2240_R.yuv dwa_data/out_fisheye_grid_R.yuv 1 dwa_data/R_grid_info_68_68_4624_70_70_dst_2240x2240_src_2240x2240.dat 446496 1 1 a2909b4a63dc9ce529a35e73c172d908"
+  # parameters loop test
+  # run_command "test_dwa_rot_thread 1 1 32 32"
+  # run_command "test_dwa_gdc_thread 1 1 32 32"
+  # run_command "test_dwa_fisheye_thread 1 1 32 32"
 }
 
 run_tde(){
@@ -385,6 +396,59 @@ run_all(){
   run_blend
   run_ive
   run_tde
+  run_kill_vpss
+}
+
+run_kill_vpss(){
+  COMMAND1="test_vpss_convert_thread 1 2147483647000 &
+            test_vpss_convert_thread 1 2147483647000 &
+            test_vpss_convert_thread 1 2147483647000 &
+            test_vpss_convert_thread 1 2147483647000 &
+            test_vpss_convert_thread 1 2147483647000 &
+            test_vpss_convert_thread 1 2147483647000 &
+            test_vpss_convert_thread 1 2147483647000 &
+            test_vpss_convert_thread 1 2147483647000 &
+            "
+  COMMAND2="test_vpss_convert_to_thread 1 300 & \
+            test_vpss_convert_to_thread 1 300 & \
+            test_vpss_convert_to_thread 1 300 & \
+            test_vpss_convert_to_thread 1 300 &
+            "
+
+
+  # Check and start command 1, test_vpss_convert_thread
+  start_command1() {
+    if ! pgrep -f "test_vpss_convert_thread" >/dev/null; then
+      eval "$COMMAND1" &
+      eval "$COMMAND1" &
+    fi
+  }
+
+  # Start command 2, test_vpss_convert_to_thread
+  start_command2() {
+    eval "$COMMAND2" &
+    eval "$COMMAND2" &
+  }
+
+  kill_processes() {
+      pkill -9 -f "test_vpss_convert_thread"
+  }
+
+  # Get the current time plus 5 minutes (5 * 60 seconds)
+  END=$(( $(date +%s) + 5*60 ))
+
+  while [ $(date +%s) -lt $END ]; do
+    start_command1
+
+    start_command2
+
+    if [ $(( $(date +%s) % 20 )) -lt 2 ]; then
+      kill_processes
+    fi
+
+    sleep 10
+  done
+  kill_processes
 }
 
 if [ $bmcv_case = "all" ]; then
@@ -466,6 +530,10 @@ if [ $bmcv_case = "tde" ]; then
       run_tde
       ((count++))
   done
+fi
+
+if [ $bmcv_case = "kill" ]; then
+  run_kill_vpss
 fi
 
 if [ $failed_count -gt 0 ]; then

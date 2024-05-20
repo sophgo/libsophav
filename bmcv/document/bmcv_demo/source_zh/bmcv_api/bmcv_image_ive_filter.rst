@@ -134,3 +134,107 @@ bmcv_ive_filter
       1 & 4 & 7 & 4 & 1 \\
    \end{bmatrix}
    \end{align*}
+
+
+**示例代码**
+
+    .. code-block:: c
+
+      #include <stdio.h>
+      #include <stdlib.h>
+      #include <string.h>
+      #include <pthread.h>
+      #include <math.h>
+      #include <sys/time.h>
+      #include "bmcv_api_ext_c.h"
+      #include <unistd.h>
+
+      extern void bm_ive_read_bin(bm_image src, const char *input_name);
+      extern bm_status_t bm_ive_image_calc_stride(bm_handle_t handle, int img_h, int img_w,
+          bm_image_format_ext image_format, bm_image_data_format_ext data_type, int *stride);
+      int main(){
+        int dev_id = 0;
+        int thrSize = 0; //0 -> 3x3; 1 -> 5x5
+        unsigned char u8Norm = 4;
+        int height = 288, width = 352;
+        bm_image_format_ext fmt = FORMAT_GRAY; // 14 4 6
+        char *src_name = "./data/00_352x288_y.yuv";
+        char *dst_name = "ive_filter_res.yuv";
+        bm_handle_t handle = NULL;
+        int ret = (int)bm_dev_request(&handle, dev_id);
+        if (ret != 0) {
+            printf("Create bm handle failed. ret = %d\n", ret);
+            exit(-1);
+        }
+        signed char arr5by5[25] = { 1, 2, 3, 2, 1, 2, 5, 6, 5, 2, 3, 6, 8,
+                            6, 3, 2, 5, 6, 5, 2, 1, 2, 3, 2, 1 };
+        signed char arr3by3[25] = { 0, 0, 0, 0, 0, 0, 1, 2, 1, 0, 0, 2, 4,
+                            2, 0, 0, 1, 2, 1, 0, 0, 0, 0, 0, 0 };
+        bm_image src, dst;
+        int stride[4];
+        unsigned int i = 0, loop_time = 0;
+        unsigned long long time_single, time_total = 0, time_avg = 0;
+        unsigned long long time_max = 0, time_min = 10000, fps_actual = 0;
+        struct timeval tv_start;
+        struct timeval tv_end;
+        struct timeval timediff;
+
+        bmcv_ive_filter_ctrl filterAttr;
+        (thrSize == 0) ? memcpy(filterAttr.as8_mask, arr3by3, 5 * 5 * sizeof(signed char)) :
+                        memcpy(filterAttr.as8_mask, arr5by5, 5 * 5 * sizeof(signed char));
+        filterAttr.u8_norm = u8Norm;
+
+        // calc ive image stride && create bm image struct
+        bm_ive_image_calc_stride(handle, height, width, fmt, DATA_TYPE_EXT_1N_BYTE, stride);
+        bm_image_create(handle, height, width, fmt, DATA_TYPE_EXT_1N_BYTE, &src, stride);
+        bm_image_create(handle, height, width, fmt, DATA_TYPE_EXT_1N_BYTE, &dst, stride);
+
+        ret = bm_image_alloc_dev_mem(src, BMCV_HEAP_ANY);
+        if (ret != BM_SUCCESS) {
+            printf("src bm_image_alloc_dev_mem failed. ret = %d\n", ret);
+            bm_image_destroy(&src);
+            bm_image_destroy(&dst);
+            exit(-1);
+        }
+
+        ret = bm_image_alloc_dev_mem(dst, BMCV_HEAP_ANY);
+        if (ret != BM_SUCCESS) {
+            printf("src bm_image_alloc_dev_mem failed. ret = %d\n", ret);
+            bm_image_destroy(&src);
+            bm_image_destroy(&dst);
+            exit(-1);
+        }
+
+        bm_ive_read_bin(src, src_name);
+
+        for (i = 0; i < loop_time; i++) {
+            gettimeofday(&tv_start, NULL);
+            ret = bmcv_ive_filter(handle, src, dst, filterAttr);
+            gettimeofday(&tv_end, NULL);
+            timediff.tv_sec  = tv_end.tv_sec - tv_start.tv_sec;
+            timediff.tv_usec = tv_end.tv_usec - tv_start.tv_usec;
+            time_single = (unsigned int)(timediff.tv_sec * 1000000 + timediff.tv_usec);
+
+            if(time_single>time_max){time_max = time_single;}
+            if(time_single<time_min){time_min = time_single;}
+            time_total = time_total + time_single;
+
+            if(ret != BM_SUCCESS){
+                printf("bmcv_ive_filter failed. ret = %d\n", ret);
+                bm_image_destroy(&src);
+                bm_image_destroy(&dst);
+                exit(-1);
+            }
+        }
+
+        time_avg = time_total / loop_time;
+        fps_actual = 1000000 / time_avg;
+        bm_image_destroy(&src);
+        bm_image_destroy(&dst);
+        printf("bmcv_ive_filter: loop %d cycles, time_max = %llu, time_avg = %llu, fps %llu \n",
+                loop_time, time_max, time_avg, fps_actual);
+        printf("bmcv ive filter test successful \n");
+        return 0;
+      }
+
+

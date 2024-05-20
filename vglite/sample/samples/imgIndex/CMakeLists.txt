@@ -7,9 +7,9 @@ set(sample_name imgIndex)
 include_directories(${VG_lite_path}/inc)
 include_directories(${VG_lite_path}/util)
 
-set(SRC ${CMAKE_CURRENT_SOURCE_DIR}/imgIndex.c)
+aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/imgIndex.c SRC)
 
-link_directories(${VG_lite_path}/LD)
+link_directories(${VG_lite_path}/lib)
 
 add_executable(${sample_name} ${SRC})
 target_link_libraries(${sample_name} vg_lite vg_lite_util m)

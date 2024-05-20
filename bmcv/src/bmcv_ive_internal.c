@@ -217,7 +217,7 @@ bm_status_t bmcv_ive_and(
     bm_image             output)
 {
     bm_status_t ret = BM_SUCCESS;
-    unsigned int chipid = BM1686;
+    unsigned int chipid = BM1688;
 #ifndef _FPGA
     ret = bm_get_chipid(handle, &chipid);
     if (BM_SUCCESS != ret)
@@ -225,7 +225,7 @@ bm_status_t bmcv_ive_and(
 #endif
     switch(chipid)
     {
-        case BM1686:
+        case BM1688:
             ret = bm_ive_and(handle, input1, input2, output);
             break;
 
@@ -245,7 +245,7 @@ bm_status_t bmcv_ive_add(
     bmcv_ive_add_attr    attr)
 {
     bm_status_t ret = BM_SUCCESS;
-    unsigned int chipid = BM1686;
+    unsigned int chipid = BM1688;
 #ifndef _FPGA
     ret = bm_get_chipid(handle, &chipid);
     if (BM_SUCCESS != ret)
@@ -253,7 +253,7 @@ bm_status_t bmcv_ive_add(
 #endif
     switch(chipid)
     {
-        case BM1686:
+        case BM1688:
             ret = bm_ive_add(handle, input1, input2, output, attr);
             break;
 
@@ -272,7 +272,7 @@ bm_status_t bmcv_ive_or(
     bm_image             output)
 {
     bm_status_t ret = BM_SUCCESS;
-    unsigned int chipid = BM1686;
+    unsigned int chipid = BM1688;
 #ifndef _FPGA
     ret = bm_get_chipid(handle, &chipid);
     if (BM_SUCCESS != ret)
@@ -280,7 +280,7 @@ bm_status_t bmcv_ive_or(
 #endif
     switch(chipid)
     {
-        case BM1686:
+        case BM1688:
             ret = bm_ive_or(handle, input1, input2, output);
             break;
 
@@ -299,7 +299,7 @@ bm_status_t bmcv_ive_xor(
     bm_image             output)
 {
     bm_status_t ret = BM_SUCCESS;
-    unsigned int chipid = BM1686;
+    unsigned int chipid = BM1688;
 #ifndef _FPGA
     ret = bm_get_chipid(handle, &chipid);
     if (BM_SUCCESS != ret)
@@ -307,7 +307,7 @@ bm_status_t bmcv_ive_xor(
 #endif
     switch(chipid)
     {
-        case BM1686:
+        case BM1688:
             ret = bm_ive_xor(handle, input1, input2, output);
             break;
 
@@ -327,7 +327,7 @@ bm_status_t bmcv_ive_sub(
     bmcv_ive_sub_attr      attr)
 {
     bm_status_t ret = BM_SUCCESS;
-    unsigned int chipid = BM1686;
+    unsigned int chipid = BM1688;
 #ifndef _FPGA
     ret = bm_get_chipid(handle, &chipid);
     if (BM_SUCCESS != ret)
@@ -335,7 +335,7 @@ bm_status_t bmcv_ive_sub(
 #endif
     switch(chipid)
     {
-        case BM1686:
+        case BM1688:
             ret = bm_ive_sub(handle, input1, input2, output, attr);
             break;
 
@@ -355,7 +355,7 @@ bm_status_t bmcv_ive_thresh(
     bmcv_ive_thresh_attr      attr)
 {
     bm_status_t ret = BM_SUCCESS;
-    unsigned int chipid = BM1686;
+    unsigned int chipid = BM1688;
 #ifndef _FPGA
     ret = bm_get_chipid(handle, &chipid);
     if (BM_SUCCESS != ret)
@@ -363,7 +363,7 @@ bm_status_t bmcv_ive_thresh(
 #endif
     switch(chipid)
     {
-        case BM1686:
+        case BM1688:
             ret = bm_ive_thresh(handle, input, output, thresh_mode, attr);
             break;
 
@@ -381,7 +381,7 @@ bm_status_t bmcv_ive_dma_set(
     unsigned long long               val)
 {
     bm_status_t ret = BM_SUCCESS;
-    unsigned int chipid = BM1686;
+    unsigned int chipid = BM1688;
 #ifndef _FPGA
     ret = bm_get_chipid(handle, &chipid);
     if (BM_SUCCESS != ret)
@@ -389,7 +389,7 @@ bm_status_t bmcv_ive_dma_set(
 #endif
     switch(chipid)
     {
-        case BM1686:
+        case BM1688:
             ret = bm_ive_dma_set(handle, image, dma_set_mode, val);
             break;
 
@@ -409,7 +409,7 @@ bm_status_t bmcv_ive_dma(
     bmcv_ive_interval_dma_attr *     attr)
 {
     bm_status_t ret = BM_SUCCESS;
-    unsigned int chipid = BM1686;
+    unsigned int chipid = BM1688;
 #ifndef _FPGA
     ret = bm_get_chipid(handle, &chipid);
     if (BM_SUCCESS != ret)
@@ -417,7 +417,7 @@ bm_status_t bmcv_ive_dma(
 #endif
     switch(chipid)
     {
-        case BM1686:
+        case BM1688:
             ret = bm_ive_dma(handle, input, output, dma_mode, attr);
             break;
 
@@ -436,7 +436,7 @@ bm_status_t bmcv_ive_map(
     bm_device_mem_t         map_table)
 {
     bm_status_t ret = BM_SUCCESS;
-    unsigned int chipid = BM1686;
+    unsigned int chipid = BM1688;
 #ifndef _FPGA
     ret = bm_get_chipid(handle, &chipid);
     if (BM_SUCCESS != ret)
@@ -444,7 +444,7 @@ bm_status_t bmcv_ive_map(
 #endif
     switch(chipid)
     {
-        case BM1686:
+        case BM1688:
             ret = bm_ive_map(handle, input, output, map_table);
             break;
 
@@ -462,7 +462,7 @@ bm_status_t bmcv_ive_hist(
         bm_device_mem_t      output)
 {
     bm_status_t ret = BM_SUCCESS;
-    unsigned chipid = BM1686;
+    unsigned chipid = BM1688;
     if (output.size != 1024){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
             "output size alloc less 1024 %s: %s: %d\n",
@@ -475,7 +475,7 @@ bm_status_t bmcv_ive_hist(
 #endif
 
     switch(chipid){
-        case BM1686:
+        case BM1688:
             ret = bm_ive_hist(handle, input, output);
             break;
         default:
@@ -492,7 +492,7 @@ bm_status_t bmcv_ive_integ(
         bm_device_mem_t          output,
         bmcv_ive_integ_ctrl_s    integ_attr){
     bm_status_t ret = BM_SUCCESS;
-    unsigned chipid = BM1686;
+    unsigned chipid = BM1688;
 #ifndef _FPGA
     ret = bm_get_chipid(handle, &chipid);
     if (BM_SUCCESS != ret)
@@ -500,7 +500,7 @@ bm_status_t bmcv_ive_integ(
 #endif
 
     switch(chipid){
-        case BM1686:
+        case BM1688:
             ret = bm_ive_integ(handle, input, output, integ_attr);
             break;
         default:
@@ -517,7 +517,7 @@ bm_status_t bmcv_ive_ncc(
         bm_image             input2,
         bm_device_mem_t      output){
     bm_status_t ret = BM_SUCCESS;
-    unsigned chipid = BM1686;
+    unsigned chipid = BM1688;
 #ifndef _FPGA
     ret = bm_get_chipid(handle, &chipid);
     if (BM_SUCCESS != ret)
@@ -525,7 +525,7 @@ bm_status_t bmcv_ive_ncc(
 #endif
 
     switch(chipid){
-        case BM1686:
+        case BM1688:
             ret = bm_ive_ncc(handle, input1, input2, output);
             break;
         default:
@@ -542,7 +542,7 @@ bm_status_t bmcv_ive_ord_stat_filter(
         bmcv_ive_ord_stat_filter_mode mode)
 {
     bm_status_t ret = BM_SUCCESS;
-    unsigned chipid = BM1686;
+    unsigned chipid = BM1688;
 #ifndef _FPGA
     ret = bm_get_chipid(handle, &chipid);
     if (BM_SUCCESS != ret)
@@ -550,7 +550,7 @@ bm_status_t bmcv_ive_ord_stat_filter(
 #endif
 
     switch(chipid){
-        case BM1686:
+        case BM1688:
             ret = bm_ive_ord_stat_filter(handle, &input, &output, mode);
             break;
         default:
@@ -567,7 +567,7 @@ bm_status_t bmcv_ive_lbp(
         bmcv_ive_lbp_ctrl_attr   lbp_attr)
 {
     bm_status_t ret = BM_SUCCESS;
-    unsigned chipid = BM1686;
+    unsigned chipid = BM1688;
 #ifndef _FPGA
     ret = bm_get_chipid(handle, &chipid);
     if (BM_SUCCESS != ret)
@@ -575,7 +575,7 @@ bm_status_t bmcv_ive_lbp(
 #endif
 
     switch(chipid){
-        case BM1686:
+        case BM1688:
             ret = bm_ive_lbp(handle, &input, &output, &lbp_attr);
             break;
         default:
@@ -592,7 +592,7 @@ bm_status_t bmcv_ive_dilate(
         unsigned char         dilate_mask[25])
 {
     bm_status_t ret = BM_SUCCESS;
-    unsigned chipid = BM1686;
+    unsigned chipid = BM1688;
 #ifndef _FPGA
     ret = bm_get_chipid(handle, &chipid);
     if (BM_SUCCESS != ret)
@@ -600,7 +600,7 @@ bm_status_t bmcv_ive_dilate(
 #endif
 
     switch(chipid){
-        case BM1686:
+        case BM1688:
             ret = bm_ive_dilate(handle, &input, &output, dilate_mask);
             break;
         default:
@@ -617,7 +617,7 @@ bm_status_t bmcv_ive_erode(
         unsigned char         erode_mask[25])
 {
     bm_status_t ret = BM_SUCCESS;
-    unsigned chipid = BM1686;
+    unsigned chipid = BM1688;
 #ifndef _FPGA
     ret = bm_get_chipid(handle, &chipid);
     if (BM_SUCCESS != ret)
@@ -625,7 +625,7 @@ bm_status_t bmcv_ive_erode(
 #endif
 
     switch(chipid){
-        case BM1686:
+        case BM1688:
             ret = bm_ive_erode(handle, &input, &output, erode_mask);
             break;
         default:
@@ -643,7 +643,7 @@ bm_status_t bmcv_ive_mag_and_ang(
         bmcv_ive_mag_and_ang_ctrl     attr)
 {
     bm_status_t ret = BM_SUCCESS;
-    unsigned chipid = BM1686;
+    unsigned chipid = BM1688;
 #ifndef _FPGA
     ret = bm_get_chipid(handle, &chipid);
     if (BM_SUCCESS != ret)
@@ -651,7 +651,7 @@ bm_status_t bmcv_ive_mag_and_ang(
 #endif
 
     switch(chipid){
-        case BM1686:
+        case BM1688:
             ret = bm_ive_mag_and_ang(handle, input, mag_output, ang_output, &attr);
             break;
         default:
@@ -669,7 +669,7 @@ bm_status_t bmcv_ive_sobel(
         bmcv_ive_sobel_ctrl    sobel_attr)
 {
     bm_status_t ret = BM_SUCCESS;
-    unsigned chipid = BM1686;
+    unsigned chipid = BM1688;
 #ifndef _FPGA
     ret = bm_get_chipid(handle, &chipid);
     if (BM_SUCCESS != ret)
@@ -677,7 +677,7 @@ bm_status_t bmcv_ive_sobel(
 #endif
 
     switch(chipid){
-        case BM1686:
+        case BM1688:
             ret = bm_ive_sobel(handle, input, output_h, output_v, &sobel_attr);
             break;
         default:
@@ -696,7 +696,7 @@ bm_status_t bmcv_ive_norm_grad(
         bmcv_ive_normgrad_ctrl   normgrad_attr)
 {
     bm_status_t ret = BM_SUCCESS;
-    unsigned chipid = BM1686;
+    unsigned chipid = BM1688;
 #ifndef _FPGA
     ret = bm_get_chipid(handle, &chipid);
     if (BM_SUCCESS != ret)
@@ -704,7 +704,7 @@ bm_status_t bmcv_ive_norm_grad(
 #endif
 
     switch(chipid){
-        case BM1686:
+        case BM1688:
             ret = bm_ive_normgrad(handle, input, output_h, output_v, output_hv, &normgrad_attr);
             break;
         default:
@@ -723,7 +723,7 @@ bm_status_t bmcv_ive_gmm(
         bmcv_ive_gmm_ctrl      gmm_attr)
 {
     bm_status_t ret = BM_SUCCESS;
-    unsigned chipid = BM1686;
+    unsigned chipid = BM1688;
 #ifndef _FPGA
     ret = bm_get_chipid(handle, &chipid);
     if (BM_SUCCESS != ret)
@@ -731,7 +731,7 @@ bm_status_t bmcv_ive_gmm(
 #endif
 
     switch(chipid){
-        case BM1686:
+        case BM1688:
             ret = bm_ive_gmm(handle, &input, &output_fg, &output_bg, &output_model, &gmm_attr);
             break;
         default:
@@ -752,7 +752,7 @@ bm_status_t bmcv_ive_gmm2(
         bmcv_ive_gmm2_ctrl     gmm2_attr)
 {
     bm_status_t ret = BM_SUCCESS;
-    unsigned chipid = BM1686;
+    unsigned chipid = BM1688;
 #ifndef _FPGA
     ret = bm_get_chipid(handle, &chipid);
     if (BM_SUCCESS != ret)
@@ -760,7 +760,7 @@ bm_status_t bmcv_ive_gmm2(
 #endif
 
     switch(chipid){
-        case BM1686:
+        case BM1688:
             ret = bm_ive_gmm2(handle, input, input_factor, output_fg,
                             output_bg, output_match_model_info, &output_model, &gmm2_attr);
             break;
@@ -934,7 +934,7 @@ bm_status_t bmcv_ive_canny(
         bmcv_ive_canny_hys_edge_ctrl   canny_hys_edge_attr)
 {
     bm_status_t ret = BM_SUCCESS;
-    unsigned chipid = BM1686;
+    unsigned chipid = BM1688;
 #ifndef _FPGA
     ret = bm_get_chipid(handle, &chipid);
     if (BM_SUCCESS != ret)
@@ -942,7 +942,7 @@ bm_status_t bmcv_ive_canny(
 #endif
 
     switch(chipid){
-        case BM1686:
+        case BM1688:
             ret = bmcv_ive_canny_internal(handle, &input, output_edge, &canny_hys_edge_attr);
             break;
         default:
@@ -960,7 +960,7 @@ bm_status_t bmcv_ive_filter(
         bmcv_ive_filter_ctrl         filter_attr)
 {
     bm_status_t ret = BM_SUCCESS;
-    unsigned chipid = BM1686;
+    unsigned chipid = BM1688;
 #ifndef _FPGA
     ret = bm_get_chipid(handle, &chipid);
     if (BM_SUCCESS != ret)
@@ -968,7 +968,7 @@ bm_status_t bmcv_ive_filter(
 #endif
 
     switch(chipid){
-        case BM1686:
+        case BM1688:
             ret = bm_ive_filter(handle, input, output, filter_attr);
             break;
         default:
@@ -985,7 +985,7 @@ bm_status_t bmcv_ive_csc(
         csc_type_t      csc_type)
 {
     bm_status_t ret = BM_SUCCESS;
-    unsigned chipid = BM1686;
+    unsigned chipid = BM1688;
 #ifndef _FPGA
     ret = bm_get_chipid(handle, &chipid);
     if (BM_SUCCESS != ret)
@@ -993,7 +993,7 @@ bm_status_t bmcv_ive_csc(
 #endif
 
     switch(chipid){
-        case BM1686:
+        case BM1688:
             ret = bm_ive_csc(handle, &input, &output, csc_type);
             break;
         default:
@@ -1010,14 +1010,14 @@ bm_status_t bmcv_ive_resize(
     bmcv_resize_algorithm     resize_mode)
 {
     bm_status_t ret = BM_SUCCESS;
-    unsigned chipid = BM1686;
+    unsigned chipid = BM1688;
 #ifndef _FPGA
     ret = bm_get_chipid(handle, &chipid);
     if (BM_SUCCESS != ret)
         return ret;
 #endif
     switch(chipid){
-        case BM1686:
+        case BM1688:
             ret = bm_ive_resize(handle, &input, &output, resize_mode);
             break;
         default:
@@ -1035,14 +1035,14 @@ bm_status_t bmcv_ive_stcandicorner(
         bmcv_ive_stcandicorner_attr   stcandicorner_attr)
 {
     bm_status_t ret = BM_SUCCESS;
-    unsigned chipid = BM1686;
+    unsigned chipid = BM1688;
 #ifndef _FPGA
     ret = bm_get_chipid(handle, &chipid);
     if (BM_SUCCESS != ret)
         return ret;
 #endif
     switch(chipid){
-        case BM1686:
+        case BM1688:
             ret = bm_ive_stCandiCorner(handle, &input, &output, &stcandicorner_attr);
             break;
         default:
@@ -1062,14 +1062,14 @@ bm_status_t bmcv_ive_gradfg(
     bmcv_ive_gradfg_attr    gradfg_attr)
 {
     bm_status_t ret = BM_SUCCESS;
-    unsigned chipid = BM1686;
+    unsigned chipid = BM1688;
 #ifndef _FPGA
     ret = bm_get_chipid(handle, &chipid);
     if (BM_SUCCESS != ret)
         return ret;
 #endif
     switch(chipid){
-        case BM1686:
+        case BM1688:
             ret = bm_ive_gradFg(handle, &input_bgdiff_fg,
                     &input_fggrad, &input_bggrad, &output_gradfg, &gradfg_attr);
             break;
@@ -1127,14 +1127,14 @@ bm_status_t bmcv_ive_sad(
         bmcv_ive_sad_thresh_attr*  thresh_attr)
 {
     bm_status_t ret = BM_SUCCESS;
-    unsigned chipid = BM1686;
+    unsigned chipid = BM1688;
 #ifndef _FPGA
     ret = bm_get_chipid(handle, &chipid);
     if (BM_SUCCESS != ret)
         return ret;
 #endif
     switch(chipid){
-        case BM1686:
+        case BM1688:
             ret = bm_ive_sad(handle, input, output_sad, output_thr, sad_attr, thresh_attr);
             if(output_sad->data_type == DATA_TYPE_EXT_1N_BYTE)
                 ret = bmcv_image_ive_sad_u8(handle, *output_sad);
@@ -1157,14 +1157,14 @@ bm_status_t bmcv_ive_match_bgmodel(
         bmcv_ive_match_bgmodel_attr   attr)
 {
     bm_status_t ret = BM_SUCCESS;
-    unsigned chipid = BM1686;
+    unsigned chipid = BM1688;
 #ifndef _FPGA
     ret = bm_get_chipid(handle, &chipid);
     if (BM_SUCCESS != ret)
         return ret;
 #endif
     switch(chipid){
-        case BM1686:
+        case BM1688:
             ret = bm_ive_match_bgmodel(handle, &cur_img, &bgmodel_img,
                     &fgflag_img, &diff_fg_img, &stat_data_mem, &attr);
             break;
@@ -1187,14 +1187,14 @@ bm_status_t bmcv_ive_update_bgmodel(
     bmcv_ive_update_bgmodel_attr   attr)
 {
     bm_status_t ret = BM_SUCCESS;
-    unsigned chipid = BM1686;
+    unsigned chipid = BM1688;
 #ifndef _FPGA
     ret = bm_get_chipid(handle, &chipid);
     if (BM_SUCCESS != ret)
         return ret;
 #endif
     switch(chipid){
-        case BM1686:
+        case BM1688:
             ret = bm_ive_update_bgmodel(handle, cur_img, bgmodel_img,
                            fgflag_img, bg_img, chgsta_img, &stat_data_mem, &attr);
             break;
@@ -1213,14 +1213,14 @@ bm_status_t bmcv_ive_ccl(
         bmcv_ive_ccl_attr    ccl_attr)
 {
     bm_status_t ret = BM_SUCCESS;
-    unsigned chipid = BM1686;
+    unsigned chipid = BM1688;
 #ifndef _FPGA
     ret = bm_get_chipid(handle, &chipid);
     if (BM_SUCCESS != ret)
         return ret;
 #endif
     switch(chipid){
-        case BM1686:
+        case BM1688:
             ret = bm_ive_ccl(handle, &src_dst_image, &ccblob_output, &ccl_attr);
             break;
         default:
@@ -1238,14 +1238,14 @@ bm_status_t bmcv_ive_bernsen(
     bmcv_ive_bernsen_attr attr)
 {
     bm_status_t ret = BM_SUCCESS;
-    unsigned chipid = BM1686;
+    unsigned chipid = BM1688;
 #ifndef _FPGA
     ret = bm_get_chipid(handle, &chipid);
     if (BM_SUCCESS != ret)
         return ret;
 #endif
     switch(chipid){
-        case BM1686:
+        case BM1688:
             ret = bm_ive_bernsen(handle, input, output, attr);
             break;
         default:
@@ -1264,14 +1264,14 @@ bm_status_t bmcv_ive_filter_and_csc(
     csc_type_t              csc_type)
 {
     bm_status_t ret = BM_SUCCESS;
-    unsigned chipid = BM1686;
+    unsigned chipid = BM1688;
 #ifndef _FPGA
     ret = bm_get_chipid(handle, &chipid);
     if (BM_SUCCESS != ret)
         return ret;
 #endif
     switch(chipid){
-        case BM1686:
+        case BM1688:
             ret = bm_ive_filterAndCsc(handle, input, output, filter_attr, csc_type);
             break;
         default:
@@ -1289,14 +1289,14 @@ bm_status_t bmcv_ive_16bit_to_8bit(
     bmcv_ive_16bit_to_8bit_attr attr)
 {
     bm_status_t ret = BM_SUCCESS;
-    unsigned chipid = BM1686;
+    unsigned chipid = BM1688;
 #ifndef _FPGA
     ret = bm_get_chipid(handle, &chipid);
     if (BM_SUCCESS != ret)
         return ret;
 #endif
     switch(chipid){
-        case BM1686:
+        case BM1688:
             ret = bm_ive_16bit_to_8bit(handle, input, output, attr);
             break;
         default:
@@ -1315,14 +1315,14 @@ bm_status_t bmcv_ive_frame_diff_motion(
     bmcv_ive_frame_diff_motion_attr attr)
 {
     bm_status_t ret = BM_SUCCESS;
-    unsigned chipid = BM1686;
+    unsigned chipid = BM1688;
 #ifndef _FPGA
     ret = bm_get_chipid(handle, &chipid);
     if (BM_SUCCESS != ret)
         return ret;
 #endif
     switch(chipid){
-        case BM1686:
+        case BM1688:
             ret = bm_ive_frame_diff_motion(handle, input1, input2, output, attr);
             break;
         default:

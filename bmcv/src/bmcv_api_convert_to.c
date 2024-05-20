@@ -143,10 +143,10 @@ bm_status_t bmcv_convert_to_internal(bm_handle_t          handle,
     arg.convert_storage_mode = convert_storage_mode;
     arg.image_num            = image_num;
     arg.output_img_addr      = bm_mem_get_device_addr(output_img_addr);
-    unsigned int chipid = BM1686;
+    unsigned int chipid = BM1688;
     bm_get_chipid(handle, &chipid);
     switch (chipid){
-        case BM1686:
+        case BM1688:
             ret = bm_tpu_kernel_launch(handle, "cv_convert_to", (u8 *)&arg, sizeof(arg), core_id);
             if(ret != BM_SUCCESS){
                 BMCV_ERR_LOG("convert_to sync api error\r\n");
@@ -329,7 +329,7 @@ bm_status_t bmcv_image_convert_to(
     bm_image *           output)
 {
     bm_status_t ret = BM_SUCCESS;
-    unsigned int chipid = BM1686;
+    unsigned int chipid = BM1688;
     int loop = (input_num + 3) / 4;
     int i = 0;
 
@@ -339,7 +339,7 @@ bm_status_t bmcv_image_convert_to(
 
     switch(chipid)
     {
-      case BM1686:{
+      case BM1688:{
         if(input->data_type == DATA_TYPE_EXT_FLOAT32 || input->data_type == DATA_TYPE_EXT_1N_BYTE_SIGNED){
             for (i = 0; i < loop; i++) {
                 int num = (i == loop - 1) ? (input_num - (loop - 1) * 4) : 4;

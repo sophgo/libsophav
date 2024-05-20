@@ -21,12 +21,12 @@
 
 #define __func__ __FUNCTION__
 
-char *error_type[] = 
+char* error_type[] =
 {
     "VG_LITE_SUCCESS",
     "VG_LITE_INVALID_ARGUMENT",
     "VG_LITE_OUT_OF_MEMORY",
-    "VG_LITE_NO_CONTEXT",      
+    "VG_LITE_NO_CONTEXT",
     "VG_LITE_TIMEOUT",
     "VG_LITE_OUT_OF_RESOURCES",
     "VG_LITE_GENERIC_IO",
@@ -39,26 +39,27 @@ char *error_type[] =
     error = Function; \
     if (IS_ERROR(error)) \
     { \
-        printf("[%s: %d] failed.error type is %s\n", __func__, __LINE__,error_type[error]);\
+        printf("[%s: %d] error type is %s\n", __func__, __LINE__,error_type[error]);\
         goto ErrorHandler; \
     }
 
 static int fb_width = DEFAULT_WIDTH, fb_height = DEFAULT_HEIGHT;
 static float fb_scale = 1.0f;
-static vg_lite_buffer_t srcbuffer[4];
+static vg_lite_buffer_t srcbuffer[5];
 static vg_lite_buffer_t dstbuffer;
 static vg_lite_buffer_t image;
-static vg_lite_buffer_t * fb;
+static vg_lite_buffer_t* fb;
 static vg_lite_buffer_format_t formats[] = {
     VG_LITE_NV12,
     VG_LITE_NV16,
     VG_LITE_YV12,
     VG_LITE_YV16,
+    VG_LITE_YV24,
 };
 void cleanup(void)
 {
     int i;
-    for (i = 0; i < sizeof(srcbuffer)/sizeof(srcbuffer[0]); i++) {
+    for (i = 0; i < sizeof(srcbuffer) / sizeof(srcbuffer[0]); i++) {
         if (srcbuffer[i].handle != NULL) {
             vg_lite_free(&srcbuffer[i]);
         }
@@ -69,23 +70,29 @@ void cleanup(void)
     vg_lite_close();
 }
 
-int main(int argc, const char * argv[])
+int main(int argc, const char* argv[])
 {
     int i = 0;
     vg_lite_filter_t filter;
     vg_lite_matrix_t matrix;
+    uint32_t feature_check = 0;
     char fname[64];
     /* Initialize vg_lite engine. */
     vg_lite_error_t error = VG_LITE_SUCCESS;
     CHECK_ERROR(vg_lite_init(fb_width, fb_height));
     filter = VG_LITE_FILTER_POINT;
-
-    for(i=0;i < sizeof(srcbuffer)/sizeof(srcbuffer[0]);i++) {
+    feature_check = vg_lite_query_feature(gcFEATURE_BIT_VG_YUV_INPUT);
+    if (!feature_check) {
+        printf("yuv input is not supported.\n");
+        cleanup();
+        return -1;
+    }
+    for (i = 0; i < sizeof(srcbuffer) / sizeof(srcbuffer[0]); i++) {
         srcbuffer[i].width = 640;
         srcbuffer[i].height = 480;
         srcbuffer[i].format = formats[i];
     }
-    dstbuffer.width  = fb_width;
+    dstbuffer.width = fb_width;
     dstbuffer.height = fb_height;
     dstbuffer.format = VG_LITE_BGRA8888;
 
@@ -106,9 +113,10 @@ int main(int argc, const char * argv[])
         return -1;
     }
 
-    vg_lite_yv12toyv16(&srcbuffer[3],&srcbuffer[2]);
+    vg_lite_yv12toyv16(&srcbuffer[3], &srcbuffer[2]);
+    vg_lite_yv12toyv24(&srcbuffer[4], &srcbuffer[2]);
 
-    for (i = 0; i < sizeof(srcbuffer)/sizeof(srcbuffer[0]); i++) {
+    for (i = 0; i < sizeof(srcbuffer) / sizeof(srcbuffer[0]); i++) {
         CHECK_ERROR(vg_lite_clear(&dstbuffer, NULL, 0xFFFF0000));
         vg_lite_identity(&matrix);
         CHECK_ERROR(vg_lite_blit(&dstbuffer, &srcbuffer[i], &matrix, VG_LITE_BLEND_NONE, 0, filter));

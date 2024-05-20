@@ -32,7 +32,7 @@ char *error_type[] =
     error = Function; \
     if (IS_ERROR(error)) \
     { \
-        printf("[%s: %d] failed.error type is %s\n", __func__, __LINE__,error_type[error]);\
+        printf("[%s: %d] error type is %s\n", __func__, __LINE__,error_type[error]);\
         goto ErrorHandler; \
     }
 static int   fb_width = 320, fb_height = 480;
@@ -95,8 +95,8 @@ int main(int argc, const char * argv[])
     vg_lite_rectangle_t rect[2];
     rect[0].x = 0;
     rect[0].y = 0;
-    rect[0].width = 50;
-    rect[0].height= 50;
+    rect[0].width = 58;
+    rect[0].height= 58;
     rect[1].x = 150;
     rect[1].y = 150;
     rect[1].width = 240;
@@ -104,11 +104,7 @@ int main(int argc, const char * argv[])
 
     CHECK_ERROR(vg_lite_init(fb_width, fb_height));
     feature_check = vg_lite_query_feature(gcFEATURE_BIT_VG_MASK);
-    if (!feature_check) {
-        printf("scissor is not supported.\n");
-        cleanup();
-        return -1;
-    }
+
     /* Set image filter type according to hardware feature. */
     filter = VG_LITE_FILTER_POINT;   
 
@@ -118,9 +114,7 @@ int main(int argc, const char * argv[])
         cleanup();
         return -1;
     }
-
     fb_scale = (float)fb_width / DEFAULT_SIZE;
-    
     /* Allocate the off-screen buffer. */
     buffer.width  = fb_width;
     buffer.height = fb_height;
@@ -128,15 +122,17 @@ int main(int argc, const char * argv[])
     CHECK_ERROR(vg_lite_allocate(&buffer));
     fb = &buffer;
     CHECK_ERROR(vg_lite_clear(fb, NULL, 0xFFFF0000));
+    vg_lite_set_scissor(50, 30, fb_width - 100, fb_height - 50);
 
+    if (feature_check) {
+        vg_lite_scissor_rects(nums, rect);
+        vg_lite_enable_scissor();
+    }
 
     /* Clear the buffer with blue. */
     vg_lite_identity(&matrix);
-
     /* Blit the image using the matrix. */
     CHECK_ERROR(vg_lite_blit(fb, &image, &matrix, VG_LITE_BLEND_NONE, 0, filter));
-    vg_lite_scissor_rects(nums, rect);
-    // vg_lite_enable_scissor();
     vg_lite_identity(&matrix);
     vg_lite_translate(fb_width / 2.0f, fb_height / 2.0f, &matrix);
     vg_lite_scale(5, 5, &matrix);

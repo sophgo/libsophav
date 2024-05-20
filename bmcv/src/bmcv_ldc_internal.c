@@ -183,7 +183,7 @@ bm_status_t bmcv_ldc_rot(bm_handle_t          handle,
                          bmcv_rot_mode        rot_mode)
 {
     bm_status_t ret = BM_SUCCESS;
-    unsigned int chipid = BM1686;
+    unsigned int chipid = BM1688;
     ret = bm_get_chipid(handle, &chipid);
 
     if(ret != BM_SUCCESS) {
@@ -192,7 +192,7 @@ bm_status_t bmcv_ldc_rot(bm_handle_t          handle,
     }
 
     switch(chipid) {
-        case BM1686:
+        case BM1688:
             ret = bm_ldc_rot_internal(handle, in_image, out_image, rot_mode);
             if(ret != BM_SUCCESS){
                 bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "Bmcv ldc execution failed! \n");
@@ -213,7 +213,7 @@ bm_status_t bmcv_ldc_gdc(bm_handle_t          handle,
                          bmcv_gdc_attr        ldc_attr)
 {
     bm_status_t ret = BM_SUCCESS;
-    unsigned int chipid = BM1686;
+    unsigned int chipid = BM1688;
     ret = bm_get_chipid(handle, &chipid);
 
     if(ret != BM_SUCCESS) {
@@ -222,7 +222,7 @@ bm_status_t bmcv_ldc_gdc(bm_handle_t          handle,
     }
 
     switch(chipid) {
-        case BM1686:
+        case BM1688:
             ret = bm_ldc_gdc_internal(handle, in_image, out_image, ldc_attr);
             if(ret != BM_SUCCESS){
                 bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "Bmcv ldc execution failed! \n");
@@ -244,7 +244,7 @@ bm_status_t bmcv_ldc_gdc_gen_mesh(bm_handle_t          handle,
                                   bm_device_mem_t      dmem)
 {
     bm_status_t ret = BM_SUCCESS;
-    unsigned int chipid = BM1686;
+    unsigned int chipid = BM1688;
     ret = bm_get_chipid(handle, &chipid);
 
     if(ret != BM_SUCCESS) {
@@ -253,7 +253,7 @@ bm_status_t bmcv_ldc_gdc_gen_mesh(bm_handle_t          handle,
     }
 
     switch(chipid) {
-        case BM1686:
+        case BM1688:
             ret = bm_ldc_gdc_gen_mesh_internal(handle, in_image, out_image, ldc_attr, dmem);
             if(ret != BM_SUCCESS){
                 bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "Bmcv ldc execution failed! \n");
@@ -274,7 +274,7 @@ bm_status_t bmcv_ldc_gdc_load_mesh(bm_handle_t          handle,
                                    bm_device_mem_t      dmem)
 {
     bm_status_t ret = BM_SUCCESS;
-    unsigned int chipid = BM1686;
+    unsigned int chipid = BM1688;
     ret = bm_get_chipid(handle, &chipid);
 
     if(ret != BM_SUCCESS) {
@@ -283,7 +283,7 @@ bm_status_t bmcv_ldc_gdc_load_mesh(bm_handle_t          handle,
     }
 
     switch(chipid) {
-        case BM1686:
+        case BM1688:
             ret = bm_ldc_gdc_load_mesh_internal(handle, in_image, out_image, dmem);
             if(ret != BM_SUCCESS){
                 bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "Bmcv ldc execution failed!\n");

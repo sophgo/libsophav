@@ -84,23 +84,25 @@ static void * convert_to(void* arg) {
     fps_actual = 1000000 / time_avg;
     pixel_per_sec = src_w * src_h * fps_actual/1024/1024;
 
-    if(ctx.i == 0){
-        if(md5 == NULL)
-            bm_write_bin(dst, dst_name);
-        else{
-            int image_byte_size[4] = {0};
-            bm_image_get_byte_size(dst, image_byte_size);
-            int byte_size = image_byte_size[0] + image_byte_size[1] + image_byte_size[2] + image_byte_size[3];
-            unsigned char* output_ptr = (unsigned char *)malloc(byte_size);
-            void* out_ptr[4] = {(void*)output_ptr,
-                                (void*)((unsigned char*)output_ptr + image_byte_size[0]),
-                                (void*)((unsigned char*)output_ptr + image_byte_size[0] + image_byte_size[1]),
-                                (void*)((unsigned char*)output_ptr + image_byte_size[0] + image_byte_size[1] + image_byte_size[2])};
-            bm_image_copy_device_to_host(dst, (void **)out_ptr);
-            if(md5_cmp(output_ptr, (unsigned char*)md5, byte_size)!=0)
-                bm_write_bin(dst, "error_cmp.bin");
-            free(output_ptr);
+    if(md5 == NULL)
+        bm_write_bin(dst, dst_name);
+    else{
+        int image_byte_size[4] = {0};
+        bm_image_get_byte_size(dst, image_byte_size);
+        int byte_size = image_byte_size[0] + image_byte_size[1] + image_byte_size[2] + image_byte_size[3];
+        unsigned char* output_ptr = (unsigned char *)malloc(byte_size);
+        void* out_ptr[4] = {(void*)output_ptr,
+                            (void*)((unsigned char*)output_ptr + image_byte_size[0]),
+                            (void*)((unsigned char*)output_ptr + image_byte_size[0] + image_byte_size[1]),
+                            (void*)((unsigned char*)output_ptr + image_byte_size[0] + image_byte_size[1] + image_byte_size[2])};
+        bm_image_copy_device_to_host(dst, (void **)out_ptr);
+        if(md5_cmp(output_ptr, (unsigned char*)md5, byte_size)!=0){
+            bm_write_bin(dst, "error_cmp.bin");
+            bm_image_destroy(&src);
+            bm_image_destroy(&dst);
+            exit(-1);
         }
+        free(output_ptr);
     }
     bm_image_destroy(&src);
     bm_image_destroy(&dst);

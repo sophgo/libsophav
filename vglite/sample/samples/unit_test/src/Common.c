@@ -114,7 +114,7 @@ vg_lite_error_t Run_SFT()
             error = (*run1)();
             if (error)
             {
-                printf("[%s: %d]run case failed.error type is %s\n", __func__, __LINE__,error_type[error]);
+                printf("[%s: %d]run case error type is %s\n", __func__, __LINE__,error_type[error]);
                 return error;
             }
             /* clear the common LogString each time finishing running case */
@@ -136,7 +136,7 @@ vg_lite_error_t Render()
     error = Run_SFT();
     if (error)
     {
-        printf("[%s: %d]Run_SFT failed.error type is %s\n", __func__, __LINE__,error_type[error]);
+        printf("[%s: %d]Run_SFT error type is %s\n", __func__, __LINE__,error_type[error]);
         return error;
     }
     DestroyBMP();

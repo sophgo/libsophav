@@ -20,7 +20,6 @@ bmcv_image_vpp_convert_padding
         bmcv_padding_atrr_t * padding_attr,
         bmcv_rect_t *         crop_rect = NULL,
         bmcv_resize_algorithm algorithm = BMCV_INTER_LINEAR);
-    );
 
 | 【参数】
 

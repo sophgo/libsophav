@@ -11,7 +11,7 @@
 ##############################################################################
 
 SHELL           := /bin/bash
-CHIP            ?= bm1686
+CHIP            ?= bm1688
 PRODUCTFORM     ?= soc
 TOOLCHAIN_PATH  ?= $(shell dirname $(shell which aarch64-linux-gnu-gcc))
 DEBUG           ?= 1
@@ -148,7 +148,7 @@ jpeg:
 	make -C $(LIBSOPHAV_ROOT)/jpeg/
 	make -C $(LIBSOPHAV_ROOT)/jpeg/ install
 
-ifeq ($(CHIP), bm1686)
+ifeq ($(CHIP), bm1688)
 bmcv: $(BMCV_DYN)
 	@mkdir -p $(OUT_DIR)/$(CHIP)/include
 	@cp -f $(RELEASE_HEADERS) $(OUT_DIR)/$(CHIP)/include

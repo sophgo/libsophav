@@ -957,7 +957,10 @@ int vg_lite_load_raw(vg_lite_buffer_t * buffer, const char * name)
         buffer->width  = read_long(fp);
         buffer->height = read_long(fp);
         buffer->stride = read_long(fp);
-        buffer->format = read_long(fp);
+
+        if (read_long(fp) == 0) {
+            buffer->format = VG_LITE_RGBA8888;
+        }
 
         /* Allocate the VGLite buffer memory. */
         if (vg_lite_allocate(buffer) != VG_LITE_SUCCESS)

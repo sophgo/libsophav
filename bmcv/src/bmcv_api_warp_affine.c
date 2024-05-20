@@ -421,7 +421,7 @@ bm_status_t bmcv_image_warp_affine(
 
     unsigned int chipid;
     bm_get_chipid(handle, &chipid);
-    if (chipid == BM1686){
+    if (chipid == BM1688){
         return bmcv_image_warp_affine_1684X(handle,
                 image_num,
                 &matrix[0],

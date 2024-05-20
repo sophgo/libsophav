@@ -849,7 +849,7 @@ function clean_libyuv()
 
 function build_bmcv_lib()
 {
-    #if [ $CHIP != bm1684 -a $CHIP != bm1686 ]; then
+    #if [ $CHIP != bm1684 -a $CHIP != bm1688 ]; then
     #    echo "For ${CHIP}, ignore build_bmcv_lib()"
     #    return 0
     #fi
@@ -899,7 +899,7 @@ function build_bmcv_lib()
 
 function clean_bmcv_lib()
 {
-    if [ $CHIP != bm1684 -a $CHIP != bm1686 ]; then
+    if [ $CHIP != bm1684 -a $CHIP != bm1688 ]; then
         echo "For ${CHIP}, ignore build_bmcv_lib()"
         return 0
     fi
@@ -960,7 +960,7 @@ function clean_bmcv_cmodel()
 
 function build_bmcv_test()
 {
-    if [ $CHIP != bm1684 -a $CHIP != bm1686 ]; then
+    if [ $CHIP != bm1684 -a $CHIP != bm1688 ]; then
         echo "For ${CHIP}, ignore build_bmcv_lib()"
         return 0
     fi
@@ -1002,7 +1002,7 @@ function build_bmcv_test()
 
 function clean_bmcv_test()
 {
-    if [ $CHIP != bm1684 -a $CHIP != bm1686 ]; then
+    if [ $CHIP != bm1684 -a $CHIP != bm1688 ]; then
         echo "For ${CHIP}, ignore build_bmcv_lib()"
         return 0
     fi

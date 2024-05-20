@@ -4,9 +4,6 @@ NAME = parking
 SOURCES = parking.c
 
 CFLAGS += -D DDRLESS=1 -D VS_DDRLESS_TEST_CMODEL=0 -D VS_DDRLESS_TEST_FPGA=1 -D DDRLESS_FPGA=1
-ifeq ($(DEBUG), 1)
-CFLAGS += -g -g -O0 -DDEBUG -D_DEBUG
-endif
 
 LIBS += vg_lite vg_lite_util
 CFLAGS += -I$(SDK_DIR)/inc -I../util

@@ -1836,7 +1836,7 @@ bm_status_t bm_ive_dilate(
         return BM_ERR_FAILURE;
     }
 
-    // bInstant: true is interrupt mode, false is polling mode
+    // bInstant: true is polling mode, false is interrupt mode
     ret = BM_IVE_Dilate(pIveHandle, &src, &dst, &dilateCtrl, true);
     if(ret != BM_SUCCESS){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,

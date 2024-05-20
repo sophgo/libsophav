@@ -119,7 +119,7 @@ bm_status_t bmcv_dpu_sgbm_disp( bm_handle_t          handle,
                                 bmcv_dpu_sgbm_attrs  *dpu_attr,
                                 bmcv_dpu_sgbm_mode   sgbm_mode){
     bm_status_t ret = BM_SUCCESS;
-    unsigned int chipid = BM1686;
+    unsigned int chipid = BM1688;
     ret = bm_get_chipid(handle, &chipid);
 
     if(ret != BM_SUCCESS){
@@ -128,7 +128,7 @@ bm_status_t bmcv_dpu_sgbm_disp( bm_handle_t          handle,
     }
 
     switch(chipid){
-        case BM1686:
+        case BM1688:
             ret = bm_dpu_sgbm_disp_internal(handle, left_image, right_image, disp_image, dpu_attr, sgbm_mode);
             if(ret != BM_SUCCESS){
                 bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "Bmcv dpu execution failed! \n");
@@ -150,7 +150,7 @@ bm_status_t bmcv_dpu_fgs_disp( bm_handle_t           handle,
                                bmcv_dpu_fgs_attrs   *fgs_attr,
                                bmcv_dpu_fgs_mode    fgs_mode){
     bm_status_t ret = BM_SUCCESS;
-    unsigned int chipid = BM1686;
+    unsigned int chipid = BM1688;
     ret = bm_get_chipid(handle, &chipid);
 
     if(ret != BM_SUCCESS){
@@ -159,7 +159,7 @@ bm_status_t bmcv_dpu_fgs_disp( bm_handle_t           handle,
     }
 
     switch(chipid){
-        case BM1686:
+        case BM1688:
             ret = bm_dpu_fgs_disp_internal(handle, guide_image, smooth_image, disp_image, fgs_attr, fgs_mode);
             if(ret != BM_SUCCESS){
                 bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "Bmcv dpu execution failed! \n");
@@ -182,7 +182,7 @@ bm_status_t bmcv_dpu_online_disp( bm_handle_t         handle,
                                   bmcv_dpu_fgs_attrs  *fgs_attr,
                                   bmcv_dpu_online_mode online_mode){
     bm_status_t ret = BM_SUCCESS;
-    unsigned int chipid = BM1686;
+    unsigned int chipid = BM1688;
     ret = bm_get_chipid(handle, &chipid);
 
     if(ret != BM_SUCCESS){
@@ -191,7 +191,7 @@ bm_status_t bmcv_dpu_online_disp( bm_handle_t         handle,
     }
 
     switch(chipid){
-        case BM1686:
+        case BM1688:
             ret = bm_dpu_online_disp_internal(handle, left_image, right_image, disp_image, dpu_attr, fgs_attr, online_mode);
             if(ret != BM_SUCCESS){
                 bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "Bmcv dpu execution failed! \n");

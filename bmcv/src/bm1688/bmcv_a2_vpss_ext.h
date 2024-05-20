@@ -121,3 +121,9 @@ bm_status_t bm_vpss_overlay(
   int                  rect_num,
   bmcv_rect_t *        rects,
   bm_image *           overlay_image);
+
+bm_status_t bm_vpss_flip(
+  bm_handle_t          handle,
+  bm_image             input,
+  bm_image             output,
+  bmcv_flip_mode       flip_mode);

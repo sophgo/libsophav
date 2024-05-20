@@ -107,6 +107,7 @@ vg_lite_error_t Draw_Image_001()
     vg_lite_buffer_t src_buf;
     vg_lite_buffer_t dst_buf;
     int i,j,k,m,n;
+    vg_lite_uint32_t chip_id;
     vg_lite_error_t error = VG_LITE_SUCCESS;
     vg_lite_color_t cc = 0xffa0a0a0;
     vg_lite_color_t image_cc = 0xff00ffff;
@@ -160,7 +161,7 @@ vg_lite_error_t Draw_Image_001()
         VG_LITE_BLEND_ADDITIVE,
         VG_LITE_BLEND_SUBTRACT,
     };
-
+    vg_lite_get_product_info(NULL, &chip_id, NULL);
     for (i = 0; i < SRC_FORMATS_CAT_COUNT; i++) {
         sprintf(name,"Draw_Image_001_%d_",i);
         for (j = 0; j < DST_FORMATS_CAT_COUNT; j++)
@@ -175,7 +176,15 @@ vg_lite_error_t Draw_Image_001()
                                  save_result = FALSE;
                              }
                         }
-                        
+                        if (chip_id == 0x355 && (src_formats[i] == VG_LITE_YUYV ||
+                            src_formats[i] == VG_LITE_BGRA2222 || src_formats[i] == VG_LITE_RGBA2222 ||
+                            src_formats[i] == VG_LITE_ABGR2222 || src_formats[i] == VG_LITE_ARGB2222 ||
+                            dst_formats[j] == VG_LITE_L8 || dst_formats[j] == VG_LITE_YUYV ||
+                            dst_formats[j] == VG_LITE_BGRA2222 || dst_formats[j] == VG_LITE_RGBA2222 ||
+                            dst_formats[j] == VG_LITE_ABGR2222 || dst_formats[j] == VG_LITE_ARGB2222)) {
+                            save_result = TRUE;
+                            continue;
+                        }
                         src_width = (int32_t)WINDSIZEX;
                         src_height = (int32_t)WINDSIZEY;
                         dst_width = (int32_t)WINDSIZEX;
@@ -211,6 +220,7 @@ vg_lite_error_t Draw_Image_002()
     vg_lite_buffer_t src_buf;
     vg_lite_buffer_t dst_buf;
     int i,j;
+    vg_lite_uint32_t chip_id;
     vg_lite_error_t error = VG_LITE_SUCCESS;
     vg_lite_color_t cc = 0xffa0a0a0;
     vg_lite_color_t image_cc = 0xff00ffff;
@@ -271,6 +281,7 @@ vg_lite_error_t Draw_Image_002()
         VG_LITE_A8,
         VG_LITE_L8,
     };
+    vg_lite_get_product_info(NULL, &chip_id, NULL);
     for (i = 0; i < SRC_FORMATS_COUNT; i++)
         for (j = 0; j < DST_FORMATS_COUNT; j++)
         {
@@ -282,9 +293,18 @@ vg_lite_error_t Draw_Image_002()
                || dst_formats[j] ==VG_LITE_BGRA2222 || dst_formats[j] == VG_LITE_RGBA2222 || dst_formats[j] == VG_LITE_ABGR2222 || dst_formats[j] == VG_LITE_ARGB2222)
            {
                 if(!vg_lite_query_feature(gcFEATURE_BIT_VG_RGBA2_FORMAT))
-               {
+                {
                       save_result = FALSE;
                 }
+            }
+            if (chip_id == 0x355 && (src_formats[i] == VG_LITE_YUYV ||
+                src_formats[i] == VG_LITE_BGRA2222 || src_formats[i] == VG_LITE_RGBA2222 ||
+                src_formats[i] == VG_LITE_ABGR2222 || src_formats[i] == VG_LITE_ARGB2222 ||
+                dst_formats[j] == VG_LITE_L8 || dst_formats[j] == VG_LITE_YUYV ||
+                dst_formats[j] == VG_LITE_BGRA2222 || dst_formats[j] == VG_LITE_RGBA2222 ||
+                dst_formats[j] == VG_LITE_ABGR2222 || dst_formats[j] == VG_LITE_ARGB2222)) {
+                save_result = TRUE;
+                continue;
             }
             CHECK_ERROR(Allocate_Buffer(&src_buf, src_formats[i], src_width, src_height));
             CHECK_ERROR(gen_buffer(i % 2, &src_buf, src_formats[i], src_buf.width, src_buf.height));

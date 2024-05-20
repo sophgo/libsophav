@@ -81,7 +81,7 @@ vg_lite_error_t API_Run(api_t api,uint32_t rect[])
                 if(error == VG_LITE_INVALID_ARGUMENT) {
                     printf("[%s]vg_lite_blit_rect %d invalid.error type is %s\n", __func__, __LINE__,error_type[error]);
                 }else {
-                    printf("[%s]vg_lite_blit_rect %d failed.error type is %s\n", __func__, __LINE__,error_type[error]);
+                    printf("[%s]vg_lite_blit_rect %d error type is %s\n", __func__, __LINE__,error_type[error]);
                     Free_Buffer(&buffer);
                     Free_Buffer(&dst_buf);
                     return error;

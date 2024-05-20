@@ -6,7 +6,10 @@ BMCV API
 .. toctree::
    :maxdepth: 1
 
+   bmcv_api/bmcv_base64.rst
    bmcv_api/bmcv_as_strided.rst
+   bmcv_api/bmcv_image_resize.rst
+   bmcv_api/bmcv_image_watermark_superpose.rst
    bmcv_api/bmcv_batch_topk.rst
    bmcv_api/bmcv_calc_hist.rst
    bmcv_api/bmcv_cmulp.rst
@@ -30,6 +33,7 @@ BMCV API
    bmcv_api/bmcv_image_draw_lines.rst
    bmcv_api/bmcv_image_draw_rectangle.rst
    bmcv_api/bmcv_image_fill_rectangle.rst
+   bmcv_api/bmcv_image_flip.rst
    bmcv_api/bmcv_image_gaussian_blur.rst
    bmcv_api/bmcv_image_jpeg_dec.rst
    bmcv_api/bmcv_image_jpeg_enc.rst
@@ -93,6 +97,8 @@ BMCV API
    bmcv_api/bmcv_image_ive_match_bgmodel.rst
    bmcv_api/bmcv_image_ive_update_bgmodel.rst
    bmcv_api/bmcv_image_ive_frame_diff_motion.rst
+   bmcv_api/bmcv_image_warp_affine.rst
+   bmcv_api/bmcv_image_warp_perspective.rst
    bmcv_api/bmcv_dpu_sgbm_disp.rst
    bmcv_api/bmcv_dpu_fgs_disp.rst
    bmcv_api/bmcv_dpu_online_disp.rst

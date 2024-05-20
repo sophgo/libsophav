@@ -22,7 +22,7 @@ char *error_type[] =
     error = Function; \
     if (IS_ERROR(error)) \
     { \
-        printf("[%s: %d] failed.error type is %s\n", __func__, __LINE__,error_type[error]);\
+        printf("[%s: %d] error type is %s\n", __func__, __LINE__,error_type[error]);\
         goto ErrorHandler; \
     }
 static int   fb_width = 256, fb_height = 256;
@@ -33,7 +33,8 @@ static vg_lite_buffer_t * fb;
 
 vg_lite_path_type_t draw_type[] = {
     VG_LITE_DRAW_FILL_PATH,
-    VG_LITE_DRAW_STROKE_PATH
+    VG_LITE_DRAW_STROKE_PATH,
+    VG_LITE_DRAW_FILL_STROKE_PATH
 };
 
 vg_lite_cap_style_t cap_style[] = {
@@ -152,6 +153,21 @@ int main(int argc, const char * argv[])
         vg_lite_clear_path(&path);
         memset(&path,0,sizeof(vg_lite_path_t));
     }
+    CHECK_ERROR(vg_lite_clear(fb, NULL, 0xFFFF0000));
+    sprintf(filename, "fill_stroke.png");
+    vg_lite_init_path(&path, VG_LITE_FP32, VG_LITE_HIGH, data_size, NULL, 0, 0, 0, 0);
+    path.path = malloc(data_size);
+    CHECK_ERROR(vg_lite_append_path(&path, sides_cmd, sides_data_left, sizeof(sides_cmd)));
+
+    CHECK_ERROR(vg_lite_set_stroke(&path, VG_LITE_CAP_ROUND, join_style[j], 4, 8, NULL, 0, 8, 0));
+    CHECK_ERROR(vg_lite_update_stroke(&path));
+    CHECK_ERROR(vg_lite_set_path_type(&path, draw_type[2]));
+    CHECK_ERROR(vg_lite_draw(fb, &path, VG_LITE_FILL_EVEN_ODD, &matrix, VG_LITE_BLEND_NONE, 0xFF0000FF));
+
+    CHECK_ERROR(vg_lite_finish());
+    vg_lite_save_png(filename, fb);
+    vg_lite_clear_path(&path);
+    memset(&path, 0, sizeof(vg_lite_path_t));
 
 ErrorHandler:
     cleanup();

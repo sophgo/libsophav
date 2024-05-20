@@ -176,3 +176,98 @@ bmcv_ive_16bit_to_8bit
 
 
 其中，:math:`I(x, y)` 对应 input，  :math:`I_{\text{out}}(x, y)` 对应output， a、b 和 bais 分别对应 attr 的 u8_numerator、u16_denominator、s8_bias。
+
+**示例代码**
+
+    .. code-block:: c
+
+      #include <stdio.h>
+      #include <stdlib.h>
+      #include <string.h>
+      #include <pthread.h>
+      #include <sys/time.h>
+      #include "bmcv_api_ext_c.h"
+      #include <unistd.h>
+      #define SLEEP_ON 0
+      #define MAX_THREAD_NUM 20
+      int main() {
+          int loop_time = 1;
+          int dev_id = 0;
+          bmcv_ive_16bit_to_8bit_mode mode = BM_IVE_S16_TO_S8;
+          unsigned char u8Numerator = 41;
+          unsigned short u16Denominator = 18508;
+          signed char s8Bias = 0;
+          int height = xxxx, width = xxxx;
+          bm_image_data_format_ext srcDtype = DATA_TYPE_EXT_S16;
+          bm_image_data_format_ext dstDtype = DATA_TYPE_EXT_1N_BYTE_SIGNED;
+          char *src_name = "ive_data/xxxxx";
+          bm_handle_t handle = NULL;
+          bm_image src, dst;
+          int srcStride[4], dstStride[4];
+          unsigned long long time_single, time_total = 0, time_avg = 0;
+          unsigned long long time_max = 0, time_min = 10000, fps_actual = 0, pixel_per_sec = 0;
+          struct timeval tv_start;
+          struct timeval tv_end;
+          struct timeval timediff;
+
+          // config setting
+          bmcv_ive_16bit_to_8bit_attr attr;
+          attr.mode = mode;
+          attr.u16_denominator = u16Denominator;
+          attr.u8_numerator = u8Numerator;
+          attr.s8_bias = s8Bias;
+          int ret = (int)bm_dev_request(&handle, dev_id);
+          if (ret != 0) {
+              printf("Create bm handle failed. ret = %d\n", ret);
+              exit(-1);
+          }
+          // calc ive image stride && create bm image struct
+          bm_ive_image_calc_stride(handle, height, width, FORMAT_GRAY, srcDtype, srcStride);
+          bm_ive_image_calc_stride(handle, height, width, FORMAT_GRAY, dstDtype, dstStride);
+
+          bm_image_create(handle, height, width, FORMAT_GRAY, srcDtype, &src, srcStride);
+          bm_image_create(handle, height, width, FORMAT_GRAY, dstDtype, &dst, dstStride);
+
+          ret = bm_image_alloc_dev_mem(src, BMCV_HEAP_ANY);
+          if (ret != BM_SUCCESS) {
+              printf("src bm_image_alloc_dev_mem failed. ret = %d\n", ret);
+              exit(-1);
+          }
+
+          ret = bm_image_alloc_dev_mem(dst, BMCV_HEAP_ANY);
+          if (ret != BM_SUCCESS) {
+              printf("src bm_image_alloc_dev_mem failed. ret = %d\n", ret);
+              exit(-1);
+          }
+
+          // read image data from input files
+          bm_ive_read_bin(src, src_name);
+
+          for(i = 0; i < loop_time; i++)
+          {
+              gettimeofday(&tv_start, NULL);
+              ret = bmcv_ive_16bit_to_8bit(handle, src, dst, attr);
+              gettimeofday(&tv_end, NULL);
+              timediff.tv_sec  = tv_end.tv_sec - tv_start.tv_sec;
+              timediff.tv_usec = tv_end.tv_usec - tv_start.tv_usec;
+              time_single = (unsigned int)(timediff.tv_sec * 1000000 + timediff.tv_usec);
+              if(time_single>time_max){time_max = time_single;}
+              if(time_single<time_min){time_min = time_single;}
+              time_total = time_total + time_single;
+
+              if(ret != BM_SUCCESS){
+                  printf("bmcv_ive_16bitto8bit is failed \n");
+                  exit(-1);
+              }
+          }
+
+          time_avg = time_total / loop_time;
+          fps_actual = 1000000 / time_avg;
+          pixel_per_sec = width * height * fps_actual/1024/1024;
+          bm_image_destroy(&src);
+          bm_image_destroy(&dst);
+
+          printf("ive_16bitTo8bit: loop %d cycles, time_max = %llu, time_avg = %llu, fps %llu, %lluM pps\n",
+                loop_time, time_max, time_avg, fps_actual, pixel_per_sec);
+
+      }

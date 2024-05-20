@@ -26,7 +26,7 @@ char *error_type[] =
     error = Function; \
     if (IS_ERROR(error)) \
     { \
-        printf("[%s: %d] failed.error type is %s\n", __func__, __LINE__,error_type[error]);\
+        printf("[%s: %d] error type is %s\n", __func__, __LINE__,error_type[error]);\
         goto ErrorHandler; \
     }
 
@@ -131,6 +131,7 @@ vg_lite_error_t multi_draw(int tsbuffer_size,int i)
     CHECK_ERROR(vg_lite_finish());
     CHECK_ERROR(vg_lite_clear_grad(&gradient));
     vg_lite_save_png(name, fb);
+    cleanup();
 
     return VG_LITE_SUCCESS;
 ErrorHandler:

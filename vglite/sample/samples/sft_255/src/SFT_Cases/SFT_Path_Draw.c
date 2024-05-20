@@ -95,8 +95,10 @@ int32_t calc_data_size(
     int i;
     int32_t size = 0;
     int data_size = 0;
+    int tmpsize = 1;
     uint8_t *pdata = opcodes;
     uint32_t chip_id = 0;
+    uint8_t* tmp_pdata;
 
     switch (format)
     {
@@ -112,8 +114,12 @@ int32_t calc_data_size(
     {
         /* Opcode size. */
         size++;
-
-        if (chip_id >= 0x265) {
+        tmpsize = 1;
+        tmp_pdata = pdata;
+        if (chip_id == 0x355 && *tmp_pdata == PATH_CLOSE && *(tmp_pdata+1) == MOVE_TO) {
+            tmpsize = 0;
+        }
+        else if (chip_id >= 0x265) {
             /* Data size. */
             if (data_size > 1)
             {
@@ -128,7 +134,7 @@ int32_t calc_data_size(
                 size = ALIGN(size, data_size);
             }
         }
-        size += data_count[*pdata] * data_size;
+        size += data_count[*pdata] * data_size * tmpsize;
         pdata++;
     }
 
@@ -144,6 +150,7 @@ int fill_path_data(
 {
     int offset_path;        /* Pointer offset in path data. */
     uint8_t     * pcode;
+    uint8_t     * tmp_pdata;
     int8_t      * path_data8;
     int16_t     * path_data16;
     int32_t     * path_data32;
@@ -186,7 +193,11 @@ int fill_path_data(
         *path_data8 = *pcode;       /* Copy the opcode. */
         offset_path++;
         printf("%d/%d: opcode: %d\n", i, opcount, *pcode);
-        if (chip_id >= 0x265) {
+        tmp_pdata = pcode;
+        if (chip_id == 0x355 && *tmp_pdata == PATH_CLOSE && *(tmp_pdata+1) == MOVE_TO) {
+            //offset_path++;
+        }
+        else if (chip_id >= 0x265) {
             if (data_size > 1)
             {
                 offset_path = ALIGN(offset_path, data_size);

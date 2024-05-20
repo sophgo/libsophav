@@ -99,7 +99,7 @@ typedef signed long long int s64;
 #define BMCV_LOG_TAG "BMCV"
 #define MAX_BMCV_LOG_BUFFER_SIZE (256)
 #define MAX_bm_image_CHANNEL 4
-#define BM1686 0x1686a200
+#define BM1688 0x1686a200
 #define COLOR_SPACE_YUV             0
 #define COLOR_SPACE_RGB             1
 #define COLOR_SPACE_HSV             2

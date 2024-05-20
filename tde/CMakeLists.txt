@@ -10,8 +10,8 @@ aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/src/. SRC)
 
 set(TDE_LIB_NAME tde CACHE INTERNAL "tde library name")
 
-link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../vglite/LD/)
- 
+link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../vglite/lib/)
+target_link_libraries(${VGLite_LIB_NAME})
 
 add_library(${TDE_LIB_NAME} SHARED ${SRC})
 add_library(${TDE_LIB_NAME}-static STATIC ${SRC})
@@ -32,7 +32,7 @@ aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/sample/. SRC)
 link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/libbmcv/lib/${PLATFORM})
 
 add_executable(${sample_name} ${SRC})
-target_link_libraries(${sample_name} libvg_lite.a ${TDE_LIB_NAME}-static bmlib dl m pthread atomic)
+target_link_libraries(${sample_name} ${VGLite_LIB_NAME}-static ${TDE_LIB_NAME}-static bmlib dl m pthread atomic)
 
 # INSTALL(TARGETS ${sample_name} RUNTIME DESTINATION ${TDE_path}/bin)
 

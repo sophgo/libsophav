@@ -51,7 +51,7 @@ bm_status_t bmcv_calc_hist(bm_handle_t handle, bm_device_mem_t input, bm_device_
         api[i].upper = (float)(histSizes[i]);
 
         switch(chipid) {
-            case BM1686:
+            case BM1688:
                 ret = bm_tpu_kernel_launch(handle, "cv_calc_hist", (u8*)(&(api[i])),
                                                     sizeof(api[i]), core_id);
                 if(ret != BM_SUCCESS){
@@ -163,7 +163,7 @@ bm_status_t bmcv_calc_hist_with_weight(bm_handle_t handle, bm_device_mem_t input
         api[i].xdtype = inputDtype;
         api[i].upper = (float)(histSizes[i]);
         switch(chipid) {
-            case BM1686:
+            case BM1688:
                 ret = bm_tpu_kernel_launch(handle, "cv_calc_hist", (u8*)&((api[i])),
                                                     sizeof(api[i]), core_id);
                 if(ret != BM_SUCCESS){

@@ -32,7 +32,7 @@ char *error_type[] =
     error = Function; \
     if (IS_ERROR(error)) \
     { \
-        printf("[%s: %d] failed.error type is %s\n", __func__, __LINE__,error_type[error]);\
+        printf("[%s: %d] error type is %s\n", __func__, __LINE__,error_type[error]);\
         goto ErrorHandler; \
     }
 static int   fb_width = 320, fb_height = 480;
@@ -125,6 +125,7 @@ int main(int argc, const char * argv[])
         /* Blit the image using the matrix. */
         CHECK_ERROR(vg_lite_blit(fb, &image, &matrix, VG_LITE_BLEND_NONE, 0, filter));
         vg_lite_scale(10, 10, &matrix);
+        CHECK_ERROR(vg_lite_set_gamma(gamma_value[i]));
         CHECK_ERROR(vg_lite_draw(fb, &path, VG_LITE_FILL_EVEN_ODD, &matrix, VG_LITE_BLEND_NONE, 0xFF6600FF));
         CHECK_ERROR(vg_lite_finish());
 

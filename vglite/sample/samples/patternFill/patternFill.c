@@ -16,12 +16,12 @@
 #define DEFAULT_HEIGHT 480
 
 #define __func__ __FUNCTION__
-char *error_type[] = 
+char* error_type[] =
 {
     "VG_LITE_SUCCESS",
     "VG_LITE_INVALID_ARGUMENT",
     "VG_LITE_OUT_OF_MEMORY",
-    "VG_LITE_NO_CONTEXT",      
+    "VG_LITE_NO_CONTEXT",
     "VG_LITE_TIMEOUT",
     "VG_LITE_OUT_OF_RESOURCES",
     "VG_LITE_GENERIC_IO",
@@ -32,7 +32,7 @@ char *error_type[] =
     error = Function; \
     if (IS_ERROR(error)) \
     { \
-        printf("[%s: %d] failed.error type is %s\n", __func__, __LINE__,error_type[error]);\
+        printf("[%s: %d] error type is %s\n", __func__, __LINE__,error_type[error]);\
         goto ErrorHandler; \
     }
 static int fb_width = DEFAULT_WIDTH, fb_height = DEFAULT_HEIGHT;
@@ -40,7 +40,7 @@ static float fb_scale = 1.0f;
 int frames = 2; //Frames to render
 
 static vg_lite_buffer_t buffer;     //offscreen framebuffer object for rendering.
-static vg_lite_buffer_t * fb;
+static vg_lite_buffer_t* fb;
 static vg_lite_buffer_t image;
 
 /*
@@ -95,7 +95,7 @@ void cleanup(void)
     vg_lite_close();
 }
 
-int main(int argc, const char * argv[])
+int main(int argc, const char* argv[])
 {
     int i = 0;
     char filename[30];
@@ -121,7 +121,7 @@ int main(int argc, const char * argv[])
     }
 
     // Allocate the off-screen buffer.
-    buffer.width  = fb_width;
+    buffer.width = fb_width;
     buffer.height = fb_height;
     buffer.format = VG_LITE_RGB565;
 
@@ -129,9 +129,9 @@ int main(int argc, const char * argv[])
     fb = &buffer;
 
     fb_scale = (float)fb_width / DEFAULT_SIZE;
-    
+
     printf("Framebuffer size: %d x %d\n", fb_width, fb_height);
-   
+
     while (i < frames)
     {
         // Clear the buffer with blue.
@@ -146,14 +146,15 @@ int main(int argc, const char * argv[])
         vg_lite_translate(fb_width / 2.0f, fb_height / 4.0f, &matPath);
         vg_lite_scale(10, 10, &matPath);
 
-        //vg_lite_blit(&image, &matrix, VG_LITE_BLEND_NONE, 0, VG_LITE_FILTER_POINT);
         // Fill the path using an image.
         if (pattern_mode[2 * i] == VG_LITE_PATTERN_REPEAT) {
             if (!vg_lite_query_feature(gcFEATURE_BIT_VG_IM_REPEAT_REFLECT)) {
-                printf("repeat and reflect pattern mode is not support\n");
+                printf("Case patternFill: repeat and reflect pattern mode is not support\n");
+                i++;
+                continue;
             }
-        }        
-        CHECK_ERROR(vg_lite_draw_pattern(fb, &path, VG_LITE_FILL_EVEN_ODD, &matPath, &image, &matrix, VG_LITE_BLEND_NONE, pattern_mode[2 * i], 0xffaabbcc, filter));
+        }
+        CHECK_ERROR(vg_lite_draw_pattern(fb, &path, VG_LITE_FILL_EVEN_ODD, &matPath, &image, &matrix, VG_LITE_BLEND_NONE, pattern_mode[2 * i], 0xffaabbcc, 0, filter));
 
         vg_lite_identity(&matrix);
         vg_lite_translate(fb_width / 2.0f, fb_height / 1.2f, &matrix);
@@ -163,9 +164,9 @@ int main(int argc, const char * argv[])
         vg_lite_identity(&matPath);
         vg_lite_translate(fb_width / 2.0f, fb_height / 1.3f, &matPath);
         vg_lite_scale(10, 10, &matPath);
-        CHECK_ERROR(vg_lite_draw_pattern(fb, &path, VG_LITE_FILL_EVEN_ODD, &matPath, &image, &matrix, VG_LITE_BLEND_NONE, pattern_mode[2 * i + 1], 0xffaabbcc, filter));
+        CHECK_ERROR(vg_lite_draw_pattern(fb, &path, VG_LITE_FILL_EVEN_ODD, &matPath, &image, &matrix, VG_LITE_BLEND_NONE, pattern_mode[2 * i + 1], 0xffaabbcc, 0, filter));
         CHECK_ERROR(vg_lite_finish());
-        printf("frame:%d Done!\n",i);
+        printf("frame:%d Done!\n", i);
         sprintf(filename, "pattern_%d.png", i);
         vg_lite_save_png(filename, fb);
         i++;

@@ -11,7 +11,7 @@ all : $(OUT)/$(NAME) $(OUT)/icons
 	@cp -f *.raw $(OUT)
 
 clean :
-	@rm -rf $(OUT)/$(NAME) $(OUT)/icons
+	@rm -f $(OUT)/$(NAME) $(OUT)/icons
 
 $(OUT) :
 	@mkdir $(OUT)
