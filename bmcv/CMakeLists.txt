@@ -1,6 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
 project(bmcv)
-add_subdirectory(./src/cmodel) #github_delete
 # options
 if("${CHIP_NAME}" STREQUAL "bm1688")
     set(SRC_DIR bm1688)
