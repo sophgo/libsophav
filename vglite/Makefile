@@ -29,7 +29,7 @@ TARGET_SO = ./lib/libvg_lite.so
 INCS = -I$(MW_INC) -I$(KERNEL_INC) -I$(SYS_INC) -I./inc
 
 EXTRA_CFLAGS = $(INCS) -fpack-struct=8 -Wno-unused-parameter -Wno-missing-braces
-EXTRA_CFLAGS += -DMMF_VERSION=\"$(shell git describe --always)\"
+EXTRA_CFLAGS += -DMMF_VERSION=\"a2_sdk_1.1-376-g12e608e\"
 EXTRA_CFLAGS += -DSDK_VER=\"$(SDK_VER)\"
 EXTRA_CFLAGS += -DENABLE_PCIE
 ifeq ($(SDK_VER), 32bit)
