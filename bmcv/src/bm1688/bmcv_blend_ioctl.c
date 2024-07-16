@@ -5,108 +5,108 @@
 #include <sys/ioctl.h>
 #include "bmcv_a2_common_internal.h"
 
-CVI_S32 cvi_stitch_init(CVI_S32 fd)
+int stitch_init(int fd)
 {
-	return ioctl(fd, CVI_STITCH_INIT);
+	return ioctl(fd, STITCH_INIT); 
 }
 
-CVI_S32 cvi_stitch_deinit(CVI_S32 fd)
+int stitch_deinit(int fd)
 {
-	return ioctl(fd, CVI_STITCH_DEINIT);
+	return ioctl(fd, STITCH_DEINIT);
 }
 
-CVI_S32 cvi_stitch_set_src_attr(CVI_S32 fd, STITCH_SRC_ATTR_S *attr)
+int stitch_set_src_attr(int fd, stitch_src_attr *attr)
 {
-	return ioctl(fd, CVI_STITCH_SET_SRC_ATTR, attr);
+	return ioctl(fd, STITCH_SET_SRC_ATTR, attr);
 }
 
-CVI_S32 cvi_stitch_get_src_attr(CVI_S32 fd, STITCH_SRC_ATTR_S *attr)
+int stitch_get_src_attr(int fd, stitch_src_attr *attr)
 {
-	return ioctl(fd, CVI_STITCH_GET_SRC_ATTR, attr);
+	return ioctl(fd, STITCH_GET_SRC_ATTR, attr);
 }
 
-CVI_S32 cvi_stitch_set_chn_attr(CVI_S32 fd, STITCH_CHN_ATTR_S *attr)
+int stitch_set_chn_attr(int fd, stitch_chn_attr *attr)
 {
-	return ioctl(fd, CVI_STITCH_SET_CHN_ATTR, attr);
+	return ioctl(fd, STITCH_SET_CHN_ATTR, attr);
 }
 
-CVI_S32 cvi_stitch_get_chn_attr(CVI_S32 fd, STITCH_CHN_ATTR_S *attr)
+int stitch_get_chn_attr(int fd, stitch_chn_attr *attr)
 {
-	return ioctl(fd, CVI_STITCH_GET_CHN_ATTR, attr);
+	return ioctl(fd, STITCH_GET_CHN_ATTR, attr);
 }
 
-CVI_S32 cvi_stitch_set_op_attr(CVI_S32 fd, STITCH_OP_ATTR_S *attr)
+int stitch_set_op_attr(int fd, stitch_op_attr *attr)
 {
-	return ioctl(fd, CVI_STITCH_SET_OP_ATTR, attr);
+	return ioctl(fd, STITCH_SET_OP_ATTR, attr);
 }
 
-CVI_S32 cvi_stitch_get_op_attr(CVI_S32 fd, STITCH_OP_ATTR_S *attr)
+int stitch_get_op_attr(int fd, stitch_op_attr *attr)
 {
-	return ioctl(fd, CVI_STITCH_GET_OP_ATTR, attr);
+	return ioctl(fd, STITCH_GET_OP_ATTR, attr);
 }
 
-CVI_S32 cvi_stitch_set_wgt_attr(CVI_S32 fd, STITCH_WGT_ATTR_S *attr)
+int stitch_set_wgt_attr(int fd, stitch_bld_wgt_attr *attr)
 {
-	return ioctl(fd, CVI_STITCH_SET_WGT_ATTR, attr);
+	return ioctl(fd, STITCH_SET_WGT_ATTR, attr);
 }
 
-CVI_S32 cvi_stitch_get_wgt_attr(CVI_S32 fd, STITCH_WGT_ATTR_S *attr)
+int stitch_get_wgt_attr(int fd, stitch_bld_wgt_attr *attr)
 {
-	return ioctl(fd, CVI_STITCH_GET_WGT_ATTR, attr);
+	return ioctl(fd, STITCH_GET_WGT_ATTR, attr);
 }
 
-CVI_S32 cvi_stitch_set_regx(CVI_S32 fd, CVI_U8 regx)
+int stitch_set_regx(int fd, unsigned char regx)
 {
-	return ioctl(fd, CVI_STITCH_SET_REGX, &regx);
+	return ioctl(fd, STITCH_SET_REGX, &regx);
 }
 
-CVI_S32 cvi_stitch_dev_enable(CVI_S32 fd)
+int stitch_dev_enable(int fd)
 {
-	return ioctl(fd, CVI_STITCH_DEV_ENABLE);
+	return ioctl(fd, STITCH_DEV_ENABLE);
 }
 
-CVI_S32 cvi_stitch_dev_disable(CVI_S32 fd)
+int stitch_dev_disable(int fd)
 {
-	return ioctl(fd, CVI_STITCH_DEV_DISABLE);
+	return ioctl(fd, STITCH_DEV_DISABLE);
 }
 
-CVI_S32 cvi_stitch_reset(CVI_S32 fd)
+int stitch_reset(int fd)
 {
-	return ioctl(fd, CVI_STITCH_RST);
+	return ioctl(fd, STITCH_RST);
 }
 
-CVI_S32 cvi_stitch_send_src_frame(CVI_S32 fd, struct stitch_src_frm_cfg *cfg)
+int stitch_send_src_frame(int fd, struct stitch_src_frm_cfg *cfg)
 {
-	return ioctl(fd, CVI_STITCH_SEND_SRC_FRM, cfg);
+	return ioctl(fd, STITCH_SEND_SRC_FRM, cfg);
 }
 
-CVI_S32 cvi_stitch_send_chn_frame(CVI_S32 fd, struct stitch_chn_frm_cfg *cfg)
+int stitch_send_chn_frame(int fd, struct stitch_chn_frm_cfg *cfg)
 {
-	return ioctl(fd, CVI_STITCH_SEND_CHN_FRM, cfg);
+	return ioctl(fd, STITCH_SEND_CHN_FRM, cfg);
 }
 
-CVI_S32 cvi_stitch_get_chn_frame(CVI_S32 fd, struct stitch_chn_frm_cfg *cfg)
+int stitch_get_chn_frame(int fd, struct stitch_chn_frm_cfg *cfg)
 {
-	return ioctl(fd, CVI_STITCH_GET_CHN_FRM, cfg);
+	return ioctl(fd, STITCH_GET_CHN_FRM, cfg);
 }
 
-CVI_S32 cvi_stitch_release_chn_frame(CVI_S32 fd, struct stitch_chn_frm_cfg *cfg)
+int stitch_release_chn_frame(int fd, struct stitch_chn_frm_cfg *cfg)
 {
-	return ioctl(fd, CVI_STITCH_RLS_CHN_FRM, cfg);
+	return ioctl(fd, STITCH_RLS_CHN_FRM, cfg);
 }
 
-CVI_S32 cvi_stitch_attach_vbpool(CVI_S32 fd, const struct stitch_vb_pool_cfg *cfg)
+int stitch_attach_vbpool(int fd, const struct stitch_vb_pool_cfg *cfg)
 {
-	return ioctl(fd, CVI_STITCH_ATTACH_VB_POOL, cfg);
+	return ioctl(fd, STITCH_ATTACH_VB_POOL, cfg);
 }
 
-CVI_S32 cvi_stitch_detach_vbpool(CVI_S32 fd, const struct stitch_vb_pool_cfg *cfg)
+int stitch_detach_vbpool(int fd, const struct stitch_vb_pool_cfg *cfg)
 {
-	return ioctl(fd, CVI_STITCH_DETACH_VB_POOL, cfg);
+	return ioctl(fd, STITCH_DETACH_VB_POOL, cfg);
 }
 
-CVI_S32 cvi_stitch_dump_reginfo(CVI_S32 fd)
+int stitch_dump_reginfo(int fd)
 {
-	return ioctl(fd, CVI_STITCH_DUMP_REGS);
+	return ioctl(fd, STITCH_DUMP_REGS);
 }
 

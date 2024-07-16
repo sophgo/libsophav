@@ -26,7 +26,7 @@ link_directories(${CMAKE_CURRENT_BINARY_DIR}/../jpeg)
 # build bmcv library
 set(BMCV_LIB_NAME bmcv CACHE INTERNAL "bmcv library name")
 file(GLOB SRCS src/*.c src/${SRC_DIR}/*.c)
-set(HEADERS include/bmcv_api_ext.h include/bmcv_api_ext_c.h)
+set(HEADERS include/bmcv_api_ext.h include/bmcv_api_ext_c.h include/bmcv_api.h)
 set(component libsophon)
 
 add_library(${BMCV_LIB_NAME} SHARED ${SRCS})

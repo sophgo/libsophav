@@ -141,7 +141,7 @@ static void * ive_thresh_s16(void* arg) {
         if(time_single<time_min){time_min = time_single;}
         time_total = time_total + time_single;
         if(ret != BM_SUCCESS){
-            printf("bmcv_ive_thresh s16 failed \n");
+            printf("bmcv_ive_threshs16 failed \n");
             exit(-1);
         }
     }
@@ -164,9 +164,9 @@ static void * ive_thresh_s16(void* arg) {
 
             int cmp = cmp_u8(ref_name, ive_res_u8, width * height * sizeof(unsigned char));
             if(cmp != 0){
-                printf("[bmcv ive thresh s16] cmp failed, cmp = %d \n", cmp);
+                printf("[bmcv ive threshs16] cmp failed, cmp = %d \n", cmp);
             } else {
-                printf("[bmcv ive thresh s16] cmp successful, cmp = %d \n", cmp);
+                printf("[bmcv ive threshs16] cmp successful, cmp = %d \n", cmp);
             }
 
             if(bWrite){
@@ -188,9 +188,9 @@ static void * ive_thresh_s16(void* arg) {
 
             int cmp = cmp_u8(ref_name, (unsigned char*)ive_res_s8, width * height * sizeof(signed char));
             if(cmp != 0){
-                printf("[bmcv ive thresh s16] cmp failed, cmp = %d \n", cmp);
+                printf("[bmcv ive threshs16] cmp failed, cmp = %d \n", cmp);
             } else {
-                printf("[bmcv ive thresh s16] cmp successful, cmp = %d \n", cmp);
+                printf("[bmcv ive threshs16] cmp successful, cmp = %d \n", cmp);
             }
 
             if(bWrite){
@@ -205,13 +205,13 @@ static void * ive_thresh_s16(void* arg) {
     bm_image_destroy(&src);
     bm_image_destroy(&dst);
 
-    char algorithm_str[100] = "ive_thresh_s16";
+    char algorithm_str[100] = "ive_threshs16";
     char src_fmt_str[100],dst_fmt_str[100];
     format_to_str(src.image_format, src_fmt_str);
     format_to_str(dst.image_format, dst_fmt_str);
 
     printf("idx:%d, %d*%d->%d*%d, %s->%s,%s\n",ctx.i,width,height,width,height,src_fmt_str,dst_fmt_str,algorithm_str);
-    printf("idx:%d, bm_ive_thresh_s16: loop %d cycles, time_max = %llu, time_avg = %llu, fps %llu, %lluM pps\n",
+    printf("idx:%d, bm_ive_threshs16: loop %d cycles, time_max = %llu, time_avg = %llu, fps %llu, %lluM pps\n",
         ctx.i, loop_time, time_max, time_avg, fps_actual, pixel_per_sec);
 
     return 0;
@@ -249,11 +249,11 @@ int main(int argc, char **argv) {
         exit(-1);
     }
     if (test_loop_times > 15000 || test_loop_times < 1) {
-        printf("[TEST ive thresh_s16] loop times should be 1~15000\n");
+        printf("[TEST ive threshs16] loop times should be 1~15000\n");
         exit(-1);
     }
     if (test_threads_num > MAX_THREAD_NUM || test_threads_num < 1) {
-        printf("[TEST ive thresh_s16] thread nums should be 1~%d\n", MAX_THREAD_NUM);
+        printf("[TEST ive threshs16] thread nums should be 1~%d\n", MAX_THREAD_NUM);
         exit(-1);
     }
 

@@ -21,27 +21,26 @@
 
 typedef unsigned int VB_POOL;
 
-#include <linux/cvi_type.h>
-#include <linux/cvi_defines.h>
-#include <linux/cvi_common.h>
-#include <linux/cvi_comm_rc.h>
-#include <linux/cvi_comm_video.h>
-#include <linux/cvi_comm_vdec.h>
-#include <linux/cvi_vc_drv_ioctl.h>
+#include <linux/defines.h>
+#include <linux/common.h>
+#include <linux/comm_rc.h>
+#include <linux/comm_video.h>
+#include <linux/comm_vdec.h>
+#include <linux/vc_uapi.h>
 
 #ifndef BM_UNUSED_PARAMS
 #define BM_UNUSED_PARAMS(x) ((void)(x))
 #endif
 
-typedef struct _VIDEO_FRAME_INFO_EX_S {
-	VIDEO_FRAME_INFO_S *pstFrame;
-	CVI_S32 s32MilliSec;
-} VIDEO_FRAME_INFO_EX_S;
+typedef struct _video_frame_info_ex_s {
+	video_frame_info_s *pstFrame;
+	int s32MilliSec;
+} video_frame_info_ex_s;
 
-typedef struct _VDEC_STREAM_EX_S {
-	VDEC_STREAM_S *pstStream;
-	CVI_S32 s32MilliSec;
-} VDEC_STREAM_EX_S;
+typedef struct _vdec_stream_ex_s  {
+	vdec_stream_s *pstStream;
+	int s32MilliSec;
+} vdec_stream_ex_s;
 
 typedef enum
 {
@@ -107,17 +106,17 @@ int bmdec_chn_close(int soc_idx);
 
 int bmdec_ioctl_get_chn(int chn_fd, int *is_jpu, int *chn_id);
 int bmdec_ioctl_set_chn(int chn_fd, int* chn_id);
-int bmdec_ioctl_create_chn(int chn_fd, VDEC_CHN_ATTR_S* pstAttr);
+int bmdec_ioctl_create_chn(int chn_fd, vdec_chn_attr_s* pstAttr);
 int bmdec_ioctl_destory_chn(int chn_fd);
 int bmdec_ioctl_start_recv_stream(int chn_fd);
 int bmdec_ioctl_stop_recv_stream(int chn_fd);
-int bmdec_ioctl_send_stream(int chn_fd, VDEC_STREAM_EX_S* pstStreamEx);
-int bmdec_ioctl_get_frame(int chn_fd, VIDEO_FRAME_INFO_EX_S* pstFrameInfoEx, VDEC_CHN_STATUS_S* stChnStatus);
-int bmdec_ioctl_release_frame(int chn_fd, const VIDEO_FRAME_INFO_S *pstFrameInfo, int size);
-int bmdec_ioctl_get_chn_attr(int chn_fd, VDEC_CHN_ATTR_S *pstAttr);
-int bmdec_ioctl_set_chn_attr(int chn_fd, VDEC_CHN_ATTR_S *pstAttr);
-int bmdec_ioctl_query_chn_status(int chn_fd, VDEC_CHN_STATUS_S *pstStatus);
-int bmdec_ioctl_set_chn_param(int chn_fd, const VDEC_CHN_PARAM_S *pstParam);
-int bmdec_ioctl_get_chn_param(int chn_fd, VDEC_CHN_PARAM_S *pstParam);
+int bmdec_ioctl_send_stream(int chn_fd, vdec_stream_ex_s* pstStreamEx);
+int bmdec_ioctl_get_frame(int chn_fd, video_frame_info_ex_s* pstFrameInfoEx, vdec_chn_status_s* stChnStatus);
+int bmdec_ioctl_release_frame(int chn_fd, const video_frame_info_s *pstFrameInfo, int size);
+int bmdec_ioctl_get_chn_attr(int chn_fd, vdec_chn_attr_s *pstAttr);
+int bmdec_ioctl_set_chn_attr(int chn_fd, vdec_chn_attr_s *pstAttr);
+int bmdec_ioctl_query_chn_status(int chn_fd, vdec_chn_status_s *pstStatus);
+int bmdec_ioctl_set_chn_param(int chn_fd, const vdec_chn_param_s *pstParam);
+int bmdec_ioctl_get_chn_param(int chn_fd, vdec_chn_param_s *pstParam);
 
 #endif /* _BM_VPUENC_IOCTL_H_ */

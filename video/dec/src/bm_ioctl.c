@@ -19,7 +19,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <linux/types.h>
-#include <linux/cvi_vc_drv_ioctl.h>
+#include <linux/vc_uapi.h>
 // #include "devmem.h"
 #include "bm_ioctl.h"
 #include "bmlib_runtime.h"
@@ -71,97 +71,97 @@ void logging_fn(BmVpuLogLevel level, char const *file, int const line, char cons
     fprintf(stderr, "\n");
 }
 
-static int bm_get_ret(int cvi_ret)
+static int bm_get_ret(int ret)
 {
     int bm_ret = BM_SUCCESS;
-    switch (cvi_ret)
+    switch (ret)
     {
-    case CVI_SUCCESS:
+    case 0:
         bm_ret = BM_SUCCESS;
         break;
-    case CVI_FAILURE:
+    case (-1):
         bm_ret = BM_ERR_VDEC_FAILURE;
         break;
-    case CVI_ERR_VDEC_INVALID_CHNID:
+    case DRV_ERR_VDEC_INVALID_CHNID:
         bm_ret = BM_ERR_VDEC_INVALID_CHNID;
         break;
-    case CVI_ERR_VDEC_ILLEGAL_PARAM:
+    case DRV_ERR_VDEC_ILLEGAL_PARAM:
         bm_ret = BM_ERR_VDEC_ILLEGAL_PARAM;
         break;
-    case CVI_ERR_VDEC_EXIST:
+    case DRV_ERR_VDEC_EXIST:
         bm_ret = BM_ERR_VDEC_EXIST;
         break;
-    case CVI_ERR_VDEC_UNEXIST:
+    case DRV_ERR_VDEC_UNEXIST:
         bm_ret = BM_ERR_VDEC_UNEXIST;
         break;
-    case CVI_ERR_VDEC_NULL_PTR:
+    case DRV_ERR_VDEC_NULL_PTR:
         bm_ret = BM_ERR_VDEC_NULL_PTR;
         break;
-    case CVI_ERR_VDEC_NOT_CONFIG:
+    case DRV_ERR_VDEC_NOT_CONFIG:
         bm_ret = BM_ERR_VDEC_NOT_CONFIG;
         break;
-    case CVI_ERR_VDEC_NOT_SUPPORT:
+    case DRV_ERR_VDEC_NOT_SUPPORT:
         bm_ret = BM_ERR_VDEC_NOT_SUPPORT;
         break;
-    case CVI_ERR_VDEC_NOT_PERM:
+    case DRV_ERR_VDEC_NOT_PERM:
         bm_ret = BM_ERR_VDEC_NOT_PERM;
         break;
-    case CVI_ERR_VDEC_INVALID_PIPEID:
+    case DRV_ERR_VDEC_INVALID_PIPEID:
         bm_ret = BM_ERR_VDEC_INVALID_PIPEID;
         break;
-    case CVI_ERR_VDEC_INVALID_GRPID:
+    case DRV_ERR_VDEC_INVALID_GRPID:
         bm_ret = BM_ERR_VDEC_INVALID_GRPID;
         break;
-    case CVI_ERR_VDEC_NOMEM:
+    case DRV_ERR_VDEC_NOMEM:
         bm_ret = BM_ERR_VDEC_NOMEM;
         break;
-    case CVI_ERR_VDEC_NOBUF:
+    case DRV_ERR_VDEC_NOBUF:
         bm_ret = BM_ERR_VDEC_NOBUF;
         break;
-    case CVI_ERR_VDEC_BUF_EMPTY:
+    case DRV_ERR_VDEC_BUF_EMPTY:
         bm_ret = BM_ERR_VDEC_BUF_EMPTY;
         break;
-    case CVI_ERR_VDEC_BUF_FULL:
+    case DRV_ERR_VDEC_BUF_FULL:
         bm_ret = BM_ERR_VDEC_BUF_FULL;
         break;
-    case CVI_ERR_VDEC_SYS_NOTREADY:
+    case DRV_ERR_VDEC_SYS_NOTREADY:
         bm_ret = BM_ERR_VDEC_SYS_NOTREADY;
         break;
-    case CVI_ERR_VDEC_BADADDR:
+    case DRV_ERR_VDEC_BADADDR:
         bm_ret = BM_ERR_VDEC_BADADDR;
         break;
-    case CVI_ERR_VDEC_BUSY:
+    case DRV_ERR_VDEC_BUSY:
         bm_ret = BM_ERR_VDEC_BUSY;
         break;
-    case CVI_ERR_VDEC_SIZE_NOT_ENOUGH:
+    case DRV_ERR_VDEC_SIZE_NOT_ENOUGH:
         bm_ret = BM_ERR_VDEC_SIZE_NOT_ENOUGH;
         break;
-    case CVI_ERR_VDEC_INVALID_VB:
+    case DRV_ERR_VDEC_INVALID_VB:
         bm_ret = BM_ERR_VDEC_INVALID_VB;
         break;
-    case CVI_ERR_VDEC_ERR_INIT:
+    case DRV_ERR_VDEC_ERR_INIT:
         bm_ret = BM_ERR_VDEC_ERR_INIT;
         break;
-    case CVI_ERR_VDEC_ERR_INVALID_RET:
+    case DRV_ERR_VDEC_ERR_INVALID_RET:
         bm_ret = BM_ERR_VDEC_ERR_INVALID_RET;
         break;
-    case CVI_ERR_VDEC_ERR_SEQ_OPER:
+    case DRV_ERR_VDEC_ERR_SEQ_OPER:
         bm_ret = BM_ERR_VDEC_ERR_SEQ_OPER;
         break;
-    case CVI_ERR_VDEC_ERR_VDEC_MUTEX:
+    case DRV_ERR_VDEC_ERR_VDEC_MUTEX:
         bm_ret = BM_ERR_VDEC_ERR_VDEC_MUTEX;
         break;
-    case CVI_ERR_VDEC_ERR_SEND_FAILED:
+    case DRV_ERR_VDEC_ERR_SEND_FAILED:
         bm_ret = BM_ERR_VDEC_ERR_SEND_FAILED;
         break;
-    case CVI_ERR_VDEC_ERR_GET_FAILED:
+    case DRV_ERR_VDEC_ERR_GET_FAILED:
         bm_ret = BM_ERR_VDEC_ERR_GET_FAILED;
         break;
-    case CVI_ERR_VDEC_BUTT:
+    case DRV_ERR_VDEC_BUTT:
         bm_ret = BM_ERR_VDEC_BUTT;
         break;
     default:
-        bm_ret = cvi_ret;
+        bm_ret = ret;
         break;
     }
 
@@ -352,7 +352,7 @@ int bmdec_chn_close(int soc_idx) {
 int bmdec_ioctl_get_chn(int chn_fd, int *is_jpu, int *chn_id)
 {
     int ret = 0;
-    *chn_id = ioctl(chn_fd, CVI_VC_VCODEC_GET_CHN, is_jpu);
+    *chn_id = ioctl(chn_fd, DRV_VC_VCODEC_GET_CHN, is_jpu);
     if(*chn_id < 0)
         return BM_ERR_VDEC_INVALID_CHNID;
 
@@ -362,100 +362,100 @@ int bmdec_ioctl_get_chn(int chn_fd, int *is_jpu, int *chn_id)
 int bmdec_ioctl_set_chn(int chn_fd, int* chn_id)
 {
     int ret = 0;
-    ret = ioctl(chn_fd, CVI_VC_VCODEC_SET_CHN, chn_id);
+    ret = ioctl(chn_fd, DRV_VC_VCODEC_SET_CHN, chn_id);
     return bm_get_ret(ret);
 }
 
-int bmdec_ioctl_create_chn(int chn_fd, VDEC_CHN_ATTR_S* pstAttr)
+int bmdec_ioctl_create_chn(int chn_fd, vdec_chn_attr_s* pstAttr)
 {
     int ret = 0;
-    ret = ioctl(chn_fd, CVI_VC_VDEC_CREATE_CHN, pstAttr);
+    ret = ioctl(chn_fd, DRV_VC_VDEC_CREATE_CHN, pstAttr);
     return bm_get_ret(ret);
 }
 
 int bmdec_ioctl_destory_chn(int chn_fd)
 {
     int ret = 0;
-    ret = ioctl(chn_fd, CVI_VC_VDEC_DESTROY_CHN, NULL);
+    ret = ioctl(chn_fd, DRV_VC_VDEC_DESTROY_CHN, NULL);
     return bm_get_ret(ret);
 }
 
 int bmdec_ioctl_start_recv_stream(int chn_fd)
 {
     int ret = 0;
-    ret = ioctl(chn_fd, CVI_VC_VDEC_START_RECV_STREAM, NULL);
+    ret = ioctl(chn_fd, DRV_VC_VDEC_START_RECV_STREAM, NULL);
     return bm_get_ret(ret);
 }
 
 int bmdec_ioctl_stop_recv_stream(int chn_fd)
 {
     int ret = 0;
-    ret = ioctl(chn_fd, CVI_VC_VDEC_STOP_RECV_STREAM, NULL);
+    ret = ioctl(chn_fd, DRV_VC_VDEC_STOP_RECV_STREAM, NULL);
     return bm_get_ret(ret);
 }
 
-int bmdec_ioctl_send_stream(int chn_fd, VDEC_STREAM_EX_S* pstStreamEx)
+int bmdec_ioctl_send_stream(int chn_fd, vdec_stream_ex_s* pstStreamEx)
 {
     int ret = 0;
-    ret = ioctl(chn_fd, CVI_VC_VDEC_SEND_STREAM, pstStreamEx);
+    ret = ioctl(chn_fd, DRV_VC_VDEC_SEND_STREAM, pstStreamEx);
     return bm_get_ret(ret);
 }
 
-int bmdec_ioctl_get_frame(int chn_fd, VIDEO_FRAME_INFO_EX_S* pstFrameInfoEx, VDEC_CHN_STATUS_S* stChnStatus)
+int bmdec_ioctl_get_frame(int chn_fd, video_frame_info_ex_s* pstFrameInfoEx, vdec_chn_status_s* stChnStatus)
 {
     int ret = 0;
     int i = 0;
     int align_width, align_height, size = 0;
 
-    ret = ioctl(chn_fd, CVI_VC_VDEC_GET_FRAME, pstFrameInfoEx);
-    if (ret == CVI_SUCCESS) {
-        if((ret = ioctl(chn_fd, CVI_VC_VDEC_QUERY_STATUS, stChnStatus)) != BM_SUCCESS) {
-            BMVPU_DEC_ERROR("ioctl CVI_VC_VDEC_QUERY_STATUS error\n");
+    ret = ioctl(chn_fd, DRV_VC_VDEC_GET_FRAME, pstFrameInfoEx);
+    if (ret == 0) {
+        if((ret = ioctl(chn_fd, DRV_VC_VDEC_QUERY_STATUS, stChnStatus)) != BM_SUCCESS) {
+            BMVPU_DEC_ERROR("ioctl DRV_VC_VDEC_QUERY_STATUS error\n");
             return bm_get_ret(ret);
         }
 
-        if(pstFrameInfoEx->pstFrame->stVFrame.enCompressMode == COMPRESS_MODE_FRAME){
+        if(pstFrameInfoEx->pstFrame->video_frame.compress_mode == COMPRESS_MODE_FRAME){
             if(getenv("BMVPU_DEC_DUMP_FBC_NUM") != NULL) {
-                if(pstFrameInfoEx->pstFrame->stVFrame.u64PhyAddr[0] && pstFrameInfoEx->pstFrame->stVFrame.u32Length[0]) {
-                    pstFrameInfoEx->pstFrame->stVFrame.pu8VirAddr[0] =
-                        bmvpu_dec_bmlib_mmap(0, pstFrameInfoEx->pstFrame->stVFrame.u64PhyAddr[0],
-                                            pstFrameInfoEx->pstFrame->stVFrame.u32Length[0]);
+                if(pstFrameInfoEx->pstFrame->video_frame.phyaddr[0] && pstFrameInfoEx->pstFrame->video_frame.length[0]) {
+                    pstFrameInfoEx->pstFrame->video_frame.viraddr[0] =
+                        bmvpu_dec_bmlib_mmap(0, pstFrameInfoEx->pstFrame->video_frame.phyaddr[0],
+                                            pstFrameInfoEx->pstFrame->video_frame.length[0]);
                 }
 
-                if(pstFrameInfoEx->pstFrame->stVFrame.u64PhyAddr[1] && pstFrameInfoEx->pstFrame->stVFrame.u32Length[1]) {
-                    pstFrameInfoEx->pstFrame->stVFrame.pu8VirAddr[1] =
-                        bmvpu_dec_bmlib_mmap(0, pstFrameInfoEx->pstFrame->stVFrame.u64PhyAddr[1],
-                                            pstFrameInfoEx->pstFrame->stVFrame.u32Length[1]);
+                if(pstFrameInfoEx->pstFrame->video_frame.phyaddr[1] && pstFrameInfoEx->pstFrame->video_frame.length[1]) {
+                    pstFrameInfoEx->pstFrame->video_frame.viraddr[1] =
+                        bmvpu_dec_bmlib_mmap(0, pstFrameInfoEx->pstFrame->video_frame.phyaddr[1],
+                                            pstFrameInfoEx->pstFrame->video_frame.length[1]);
                 }
 
-                if(pstFrameInfoEx->pstFrame->stVFrame.u64PhyAddr[2] && pstFrameInfoEx->pstFrame->stVFrame.u32Length[2]) {
-                    pstFrameInfoEx->pstFrame->stVFrame.pu8VirAddr[2] =
-                        bmvpu_dec_bmlib_mmap(0, pstFrameInfoEx->pstFrame->stVFrame.u64PhyAddr[2],
-                                            pstFrameInfoEx->pstFrame->stVFrame.u32Length[2]);
+                if(pstFrameInfoEx->pstFrame->video_frame.phyaddr[2] && pstFrameInfoEx->pstFrame->video_frame.length[2]) {
+                    pstFrameInfoEx->pstFrame->video_frame.viraddr[2] =
+                        bmvpu_dec_bmlib_mmap(0, pstFrameInfoEx->pstFrame->video_frame.phyaddr[2],
+                                            pstFrameInfoEx->pstFrame->video_frame.length[2]);
                 }
 
-                if(pstFrameInfoEx->pstFrame->stVFrame.u64ExtPhyAddr && pstFrameInfoEx->pstFrame->stVFrame.u32ExtLength) {
-                    pstFrameInfoEx->pstFrame->stVFrame.pu8ExtVirtAddr =
-                        bmvpu_dec_bmlib_mmap(0, pstFrameInfoEx->pstFrame->stVFrame.u64ExtPhyAddr,
-                                            pstFrameInfoEx->pstFrame->stVFrame.u32ExtLength);
+                if(pstFrameInfoEx->pstFrame->video_frame.ext_phy_addr && pstFrameInfoEx->pstFrame->video_frame.ext_length) {
+                    pstFrameInfoEx->pstFrame->video_frame.ext_virt_addr =
+                        bmvpu_dec_bmlib_mmap(0, pstFrameInfoEx->pstFrame->video_frame.ext_phy_addr,
+                                            pstFrameInfoEx->pstFrame->video_frame.ext_length);
                 }
             }
             return ret;
         }
 
-        size = (pstFrameInfoEx->pstFrame->stVFrame.u64PhyAddr[1] - pstFrameInfoEx->pstFrame->stVFrame.u64PhyAddr[0]) * 3 / 2;
-        if(pstFrameInfoEx->pstFrame->stVFrame.u64PhyAddr[0] && size) {
-            pstFrameInfoEx->pstFrame->stVFrame.pu8VirAddr[0] =
-                bmvpu_dec_bmlib_mmap(0, pstFrameInfoEx->pstFrame->stVFrame.u64PhyAddr[0], size);
+        size = (pstFrameInfoEx->pstFrame->video_frame.phyaddr[1] - pstFrameInfoEx->pstFrame->video_frame.phyaddr[0]) * 3 / 2;
+        if(pstFrameInfoEx->pstFrame->video_frame.phyaddr[0] && size) {
+            pstFrameInfoEx->pstFrame->video_frame.viraddr[0] =
+                bmvpu_dec_bmlib_mmap(0, pstFrameInfoEx->pstFrame->video_frame.phyaddr[0], size);
 
-            pstFrameInfoEx->pstFrame->stVFrame.pu8VirAddr[1] = pstFrameInfoEx->pstFrame->stVFrame.pu8VirAddr[0] +
-                                                                pstFrameInfoEx->pstFrame->stVFrame.u64PhyAddr[1] -
-                                                                pstFrameInfoEx->pstFrame->stVFrame.u64PhyAddr[0];
+            pstFrameInfoEx->pstFrame->video_frame.viraddr[1] = pstFrameInfoEx->pstFrame->video_frame.viraddr[0] +
+                                                                pstFrameInfoEx->pstFrame->video_frame.phyaddr[1] -
+                                                                pstFrameInfoEx->pstFrame->video_frame.phyaddr[0];
 
-            if(pstFrameInfoEx->pstFrame->stVFrame.enPixelFormat == PIXEL_FORMAT_YUV_PLANAR_420) {
-                pstFrameInfoEx->pstFrame->stVFrame.pu8VirAddr[2] = pstFrameInfoEx->pstFrame->stVFrame.pu8VirAddr[1] +
-                                                                    pstFrameInfoEx->pstFrame->stVFrame.u64PhyAddr[2] -
-                                                                    pstFrameInfoEx->pstFrame->stVFrame.u64PhyAddr[1];
+            if(pstFrameInfoEx->pstFrame->video_frame.pixel_format == PIXEL_FORMAT_YUV_PLANAR_420) {
+                pstFrameInfoEx->pstFrame->video_frame.viraddr[2] = pstFrameInfoEx->pstFrame->video_frame.viraddr[1] +
+                                                                    pstFrameInfoEx->pstFrame->video_frame.phyaddr[2] -
+                                                                    pstFrameInfoEx->pstFrame->video_frame.phyaddr[1];
             }
         }
     }
@@ -463,72 +463,72 @@ int bmdec_ioctl_get_frame(int chn_fd, VIDEO_FRAME_INFO_EX_S* pstFrameInfoEx, VDE
     return bm_get_ret(ret);
 }
 
-int bmdec_ioctl_release_frame(int chn_fd, const VIDEO_FRAME_INFO_S *pstFrameInfo, int size)
+int bmdec_ioctl_release_frame(int chn_fd, const video_frame_info_s *pstFrameInfo, int size)
 {
     int ret = 0;
-    if(pstFrameInfo->stVFrame.enCompressMode != COMPRESS_MODE_FRAME) {
-        if (pstFrameInfo->stVFrame.pu8VirAddr[0] && pstFrameInfo->stVFrame.u32Length[0]) {
-            bmvpu_dec_bmlib_munmap(0, pstFrameInfo->stVFrame.pu8VirAddr[0], size);
+    if(pstFrameInfo->video_frame.compress_mode != COMPRESS_MODE_FRAME) {
+        if (pstFrameInfo->video_frame.viraddr[0] && pstFrameInfo->video_frame.length[0]) {
+            bmvpu_dec_bmlib_munmap(0, pstFrameInfo->video_frame.viraddr[0], size);
         }
     }
     else {
         if(getenv("BMVPU_DEC_DUMP_FBC_NUM") != NULL) {
-            if (pstFrameInfo->stVFrame.pu8VirAddr[0] && pstFrameInfo->stVFrame.u32Length[0]) {
-                bmvpu_dec_bmlib_munmap(0, pstFrameInfo->stVFrame.pu8VirAddr[0], pstFrameInfo->stVFrame.u32Length[0]);
+            if (pstFrameInfo->video_frame.viraddr[0] && pstFrameInfo->video_frame.length[0]) {
+                bmvpu_dec_bmlib_munmap(0, pstFrameInfo->video_frame.viraddr[0], pstFrameInfo->video_frame.length[0]);
             }
 
-            if (pstFrameInfo->stVFrame.pu8VirAddr[1] && pstFrameInfo->stVFrame.u32Length[1]) {
-                bmvpu_dec_bmlib_munmap(0, pstFrameInfo->stVFrame.pu8VirAddr[1], pstFrameInfo->stVFrame.u32Length[1]);
+            if (pstFrameInfo->video_frame.viraddr[1] && pstFrameInfo->video_frame.length[1]) {
+                bmvpu_dec_bmlib_munmap(0, pstFrameInfo->video_frame.viraddr[1], pstFrameInfo->video_frame.length[1]);
             }
 
-            if (pstFrameInfo->stVFrame.pu8VirAddr[2] && pstFrameInfo->stVFrame.u32Length[2]) {
-                bmvpu_dec_bmlib_munmap(0, pstFrameInfo->stVFrame.pu8VirAddr[2], pstFrameInfo->stVFrame.u32Length[2]);
+            if (pstFrameInfo->video_frame.viraddr[2] && pstFrameInfo->video_frame.length[2]) {
+                bmvpu_dec_bmlib_munmap(0, pstFrameInfo->video_frame.viraddr[2], pstFrameInfo->video_frame.length[2]);
             }
 
-            if(pstFrameInfo->stVFrame.pu8ExtVirtAddr && pstFrameInfo->stVFrame.u32ExtLength) {
-                bmvpu_dec_bmlib_munmap(0, pstFrameInfo->stVFrame.pu8ExtVirtAddr, pstFrameInfo->stVFrame.u32ExtLength);
+            if(pstFrameInfo->video_frame.ext_virt_addr && pstFrameInfo->video_frame.ext_length) {
+                bmvpu_dec_bmlib_munmap(0, pstFrameInfo->video_frame.ext_virt_addr, pstFrameInfo->video_frame.ext_length);
             }
         }
     }
 
-    ret = ioctl(chn_fd, CVI_VC_VDEC_RELEASE_FRAME, pstFrameInfo);
+    ret = ioctl(chn_fd, DRV_VC_VDEC_RELEASE_FRAME, pstFrameInfo);
     if(ret == BM_SUCCESS)
-        memset(pstFrameInfo, 0, sizeof(VIDEO_FRAME_INFO_S));
+        memset(pstFrameInfo, 0, sizeof(video_frame_info_s));
 
     return bm_get_ret(ret);
 }
 
-int bmdec_ioctl_get_chn_attr(int chn_fd, VDEC_CHN_ATTR_S *pstAttr)
+int bmdec_ioctl_get_chn_attr(int chn_fd, vdec_chn_attr_s *pstAttr)
 {
     int ret = 0;
-    ret = ioctl(chn_fd, CVI_VC_VDEC_GET_CHN_ATTR, pstAttr);
+    ret = ioctl(chn_fd, DRV_VC_VDEC_GET_CHN_ATTR, pstAttr);
     return bm_get_ret(ret);
 }
 
-int bmdec_ioctl_set_chn_attr(int chn_fd, VDEC_CHN_ATTR_S *pstAttr)
+int bmdec_ioctl_set_chn_attr(int chn_fd, vdec_chn_attr_s *pstAttr)
 {
     int ret = 0;
-    ret = ioctl(chn_fd, CVI_VC_VDEC_SET_CHN_ATTR, pstAttr);
+    ret = ioctl(chn_fd, DRV_VC_VDEC_SET_CHN_ATTR, pstAttr);
     return bm_get_ret(ret);
 }
 
-int bmdec_ioctl_query_chn_status(int chn_fd, VDEC_CHN_STATUS_S *pstStatus)
+int bmdec_ioctl_query_chn_status(int chn_fd, vdec_chn_status_s *pstStatus)
 {
     int ret = 0;
-    ioctl(chn_fd, CVI_VC_VDEC_QUERY_STATUS, pstStatus);
+    ioctl(chn_fd, DRV_VC_VDEC_QUERY_STATUS, pstStatus);
     return bm_get_ret(ret);
 }
 
-int bmdec_ioctl_set_chn_param(int chn_fd, const VDEC_CHN_PARAM_S *pstParam)
+int bmdec_ioctl_set_chn_param(int chn_fd, const vdec_chn_param_s *pstParam)
 {
     int ret = 0;
-    ioctl(chn_fd, CVI_VC_VDEC_SET_CHN_PARAM, pstParam);
+    ioctl(chn_fd, DRV_VC_VDEC_SET_CHN_PARAM, pstParam);
     return bm_get_ret(ret);
 }
 
-int bmdec_ioctl_get_chn_param(int chn_fd, VDEC_CHN_PARAM_S *pstParam)
+int bmdec_ioctl_get_chn_param(int chn_fd, vdec_chn_param_s *pstParam)
 {
     int ret = 0;
-    ioctl(chn_fd, CVI_VC_VDEC_GET_CHN_PARAM, pstParam);
+    ioctl(chn_fd, DRV_VC_VDEC_GET_CHN_PARAM, pstParam);
     return bm_get_ret(ret);
 }

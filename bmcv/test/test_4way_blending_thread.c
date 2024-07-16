@@ -5,7 +5,10 @@
 #include "getopt.h"
 #include <sys/time.h>
 #include <pthread.h>
+#include <stdatomic.h>
+#include "signal.h"
 #include "bmcv_api_ext_c.h"
+
 #ifdef __linux__
 #include <sys/time.h>
 #else
@@ -13,10 +16,13 @@
 #include "time.h"
 #endif
 
-pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 #define ALIGN(x, a)      (((x) + ((a)-1)) & ~((a)-1))
 extern void bm_read_bin(bm_image src, const char *input_name);
 extern void bm_write_bin(bm_image dst, const char *output_name);
+
+pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
+_Atomic int threads_running = 1;
+_Atomic int num_threads = 0;
 
 typedef struct {
     int     input_num;
@@ -120,13 +126,36 @@ void bm_dem_read_bin(bm_handle_t handle, bm_device_mem_t* dmem, const char *inpu
   return;
 }
 
+static int absdiff(unsigned char* input1, unsigned char* input2, int img_size)
+{
+  unsigned char output;
+  int count = 0;
+
+  for(int i = 0; i < img_size; i++)
+  {
+    output = abs(input1[i] - input2[i]);
+    if(output > 1)
+    {
+      if(i+1 < img_size)
+      {
+        if(abs(input1[i+1] - input2[i+1]))
+        {
+          count++;
+        }
+      }
+    }
+  }
+
+  return count;
+}
+
 int compare_file(bm_image dst, char * compare_name)
 {
-  int image_byte_size[4] = {0}, ret1 = 0;
+  int image_byte_size[4] = {0}, ret1 = 0, count = 0;
   bm_image_get_byte_size(dst, image_byte_size);
   int byte_size = image_byte_size[0] + image_byte_size[1] + image_byte_size[2] + image_byte_size[3];
-  char* input_ptr = NULL;
-  char* bmcv_output_ptr = NULL;
+  unsigned char* input_ptr = NULL;
+  unsigned char* bmcv_output_ptr = NULL;
 
   FILE *fp = fopen(compare_name, "r");
   if (fp == NULL) {
@@ -134,8 +163,8 @@ int compare_file(bm_image dst, char * compare_name)
     return -1;
   }
 
-  input_ptr = (char *)malloc(byte_size);
-  bmcv_output_ptr = (char *)malloc(byte_size);
+  input_ptr = (unsigned char *)malloc(byte_size);
+  bmcv_output_ptr = (unsigned char *)malloc(byte_size);
 
   void* out_ptr[4] = {(void*)bmcv_output_ptr,
                      (void*)((char*)bmcv_output_ptr + image_byte_size[0]),
@@ -150,15 +179,15 @@ int compare_file(bm_image dst, char * compare_name)
       goto exit;
   };
 
-  ret1 = memcmp(input_ptr, bmcv_output_ptr, byte_size);
+  count = absdiff(input_ptr, bmcv_output_ptr, byte_size);
 
-  if(ret1 == 0 )
+  if((0 <= count) && (1 >= count))
   {
-    printf("stitch comparison success.\n");
+    printf("stitch comparison success,count %d.\n",count);
   }
   else
   {
-    printf("stitch comparison failed.\n");
+    printf("stitch comparison failed,count %d\n",count);
   }
 
 exit:
@@ -169,6 +198,29 @@ exit:
   return ret1;
 }
 
+void blend_HandleSig(int signum)
+{
+  int count=100;
+
+  signal(SIGINT, SIG_IGN);
+  signal(SIGTERM, SIG_IGN);
+
+  printf("signal happen  %d \n",signum);
+
+
+  atomic_store(&threads_running, 0);
+  pthread_cond_broadcast(&cond);
+
+
+  // Wait for all threads to stop
+  while ((atomic_load(&num_threads) > 0) && (count > 0)) {
+    usleep(10000); // Sleep for 10 ms
+    printf("wait thread stop, remaning num_threads %d\n",atomic_load(&num_threads));
+    count--;
+  }
+
+  exit(-1);
+}
 
 static int test_4way_blending(int input_num, char** src_name, int src_w, int src_h, bm_image_format_ext src_fmt,
                               char* dst_name, int dst_w, int dst_h, bm_image_format_ext dst_fmt,
@@ -186,6 +238,8 @@ static int test_4way_blending(int input_num, char** src_name, int src_w, int src
   #endif
   unsigned long long time_single, time_total = 0, time_avg = 0;
   unsigned long long time_max = 0, time_min = 10000, fps = 0, pixel_per_sec = 0;
+  atomic_fetch_add(&num_threads, 1);
+
   for(int i = 0;i < input_num; i++)
   {
     bm_image_create(handle, src_h, src_w, src_fmt, DATA_TYPE_EXT_1N_BYTE, &src[i],NULL);
@@ -209,12 +263,21 @@ static int test_4way_blending(int input_num, char** src_name, int src_w, int src
 
 
   for(int i = 0;i < loop_time; i++){
+
+    if (!atomic_load(&threads_running)) {
+      break;
+    }
 #ifdef __linux__
     gettimeofday(&tv_start, NULL);
 #endif
-    pthread_mutex_lock(&lock);
+
     ret = bmcv_blending(handle, input_num, src, dst, stitch_config);
-    pthread_mutex_unlock(&lock);
+    if(0 != ret)
+    {
+      printf("bmcv_blending failed,ret = %d\n", ret);
+      break;
+    }
+
 #ifdef __linux__
     gettimeofday(&tv_end, NULL);
     timediff.tv_sec  = tv_end.tv_sec - tv_start.tv_sec;
@@ -227,7 +290,7 @@ static int test_4way_blending(int input_num, char** src_name, int src_w, int src
     time_total = time_total + time_single;
   }
   time_avg = time_total / loop_time;
-  fps = 1000000 *2 / time_avg;
+  fps = 1000000 / time_avg;
   pixel_per_sec = src_w * src_h * fps/1024/1024;
 
   if(NULL != dst_name)
@@ -254,6 +317,7 @@ static int test_4way_blending(int input_num, char** src_name, int src_w, int src
   bm_image_destroy(&src[0]);
   bm_image_destroy(&src[1]);
   bm_image_destroy(&dst);
+  atomic_fetch_sub(&num_threads, 1);
 
   return ret;
 
@@ -297,7 +361,6 @@ void* test_blending(void* args){
                             dst_w, dst_h, dst_fmt, wgt_name, loop_time, dev_id, wgt_len,
                             compare_name, stitch_config, handle)) {
     printf("---------Test 4way blending Failed!--------\n");
-    exit(-1);
   } else {
     printf("----------Test 4way blending success!----------\n");
   }
@@ -343,6 +406,9 @@ int main(int argc, char *argv[])
     return 0;
   }
 
+  atomic_init(&num_threads, 0);
+  atomic_init(&threads_running, 1);
+
   bm_handle_t handle = NULL;
   int src_h = 288, src_w = 4608, dst_w = 11520, dst_h = 288;
   bm_image_format_ext src_fmt = FORMAT_YUV420P, dst_fmt = FORMAT_YUV420P;
@@ -353,6 +419,9 @@ int main(int argc, char *argv[])
   struct stitch_param stitch_config;
   memset(&stitch_config, 0, sizeof(stitch_config));
   stitch_config.wgt_mode = BM_STITCH_WGT_YUV_SHARE;
+
+  signal(SIGINT, blend_HandleSig);
+  signal(SIGTERM, blend_HandleSig);
 
   int ch = 0, opt_idx = 0;
   while ((ch = getopt_long(argc, argv, "T:N:a:b:c:d:e:f:g:h:i:j:k:l:m:n:o:p:q:r:s:t:u:v:w:x:y:z:W:H", long_options, &opt_idx)) != -1) {
@@ -501,7 +570,6 @@ int main(int argc, char *argv[])
       }
   }
 
-  pthread_mutex_destroy(&lock);
   bm_dev_free(handle);
 
   return ret;

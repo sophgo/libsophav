@@ -4,7 +4,7 @@
 #include <sys/mman.h>
 #include <stdlib.h>
 #include "bm_ioctl.h"
-#include "linux/cvi_vc_drv_ioctl.h"
+#include "linux/vc_uapi.h"
 #include "bm_vpu_logging.h"
 
 
@@ -43,31 +43,31 @@ void bmenc_chn_close(int fd) {
 int  bmenc_ioctl_get_ext_addr(int chn_fd, int *ext_addr)
 {
     int ret = 0;
-    ret = ioctl(chn_fd, CVI_VC_VENC_GET_EXT_ADDR, ext_addr);
+    ret = ioctl(chn_fd, DRV_VC_VENC_GET_EXT_ADDR, ext_addr);
     return ret;
 }
 
 int bmenc_ioctl_set_chn(int chn_fd, int *chn_id)
 {
     int ret = 0;
-    ret = ioctl(chn_fd, CVI_VC_VCODEC_SET_CHN, chn_id);
+    ret = ioctl(chn_fd, DRV_VC_VCODEC_SET_CHN, chn_id);
     return ret;
 }
 
 int bmenc_ioctl_get_chn(int chn_fd, int *is_jpu, int *chn_id)
 {
     int ret = 0;
-    *chn_id = ioctl(chn_fd, CVI_VC_VCODEC_GET_CHN, is_jpu);
+    *chn_id = ioctl(chn_fd, DRV_VC_VCODEC_GET_CHN, is_jpu);
     if (*chn_id < 0) {
         return -1;
     }
     return ret;
 }
 
-int bmenc_ioctl_create_chn(int chn_fd, VENC_CHN_ATTR_S* pstAttr)
+int bmenc_ioctl_create_chn(int chn_fd, venc_chn_attr_s* pstAttr)
 {
     int ret = 0;
-    ret = ioctl(chn_fd, CVI_VC_VENC_CREATE_CHN, pstAttr);
+    ret = ioctl(chn_fd, DRV_VC_VENC_CREATE_CHN, pstAttr);
 
     return ret;
 }
@@ -75,98 +75,98 @@ int bmenc_ioctl_create_chn(int chn_fd, VENC_CHN_ATTR_S* pstAttr)
 int bmenc_ioctl_destroy_chn(int chn_fd)
 {
     int ret = 0;
-    ret = ioctl(chn_fd, CVI_VC_VENC_DESTROY_CHN);
+    ret = ioctl(chn_fd, DRV_VC_VENC_DESTROY_CHN);
     return ret;
 }
 
-int bmenc_ioctl_set_rc_params(int chn_fd, VENC_RC_PARAM_S *pstRcParam)
+int bmenc_ioctl_set_rc_params(int chn_fd, venc_rc_param_s *pstRcParam)
 {
     int ret = 0;
-    ret = ioctl(chn_fd, CVI_VC_VENC_SET_RC_PARAM, pstRcParam);
+    ret = ioctl(chn_fd, DRV_VC_VENC_SET_RC_PARAM, pstRcParam);
     return ret;
 }
 
-int bmenc_ioctl_set_h264VUI(int chn_fd, VENC_H264_VUI_S *pH264Vui)
+int bmenc_ioctl_set_h264VUI(int chn_fd, venc_h264_vui_s *pH264Vui)
 {
     int ret = 0;
-    ret = ioctl(chn_fd, CVI_VC_VENC_SET_H264_VUI, pH264Vui);
+    ret = ioctl(chn_fd, DRV_VC_VENC_SET_H264_VUI, pH264Vui);
     return ret;
 }
 
-int bmenc_ioctl_set_h265VUI(int chn_fd, VENC_H265_VUI_S *pH265Vui)
+int bmenc_ioctl_set_h265VUI(int chn_fd, venc_h265_vui_s *pH265Vui)
 {
     int ret = 0;
-    ret = ioctl(chn_fd, CVI_VC_VENC_SET_H265_VUI, pH265Vui);
+    ret = ioctl(chn_fd, DRV_VC_VENC_SET_H265_VUI, pH265Vui);
     return ret;
 }
 
-int bmenc_ioctl_get_chn_attr(int chn_fd, VENC_CHN_ATTR_S* pstAttr)
+int bmenc_ioctl_get_chn_attr(int chn_fd, venc_chn_attr_s* pstAttr)
 {
     int ret = 0;
-    ret = ioctl(chn_fd, CVI_VC_VENC_GET_CHN_ATTR, pstAttr);
+    ret = ioctl(chn_fd, DRV_VC_VENC_GET_CHN_ATTR, pstAttr);
 
     return 0;
 }
 
-int bmenc_ioctl_start_recv_frame(int chn_fd, VENC_RECV_PIC_PARAM_S* pstRecvParam)
+int bmenc_ioctl_start_recv_frame(int chn_fd, venc_recv_pic_param_s* pstRecvParam)
 {
     int ret = 0;
-    ret = ioctl(chn_fd, CVI_VC_VENC_START_RECV_FRAME, pstRecvParam);
+    ret = ioctl(chn_fd, DRV_VC_VENC_START_RECV_FRAME, pstRecvParam);
     return ret;
 }
 
 int bmenc_ioctl_stop_recv_frame(int chn_fd)
 {
     int ret = 0;
-    ret = ioctl(chn_fd, CVI_VC_VENC_STOP_RECV_FRAME);
+    ret = ioctl(chn_fd, DRV_VC_VENC_STOP_RECV_FRAME);
     return ret;
 }
 
-int  bmenc_ioctl_encode_header(int chn_fd, VENC_ENCODE_HEADER_S* pstEncodeHeader)
+int  bmenc_ioctl_encode_header(int chn_fd, venc_encode_header_s* pstEncodeHeader)
 {
     int ret = 0;
-    ret = ioctl(chn_fd, CVI_VC_VENC_GET_HEADER, pstEncodeHeader);
+    ret = ioctl(chn_fd, DRV_VC_VENC_GET_HEADER, pstEncodeHeader);
     return ret;
 }
-int bmenc_ioctl_send_frame(int chn_fd, VIDEO_FRAME_INFO_EX_S* pstFrameEx)
+int bmenc_ioctl_send_frame(int chn_fd, video_frame_info_ex_s* pstFrameEx)
 {
     int ret = 0;
-    ret = ioctl(chn_fd, CVI_VC_VENC_SEND_FRAME, pstFrameEx);
-    return ret;
-}
-
-int bmenc_ioctl_get_stream(int chn_fd, VENC_STREAM_EX_S* pstStreamEx)
-{
-    int ret = 0;
-    ret = ioctl(chn_fd, CVI_VC_VENC_GET_STREAM, pstStreamEx);
+    ret = ioctl(chn_fd, DRV_VC_VENC_SEND_FRAME, pstFrameEx);
     return ret;
 }
 
-int bmenc_ioctl_release_stream(int chn_fd, VENC_STREAM_S* pstStream)
+int bmenc_ioctl_get_stream(int chn_fd, venc_stream_ex_s* pstStreamEx)
 {
     int ret = 0;
-    ret = ioctl(chn_fd, CVI_VC_VENC_RELEASE_STREAM, pstStream);
+    ret = ioctl(chn_fd, DRV_VC_VENC_GET_STREAM, pstStreamEx);
     return ret;
 }
 
-int bmenc_ioctl_roi(int chn_fd, VENC_CUSTOM_MAP_S* proiAttr)
+int bmenc_ioctl_release_stream(int chn_fd, venc_stream_s* pstStream)
 {
     int ret = 0;
-    ret = ioctl(chn_fd, CVI_VC_VENC_SET_CUSTOM_MAP, proiAttr);
+    ret = ioctl(chn_fd, DRV_VC_VENC_RELEASE_STREAM, pstStream);
     return ret;
 }
 
-int bmenc_ioctl_get_intinal_info(int chn_fd, VENC_INITIAL_INFO_S *pinfo)
+int bmenc_ioctl_roi(int chn_fd, venc_custom_map_s* proiAttr)
 {
     int ret = 0;
-    ret = ioctl(chn_fd, CVI_VC_VENC_GET_INTINAL_INFO, pinfo);
+    ret = ioctl(chn_fd, DRV_VC_VENC_SET_CUSTOM_MAP, proiAttr);
     return ret;
 }
 
-int  bmenc_ioctl_query_status(int chn_fd, VENC_CHN_STATUS_S* pstatus)
+int bmenc_ioctl_get_intinal_info(int chn_fd, venc_initial_info_s *pinfo)
 {
     int ret = 0;
-    ret = ioctl(chn_fd, CVI_VC_VENC_QUERY_STATUS, pstatus);
+    ret = ioctl(chn_fd, DRV_VC_VENC_GET_INTINAL_INFO, pinfo);
+    return ret;
+}
+
+int  bmenc_ioctl_query_status(int chn_fd, venc_chn_status_s* pstatus)
+{
+    int ret = 0;
+    ret = ioctl(chn_fd, DRV_VC_VENC_QUERY_STATUS, pstatus);
     return ret;
 }
 

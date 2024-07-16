@@ -52,7 +52,7 @@ LIST ( SORT			ly_unittest_sources )
 
 INCLUDE_DIRECTORIES( BEFORE ${ly_inc_dir} )
 
-set(SO_VERSION "1.6.0")
+set(SO_VERSION "1.7.0")
 if(NOT "${SO_VERSION}" STREQUAL "")
     STRING(REGEX REPLACE "[\n\t\r]" "" SO_VERSION ${SO_VERSION})
     STRING(REGEX MATCH "[0-9]*" SO_NAME ${SO_VERSION})

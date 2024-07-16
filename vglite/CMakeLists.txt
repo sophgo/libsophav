@@ -9,6 +9,6 @@ install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/LD/
     FILE_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
     COMPONENT ${component}
     FILES_MATCHING
-    PATTERN "*vg_lite*"  # 或者按照实际情况匹配文件名
+    PATTERN "*vg_lite*"  # open source *.so
 )
 add_subdirectory(sample)

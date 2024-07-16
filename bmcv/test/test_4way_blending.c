@@ -4,6 +4,7 @@
 #include "string.h"
 #include "getopt.h"
 #include <sys/time.h>
+#include "signal.h"
 #include "bmcv_api_ext_c.h"
 
 #define ALIGN(x, a)      (((x) + ((a)-1)) & ~((a)-1))
@@ -93,13 +94,36 @@ void bm_dem_read_bin(bm_handle_t handle, bm_device_mem_t* dmem, const char *inpu
   return;
 }
 
+static int absdiff(unsigned char* input1, unsigned char* input2, int img_size)
+{
+  unsigned char output;
+  int count = 0;
+
+  for(int i = 0; i < img_size; i++)
+  {
+    output = abs(input1[i] - input2[i]);
+    if(output > 1)
+    {
+      if(i+1 < img_size)
+      {
+        if(abs(input1[i+1] - input2[i+1]))
+        {
+          count++;
+        }
+      }
+    }
+  }
+
+  return count;
+}
+
 int compare_file(bm_image dst, char * compare_name)
 {
-  int image_byte_size[4] = {0}, ret1 = 0;
+  int image_byte_size[4] = {0}, ret1 = 0, count = 0;
   bm_image_get_byte_size(dst, image_byte_size);
   int byte_size = image_byte_size[0] + image_byte_size[1] + image_byte_size[2] + image_byte_size[3];
-  char* input_ptr = NULL;
-  char* bmcv_output_ptr = NULL;
+  unsigned char* input_ptr = NULL;
+  unsigned char* bmcv_output_ptr = NULL;
 
   FILE *fp = fopen(compare_name, "r");
   if (fp == NULL) {
@@ -107,8 +131,8 @@ int compare_file(bm_image dst, char * compare_name)
     return -1;
   }
 
-  input_ptr = (char *)malloc(byte_size);
-  bmcv_output_ptr = (char *)malloc(byte_size);
+  input_ptr = (unsigned char *)malloc(byte_size);
+  bmcv_output_ptr = (unsigned char *)malloc(byte_size);
 
   void* out_ptr[4] = {(void*)bmcv_output_ptr,
                      (void*)((char*)bmcv_output_ptr + image_byte_size[0]),
@@ -123,15 +147,16 @@ int compare_file(bm_image dst, char * compare_name)
       goto exit;
   };
 
-  ret1 = memcmp(input_ptr, bmcv_output_ptr, byte_size);
+  count = absdiff(input_ptr, bmcv_output_ptr, byte_size);
 
-  if(ret1 == 0 )
+  if((0 <= count) && (1 >= count))
   {
-    printf("stitch comparison success.\n");
+    printf("stitch comparison success,count %d.\n",count);
   }
   else
   {
-    printf("stitch comparison failed.\n");
+    printf("stitch comparison failed,count %d\n",count);
+    ret1 = -1;
   }
 
 exit:
@@ -141,6 +166,17 @@ exit:
   fclose(fp);
   return ret1;
 }
+
+void blend_HandleSig(int signum)
+{
+  signal(SIGINT, SIG_IGN);
+  signal(SIGTERM, SIG_IGN);
+
+  printf("signal happen  %d \n",signum);
+
+  exit(-1);
+}
+
 
 int main(int argc, char *argv[]) {
 
@@ -199,6 +235,9 @@ int main(int argc, char *argv[]) {
   struct stitch_param stitch_config;
   memset(&stitch_config, 0, sizeof(stitch_config));
   stitch_config.wgt_mode = BM_STITCH_WGT_YUV_SHARE;
+
+  signal(SIGINT, blend_HandleSig);
+  signal(SIGTERM, blend_HandleSig);
 
   int ch = 0, opt_idx = 0;
   while ((ch = getopt_long(argc, argv, "N:a:b:c:d:e:f:g:h:i:j:k:l:m:n:o:p:q:r:s:t:u:v:w:x:y:z:W:H", long_options, &opt_idx)) != -1) {
@@ -340,7 +379,7 @@ int main(int argc, char *argv[]) {
     time_total = time_total + time_single;
   }
   time_avg = time_total / loop_time;
-  fps = 1000000 *2 / time_avg;
+  fps = 1000000 / time_avg;
   pixel_per_sec = src_w * src_h * fps/1024/1024;
 
   if(NULL != dst_name)

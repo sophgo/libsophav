@@ -13,6 +13,8 @@
 
 #define MAX_LEN 178956972  //128M/3*4
 #define MAX_LOOP_LEN 3145728 //3M
+#define BASE64_ENC 1
+#define BASE64_DEC 0
 
 static unsigned long int base64_compute_dstlen(unsigned long int len, bool enc) {
     unsigned long roundup;
@@ -245,11 +247,44 @@ bm_status_t bmcv_base64_enc(bm_handle_t handle, bm_device_mem_t src,
     bm_device_mem_t dst, unsigned long len[2])
 {
     // BASE64_ENC
+    len[1] = base64_compute_dstlen(len[0], BASE64_ENC);
     return bmcv_base64_codec(handle, src, dst, len[0], 1);
 }
 bm_status_t bmcv_base64_dec(bm_handle_t handle, bm_device_mem_t src,
     bm_device_mem_t dst, unsigned long len[2])
 {
     // BASE64_DEC
+    int cnt = 0; int i;
+    unsigned char *src_addr;
+    unsigned char check_buf[2];
+    bm_device_mem_t src_device;
+
+    len[1] = base64_compute_dstlen(len[0], BASE64_DEC);
+
+    if (bm_mem_get_type(src) == BM_MEM_TYPE_SYSTEM) {
+        src_addr = (unsigned char *)bm_mem_get_system_addr(src);
+        for (i = 1; i < 3; i++) {
+            if(src_addr[len[0] - i] == '=')
+                cnt++;
+        }
+    }
+
+    if (bm_mem_get_type(src) == BM_MEM_TYPE_DEVICE) {
+        src_device = src;
+        src_device.u.device.device_addr
+            = src.u.device.device_addr + len[0] - 2;
+        src_device.size = 2;
+        if (BM_SUCCESS !=bm_memcpy_d2s(handle,
+            (void *)check_buf,
+            src_device)) {
+            BMCV_ERR_LOG("bm_memcpy_d2s when check len error\r\n");
+            return BM_ERR_NOMEM;
+        }
+        for (i = 0; i < 2; i++) {
+            if(check_buf[i] == '=')
+                cnt++;
+        }
+    }
+    len[1] = len[1] - cnt;
     return bmcv_base64_codec(handle, src, dst, len[0], 0);
 }

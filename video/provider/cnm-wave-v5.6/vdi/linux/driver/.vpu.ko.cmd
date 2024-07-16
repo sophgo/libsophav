@@ -1,1 +1,0 @@
-cmd_/work/jenkins/WAVE517_PKG/fpga/board/ref-sw-5.0/vdi/linux/driver/vpu.ko := "ld" -r -m elf_x86_64 -T ./scripts/module-common.lds --build-id  -o /work/jenkins/WAVE517_PKG/fpga/board/ref-sw-5.0/vdi/linux/driver/vpu.ko /work/jenkins/WAVE517_PKG/fpga/board/ref-sw-5.0/vdi/linux/driver/vpu.o /work/jenkins/WAVE517_PKG/fpga/board/ref-sw-5.0/vdi/linux/driver/vpu.mod.o

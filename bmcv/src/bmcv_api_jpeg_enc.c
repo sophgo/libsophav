@@ -286,26 +286,6 @@ static bool is_align(bm_image src) {
     return true;
 }
 
-static bool is_on_heap1(bm_image src) {
-    // memory should be allocated on heap1
-    bm_device_mem_t y_data;
-    unsigned int heap_id;
-
-    if (src.image_private == NULL) {
-        bmlib_log(JPEG_ENC_LOG_TAG, BMLIB_LOG_WARNING, "src is invalid\n");
-        return false;
-    }
-
-    y_data = src.image_private->data[0];
-    bm_get_gmem_heap_id(src.image_private->handle, &y_data, &heap_id);
-    bmlib_log(JPEG_ENC_LOG_TAG, BMLIB_LOG_INFO, "src is allocated on heap%d\n", heap_id);
-    if (heap_id == BMCV_HEAP1_ID) {
-        return true;
-    }
-
-    return false;
-}
-
 static int bmcv_jpeg_encoder_create(bmcv_jpeg_encoder_t** p_jpeg_encoder,
                                     bm_image* src,
                                     int quality_factor,
@@ -542,8 +522,7 @@ bm_status_t bmcv_image_jpeg_enc(bm_handle_t  handle,
         bm_image* src_align = NULL;
         bm_image tmp;
         bool src_is_align = is_align(src[i]);
-        bool src_is_on_heap1 = is_on_heap1(src[i]);
-        if (src_is_align && src_is_on_heap1) {
+        if (src_is_align) {
             src_align = &(src[i]);
         } else {
             bmlib_log(JPEG_ENC_LOG_TAG, BMLIB_LOG_INFO, "src is not aligned with 16 bytes or not allocated on heap1, re-create it.\n");
@@ -598,7 +577,7 @@ bm_status_t bmcv_image_jpeg_enc(bm_handle_t  handle,
         free(output_ptr);
 #endif
         ret = bmcv_jpeg_enc_one_image(jpeg_enc, src_align, &p_jpeg_data[i], &(out_size[i]), quality_factor);
-        if (!src_is_align || !src_is_on_heap1) {
+        if (!src_is_align) {
             bm_image_destroy(src_align);
         }
         if (ret != BM_SUCCESS) {

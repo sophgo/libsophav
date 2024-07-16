@@ -5,29 +5,27 @@
 #include "bmcv_a2_common_internal.h"
 
 
-#define CVI_S32 int
-#define CVI_U8 unsigned char
 
-CVI_S32 cvi_stitch_init(CVI_S32 fd);
-CVI_S32 cvi_stitch_deinit(CVI_S32 fd);
-CVI_S32 cvi_stitch_set_src_attr(CVI_S32 fd, STITCH_SRC_ATTR_S *attr);
-CVI_S32 cvi_stitch_get_src_attr(CVI_S32 fd, STITCH_SRC_ATTR_S *attr);
-CVI_S32 cvi_stitch_set_chn_attr(CVI_S32 fd, STITCH_CHN_ATTR_S *attr);
-CVI_S32 cvi_stitch_get_chn_attr(CVI_S32 fd, STITCH_CHN_ATTR_S *attr);
-CVI_S32 cvi_stitch_set_op_attr(CVI_S32 fd, STITCH_OP_ATTR_S *attr);
-CVI_S32 cvi_stitch_get_op_attr(CVI_S32 fd, STITCH_OP_ATTR_S *attr);
-CVI_S32 cvi_stitch_set_wgt_attr(CVI_S32 fd, STITCH_WGT_ATTR_S *attr);
-CVI_S32 cvi_stitch_get_wgt_attr(CVI_S32 fd, STITCH_WGT_ATTR_S *attr);
-CVI_S32 cvi_stitch_set_regx(CVI_S32 fd, CVI_U8 regx);
-CVI_S32 cvi_stitch_dev_enable(CVI_S32 fd);
-CVI_S32 cvi_stitch_dev_disable(CVI_S32 fd);
-CVI_S32 cvi_stitch_reset(CVI_S32 fd);
-CVI_S32 cvi_stitch_send_src_frame(CVI_S32 fd, struct stitch_src_frm_cfg *cfg);
-CVI_S32 cvi_stitch_send_chn_frame(CVI_S32 fd, struct stitch_chn_frm_cfg *cfg);
-CVI_S32 cvi_stitch_get_chn_frame(CVI_S32 fd, struct stitch_chn_frm_cfg *cfg);
-CVI_S32 cvi_stitch_release_chn_frame(CVI_S32 fd, struct stitch_chn_frm_cfg *cfg);
-CVI_S32 cvi_stitch_attach_vbpool(CVI_S32 fd, const struct stitch_vb_pool_cfg *cfg);
-CVI_S32 cvi_stitch_detach_vbpool(CVI_S32 fd, const struct stitch_vb_pool_cfg *cfg);
-CVI_S32 cvi_stitch_dump_reginfo(CVI_S32 fd);
+int  stitch_init(int  fd);
+int  stitch_deinit(int  fd);
+int  stitch_set_src_attr(int  fd, stitch_src_attr *attr);
+int  stitch_get_src_attr(int  fd, stitch_src_attr *attr);
+int  stitch_set_chn_attr(int  fd, stitch_chn_attr *attr);
+int  stitch_get_chn_attr(int  fd, stitch_chn_attr *attr);
+int  stitch_set_op_attr(int  fd, stitch_op_attr *attr);
+int  stitch_get_op_attr(int  fd, stitch_op_attr *attr);
+int  stitch_set_wgt_attr(int  fd, stitch_bld_wgt_attr *attr);
+int  stitch_get_wgt_attr(int  fd, stitch_bld_wgt_attr *attr);
+int  stitch_set_regx(int  fd, unsigned char regx);
+int  stitch_dev_enable(int  fd);
+int  stitch_dev_disable(int  fd);
+int  stitch_reset(int  fd);
+int  stitch_send_src_frame(int  fd, struct stitch_src_frm_cfg *cfg);
+int  stitch_send_chn_frame(int  fd, struct stitch_chn_frm_cfg *cfg);
+int  stitch_get_chn_frame(int  fd, struct stitch_chn_frm_cfg *cfg);
+int  stitch_release_chn_frame(int  fd, struct stitch_chn_frm_cfg *cfg);
+int  stitch_attach_vbpool(int  fd, const struct stitch_vb_pool_cfg *cfg);
+int  stitch_detach_vbpool(int  fd, const struct stitch_vb_pool_cfg *cfg);
+int  stitch_dump_reginfo(int  fd);
 
 #endif /* MODULES_VPU_INCLUDE_STITCH_IOCTL_H_ */

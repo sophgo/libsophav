@@ -31,6 +31,7 @@ target_link_libraries(${VPUENC_LIB_NAME}-static bmlib)
 set(target bmvpuenc)
 add_executable(${target} example/bmvpuenc.c example/queue.c)
 target_link_libraries(${target} ${VPUENC_LIB_NAME} dl pthread)
+target_link_options(${target} PRIVATE -rdynamic)
 
 install(TARGETS ${target}
     RUNTIME DESTINATION bin

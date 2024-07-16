@@ -91,7 +91,7 @@ typedef struct _BM_VPUENC_CTX {
     unsigned int c_stride_width;
     int chn_fd;
 
-    VENC_STREAM_S stStream;
+    venc_stream_s stStream;
 
     BmVpuColorFormat color_format;
 
@@ -103,18 +103,18 @@ typedef struct _BM_VPUENC_CTX {
 BM_VPUENC_CTX g_enc_chn[VENC_MAX_SOC_NUM] = {0};  // 0: no use  1: is using
 unsigned int g_vpu_ext_addr = 0x0;
 
-static inline void get_pic_buffer_config_internal(CVI_U32 u32Width, CVI_U32 u32Height,
-        PIXEL_FORMAT_E enPixelFormat, DATA_BITWIDTH_E enBitWidth,
-        COMPRESS_MODE_E enCmpMode, CVI_U32 u32Align, VB_CAL_CONFIG_S *pstCalConfig)
+static inline void get_pic_buffer_config_internal(unsigned int width, unsigned int height,
+        pixel_format_e enPixelFormat, data_bitwidth_e enBitWidth,
+        compress_mode_e enCmpMode, unsigned int u32Align, vb_cal_config_s *pstCalConfig)
 {
-    CVI_U8  u8BitWidth = 0;
-    CVI_U32 u32VBSize = 0;
-    CVI_U32 u32AlignHeight = 0;
-    CVI_U32 u32MainStride = 0;
-    CVI_U32 u32CStride = 0;
-    CVI_U32 u32MainSize = 0;
-    CVI_U32 u32YSize = 0;
-    CVI_U32 u32CSize = 0;
+    unsigned char  u8BitWidth = 0;
+    unsigned int u32VBSize = 0;
+    unsigned int u32AlignHeight = 0;
+    unsigned int main_stride = 0;
+    unsigned int c_stride = 0;
+    unsigned int main_size = 0;
+    unsigned int u32YSize = 0;
+    unsigned int u32CSize = 0;
 
     /* u32Align: 0 is automatic mode, alignment size following system. Non-0 for specified alignment size */
     if (u32Align == 0)
@@ -152,115 +152,115 @@ static inline void get_pic_buffer_config_internal(CVI_U32 u32Width, CVI_U32 u32H
     if ((enPixelFormat == PIXEL_FORMAT_YUV_PLANAR_420)
      || (enPixelFormat == PIXEL_FORMAT_NV12)
      || (enPixelFormat == PIXEL_FORMAT_NV21)) {
-        u32AlignHeight = ALIGN(u32Height, 2);
+        u32AlignHeight = ALIGN(height, 2);
     } else
-        u32AlignHeight = u32Height;
+         u32AlignHeight = height;
 
     if (enCmpMode == COMPRESS_MODE_NONE) {
-        u32MainStride = ALIGN((u32Width * u8BitWidth + 7) >> 3, u32Align);
-        u32YSize = u32MainStride * u32AlignHeight;
+        main_stride = ALIGN((width * u8BitWidth + 7) >> 3, u32Align);
+        u32YSize = main_stride * u32AlignHeight;
 
         if (enPixelFormat == PIXEL_FORMAT_YUV_PLANAR_420) {
-            u32CStride = ALIGN(((u32Width >> 1) * u8BitWidth + 7) >> 3, u32Align);
-            u32CSize = (u32CStride * u32AlignHeight) >> 1;
+            c_stride = ALIGN(((width >> 1) * u8BitWidth + 7) >> 3, u32Align);
+            u32CSize = (c_stride * u32AlignHeight) >> 1;
 
-            u32MainStride = u32CStride * 2;
-            u32YSize = u32MainStride * u32AlignHeight;
-            u32MainSize = u32YSize + (u32CSize << 1);
+            main_stride = c_stride * 2;
+            u32YSize = main_stride * u32AlignHeight;
+            main_size = u32YSize + (u32CSize << 1);
             pstCalConfig->plane_num = 3;
         } else if (enPixelFormat == PIXEL_FORMAT_YUV_PLANAR_422) {
-            u32CStride = ALIGN(((u32Width >> 1) * u8BitWidth + 7) >> 3, u32Align);
-            u32CSize = u32CStride * u32AlignHeight;
+            c_stride = ALIGN(((width >> 1) * u8BitWidth + 7) >> 3, u32Align);
+            u32CSize = c_stride * u32AlignHeight;
 
-            u32MainSize = u32YSize + (u32CSize << 1);
+            main_size = u32YSize + (u32CSize << 1);
             pstCalConfig->plane_num = 3;
         } else if (enPixelFormat == PIXEL_FORMAT_RGB_888_PLANAR ||
                    enPixelFormat == PIXEL_FORMAT_BGR_888_PLANAR ||
                    enPixelFormat == PIXEL_FORMAT_HSV_888_PLANAR ||
                    enPixelFormat == PIXEL_FORMAT_YUV_PLANAR_444) {
-            u32CStride = u32MainStride;
+            c_stride = main_stride;
             u32CSize = u32YSize;
 
-            u32MainSize = u32YSize + (u32CSize << 1);
+            main_size = u32YSize + (u32CSize << 1);
             pstCalConfig->plane_num = 3;
         } else if (enPixelFormat == PIXEL_FORMAT_RGB_BAYER_12BPP) {
-            u32MainSize = u32YSize;
+            main_size = u32YSize;
             pstCalConfig->plane_num = 1;
         } else if (enPixelFormat == PIXEL_FORMAT_YUV_400) {
-            u32MainSize = u32YSize;
+            main_size = u32YSize;
             pstCalConfig->plane_num = 1;
         } else if (enPixelFormat == PIXEL_FORMAT_NV12 || enPixelFormat == PIXEL_FORMAT_NV21) {
-            u32CStride = ALIGN((u32Width * u8BitWidth + 7) >> 3, u32Align);
-            u32CSize = (u32CStride * u32AlignHeight) >> 1;
+             c_stride = ALIGN((width * u8BitWidth + 7) >> 3, u32Align);
+            u32CSize = (c_stride * u32AlignHeight) >> 1;
 
-            u32MainSize = u32YSize + u32CSize;
+            main_size = u32YSize + u32CSize;
             pstCalConfig->plane_num = 2;
         } else if (enPixelFormat == PIXEL_FORMAT_NV16 || enPixelFormat == PIXEL_FORMAT_NV61) {
-            u32CStride = ALIGN((u32Width * u8BitWidth + 7) >> 3, u32Align);
-            u32CSize = u32CStride * u32AlignHeight;
+            c_stride = ALIGN((width * u8BitWidth + 7) >> 3, u32Align);
+            u32CSize = c_stride * u32AlignHeight;
 
-            u32MainSize = u32YSize + u32CSize;
+            main_size = u32YSize + u32CSize;
             pstCalConfig->plane_num = 2;
         } else if (enPixelFormat == PIXEL_FORMAT_YUYV || enPixelFormat == PIXEL_FORMAT_YVYU ||
                    enPixelFormat == PIXEL_FORMAT_UYVY || enPixelFormat == PIXEL_FORMAT_VYUY) {
-            u32MainStride = ALIGN(((u32Width * u8BitWidth + 7) >> 3) * 2, u32Align);
-            u32YSize = u32MainStride * u32AlignHeight;
-            u32MainSize = u32YSize;
+            main_stride = ALIGN(((width * u8BitWidth + 7) >> 3) * 2, u32Align);
+            u32YSize = main_stride * u32AlignHeight;
+            main_size = u32YSize;
             pstCalConfig->plane_num = 1;
         } else if (enPixelFormat == PIXEL_FORMAT_ARGB_1555 || enPixelFormat == PIXEL_FORMAT_ARGB_4444) {
             // packed format
-            u32MainStride = ALIGN((u32Width * 16 + 7) >> 3, u32Align);
-            u32YSize = u32MainStride * u32AlignHeight;
-            u32MainSize = u32YSize;
+            main_stride = ALIGN((width * 16 + 7) >> 3, u32Align);
+            u32YSize = main_stride * u32AlignHeight;
+            main_size = u32YSize;
             pstCalConfig->plane_num = 1;
         } else if (enPixelFormat == PIXEL_FORMAT_ARGB_8888) {
             // packed format
-            u32MainStride = ALIGN((u32Width * 32 + 7) >> 3, u32Align);
-            u32YSize = u32MainStride * u32AlignHeight;
-            u32MainSize = u32YSize;
+            main_stride = ALIGN((width * 32 + 7) >> 3, u32Align);
+            u32YSize = main_stride * u32AlignHeight;
+            main_size = u32YSize;
             pstCalConfig->plane_num = 1;
         } else if (enPixelFormat == PIXEL_FORMAT_FP32_C3_PLANAR) {
-            u32MainStride = ALIGN(((u32Width * u8BitWidth + 7) >> 3) * 4, u32Align);
-            u32YSize = u32MainStride * u32AlignHeight;
-            u32CStride = u32MainStride;
+            main_stride = ALIGN(((width * u8BitWidth + 7) >> 3) * 4, u32Align);
+            u32YSize = main_stride * u32AlignHeight;
+            c_stride = main_stride;
             u32CSize = u32YSize;
-            u32MainSize = u32YSize + (u32CSize << 1);
+            main_size = u32YSize + (u32CSize << 1);
             pstCalConfig->plane_num = 3;
         } else if (enPixelFormat == PIXEL_FORMAT_FP16_C3_PLANAR ||
                         enPixelFormat == PIXEL_FORMAT_BF16_C3_PLANAR) {
-            u32MainStride = ALIGN(((u32Width * u8BitWidth + 7) >> 3) * 2, u32Align);
-            u32YSize = u32MainStride * u32AlignHeight;
-            u32CStride = u32MainStride;
+            main_stride = ALIGN(((width * u8BitWidth + 7) >> 3) * 2, u32Align);
+            u32YSize = main_stride * u32AlignHeight;
+            c_stride = main_stride;
             u32CSize = u32YSize;
-            u32MainSize = u32YSize + (u32CSize << 1);
+            main_size = u32YSize + (u32CSize << 1);
             pstCalConfig->plane_num = 3;
         } else if (enPixelFormat == PIXEL_FORMAT_INT8_C3_PLANAR ||
                    enPixelFormat == PIXEL_FORMAT_UINT8_C3_PLANAR) {
-            u32CStride = u32MainStride;
+            c_stride = main_stride;
             u32CSize = u32YSize;
-            u32MainSize = u32YSize + (u32CSize << 1);
+            main_size = u32YSize + (u32CSize << 1);
             pstCalConfig->plane_num = 3;
         } else {
             // packed format
-            u32MainStride = ALIGN(((u32Width * u8BitWidth + 7) >> 3) * 3, u32Align);
-            u32YSize = u32MainStride * u32AlignHeight;
-            u32MainSize = u32YSize;
+            main_stride = ALIGN(((width * u8BitWidth + 7) >> 3) * 3, u32Align);
+            u32YSize = main_stride * u32AlignHeight;
+            main_size = u32YSize;
             pstCalConfig->plane_num = 1;
         }
 
-        u32VBSize = u32MainSize;
+        u32VBSize = main_size;
     } else {
         // TODO: compression mode
         pstCalConfig->plane_num = 0;
     }
 
-    pstCalConfig->u32VBSize     = u32VBSize;
-    pstCalConfig->u32MainStride = u32MainStride;
-    pstCalConfig->u32CStride    = u32CStride;
-    pstCalConfig->u32MainYSize  = u32YSize;
-    pstCalConfig->u32MainCSize  = u32CSize;
-    pstCalConfig->u32MainSize   = u32MainSize;
-    pstCalConfig->u16AddrAlign  = u32Align;
+    pstCalConfig->vb_size     = u32VBSize;
+    pstCalConfig->main_stride = main_stride;
+    pstCalConfig->c_stride    = c_stride;
+    pstCalConfig->main_y_size  = u32YSize;
+    pstCalConfig->main_c_size  = u32CSize;
+    pstCalConfig->main_size   = main_size;
+    pstCalConfig->addr_align  = u32Align;
 
 }
 
@@ -750,13 +750,13 @@ int bmvpu_enc_open(BmVpuEncoder **encoder, BmVpuEncOpenParams *open_params)
 {
     int ret = 0;
     int i = 0;
-    VENC_CHN VeChn = 0;
-    VENC_CHN_ATTR_S stAttr = {0};
-    VENC_RECV_PIC_PARAM_S stRecvParam = {0};
+    venc_chn VeChn = 0;
+    venc_chn_attr_s stAttr = {0};
+    venc_recv_pic_param_s stRecvParam = {0};
 
     pthread_mutex_lock(&enc_chn_mutex);
     // 1. chose an useable channel
-    CVI_CHAR devName[255];
+    char devName[255];
     sprintf(devName, "/dev/%s", DRV_ENCODER_DEV_NAME);
     int chn_fd = bmenc_chn_open(devName);
     if (chn_fd <= 0) {
@@ -830,8 +830,8 @@ int bmvpu_enc_open(BmVpuEncoder **encoder, BmVpuEncOpenParams *open_params)
 
         // stAttr.stRcAttr.stH264FixQp.u32GopPreset     = open_params->gop_preset;  // gop_oreset
         stAttr.stRcAttr.stH264FixQp.u32Gop           = open_params->intra_period;   // gop_size
-        stAttr.stRcAttr.stH264FixQp.u32SrcFrameRate  = open_params->fps_den/open_params->fps_num;
-        stAttr.stRcAttr.stH264FixQp.fr32DstFrameRate = open_params->fps_den/open_params->fps_num;
+        stAttr.stRcAttr.stH264FixQp.u32SrcFrameRate  = open_params->fps_num/open_params->fps_den;
+        stAttr.stRcAttr.stH264FixQp.fr32DstFrameRate = open_params->fps_num/open_params->fps_den;
         stAttr.stRcAttr.stH264FixQp.bVariFpsEn       = 0;    // variable frame rate
         stAttr.stRcAttr.stH264FixQp.u32IQp           = open_params->cqp;
         stAttr.stRcAttr.stH264FixQp.u32PQp           = open_params->cqp;
@@ -854,8 +854,8 @@ int bmvpu_enc_open(BmVpuEncoder **encoder, BmVpuEncOpenParams *open_params)
         stAttr.stRcAttr.stH264Cbr.u32BitRate         = open_params->bitrate / 1000;
         // stAttr.stRcAttr.stH264Cbr.u32GopPreset       = open_params->gop_preset;
         stAttr.stRcAttr.stH264Cbr.u32Gop             = open_params->intra_period;
-        stAttr.stRcAttr.stH264Cbr.u32SrcFrameRate    = open_params->fps_den/open_params->fps_num;
-        stAttr.stRcAttr.stH264Cbr.fr32DstFrameRate   = open_params->fps_den/open_params->fps_num;
+        stAttr.stRcAttr.stH264Cbr.u32SrcFrameRate    = open_params->fps_num/open_params->fps_den;
+        stAttr.stRcAttr.stH264Cbr.fr32DstFrameRate   = open_params->fps_num/open_params->fps_den;
         stAttr.stRcAttr.stH264Cbr.bVariFpsEn         = 0;
         // stAttr.stRcAttr.stH264Cbr.u32StatTime        = 2;
     }
@@ -867,7 +867,7 @@ int bmvpu_enc_open(BmVpuEncoder **encoder, BmVpuEncOpenParams *open_params)
 
     // 4. call ioctl for create channel
     ret = bmenc_ioctl_create_chn(g_enc_chn[VeChn].chn_fd, &stAttr);
-    if (ret != CVI_SUCCESS) {
+    if (ret != 0) {
         BMVPU_ENC_ERROR("bmenc create chn failed %d\n", ret);
         ret = -1;
         g_enc_chn[VeChn].is_used = 0;
@@ -876,7 +876,7 @@ int bmvpu_enc_open(BmVpuEncoder **encoder, BmVpuEncOpenParams *open_params)
     }
 
     // 5. set rc params
-    VENC_RC_PARAM_S stRcParam;
+    venc_rc_param_s stRcParam;
     stRcParam.u32ThrdLv            = 2;
     stRcParam.bBgEnhanceEn         = 0;
     stRcParam.s32BgDeltaQp         = 0;
@@ -904,8 +904,8 @@ int bmvpu_enc_open(BmVpuEncoder **encoder, BmVpuEncOpenParams *open_params)
 
     // 6. set vui
     if (open_params->codec_format == BM_VPU_CODEC_FORMAT_H264) {
-        VENC_H264_VUI_S h264Vui;
-        memset(&h264Vui, 0, sizeof(VENC_H264_VUI_S));
+        venc_h264_vui_s h264Vui;
+        memset(&h264Vui, 0, sizeof(venc_h264_vui_s));
         h264Vui.stVuiAspectRatio.aspect_ratio_info_present_flag = 0;
         h264Vui.stVuiAspectRatio.overscan_info_present_flag = 0;
         h264Vui.stVuiVideoSignal.video_signal_type_present_flag = 0;
@@ -916,7 +916,7 @@ int bmvpu_enc_open(BmVpuEncoder **encoder, BmVpuEncOpenParams *open_params)
             h264Vui.stVuiTimeInfo.time_scale = open_params->fps_num * 1000 * 2;  // frame rate is always equal to time_scale / (2 * num_units_in_tick)
         }
         ret = bmenc_ioctl_set_h264VUI(g_enc_chn[VeChn].chn_fd, &h264Vui);
-        if (ret != CVI_SUCCESS) {
+        if (ret != 0) {
             BMVPU_ENC_ERROR("bmenc set h264 vui failed %d\n", ret);
             pthread_mutex_unlock(&enc_chn_mutex);
             bmvpu_enc_close(*encoder);
@@ -925,8 +925,8 @@ int bmvpu_enc_open(BmVpuEncoder **encoder, BmVpuEncOpenParams *open_params)
             return ret;
         }
     } else if (open_params->codec_format == BM_VPU_CODEC_FORMAT_H265) {
-        VENC_H265_VUI_S h265Vui;
-        memset(&h265Vui, 0, sizeof(VENC_H265_VUI_S));
+        venc_h265_vui_s h265Vui;
+        memset(&h265Vui, 0, sizeof(venc_h265_vui_s));
         h265Vui.stVuiAspectRatio.aspect_ratio_info_present_flag = 0;
         h265Vui.stVuiAspectRatio.overscan_info_present_flag = 0;
         h265Vui.stVuiVideoSignal.video_signal_type_present_flag = 0;
@@ -936,7 +936,7 @@ int bmvpu_enc_open(BmVpuEncoder **encoder, BmVpuEncOpenParams *open_params)
             h265Vui.stVuiTimeInfo.time_scale = open_params->fps_num * 1000;
         }
         ret = bmenc_ioctl_set_h265VUI(g_enc_chn[VeChn].chn_fd, &h265Vui);
-        if (ret != CVI_SUCCESS) {
+        if (ret != 0) {
             BMVPU_ENC_ERROR("bmenc set h265 vui failed %d\n", ret);
             pthread_mutex_unlock(&enc_chn_mutex);
             bmvpu_enc_close(*encoder);
@@ -947,7 +947,7 @@ int bmvpu_enc_open(BmVpuEncoder **encoder, BmVpuEncOpenParams *open_params)
     }
 
     ret = bmenc_ioctl_start_recv_frame(g_enc_chn[VeChn].chn_fd, &stRecvParam);
-    if (ret != CVI_SUCCESS) {
+    if (ret != 0) {
         pthread_mutex_unlock(&enc_chn_mutex);
         return BM_VPU_ENC_RETURN_CODE_ERROR;
     }
@@ -1008,23 +1008,23 @@ int bmvpu_enc_close(BmVpuEncoder *encoder)
 
 int bmvpu_enc_get_initial_info(BmVpuEncoder *encoder, BmVpuEncInitialInfo *info)
 {
-    VENC_CHN_ATTR_S stAttr;
+    venc_chn_attr_s stAttr;
     HANDLE VeChn = -1;
     VeChn = (HANDLE)encoder;
     if (g_enc_chn[VeChn].is_used == 0) {
         return BM_VPU_ENC_RETURN_CODE_INVALID_HANDLE;
     }
 
-    VENC_INITIAL_INFO_S pinfo;
+    venc_initial_info_s pinfo;
     bmenc_ioctl_get_intinal_info(g_enc_chn[VeChn].chn_fd, &pinfo);
 
     bmenc_ioctl_get_chn_attr(g_enc_chn[VeChn].chn_fd, &stAttr);
     // info->min_num_rec_fb = 2;
     info->min_num_src_fb  = pinfo.min_num_src_fb + 1;
-    VB_CAL_CONFIG_S stCalConfig;
-    CVI_U32 u32AlignWidth  = ALIGN(stAttr.stVencAttr.u32PicWidth, VENC_ALIGN_W);
-    CVI_U32 u32AlignHeight = ALIGN(stAttr.stVencAttr.u32PicHeight, VENC_ALIGN_H);
-    CVI_U32 u32Align       = VENC_ALIGN_W;
+    vb_cal_config_s stCalConfig;
+    unsigned int u32AlignWidth  = ALIGN(stAttr.stVencAttr.u32PicWidth, VENC_ALIGN_W);
+    unsigned int u32AlignHeight = ALIGN(stAttr.stVencAttr.u32PicHeight, VENC_ALIGN_H);
+    unsigned int u32Align       = VENC_ALIGN_W;
 
     if (g_enc_chn[VeChn].color_format == BM_VPU_COLOR_FORMAT_YUV420) {
         get_pic_buffer_config_internal(u32AlignWidth, u32AlignHeight, PIXEL_FORMAT_YUV_PLANAR_420,
@@ -1035,13 +1035,14 @@ int bmvpu_enc_get_initial_info(BmVpuEncoder *encoder, BmVpuEncInitialInfo *info)
     }
     info->src_fb.width    = stAttr.stVencAttr.u32PicWidth;
     info->src_fb.height   = stAttr.stVencAttr.u32PicHeight;
-    info->src_fb.y_stride = stCalConfig.u32MainStride; // 1920
-    info->src_fb.c_stride = stCalConfig.u32CStride;    // 1920/2
+    info->src_fb.y_stride = stCalConfig.main_stride; // 1920
+    info->src_fb.c_stride = stCalConfig.c_stride;    // 1920/2
     info->src_fb.h_stride = u32AlignHeight;    // 1920/2
 
-    info->src_fb.y_size   = stCalConfig.u32MainYSize;
-    info->src_fb.c_size   = stCalConfig.u32MainCSize;
-    info->src_fb.size     = stCalConfig.u32MainSize;
+    info->src_fb.y_size   = stCalConfig.main_y_size;
+    info->src_fb.c_size   = stCalConfig.main_c_size;
+    info->src_fb.size     = stCalConfig.main_size;
+
 
 
     return BM_VPU_ENC_RETURN_CODE_OK;
@@ -1082,7 +1083,7 @@ int bmvpu_enc_encode_header(BmVpuEncoder *encoder, uint8_t* header_buf, int* hea
 {
     int ret = 0;
     HANDLE VeChn = -1;
-    VENC_ENCODE_HEADER_S stEncodeHeader;
+    venc_encode_header_s stEncodeHeader;
 
     VeChn = (HANDLE)encoder;
     if (g_enc_chn[VeChn].is_used == 0) {
@@ -1095,7 +1096,7 @@ int bmvpu_enc_encode_header(BmVpuEncoder *encoder, uint8_t* header_buf, int* hea
     }
 
     ret = bmenc_ioctl_encode_header(g_enc_chn[VeChn].chn_fd, &stEncodeHeader);
-    if (ret != CVI_SUCCESS) {
+    if (ret != 0) {
         BMVPU_ENC_ERROR("bmvpu_enc_encode_header failed(ret=%x).\n", ret);
         return -1;
     }
@@ -1124,10 +1125,10 @@ int bmvpu_enc_send_frame(BmVpuEncoder *encoder,
 {
     int ret = 0;
     HANDLE VeChn = -1;
-    CVI_S32 s32MilliSec = 0;
-    VIDEO_FRAME_INFO_S stFrame = {0};
-    VENC_CHN_ATTR_S stAttr;
-    VENC_STREAM_S stStream = {0};
+    int s32MilliSec = 0;
+    video_frame_info_s stFrame = {0};
+    venc_chn_attr_s stAttr;
+    venc_stream_s stStream = {0};
 
     VeChn = (HANDLE)encoder;
     if (g_enc_chn[VeChn].is_used == 0) {
@@ -1146,53 +1147,53 @@ int bmvpu_enc_send_frame(BmVpuEncoder *encoder,
 
     bmenc_ioctl_get_chn_attr(g_enc_chn[VeChn].chn_fd, &stAttr);
 
-    stFrame.stVFrame.u32Width      = stAttr.stVencAttr.u32PicWidth;
-    stFrame.stVFrame.u32Height     = stAttr.stVencAttr.u32PicHeight;
+    stFrame.video_frame.width      = stAttr.stVencAttr.u32PicWidth;
+    stFrame.video_frame.height     = stAttr.stVencAttr.u32PicHeight;
     if (g_enc_chn[VeChn].color_format == BM_VPU_COLOR_FORMAT_YUV420) {
-        stFrame.stVFrame.enPixelFormat = PIXEL_FORMAT_YUV_PLANAR_420;
+        stFrame.video_frame.pixel_format = PIXEL_FORMAT_YUV_PLANAR_420;
     } else if (g_enc_chn[VeChn].color_format == BM_VPU_COLOR_FORMAT_NV12) {
-        stFrame.stVFrame.enPixelFormat = PIXEL_FORMAT_NV12;
+        stFrame.video_frame.pixel_format = PIXEL_FORMAT_NV12;
     } else if (g_enc_chn[VeChn].color_format == BM_VPU_COLOR_FORMAT_NV21) {
-        stFrame.stVFrame.enPixelFormat = PIXEL_FORMAT_NV21;
+        stFrame.video_frame.pixel_format = PIXEL_FORMAT_NV21;
     } else if (g_enc_chn[VeChn].color_format == BM_VPU_COLOR_FORMAT_YUV422) {
-        stFrame.stVFrame.enPixelFormat = PIXEL_FORMAT_YUV_PLANAR_422;
+        stFrame.video_frame.pixel_format = PIXEL_FORMAT_YUV_PLANAR_422;
     }
     if (isframe_end == false) {
         unsigned int y_stride  = raw_frame->framebuffer->y_stride;
         unsigned int c_stride  = raw_frame->framebuffer->cbcr_stride;
-        unsigned int h_stride  = stFrame.stVFrame.u32Height;
+        unsigned int h_stride  = stFrame.video_frame.height;
 
         if (g_enc_chn[VeChn].color_format == BM_VPU_COLOR_FORMAT_YUV420) {
-            stFrame.stVFrame.u32Stride[0]  = y_stride;
-            stFrame.stVFrame.u32Stride[1]  = c_stride;
-            stFrame.stVFrame.u32Stride[2]  = c_stride;
-            stFrame.stVFrame.u32Length[0]  = y_stride * h_stride;
-            stFrame.stVFrame.u32Length[1]  = c_stride * (h_stride/2);
-            stFrame.stVFrame.u32Length[2]  = c_stride * (h_stride/2);
+            stFrame.video_frame.stride[0]  = y_stride;
+            stFrame.video_frame.stride[1]  = c_stride;
+            stFrame.video_frame.stride[2]  = c_stride;
+            stFrame.video_frame.length[0]  = y_stride * h_stride;
+            stFrame.video_frame.length[1]  = c_stride * (h_stride/2);
+            stFrame.video_frame.length[2]  = c_stride * (h_stride/2);
 
-            stFrame.stVFrame.u64PhyAddr[0] = raw_frame->framebuffer->dma_buffer->u.device.device_addr;
-            stFrame.stVFrame.u64PhyAddr[1] = raw_frame->framebuffer->dma_buffer->u.device.device_addr + \
+            stFrame.video_frame.phyaddr[0] = raw_frame->framebuffer->dma_buffer->u.device.device_addr;
+            stFrame.video_frame.phyaddr[1] = raw_frame->framebuffer->dma_buffer->u.device.device_addr + \
                                              raw_frame->framebuffer->cb_offset;
-            stFrame.stVFrame.u64PhyAddr[2] = raw_frame->framebuffer->dma_buffer->u.device.device_addr + \
+            stFrame.video_frame.phyaddr[2] = raw_frame->framebuffer->dma_buffer->u.device.device_addr + \
                                              raw_frame->framebuffer->cr_offset;
-            stFrame.stVFrame.s32FrameIdx   = raw_frame->framebuffer->myIndex;
+            stFrame.video_frame.frame_idx   = raw_frame->framebuffer->myIndex;
         } else if (g_enc_chn[VeChn].color_format == BM_VPU_COLOR_FORMAT_NV12 \
                 || g_enc_chn[VeChn].color_format == BM_VPU_COLOR_FORMAT_NV21) {
-            stFrame.stVFrame.u32Stride[0]  = y_stride;
-            stFrame.stVFrame.u32Stride[1]  = c_stride;
-            stFrame.stVFrame.u32Length[0]  = y_stride * h_stride;
-            stFrame.stVFrame.u32Length[1]  = c_stride * h_stride;
+            stFrame.video_frame.stride[0]  = y_stride;
+            stFrame.video_frame.stride[1]  = c_stride;
+            stFrame.video_frame.length[0]  = y_stride * h_stride;
+            stFrame.video_frame.length[1]  = c_stride * h_stride;
 
-            stFrame.stVFrame.u64PhyAddr[0] = raw_frame->framebuffer->dma_buffer->u.device.device_addr;
-            stFrame.stVFrame.u64PhyAddr[1] = raw_frame->framebuffer->dma_buffer->u.device.device_addr + \
+            stFrame.video_frame.phyaddr[0] = raw_frame->framebuffer->dma_buffer->u.device.device_addr;
+            stFrame.video_frame.phyaddr[1] = raw_frame->framebuffer->dma_buffer->u.device.device_addr + \
                                              raw_frame->framebuffer->cb_offset;
-            stFrame.stVFrame.s32FrameIdx   = raw_frame->framebuffer->myIndex;
+            stFrame.video_frame.frame_idx   = raw_frame->framebuffer->myIndex;
         }
     }
-    stFrame.stVFrame.u64PTS        = raw_frame->pts;
-    stFrame.stVFrame.u64DTS        = raw_frame->dts;
-    stFrame.stVFrame.bSrcEnd       = isframe_end;
-    VIDEO_FRAME_INFO_EX_S stFrameEx;
+    stFrame.video_frame.pts        = raw_frame->pts;
+    stFrame.video_frame.dts        = raw_frame->dts;
+    stFrame.video_frame.srcend       = isframe_end;
+    video_frame_info_ex_s stFrameEx;
     stFrameEx.pstFrame = &stFrame;
     stFrameEx.s32MilliSec = s32MilliSec;
 
@@ -1213,7 +1214,7 @@ int bmvpu_enc_send_frame(BmVpuEncoder *encoder,
 #endif
 
     if (raw_frame->customMapOpt != NULL) {
-        VENC_CUSTOM_MAP_S  roiAttr;
+        venc_custom_map_s  roiAttr;
         roiAttr.roiAvgQp              = raw_frame->customMapOpt->roiAvgQp;
         roiAttr.customRoiMapEnable    = raw_frame->customMapOpt->customRoiMapEnable;
         roiAttr.customLambdaMapEnable = raw_frame->customMapOpt->customLambdaMapEnable;
@@ -1225,7 +1226,7 @@ int bmvpu_enc_send_frame(BmVpuEncoder *encoder,
     }
 
     ret = bmenc_ioctl_send_frame(g_enc_chn[VeChn].chn_fd, &stFrameEx);
-    if (ret != CVI_SUCCESS) {
+    if (ret != 0) {
         BMVPU_ENC_DEBUG("bmenc send frame FAIL: 0x%x   g_enc_chn[%d].chn_fd=%d \n", ret, VeChn, g_enc_chn[VeChn].chn_fd);
         return BM_VPU_ENC_RETURN_CODE_RESEND_FRAME;
     }
@@ -1238,7 +1239,7 @@ int bmvpu_enc_get_stream(BmVpuEncoder *encoder,
 {
     int ret = 0;
     HANDLE VeChn = -1;
-    CVI_S32 s32MilliSec = 0;
+    int s32MilliSec = 0;
 
     VeChn = (HANDLE)encoder;
     if (g_enc_chn[VeChn].is_used == 0) {
@@ -1248,15 +1249,15 @@ int bmvpu_enc_get_stream(BmVpuEncoder *encoder,
 
     if (g_enc_chn[VeChn].stStream.pstPack == NULL) {
         int pkt_nums = 0;
-        VENC_CHN_STATUS_S status;
+        venc_chn_status_s status;
         ret = bmenc_ioctl_query_status(g_enc_chn[VeChn].chn_fd, &status);
-        if (ret != CVI_SUCCESS) {
+        if (ret != 0) {
             pkt_nums = 32;
         } else {
             pkt_nums = status.u32CurPacks + 1;
         }
 
-        g_enc_chn[VeChn].stStream.pstPack = malloc(pkt_nums * sizeof(VENC_PACK_S));
+        g_enc_chn[VeChn].stStream.pstPack = malloc(pkt_nums * sizeof(venc_pack_s));
         if (g_enc_chn[VeChn].stStream.pstPack == NULL) {
             BMVPU_ENC_ERROR("bmenc create chn failed : 0x%x\n", ret);
             return -1;
@@ -1322,14 +1323,14 @@ int bmvpu_enc_get_stream(BmVpuEncoder *encoder,
 
 
     // 2. get pkt by drv
-    VENC_STREAM_EX_S stStreamEx;
+    venc_stream_ex_s stStreamEx;
     stStreamEx.pstStream   = &g_enc_chn[VeChn].stStream;
     stStreamEx.s32MilliSec = s32MilliSec;
     ret = bmenc_ioctl_get_stream(g_enc_chn[VeChn].chn_fd, &stStreamEx);
-    if (ret == CVI_ERR_VENC_GET_STREAM_END) {
+    if (ret == DRV_ERR_VENC_GET_STREAM_END) {
         return BM_VPU_ENC_RETURN_CODE_ENC_END;
     }
-    if (ret != CVI_SUCCESS) {
+    if (ret != 0) {
         BMVPU_ENC_DEBUG("bmenc get stream FAIL: 0x%x\n", ret);
         return -1;
     }
@@ -1338,7 +1339,7 @@ int bmvpu_enc_get_stream(BmVpuEncoder *encoder,
     uint8_t *data_dst = encoded_frame->data;
     int first_pkt_data = 0;
     for (int i=0; i < g_enc_chn[VeChn].stStream.u32PackCount; i++) {
-        VENC_PACK_S *pkt_drv;
+        venc_pack_s *pkt_drv;
         pkt_drv = &g_enc_chn[VeChn].stStream.pstPack[i];
         pkt_drv->pu8Addr = bmvpu_enc_bmlib_mmap(0, pkt_drv->u64PhyAddr, pkt_drv->u32Len);
         if (pkt_drv->pu8Addr == NULL) {
@@ -1526,7 +1527,7 @@ int bmvpu_enc_get_stream(BmVpuEncoder *encoder,
     }
     // 4. release resource and unmap
     for (int i = 0; i < g_enc_chn[VeChn].stStream.u32PackCount; i++) {
-        VENC_PACK_S *ppack;
+        venc_pack_s *ppack;
         ppack = &g_enc_chn[VeChn].stStream.pstPack[i];
         if (ppack->u64PhyAddr && ppack->u32Len) {
             bmvpu_enc_bmlib_munmap(0, ppack->pu8Addr, ppack->u32Len);
@@ -1535,7 +1536,7 @@ int bmvpu_enc_get_stream(BmVpuEncoder *encoder,
 
     // encoded_frame->src_idx   = g_enc_chn[VeChn].stStream.pstPack->releasFrameIdx;
     ret = bmenc_ioctl_release_stream(g_enc_chn[VeChn].chn_fd, &(g_enc_chn[VeChn].stStream));
-    if (ret != CVI_SUCCESS) {
+    if (ret != 0) {
         BMVPU_ENC_ERROR("bmenc release stream FAIL: 0x%x\n", ret);
         return -1;
     }
@@ -1558,7 +1559,7 @@ int bmvpu_enc_set_roiinfo(BmVpuEncoder *encoder)
 {
     int ret = 0;
     HANDLE VeChn = -1;
-    VENC_CUSTOM_MAP_S roiAttr;
+    venc_custom_map_s roiAttr;
 
     if (encoder == NULL) {
         return -1;

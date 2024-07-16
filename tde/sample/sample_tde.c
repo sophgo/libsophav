@@ -4,21 +4,21 @@
 #include "vg_lite.h"
 
 
-static void tde_create_surface(cvi_tde_surface *surface, unsigned int colorfmt, unsigned int w, unsigned int h, unsigned int stride);
+static void tde_create_surface(tde_surface *surface, unsigned int colorfmt, unsigned int w, unsigned int h, unsigned int stride);
 
 // test cases
-static int sample_fill_surface(cvi_tde_surface *surface,
-                        cvi_tde_rect *rect, unsigned int fill_data);
-static int sample_quick_copy(cvi_tde_surface *src_surface,
-                        cvi_tde_surface *dst_surface,
-                        cvi_tde_rect *src_rect,
-                        cvi_tde_rect *dst_rect);
-static int sample_quick_resize(cvi_tde_surface *src_surface,
-                        cvi_tde_surface *dst_surface,
-                        cvi_tde_rect *src_rect,
-                        cvi_tde_rect *dst_rect);
-static int sampel_draw_line(cvi_tde_surface *dst_surface,
-                        const cvi_tde_line *line,
+static int sample_fill_surface(tde_surface *surface,
+                        tde_rect *rect, unsigned int fill_data);
+static int sample_quick_copy(tde_surface *src_surface,
+                        tde_surface *dst_surface,
+                        tde_rect *src_rect,
+                        tde_rect *dst_rect);
+static int sample_quick_resize(tde_surface *src_surface,
+                        tde_surface *dst_surface,
+                        tde_rect *src_rect,
+                        tde_rect *dst_rect);
+static int sampel_draw_line(tde_surface *dst_surface,
+                        const tde_line *line,
                         unsigned int num);
 
 int main(void)
@@ -26,14 +26,14 @@ int main(void)
     int rc = 0;
     const unsigned int surf_width = 256;
     const unsigned int surf_height = 256;
-    cvi_tde_rect src_rect;
-    cvi_tde_rect dst_rect;
+    tde_rect src_rect;
+    tde_rect dst_rect;
     unsigned int fill_data = 0xFFFF00;   // yellow
-    cvi_tde_surface src_surface = {0};
-    cvi_tde_surface dst_surface = {0};
+    tde_surface src_surface = {0};
+    tde_surface dst_surface = {0};
     unsigned char *back_ground_vir = NULL;
     unsigned char num = 0;
-    cvi_tde_line lines[] = {
+    tde_line lines[] = {
         {0, 64, 256, 64, 3, 0xffff},
         {0, 128, 256, 128, 3, 0xffff},
         {0, 192, 256, 192, 3, 0xff00},
@@ -100,8 +100,8 @@ int main(void)
     }
 
 
-    tde_create_surface(&src_surface, CVI_TDE_COLOR_FORMAT_ARGB8888, surf_width, surf_height, surf_width * 4);
-    tde_create_surface(&dst_surface, CVI_TDE_COLOR_FORMAT_ARGB8888, surf_width, surf_height, surf_width * 4);
+    tde_create_surface(&src_surface, TDE_COLOR_FORMAT_ARGB8888, surf_width, surf_height, surf_width * 4);
+    tde_create_surface(&dst_surface, TDE_COLOR_FORMAT_ARGB8888, surf_width, surf_height, surf_width * 4);
     dst_surface.phys_addr = src_surface.phys_addr + src_surface.stride * src_surface.height;
 
     src_rect.pos_x = 0;
@@ -183,7 +183,7 @@ int main(void)
     return TDE_SUCCESS;
 }
 
-void tde_create_surface(cvi_tde_surface *surface, unsigned int colorfmt, unsigned int w, unsigned int h, unsigned int stride)
+void tde_create_surface(tde_surface *surface, unsigned int colorfmt, unsigned int w, unsigned int h, unsigned int stride)
 {
     surface->color_format = colorfmt;
     surface->width = w;
@@ -191,19 +191,19 @@ void tde_create_surface(cvi_tde_surface *surface, unsigned int colorfmt, unsigne
     surface->stride = stride;
     surface->alpha0 = 0xff;
     surface->alpha1 = 0xff;
-    surface->alpha_max_is_255 = CVI_TRUE;
-    surface->support_alpha_ex_1555 = CVI_TRUE;
+    surface->alpha_max_is_255 = 1;
+    surface->support_alpha_ex_1555 = 1;
 }
 
-int sample_fill_surface(cvi_tde_surface *surface, cvi_tde_rect *rect, unsigned int fill_data)
+int sample_fill_surface(tde_surface *surface, tde_rect *rect, unsigned int fill_data)
 {
     int ret;
     int handle = 0;
-    cvi_tde_none_src none_src = {0};
+    tde_none_src none_src = {0};
 
     /* 1. start job */
     handle = tde_begin_job();
-    if (handle == CVI_ERR_TDE_INVALID_HANDLE) {
+    if (handle == ERR_TDE_INVALID_HANDLE) {
         return TDE_FAILURE;
     }
 
@@ -217,7 +217,7 @@ int sample_fill_surface(cvi_tde_surface *surface, cvi_tde_rect *rect, unsigned i
     }
 
     /* 3. submit job */
-    ret = tde_end_job(handle, CVI_FALSE, CVI_TRUE, 1000); /* 1000 time out */
+    ret = tde_end_job(handle, 0, 1, 1000); /* 1000 time out */
     if (ret < 0) {
         tde_cancel_job(handle);
         return TDE_FAILURE;
@@ -227,18 +227,18 @@ int sample_fill_surface(cvi_tde_surface *surface, cvi_tde_rect *rect, unsigned i
 }
 
 
-int sample_quick_copy(cvi_tde_surface *src_surface,
-                        cvi_tde_surface *dst_surface,
-                        cvi_tde_rect *src_rect,
-                        cvi_tde_rect *dst_rect)
+int sample_quick_copy(tde_surface *src_surface,
+                        tde_surface *dst_surface,
+                        tde_rect *src_rect,
+                        tde_rect *dst_rect)
 {
     int ret;
     int handle = 0;
-    cvi_tde_single_src single_src = {0};
+    tde_single_src single_src = {0};
 
     /* 1. start job */
     handle = tde_begin_job();
-    if (handle == CVI_ERR_TDE_INVALID_HANDLE) {
+    if (handle == ERR_TDE_INVALID_HANDLE) {
         return TDE_FAILURE;
     }
 
@@ -254,7 +254,7 @@ int sample_quick_copy(cvi_tde_surface *src_surface,
     }
 
     /* 5. submit job */
-    ret = tde_end_job(handle, CVI_FALSE, CVI_TRUE, 1000); /* 1000 time out */
+    ret = tde_end_job(handle, 0, 1, 1000); /* 1000 time out */
     if (ret < 0) {
         tde_cancel_job(handle);
         return TDE_FAILURE;
@@ -263,18 +263,18 @@ int sample_quick_copy(cvi_tde_surface *src_surface,
     return TDE_SUCCESS;
 }
 
-static int sample_quick_resize(cvi_tde_surface *src_surface,
-                        cvi_tde_surface *dst_surface,
-                        cvi_tde_rect *src_rect,
-                        cvi_tde_rect *dst_rect)
+static int sample_quick_resize(tde_surface *src_surface,
+                        tde_surface *dst_surface,
+                        tde_rect *src_rect,
+                        tde_rect *dst_rect)
 {
     int ret;
     int handle = 0;
-    cvi_tde_single_src single_src = {0};
+    tde_single_src single_src = {0};
 
     /* 1. start job */
     handle = tde_begin_job();
-    if (handle == CVI_ERR_TDE_INVALID_HANDLE) {
+    if (handle == ERR_TDE_INVALID_HANDLE) {
         return TDE_FAILURE;
     }
 
@@ -290,7 +290,7 @@ static int sample_quick_resize(cvi_tde_surface *src_surface,
     }
 
     /* 5. submit job */
-    ret = tde_end_job(handle, CVI_FALSE, CVI_TRUE, 1000); /* 1000 time out */
+    ret = tde_end_job(handle, 0, 1, 1000); /* 1000 time out */
     if (ret < 0) {
         tde_cancel_job(handle);
         return TDE_FAILURE;
@@ -299,8 +299,8 @@ static int sample_quick_resize(cvi_tde_surface *src_surface,
     return TDE_SUCCESS;
 }
 
-static int sampel_draw_line(cvi_tde_surface *dst_surface,
-                        const cvi_tde_line *line,
+static int sampel_draw_line(tde_surface *dst_surface,
+                        const tde_line *line,
                         unsigned int num)
 {
     int ret;
@@ -308,7 +308,7 @@ static int sampel_draw_line(cvi_tde_surface *dst_surface,
 
     /* 1. start job */
     handle = tde_begin_job();
-    if (handle == CVI_ERR_TDE_INVALID_HANDLE) {
+    if (handle == ERR_TDE_INVALID_HANDLE) {
         return TDE_FAILURE;
     }
 
@@ -320,7 +320,7 @@ static int sampel_draw_line(cvi_tde_surface *dst_surface,
     }
 
     /* 5. submit job */
-    ret = tde_end_job(handle, CVI_FALSE, CVI_TRUE, 1000); /* 1000 time out */
+    ret = tde_end_job(handle, 0, 1, 1000); /* 1000 time out */
     if (ret < 0) {
         tde_cancel_job(handle);
         return TDE_FAILURE;

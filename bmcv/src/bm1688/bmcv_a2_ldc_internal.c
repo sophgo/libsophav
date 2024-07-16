@@ -18,16 +18,16 @@ bm_meshdata_all ldc_meshdata;
 
 bm_tsk_mesh_attr_s tsk_mesh[LDC_MAX_TSK_MESH];
 
-static inline void COMMON_GetPicBufferConfig(u32 u32Width, u32 u32Height,
-                                             PIXEL_FORMAT_E enPixelFormat, DATA_BITWIDTH_E enBitWidth,
-                                             COMPRESS_MODE_E enCmpMode, u32 u32Align, bm_vb_cal_config_s *pstCalConfig)
+static inline void COMMON_GetPicBufferConfig(u32 width, u32 height,
+                                             pixel_format_e pixel_format, data_bitwidth_e enBitWidth,
+                                             compress_mode_e enCmpMode, u32 u32Align, bm_vb_cal_config_s *pstCalConfig)
 {
     u8  u8BitWidth = 0;
-    u32 u32VBSize = 0;
+    u32 vb_size = 0;
     u32 u32AlignHeight = 0;
-    u32 u32MainStride = 0;
-    u32 u32CStride = 0;
-    u32 u32MainSize = 0;
+    u32 main_stride = 0;
+    u32 c_stride = 0;
+    u32 main_size = 0;
     u32 u32YSize = 0;
     u32 u32CSize = 0;
 
@@ -64,125 +64,125 @@ static inline void COMMON_GetPicBufferConfig(u32 u32Width, u32 u32Height,
     }
     }
 
-    if ((enPixelFormat == PIXEL_FORMAT_YUV_PLANAR_420)
-        || (enPixelFormat == PIXEL_FORMAT_NV12)
-        || (enPixelFormat == PIXEL_FORMAT_NV21)) {
-        u32AlignHeight = ALIGN(u32Height, 2);
+    if ((pixel_format == PIXEL_FORMAT_YUV_PLANAR_420)
+        || (pixel_format == PIXEL_FORMAT_NV12)
+        || (pixel_format == PIXEL_FORMAT_NV21)) {
+        u32AlignHeight = ALIGN(height, 2);
     } else
-        u32AlignHeight = u32Height;
+        u32AlignHeight = height;
 
     if (enCmpMode == COMPRESS_MODE_NONE) {
-        u32MainStride = ALIGN((u32Width * u8BitWidth + 7) >> 3, u32Align);
-        u32YSize = u32MainStride * u32AlignHeight;
+        main_stride = ALIGN((width * u8BitWidth + 7) >> 3, u32Align);
+        u32YSize = main_stride * u32AlignHeight;
 
-        if (enPixelFormat == PIXEL_FORMAT_YUV_PLANAR_420) {
-            u32CStride = ALIGN(((u32Width >> 1) * u8BitWidth + 7) >> 3, u32Align);
-            u32CSize = (u32CStride * u32AlignHeight) >> 1;
+        if (pixel_format == PIXEL_FORMAT_YUV_PLANAR_420) {
+            c_stride = ALIGN(((width >> 1) * u8BitWidth + 7) >> 3, u32Align);
+            u32CSize = (c_stride * u32AlignHeight) >> 1;
 
-            u32MainStride = u32CStride * 2;
-            u32YSize = u32MainStride * u32AlignHeight;
-            u32MainSize = u32YSize + (u32CSize << 1);
+            main_stride = c_stride * 2;
+            u32YSize = main_stride * u32AlignHeight;
+            main_size = u32YSize + (u32CSize << 1);
             pstCalConfig->plane_num = 3;
-        } else if (enPixelFormat == PIXEL_FORMAT_YUV_PLANAR_422) {
-            u32CStride = ALIGN(((u32Width >> 1) * u8BitWidth + 7) >> 3, u32Align);
-            u32CSize = u32CStride * u32AlignHeight;
+        } else if (pixel_format == PIXEL_FORMAT_YUV_PLANAR_422) {
+            c_stride = ALIGN(((width >> 1) * u8BitWidth + 7) >> 3, u32Align);
+            u32CSize = c_stride * u32AlignHeight;
 
-            u32MainSize = u32YSize + (u32CSize << 1);
+            main_size = u32YSize + (u32CSize << 1);
             pstCalConfig->plane_num = 3;
-        } else if (enPixelFormat == PIXEL_FORMAT_RGB_888_PLANAR ||
-                enPixelFormat == PIXEL_FORMAT_BGR_888_PLANAR ||
-                enPixelFormat == PIXEL_FORMAT_HSV_888_PLANAR ||
-                enPixelFormat == PIXEL_FORMAT_YUV_PLANAR_444) {
-            u32CStride = u32MainStride;
+        } else if (pixel_format == PIXEL_FORMAT_RGB_888_PLANAR ||
+                pixel_format == PIXEL_FORMAT_BGR_888_PLANAR ||
+                pixel_format == PIXEL_FORMAT_HSV_888_PLANAR ||
+                pixel_format == PIXEL_FORMAT_YUV_PLANAR_444) {
+            c_stride = main_stride;
             u32CSize = u32YSize;
 
-            u32MainSize = u32YSize + (u32CSize << 1);
+            main_size = u32YSize + (u32CSize << 1);
             pstCalConfig->plane_num = 3;
-        } else if (enPixelFormat == PIXEL_FORMAT_RGB_BAYER_12BPP) {
-            u32MainSize = u32YSize;
+        } else if (pixel_format == PIXEL_FORMAT_RGB_BAYER_12BPP) {
+            main_size = u32YSize;
             pstCalConfig->plane_num = 1;
-        } else if (enPixelFormat == PIXEL_FORMAT_YUV_400) {
-            u32MainSize = u32YSize;
+        } else if (pixel_format == PIXEL_FORMAT_YUV_400) {
+            main_size = u32YSize;
             pstCalConfig->plane_num = 1;
-        } else if (enPixelFormat == PIXEL_FORMAT_NV12 || enPixelFormat == PIXEL_FORMAT_NV21) {
-            u32CStride = ALIGN((u32Width * u8BitWidth + 7) >> 3, u32Align);
-            u32CSize = (u32CStride * u32AlignHeight) >> 1;
+        } else if (pixel_format == PIXEL_FORMAT_NV12 || pixel_format == PIXEL_FORMAT_NV21) {
+            c_stride = ALIGN((width * u8BitWidth + 7) >> 3, u32Align);
+            u32CSize = (c_stride * u32AlignHeight) >> 1;
 
-            u32MainSize = u32YSize + u32CSize;
+            main_size = u32YSize + u32CSize;
             pstCalConfig->plane_num = 2;
-        } else if (enPixelFormat == PIXEL_FORMAT_NV16 || enPixelFormat == PIXEL_FORMAT_NV61) {
-            u32CStride = ALIGN((u32Width * u8BitWidth + 7) >> 3, u32Align);
-            u32CSize = u32CStride * u32AlignHeight;
+        } else if (pixel_format == PIXEL_FORMAT_NV16 || pixel_format == PIXEL_FORMAT_NV61) {
+            c_stride = ALIGN((width * u8BitWidth + 7) >> 3, u32Align);
+            u32CSize = c_stride * u32AlignHeight;
 
-            u32MainSize = u32YSize + u32CSize;
+            main_size = u32YSize + u32CSize;
             pstCalConfig->plane_num = 2;
-        } else if (enPixelFormat == PIXEL_FORMAT_YUYV || enPixelFormat == PIXEL_FORMAT_YVYU ||
-                enPixelFormat == PIXEL_FORMAT_UYVY || enPixelFormat == PIXEL_FORMAT_VYUY) {
-            u32MainStride = ALIGN(((u32Width * u8BitWidth + 7) >> 3) * 2, u32Align);
-            u32YSize = u32MainStride * u32AlignHeight;
-            u32MainSize = u32YSize;
+        } else if (pixel_format == PIXEL_FORMAT_YUYV || pixel_format == PIXEL_FORMAT_YVYU ||
+                pixel_format == PIXEL_FORMAT_UYVY || pixel_format == PIXEL_FORMAT_VYUY) {
+            main_stride = ALIGN(((width * u8BitWidth + 7) >> 3) * 2, u32Align);
+            u32YSize = main_stride * u32AlignHeight;
+            main_size = u32YSize;
             pstCalConfig->plane_num = 1;
-        } else if (enPixelFormat == PIXEL_FORMAT_ARGB_1555 || enPixelFormat == PIXEL_FORMAT_ARGB_4444) {
+        } else if (pixel_format == PIXEL_FORMAT_ARGB_1555 || pixel_format == PIXEL_FORMAT_ARGB_4444) {
             // packed format
-            u32MainStride = ALIGN((u32Width * 16 + 7) >> 3, u32Align);
-            u32YSize = u32MainStride * u32AlignHeight;
-            u32MainSize = u32YSize;
+            main_stride = ALIGN((width * 16 + 7) >> 3, u32Align);
+            u32YSize = main_stride * u32AlignHeight;
+            main_size = u32YSize;
             pstCalConfig->plane_num = 1;
-        } else if (enPixelFormat == PIXEL_FORMAT_ARGB_8888) {
+        } else if (pixel_format == PIXEL_FORMAT_ARGB_8888) {
             // packed format
-            u32MainStride = ALIGN((u32Width * 32 + 7) >> 3, u32Align);
-            u32YSize = u32MainStride * u32AlignHeight;
-            u32MainSize = u32YSize;
+            main_stride = ALIGN((width * 32 + 7) >> 3, u32Align);
+            u32YSize = main_stride * u32AlignHeight;
+            main_size = u32YSize;
             pstCalConfig->plane_num = 1;
-        } else if (enPixelFormat == PIXEL_FORMAT_FP32_C3_PLANAR) {
-            u32MainStride = ALIGN(((u32Width * u8BitWidth + 7) >> 3) * 4, u32Align);
-            u32YSize = u32MainStride * u32AlignHeight;
-            u32CStride = u32MainStride;
+        } else if (pixel_format == PIXEL_FORMAT_FP32_C3_PLANAR) {
+            main_stride = ALIGN(((width * u8BitWidth + 7) >> 3) * 4, u32Align);
+            u32YSize = main_stride * u32AlignHeight;
+            c_stride = main_stride;
             u32CSize = u32YSize;
-            u32MainSize = u32YSize + (u32CSize << 1);
+            main_size = u32YSize + (u32CSize << 1);
             pstCalConfig->plane_num = 3;
-        } else if (enPixelFormat == PIXEL_FORMAT_FP16_C3_PLANAR ||
-                enPixelFormat == PIXEL_FORMAT_BF16_C3_PLANAR) {
-            u32MainStride = ALIGN(((u32Width * u8BitWidth + 7) >> 3) * 2, u32Align);
-            u32YSize = u32MainStride * u32AlignHeight;
-            u32CStride = u32MainStride;
+        } else if (pixel_format == PIXEL_FORMAT_FP16_C3_PLANAR ||
+                pixel_format == PIXEL_FORMAT_BF16_C3_PLANAR) {
+            main_stride = ALIGN(((width * u8BitWidth + 7) >> 3) * 2, u32Align);
+            u32YSize = main_stride * u32AlignHeight;
+            c_stride = main_stride;
             u32CSize = u32YSize;
-            u32MainSize = u32YSize + (u32CSize << 1);
+            main_size = u32YSize + (u32CSize << 1);
             pstCalConfig->plane_num = 3;
-        } else if (enPixelFormat == PIXEL_FORMAT_INT8_C3_PLANAR ||
-                enPixelFormat == PIXEL_FORMAT_UINT8_C3_PLANAR) {
-            u32CStride = u32MainStride;
+        } else if (pixel_format == PIXEL_FORMAT_INT8_C3_PLANAR ||
+                pixel_format == PIXEL_FORMAT_UINT8_C3_PLANAR) {
+            c_stride = main_stride;
             u32CSize = u32YSize;
-            u32MainSize = u32YSize + (u32CSize << 1);
+            main_size = u32YSize + (u32CSize << 1);
             pstCalConfig->plane_num = 3;
         } else {
             // packed format
-            u32MainStride = ALIGN(((u32Width * u8BitWidth + 7) >> 3) * 3, u32Align);
-            u32YSize = u32MainStride * u32AlignHeight;
-            u32MainSize = u32YSize;
+            main_stride = ALIGN(((width * u8BitWidth + 7) >> 3) * 3, u32Align);
+            u32YSize = main_stride * u32AlignHeight;
+            main_size = u32YSize;
             pstCalConfig->plane_num = 1;
         }
 
-        u32VBSize = u32MainSize;
+        vb_size = main_size;
     } else {
         // TODO: compression mode
         pstCalConfig->plane_num = 0;
     }
 
-    pstCalConfig->u32VBSize = u32VBSize;
-    pstCalConfig->u32MainStride = u32MainStride;
-    pstCalConfig->u32CStride = u32CStride;
-    pstCalConfig->u32MainYSize = u32YSize;
-    pstCalConfig->u32MainCSize = u32CSize;
-    pstCalConfig->u32MainSize = u32MainSize;
-    pstCalConfig->u16AddrAlign = u32Align;
+    pstCalConfig->vb_size = vb_size;
+    pstCalConfig->main_stride = main_stride;
+    pstCalConfig->c_stride = c_stride;
+    pstCalConfig->main_y_size = u32YSize;
+    pstCalConfig->main_c_size = u32CSize;
+    pstCalConfig->main_size = main_size;
+    pstCalConfig->addr_align = u32Align;
 }
 
 bm_status_t bm_ldc_comm_cfg_frame(bm_handle_t handle,
                                   bm_device_mem_t dmem,
-                                  SIZE_S *stSize,
-                                  PIXEL_FORMAT_E enPixelFormat,
-                                  VIDEO_FRAME_INFO_S *pstVideoFrame)
+                                  size_s *stSize,
+                                  pixel_format_e pixel_format,
+                                  video_frame_info_s *pstVideoFrame)
 {
     bm_vb_cal_config_s st_vb_cal_config;
     if (pstVideoFrame == NULL) {
@@ -190,36 +190,36 @@ bm_status_t bm_ldc_comm_cfg_frame(bm_handle_t handle,
         return BM_ERR_FAILURE;
     }
 
-    COMMON_GetPicBufferConfig(stSize->u32Width, stSize->u32Height, enPixelFormat, DATA_BITWIDTH_8,
+    COMMON_GetPicBufferConfig(stSize->width, stSize->height, pixel_format, DATA_BITWIDTH_8,
                               COMPRESS_MODE_NONE, LDC_ALIGN, &st_vb_cal_config);
 
     memset(pstVideoFrame, 0, sizeof(*pstVideoFrame));
-    pstVideoFrame->stVFrame.enCompressMode = COMPRESS_MODE_NONE;
-    pstVideoFrame->stVFrame.enPixelFormat = enPixelFormat;
-    pstVideoFrame->stVFrame.enVideoFormat = VIDEO_FORMAT_LINEAR;
-    pstVideoFrame->stVFrame.enColorGamut = COLOR_GAMUT_BT601;
-    pstVideoFrame->stVFrame.u32Width = stSize->u32Width;
-    pstVideoFrame->stVFrame.u32Height = stSize->u32Height;
-    pstVideoFrame->stVFrame.u32Stride[0] = st_vb_cal_config.u32MainStride;
-    pstVideoFrame->stVFrame.u32Stride[1] = st_vb_cal_config.u32CStride;
-    pstVideoFrame->stVFrame.u32TimeRef = 0;
-    pstVideoFrame->stVFrame.u64PTS = 0;
-    pstVideoFrame->stVFrame.enDynamicRange = DYNAMIC_RANGE_SDR8;
-    pstVideoFrame->u32PoolId = 0;
-    pstVideoFrame->stVFrame.u32Length[0] = st_vb_cal_config.u32MainYSize;
-    pstVideoFrame->stVFrame.u32Length[1] = st_vb_cal_config.u32MainCSize;
+    pstVideoFrame->video_frame.compress_mode = COMPRESS_MODE_NONE;
+    pstVideoFrame->video_frame.pixel_format = pixel_format;
+    pstVideoFrame->video_frame.video_format = VIDEO_FORMAT_LINEAR;
+    pstVideoFrame->video_frame.color_gamut = COLOR_GAMUT_BT601;
+    pstVideoFrame->video_frame.width = stSize->width;
+    pstVideoFrame->video_frame.height = stSize->height;
+    pstVideoFrame->video_frame.stride[0] = st_vb_cal_config.main_stride;
+    pstVideoFrame->video_frame.stride[1] = st_vb_cal_config.c_stride;
+    pstVideoFrame->video_frame.time_ref = 0;
+    pstVideoFrame->video_frame.pts = 0;
+    pstVideoFrame->video_frame.dynamic_range = DYNAMIC_RANGE_SDR8;
+    pstVideoFrame->pool_id = 0;
+    pstVideoFrame->video_frame.length[0] = st_vb_cal_config.main_y_size;
+    pstVideoFrame->video_frame.length[1] = st_vb_cal_config.main_c_size;
 
     unsigned long long phy_addr = dmem.u.device.device_addr;
 
-    pstVideoFrame->stVFrame.u64PhyAddr[0] = phy_addr;
-    pstVideoFrame->stVFrame.u64PhyAddr[1] = pstVideoFrame->stVFrame.u64PhyAddr[0]
-        + ALIGN(st_vb_cal_config.u32MainYSize, st_vb_cal_config.u16AddrAlign);
+    pstVideoFrame->video_frame.phyaddr[0] = phy_addr;
+    pstVideoFrame->video_frame.phyaddr[1] = pstVideoFrame->video_frame.phyaddr[0]
+        + ALIGN(st_vb_cal_config.main_y_size, st_vb_cal_config.addr_align);
 
     if (st_vb_cal_config.plane_num == 3) {
-        pstVideoFrame->stVFrame.u32Stride[2] = st_vb_cal_config.u32CStride;
-        pstVideoFrame->stVFrame.u32Length[2] = st_vb_cal_config.u32MainCSize;
-        pstVideoFrame->stVFrame.u64PhyAddr[2] = pstVideoFrame->stVFrame.u64PhyAddr[1]
-            + ALIGN(st_vb_cal_config.u32MainCSize, st_vb_cal_config.u16AddrAlign);
+        pstVideoFrame->video_frame.stride[2] = st_vb_cal_config.c_stride;
+        pstVideoFrame->video_frame.length[2] = st_vb_cal_config.main_c_size;
+        pstVideoFrame->video_frame.phyaddr[2] = pstVideoFrame->video_frame.phyaddr[1]
+            + ALIGN(st_vb_cal_config.main_c_size, st_vb_cal_config.addr_align);
     }
     return BM_SUCCESS;
 }
@@ -265,13 +265,13 @@ static u8 ldc_get_valid_tsk_mesh_by_name2(const char *name)
     return i;
 }
 
-void mesh_gen_get_1st_size(SIZE_S in_size, u32 *mesh_1st_size)
+void mesh_gen_get_1st_size(size_s in_size, u32 *mesh_1st_size)
 {
     if (!mesh_1st_size)
         return;
 
-    u32 ori_src_width = in_size.u32Width;
-    u32 ori_src_height = in_size.u32Height;
+    u32 ori_src_width = in_size.width;
+    u32 ori_src_height = in_size.height;
 
     // In LDC Processing, width & height aligned to TILESIZE
     u32 src_width_s1 = ((ori_src_width + TILESIZE - 1) / TILESIZE) * TILESIZE;
@@ -287,13 +287,13 @@ void mesh_gen_get_1st_size(SIZE_S in_size, u32 *mesh_1st_size)
     *mesh_1st_size = sizeof(bm_coord2d_int_hw) * MESH_NUM_ATILE * MESH_NUM_ATILE * num_tilex_s1 * num_tiley_s1 * 4;
 }
 
-void mesh_gen_get_2nd_size(SIZE_S in_size, u32 *mesh_2nd_size)
+void mesh_gen_get_2nd_size(size_s in_size, u32 *mesh_2nd_size)
 {
     if (!mesh_2nd_size)
         return;
 
-    u32 ori_src_width = in_size.u32Width;
-    u32 ori_src_height = in_size.u32Height;
+    u32 ori_src_width = in_size.width;
+    u32 ori_src_height = in_size.height;
 
     // In LDC Processing, width & height aligned to TILESIZE
     u32 src_width_s1 = ((ori_src_width + TILESIZE - 1) / TILESIZE) * TILESIZE;
@@ -313,8 +313,8 @@ void mesh_gen_get_2nd_size(SIZE_S in_size, u32 *mesh_2nd_size)
     *mesh_2nd_size = sizeof(bm_coord2d_int_hw) * MESH_NUM_ATILE * MESH_NUM_ATILE * num_tilex_s2 * num_tiley_s2 * 4;
 }
 
-void mesh_gen_get_size(SIZE_S in_size,
-                       SIZE_S out_size,
+void mesh_gen_get_size(size_s in_size,
+                       size_s out_size,
                        u32 *mesh_1st_size,
                        u32 *mesh_2nd_size)
 {
@@ -327,7 +327,7 @@ void mesh_gen_get_size(SIZE_S in_size,
     mesh_gen_get_2nd_size(in_size, mesh_2nd_size);
 }
 
-static void _ldc_attr_map_cv182x(const LDC_ATTR_S *pstLDCAttr,
+static void _ldc_attr_map_cv182x(const ldc_attr_s *pstLDCAttr,
                                  bm_ldc_attr *cfg,
                                  bm_ldc_rgn_attr *rgn_attr,
                                  double x0, double y0, double r, int mesh_horcnt, int mesh_vercnt)
@@ -345,25 +345,25 @@ static void _ldc_attr_map_cv182x(const LDC_ATTR_S *pstLDCAttr,
 
     cfg->RgnNum = 1;
     rgn_attr[0].RegionValid = 1;
-    rgn_attr[0].ZoomV = pstLDCAttr->bAspect;
-    rgn_attr[0].Pan = pstLDCAttr->s32XYRatio;
-    rgn_attr[0].PanEnd = pstLDCAttr->s32DistortionRatio;
+    rgn_attr[0].ZoomV = pstLDCAttr->aspect;
+    rgn_attr[0].Pan = pstLDCAttr->xy_ratio;
+    rgn_attr[0].PanEnd = pstLDCAttr->distortion_ratio;
     rgn_attr[0].OutW = cfg->OutW_disp;
     rgn_attr[0].OutH = cfg->OutH_disp;
     rgn_attr[0].OutX = 0;
     rgn_attr[0].OutY = 0;
-    rgn_attr[0].InRadius = pstLDCAttr->s32CenterXOffset;
-    rgn_attr[0].OutRadius = pstLDCAttr->s32CenterYOffset;
+    rgn_attr[0].InRadius = pstLDCAttr->center_x_offset;
+    rgn_attr[0].OutRadius = pstLDCAttr->center_y_offset;
 
-    if (pstLDCAttr->stGridInfoAttr.Enable) {
+    if (pstLDCAttr->grid_info_attr.enable) {
         rgn_attr[0].MeshVer = mesh_vercnt;
         rgn_attr[0].MeshHor = mesh_horcnt;
     } else {
         rgn_attr[0].MeshVer = DEFAULT_WIDTH_MESH_NUM;
         rgn_attr[0].MeshHor = DEFAULT_HEIGHT_MESH_NUM;
     }
-    rgn_attr[0].ThetaX = pstLDCAttr->s32XRatio;
-    rgn_attr[0].ThetaZ = pstLDCAttr->s32YRatio;
+    rgn_attr[0].ThetaX = pstLDCAttr->x_ratio;
+    rgn_attr[0].ThetaZ = pstLDCAttr->y_ratio;
 }
 
 static bm_status_t _get_region_dst_mesh_list(bm_ldc_rgn_attr *rgn_attr,
@@ -478,7 +478,7 @@ static bm_status_t _get_region_dst_mesh_list(bm_ldc_rgn_attr *rgn_attr,
 static void ldc_get_region_src_mesh_list(bm_ldc_rgn_attr *rgn_attr,
                                          int rgn_idx, double x0, double y0,
                                          bm_meshdata_all* meshdata,
-                                         const LDC_ATTR_S *pstLDCAttr)
+                                         const ldc_attr_s *pstLDCAttr)
 {
     int view_w = rgn_attr[rgn_idx].OutW;
     int view_h = rgn_attr[rgn_idx].OutH;
@@ -486,7 +486,7 @@ static void ldc_get_region_src_mesh_list(bm_ldc_rgn_attr *rgn_attr,
     int mesh_vercnt = rgn_attr[rgn_idx].MeshVer;
 
     // register:
-    bool bAspect        = (bool)rgn_attr[0].ZoomV;
+    bool aspect        = (bool)rgn_attr[0].ZoomV;
     int XYRatio         = minmax(rgn_attr[0].Pan, 0, 100);
     int XRatio          = minmax(rgn_attr[0].ThetaX, 0, 100);
     int YRatio          = minmax(rgn_attr[0].ThetaZ, 0, 100);
@@ -505,7 +505,7 @@ static void ldc_get_region_src_mesh_list(bm_ldc_rgn_attr *rgn_attr,
     double Aspect_gainY = MAX(ud_gain, lr_gain);
     bm_vector2D dist2d;
 
-    if (pstLDCAttr->stGridInfoAttr.Enable) {
+    if (pstLDCAttr->grid_info_attr.enable) {
         int str_idx = *(meshdata->pmesh_dst) / meshdata->mesh_w;
         int str_idy = *(meshdata->pmesh_dst + 1) / meshdata->mesh_h;
         int end_idx = str_idx + meshdata->mesh_horcnt - 1;
@@ -552,7 +552,7 @@ static void ldc_get_region_src_mesh_list(bm_ldc_rgn_attr *rgn_attr,
                 x = x / Aspect_gainX;
                 y = y / Aspect_gainY;
 
-                if (bAspect == true) {
+                if (aspect == true) {
                     x = x * (1 - 0.333 * (100 - XYRatio) / 100);
                     y = y * (1 - 0.333 * (100 - XYRatio) / 100);
                 } else {
@@ -757,7 +757,7 @@ static bm_status_t _get_1st_src_midxy(int num_tilex_s1,
                                       bm_ldc_attr *cfg,
                                       bm_coord2d_int_hw *src_1st_list,
                                       int tidx, int tidy, int mesh_horcnt, int mesh_vercnt,
-                                      const LDC_ATTR_S *pstLDCAttr)
+                                      const ldc_attr_s *pstLDCAttr)
 {
     u32 max_mesh_num = 9 * (mesh_vercnt * mesh_horcnt);
     // CVI_U32 max_mesh_num = 9 * (MAX_HEIGHT_MESH_NUM * MAX_WIDTH_MESH_NUM);
@@ -790,7 +790,7 @@ static bm_status_t _get_1st_src_midxy(int num_tilex_s1,
             for (int i = 0; i < 4; i++)
                 swmesh_hit_index[i] = 0xFFFFFFFF;
 
-            if (pstLDCAttr->stGridInfoAttr.Enable) {
+            if (pstLDCAttr->grid_info_attr.enable) {
                 // go through al hwmesh knots
                 int use_count = 0;
                 for (int knotidx = 0; knotidx < 4; knotidx++) {
@@ -918,7 +918,7 @@ static bm_status_t _offline_get_1st_src_mesh_table(int num_tiley_s1, int num_til
                                                    bm_ldc_attr *cfg,
                                                    bm_coord2d_int_hw *src_1st_list,
                                                    int mesh_horcnt, int mesh_vercnt,
-                                                   const LDC_ATTR_S *pstLDCAttr)
+                                                   const ldc_attr_s *pstLDCAttr)
 {
     bm_status_t ret = BM_SUCCESS;
 
@@ -1353,9 +1353,9 @@ int load_meshdata(char *grid, bm_mesh_data_all_s *pmeshdata, const char *bindNam
     return 0;
 }
 
-bm_status_t mesh_gen_ldc(SIZE_S in_size,
-                         SIZE_S out_size,
-                         const LDC_ATTR_S *pstLDCAttr,
+bm_status_t mesh_gen_ldc(size_s in_size,
+                         size_s out_size,
+                         const ldc_attr_s *pstLDCAttr,
                          uint64_t mesh_phy_addr,
                          void *mesh_vir_addr,
                          bmcv_rot_mode rot,
@@ -1394,8 +1394,8 @@ bm_status_t mesh_gen_ldc(SIZE_S in_size,
 
     int mesh_horcnt = DEFAULT_WIDTH_MESH_NUM, mesh_vercnt = DEFAULT_HEIGHT_MESH_NUM;
 
-    if (pstLDCAttr->stGridInfoAttr.Enable) {
-        load_meshdata(grid, &ldc_meshdata, pstLDCAttr->stGridInfoAttr.gridBindName);
+    if (pstLDCAttr->grid_info_attr.enable) {
+        load_meshdata(grid, &ldc_meshdata, pstLDCAttr->grid_info_attr.grid_bind_name);
         mesh_horcnt = ldc_meshdata.imgw  / ldc_meshdata.mesh_w;
         mesh_vercnt = ldc_meshdata.imgh / ldc_meshdata.mesh_h;
     }
@@ -1411,13 +1411,13 @@ bm_status_t mesh_gen_ldc(SIZE_S in_size,
     reg.bg_color_v_b = (bgc_pack & 0x0000FF) >> 0;
 
     int ori_src_width, ori_src_height;
-    if (pstLDCAttr->stGridInfoAttr.Enable) {
+    if (pstLDCAttr->grid_info_attr.enable) {
         ori_src_width = ldc_meshdata.imgw;
         ori_src_height = ldc_meshdata.imgh;
     }
     else{
-        ori_src_width = in_size.u32Width;
-        ori_src_height = in_size.u32Height;
+        ori_src_width = in_size.width;
+        ori_src_height = in_size.height;
     }
 
     bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "ori_src_width = %d,\n", ori_src_width);
@@ -1546,23 +1546,23 @@ static u8 ldc_get_idle_tsk_mesh(void)
 bm_status_t bm_ldc_gen_gdc_mesh(bm_handle_t handle,
                                 int width,
                                 int height,
-                                const LDC_ATTR_S *pstLDCAttr,
+                                const ldc_attr_s *pstLDCAttr,
                                 const char *name,
-                                uint64_t *pu64PhyAddr,
+                                uint64_t *pphyaddr,
                                 void **ppVirAddr,
                                 char *grid)
 {
     bm_status_t ret = BM_SUCCESS;
     uint64_t paddr = 0;
     // void *vaddr;
-    SIZE_S in_size, out_size;
+    size_s in_size, out_size;
     unsigned int mesh_1st_size = 0, mesh_2nd_size = 0, mesh_size = 0;
     bmcv_rot_mode enRotation = BMCV_ROTATION_0;
 
-    in_size.u32Width  = (width  + (LDC_ALIGN - 1)) & ~(LDC_ALIGN - 1);
-    in_size.u32Height = (height  + (LDC_ALIGN - 1)) & ~(LDC_ALIGN - 1);
-    out_size.u32Width = in_size.u32Width;
-    out_size.u32Height = in_size.u32Height;
+    in_size.width  = (width  + (LDC_ALIGN - 1)) & ~(LDC_ALIGN - 1);
+    in_size.height = (height  + (LDC_ALIGN - 1)) & ~(LDC_ALIGN - 1);
+    out_size.width = in_size.width;
+    out_size.height = in_size.height;
 
     u8 idx = ldc_get_valid_tsk_mesh_by_name(name);      // 32
     // for debug
@@ -1575,7 +1575,7 @@ bm_status_t bm_ldc_gen_gdc_mesh(bm_handle_t handle,
         mesh_gen_get_size(in_size, out_size, &mesh_1st_size, &mesh_2nd_size);
         mesh_size = mesh_1st_size + mesh_2nd_size;
 
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "W = %d, H = %d, mesh_size = %d\n", in_size.u32Width, in_size.u32Height, mesh_size);
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "W = %d, H = %d, mesh_size = %d\n", in_size.width, in_size.height, mesh_size);
 
         ret = bm_malloc_device_byte(handle, &dmem, mesh_size);
         if (ret != BM_SUCCESS) {
@@ -1607,7 +1607,7 @@ bm_status_t bm_ldc_gen_gdc_mesh(bm_handle_t handle,
 #if GDC_DUMP_MESH
         char mesh_name[128];
         snprintf(mesh_name, 128, "./mesh_%d_%d_%d_%d_%d_%d_%d.bin"
-            , in_size.u32Width, in_size.u32Height, pstLDCAttr->s32XRatio, pstLDCAttr->s32YRatio
+            , in_size.width, in_size.height, pstLDCAttr->s32XRatio, pstLDCAttr->s32YRatio
             , pstLDCAttr->s32CenterXOffset, pstLDCAttr->s32CenterYOffset, pstLDCAttr->s32DistortionRatio);
 
         FILE *fp = fopen(mesh_name, "wb");
@@ -1638,11 +1638,11 @@ dump_fail:
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "tsk_mesh[%d].vaddr in bm_ldc_gen_gdc_mesh for loop = %p\n", idx, tsk_mesh[idx].vaddr);
 
     }
-    *pu64PhyAddr = (uint64_t)dmem.u.device.device_addr;
+    *pphyaddr = (uint64_t)dmem.u.device.device_addr;
     *ppVirAddr = tsk_mesh[idx].vaddr;
     // for debug
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "In bm_ldc_gen_gdc_mesh, pu64PhyAddr = %#"PRIx64", ppVirAddr = %p.\n", *pu64PhyAddr, *ppVirAddr);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "tsk mesh(%#"PRIx64")\n", *pu64PhyAddr);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "In bm_ldc_gen_gdc_mesh, pphyaddr = %#"PRIx64", ppVirAddr = %p.\n", *pphyaddr, *ppVirAddr);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "tsk mesh(%#"PRIx64")\n", *pphyaddr);
 
     return BM_SUCCESS;
 }
@@ -1650,22 +1650,22 @@ dump_fail:
 bm_status_t bm_ldc_save_gdc_mesh(bm_handle_t handle,
                                 int width,
                                 int height,
-                                const LDC_ATTR_S *pstLDCAttr,
+                                const ldc_attr_s *pstLDCAttr,
                                 bm_device_mem_t *dmem,
                                 const char *name,
-                                uint64_t *pu64PhyAddr,
+                                uint64_t *pphyaddr,
                                 void **ppVirAddr)
 {
     bm_status_t ret = BM_SUCCESS;
     uint64_t paddr = 0;
-    SIZE_S in_size, out_size;
+    size_s in_size, out_size;
     unsigned int mesh_1st_size = 0, mesh_2nd_size = 0, mesh_size = 0;
     bmcv_rot_mode enRotation = BMCV_ROTATION_0;
 
-    in_size.u32Width  = ALIGN(width, DEFAULT_ALIGN);
-    in_size.u32Height = ALIGN(height, DEFAULT_ALIGN);
-    out_size.u32Width = in_size.u32Width;
-    out_size.u32Height = in_size.u32Height;
+    in_size.width  = ALIGN(width, DEFAULT_ALIGN);
+    in_size.height = ALIGN(height, DEFAULT_ALIGN);
+    out_size.width = in_size.width;
+    out_size.height = in_size.height;
 
     u8 idx = ldc_get_valid_tsk_mesh_by_name(name);      // 32
 
@@ -1713,11 +1713,11 @@ bm_status_t bm_ldc_save_gdc_mesh(bm_handle_t handle,
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "tsk_mesh[%d].vaddr in bm_ldc_save_gdc_mesh for = %p\n", idx, tsk_mesh[idx].vaddr);
 
     }
-    *pu64PhyAddr = (uint64_t)(*dmem).u.device.device_addr;
+    *pphyaddr = (uint64_t)(*dmem).u.device.device_addr;
     *ppVirAddr = tsk_mesh[idx].vaddr;
     // for debug
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "In bm_ldc_save_gdc_mesh, pu64PhyAddr = %#"PRIx64", ppVirAddr = %p.\n", *pu64PhyAddr, *ppVirAddr);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "tsk mesh(%#"PRIx64")\n", *pu64PhyAddr);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "In bm_ldc_save_gdc_mesh, pphyaddr = %#"PRIx64", ppVirAddr = %p.\n", *pphyaddr, *ppVirAddr);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "tsk mesh(%#"PRIx64")\n", *pphyaddr);
 
     return BM_SUCCESS;
 }
@@ -1727,7 +1727,7 @@ bm_status_t bm_ldc_load_gdc_mesh(bm_handle_t handle,
                                  int height,
                                  bm_device_mem_t *dmem,
                                  const char *tskName,
-                                 uint64_t *pu64PhyAddr,
+                                 uint64_t *pphyaddr,
                                  void **ppVirAddr)
 {
     void *vaddr = 0;
@@ -1760,9 +1760,9 @@ bm_status_t bm_ldc_load_gdc_mesh(bm_handle_t handle,
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "tsk_mesh[%d].paddr in bm_ldc_load_gdc_mesh for = %#"PRIx64"\n", idx, (uint64_t)tsk_mesh[idx].paddr);
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "tsk_mesh[%d].paddr in bm_ldc_load_gdc_mesh for = %p\n", idx, tsk_mesh[idx].vaddr);
     }
-    *pu64PhyAddr = (uint64_t)(*dmem).u.device.device_addr;
+    *pphyaddr = (uint64_t)(*dmem).u.device.device_addr;
     *ppVirAddr = tsk_mesh[idx].vaddr;
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "In bm_ldc_load_gdc_mesh, pu64PhyAddr = %#"PRIx64", ppVirAddr = %p.\n", *pu64PhyAddr, *ppVirAddr);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "In bm_ldc_load_gdc_mesh, pphyaddr = %#"PRIx64", ppVirAddr = %p.\n", *pphyaddr, *ppVirAddr);
 
     return BM_SUCCESS;
 }
@@ -1779,7 +1779,7 @@ bm_status_t bm_ldc_end_job(int fd, GDC_HANDLE hHandle)
     memset(&cfg, 0, sizeof(cfg));
     cfg.handle = hHandle;
 
-    ret = (bm_status_t)ioctl(fd, CVI_LDC_END_JOB, &cfg);
+    ret = (bm_status_t)ioctl(fd, LDC_END_JOB, &cfg);
     if (ret != BM_SUCCESS) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "bm_ldc_end_job failed!\n");
         ret = BM_ERR_FAILURE;
@@ -1787,7 +1787,7 @@ bm_status_t bm_ldc_end_job(int fd, GDC_HANDLE hHandle)
     return ret;
 }
 
-bm_status_t bm_image_format_to_cvi_format(bm_image_format_ext fmt, bm_image_data_format_ext datatype, PIXEL_FORMAT_E * cvi_fmt) {
+bm_status_t bm_image_format_to_cvi_format(bm_image_format_ext fmt, bm_image_data_format_ext datatype, pixel_format_e * cvi_fmt) {
     if(datatype != DATA_TYPE_EXT_1N_BYTE) {
         switch(datatype) {
             case DATA_TYPE_EXT_1N_BYTE_SIGNED:
@@ -1877,33 +1877,33 @@ bm_status_t bm_image_format_to_cvi_format(bm_image_format_ext fmt, bm_image_data
 }
 
 bm_status_t bm_image_to_cvi_frame(bm_image *image,
-                                  PIXEL_FORMAT_E enPixelFormat,
-                                  VIDEO_FRAME_INFO_S *stVideoFrame)
+                                  pixel_format_e pixel_format,
+                                  video_frame_info_s *stVideoFrame)
 {
-    stVideoFrame->stVFrame.enCompressMode = COMPRESS_MODE_NONE;
-    stVideoFrame->stVFrame.enPixelFormat = enPixelFormat;
-    stVideoFrame->stVFrame.enVideoFormat = VIDEO_FORMAT_LINEAR;
-    stVideoFrame->stVFrame.enColorGamut = COLOR_GAMUT_BT709;
-    stVideoFrame->stVFrame.u32Width = image->width;
-    stVideoFrame->stVFrame.u32Height = image->height;
-    stVideoFrame->stVFrame.u32TimeRef = 0;
-    stVideoFrame->stVFrame.u64PTS = 0;
-    stVideoFrame->stVFrame.enDynamicRange = DYNAMIC_RANGE_SDR8;
+    stVideoFrame->video_frame.compress_mode = COMPRESS_MODE_NONE;
+    stVideoFrame->video_frame.pixel_format = pixel_format;
+    stVideoFrame->video_frame.video_format = VIDEO_FORMAT_LINEAR;
+    stVideoFrame->video_frame.color_gamut = COLOR_GAMUT_BT709;
+    stVideoFrame->video_frame.width = image->width;
+    stVideoFrame->video_frame.height = image->height;
+    stVideoFrame->video_frame.time_ref = 0;
+    stVideoFrame->video_frame.pts = 0;
+    stVideoFrame->video_frame.dynamic_range = DYNAMIC_RANGE_SDR8;
 
-    stVideoFrame->u32PoolId = 0;
+    stVideoFrame->pool_id = 0;
     for (int i = 0; i < image->image_private->plane_num; ++i) {
-        stVideoFrame->stVFrame.u32Stride[i] =  image->image_private->memory_layout[i].pitch_stride;
-        stVideoFrame->stVFrame.u32Length[i] = image->image_private->memory_layout[i].size;
-        stVideoFrame->stVFrame.u64PhyAddr[i] = image->image_private->data[i].u.device.device_addr;
-        stVideoFrame->stVFrame.pu8VirAddr[i] = (unsigned char*)image->image_private->data[i].u.system.system_addr;
+        stVideoFrame->video_frame.stride[i] =  image->image_private->memory_layout[i].pitch_stride;
+        stVideoFrame->video_frame.length[i] = image->image_private->memory_layout[i].size;
+        stVideoFrame->video_frame.phyaddr[i] = image->image_private->data[i].u.device.device_addr;
+        stVideoFrame->video_frame.viraddr[i] = (unsigned char*)image->image_private->data[i].u.system.system_addr;
     }
     if (image->image_private->plane_num >= 3) {
-        stVideoFrame->stVFrame.u32Length[2] = image->image_private->memory_layout[2].size;
-        stVideoFrame->stVFrame.u64PhyAddr[2] = image->image_private->data[2].u.device.device_addr;
+        stVideoFrame->video_frame.length[2] = image->image_private->memory_layout[2].size;
+        stVideoFrame->video_frame.phyaddr[2] = image->image_private->data[2].u.device.device_addr;
     }
     if (image->image_format == FORMAT_COMPRESSED) {
-        stVideoFrame->stVFrame.u64ExtPhyAddr = image->image_private->data[3].u.device.device_addr;
-        stVideoFrame->stVFrame.enCompressMode = COMPRESS_MODE_FRAME;
+        stVideoFrame->video_frame.ext_phy_addr = image->image_private->data[3].u.device.device_addr;
+        stVideoFrame->video_frame.compress_mode = COMPRESS_MODE_FRAME;
     }
 
     return BM_SUCCESS;
@@ -1960,7 +1960,7 @@ bm_status_t bm_ldc_send_frame(int fd,
                               bm_ldc_basic_param *param)
 {
     bm_status_t ret = BM_SUCCESS;
-    PIXEL_FORMAT_E pixel_format = 0;
+    pixel_format_e pixel_format = 0;
 
     memset(&param->stVideoFrameIn, 0, sizeof(param->stVideoFrameIn));
     memset(&param->stVideoFrameOut, 0, sizeof(param->stVideoFrameOut));
@@ -1969,8 +1969,8 @@ bm_status_t bm_ldc_send_frame(int fd,
     bm_image_to_cvi_frame(input_img, pixel_format, &param->stVideoFrameIn);
     bm_image_to_cvi_frame(output_img, pixel_format, &param->stVideoFrameOut);
 
-    memcpy(&param->stTask.stImgIn, &param->stVideoFrameIn, sizeof(param->stVideoFrameIn));
-    memcpy(&param->stTask.stImgOut, &param->stVideoFrameOut, sizeof(param->stVideoFrameOut));
+    memcpy(&param->stTask.img_in, &param->stVideoFrameIn, sizeof(param->stVideoFrameIn));
+    memcpy(&param->stTask.img_out, &param->stVideoFrameOut, sizeof(param->stVideoFrameOut));
 
     return ret;
 }
@@ -1978,15 +1978,15 @@ bm_status_t bm_ldc_send_frame(int fd,
 bm_status_t bm_ldc_get_frame(int fd, bm_image *output_img, bm_ldc_basic_param *param)
 {
     bm_status_t ret = BM_SUCCESS;
-    PIXEL_FORMAT_E pixel_format = 0;
+    pixel_format_e pixel_format = 0;
 
     bm_image_format_to_cvi_format(output_img->image_format, output_img->data_type, &pixel_format);
     bm_image_to_cvi_frame(output_img, pixel_format, &param->stVideoFrameOut);
 
-    memcpy(&param->stVideoFrameOut, &param->stTask.stImgOut, sizeof(param->stTask.stImgOut));
+    memcpy(&param->stVideoFrameOut, &param->stTask.img_out, sizeof(param->stTask.img_out));
 
     for(int i = 0; i < output_img->image_private->plane_num; i++) {
-        output_img->image_private->data[i].u.device.device_addr = param->stVideoFrameOut.stVFrame.u64PhyAddr[i];
+        output_img->image_private->data[i].u.device.device_addr = param->stVideoFrameOut.video_frame.phyaddr[i];
     }
 
     return ret;
@@ -2003,7 +2003,7 @@ bm_status_t bm_ldc_cancel_job(int fd, GDC_HANDLE hHandle)
     struct gdc_handle_data cfg;
     memset(&cfg, 0, sizeof(cfg));
     cfg.handle = hHandle;
-    ret = (bm_status_t)ioctl(fd, CVI_LDC_CANCEL_JOB, &cfg);
+    ret = (bm_status_t)ioctl(fd, LDC_CANCEL_JOB, &cfg);
     if (ret != BM_SUCCESS) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "ldc_cancel_job failed!\n");
         ret = BM_ERR_FAILURE;
@@ -2014,7 +2014,7 @@ bm_status_t bm_ldc_cancel_job(int fd, GDC_HANDLE hHandle)
 bm_status_t bm_ldc_init(int fd)
 {
     bm_status_t ret;
-    ret = (bm_status_t)ioctl(fd, CVI_LDC_INIT);
+    ret = (bm_status_t)ioctl(fd, LDC_INIT);
     if (ret != BM_SUCCESS) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "Init LDC failed!\n");
         return ret;
@@ -2025,7 +2025,7 @@ bm_status_t bm_ldc_init(int fd)
 bm_status_t bm_ldc_deinit(int fd)
 {
     bm_status_t ret;
-    ret = (bm_status_t)ioctl(fd, CVI_LDC_DEINIT);
+    ret = (bm_status_t)ioctl(fd, LDC_DEINIT);
     if (ret != BM_SUCCESS) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "Deinit LDC failed!\n");
         return ret;
@@ -2041,7 +2041,7 @@ bm_status_t bm_ldc_begin_job(int fd, GDC_HANDLE *phHandle)
     struct gdc_handle_data cfg;
     memset(&cfg, 0, sizeof(cfg));
 
-    ret = (bm_status_t)ioctl(fd, CVI_LDC_BEGIN_JOB, &cfg);
+    ret = (bm_status_t)ioctl(fd, LDC_BEGIN_JOB, &cfg);
     if (ret != BM_SUCCESS) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "LDC begin_job failed!\n");
         return ret;
@@ -2050,14 +2050,14 @@ bm_status_t bm_ldc_begin_job(int fd, GDC_HANDLE *phHandle)
     return BM_SUCCESS;
 }
 
-bm_status_t bm_ldc_set_job_identity(int fd, GDC_HANDLE hHandle, GDC_IDENTITY_ATTR_S *identity_attr)
+bm_status_t bm_ldc_set_job_identity(int fd, GDC_HANDLE hHandle, gdc_identity_attr_s *identity_attr)
 {
     bm_status_t ret = BM_SUCCESS;
     struct gdc_identity_attr cfg = {0};
     cfg.handle = hHandle;
     memcpy(&cfg.attr, identity_attr, sizeof(*identity_attr));
 
-    ret = (bm_status_t)ioctl(fd, CVI_LDC_SET_JOB_IDENTITY, &cfg);
+    ret = (bm_status_t)ioctl(fd, LDC_SET_JOB_IDENTITY, &cfg);
     if (ret != BM_SUCCESS) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "LDC set_job_identity failed!\n");
         return ret;
@@ -2065,7 +2065,7 @@ bm_status_t bm_ldc_set_job_identity(int fd, GDC_HANDLE hHandle, GDC_IDENTITY_ATT
     return BM_SUCCESS;
 }
 
-bm_status_t bm_ldc_add_rotation_task(int fd, GDC_HANDLE hHandle, GDC_TASK_ATTR_S *pstTask, ROTATION_E enRotation)
+bm_status_t bm_ldc_add_rotation_task(int fd, GDC_HANDLE hHandle, gdc_task_attr_s *pstTask, rotation_e enRotation)
 {
     bm_status_t ret;
     /* TODO:Add MOD_CHECK_NULL_PTR and CHECK_LDC_FORMAT */
@@ -2084,11 +2084,11 @@ bm_status_t bm_ldc_add_rotation_task(int fd, GDC_HANDLE hHandle, GDC_TASK_ATTR_S
     memset(&attr, 0, sizeof(attr));
     attr.handle = hHandle;
 
-    memcpy(&attr.stImgIn, &pstTask->stImgIn, sizeof(attr.stImgIn));
-    memcpy(&attr.stImgOut, &pstTask->stImgOut, sizeof(attr.stImgOut));
-    attr.enRotation = enRotation;
+    memcpy(&attr.img_in, &pstTask->img_in, sizeof(attr.img_in));
+    memcpy(&attr.img_out, &pstTask->img_out, sizeof(attr.img_out));
+    attr.rotation = enRotation;
 
-    ret = (bm_status_t)ioctl(fd, CVI_LDC_ADD_ROT_TASK, &attr);
+    ret = (bm_status_t)ioctl(fd, LDC_ADD_ROT_TASK, &attr);
     if (ret != BM_SUCCESS) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "LDC ldc_add_rotation_task failed!\n");
         return ret;
@@ -2099,8 +2099,8 @@ bm_status_t bm_ldc_add_rotation_task(int fd, GDC_HANDLE hHandle, GDC_TASK_ATTR_S
 bm_status_t bm_ldc_add_gdc_task(bm_handle_t handle,
                                 int fd,
                                 GDC_HANDLE hHandle,
-                                GDC_TASK_ATTR_S *pstTask,
-                                const LDC_ATTR_S *pstLDCAttr,
+                                gdc_task_attr_s *pstTask,
+                                const ldc_attr_s *pstLDCAttr,
                                 bmcv_rot_mode enRotation,
                                 bm_device_mem_t dmem)
 {
@@ -2136,21 +2136,21 @@ bm_status_t bm_ldc_add_gdc_task(bm_handle_t handle,
         return BM_NOT_SUPPORTED;
     }
 
-    if (pstLDCAttr->stGridInfoAttr.Enable) {
+    if (pstLDCAttr->grid_info_attr.enable) {
         rot[0] = BMCV_ROTATION_270;
         rot[1] = BMCV_ROTATION_90;
     }
 
     struct gdc_task_attr attr;
-    SIZE_S stSizeTmp;
-    PIXEL_FORMAT_E enPixelFormatTmp = pstTask->stImgIn.stVFrame.enPixelFormat;
-    VIDEO_FRAME_INFO_S stVideoFrameTmp;
+    size_s stSizeTmp;
+    pixel_format_e pixel_formatTmp = pstTask->img_in.video_frame.pixel_format;
+    video_frame_info_s stVideoFrameTmp;
     u32 mesh_1st_size;
 
-    stSizeTmp.u32Width  = ALIGN(pstTask->stImgIn.stVFrame.u32Height, LDC_ALIGN);
-    stSizeTmp.u32Height = ALIGN(pstTask->stImgIn.stVFrame.u32Width, LDC_ALIGN);
+    stSizeTmp.width  = ALIGN(pstTask->img_in.video_frame.height, LDC_ALIGN);
+    stSizeTmp.height = ALIGN(pstTask->img_in.video_frame.width, LDC_ALIGN);
 
-    ret = bm_ldc_comm_cfg_frame(handle, dmem, &stSizeTmp, enPixelFormatTmp, &stVideoFrameTmp);
+    ret = bm_ldc_comm_cfg_frame(handle, dmem, &stSizeTmp, pixel_formatTmp, &stVideoFrameTmp);
     if (ret != BM_SUCCESS)
     {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "bm_ldc_comm_cfg_frame failed!\n");
@@ -2159,23 +2159,23 @@ bm_status_t bm_ldc_add_gdc_task(bm_handle_t handle,
 
     memset(&attr, 0, sizeof(attr));
     attr.handle = hHandle;
-    memcpy(&attr.stImgIn, &pstTask->stImgIn, sizeof(attr.stImgIn));
-    memcpy(&attr.stImgOut, &stVideoFrameTmp, sizeof(attr.stImgOut));
-    attr.au64privateData[0] = pstTask->au64privateData[0];
+    memcpy(&attr.img_in, &pstTask->img_in, sizeof(attr.img_in));
+    memcpy(&attr.img_out, &stVideoFrameTmp, sizeof(attr.img_out));
+    attr.private_data[0] = pstTask->privatedata[0];
     attr.reserved = pstTask->reserved;
-    attr.enRotation = rot[0];
-    ret = (bm_status_t)ioctl(fd, CVI_LDC_ADD_LDC_TASK, &attr);
+    attr.rotation = rot[0];
+    ret = (bm_status_t)ioctl(fd, LDC_ADD_LDC_TASK, &attr);
     if (ret != BM_SUCCESS) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "LDC ldc_add_gdc_task stage-1 failed!\n");
         return ret;
     }
 
     mesh_gen_get_1st_size(stSizeTmp, &mesh_1st_size);
-    memcpy(&attr.stImgIn, &stVideoFrameTmp, sizeof(attr.stImgIn));
-    memcpy(&attr.stImgOut, &pstTask->stImgOut, sizeof(attr.stImgOut));
-    attr.au64privateData[0] = pstTask->au64privateData[0] + mesh_1st_size;
-    attr.enRotation = rot[1];
-    ret = (bm_status_t)ioctl(fd, CVI_LDC_ADD_LDC_TASK, &attr);
+    memcpy(&attr.img_in, &stVideoFrameTmp, sizeof(attr.img_in));
+    memcpy(&attr.img_out, &pstTask->img_out, sizeof(attr.img_out));
+    attr.private_data[0] = pstTask->privatedata[0] + mesh_1st_size;
+    attr.rotation = rot[1];
+    ret = (bm_status_t)ioctl(fd, LDC_ADD_LDC_TASK, &attr);
     if (ret != BM_SUCCESS) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "LDC ldc_add_gdc_task stage-2 failed!\n");
         return ret;
@@ -2186,8 +2186,8 @@ bm_status_t bm_ldc_add_gdc_task(bm_handle_t handle,
 
 static bm_status_t bm_ldc_basic_add_tsk(bm_handle_t handle, int fd, bm_ldc_basic_param *param, void *ptr, bm_device_mem_t mid_dmem)
 {
-    ROTATION_E enRotation;
-    uint64_t u64PhyAddr;
+    rotation_e enRotation;
+    uint64_t phyaddr;
     void *pVirAddr;
     bm_device_mem_t *a2dem;
     bm_gen_mesh_param *gen_mesh_param;
@@ -2201,7 +2201,7 @@ static bm_status_t bm_ldc_basic_add_tsk(bm_handle_t handle, int fd, bm_ldc_basic
 
     switch (param->op) {
         case BM_LDC_ROT:
-            enRotation = *(ROTATION_E *)ptr;
+            enRotation = *(rotation_e *)ptr;
             ret = bm_ldc_add_rotation_task(fd, param->hHandle, &param->stTask, enRotation);
             if (ret != BM_SUCCESS) {
                 bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "bm_ldc_add_rotation_task failed!\n");
@@ -2210,13 +2210,13 @@ static bm_status_t bm_ldc_basic_add_tsk(bm_handle_t handle, int fd, bm_ldc_basic
             break;
         case BM_LDC_GDC:
             gdc_attr_and_grid = (bm_gdc_attr_and_grid_info *)ptr;
-            ret = bm_ldc_gen_gdc_mesh(handle, param->size_in.u32Width, param->size_in.u32Height,
-                                      &(gdc_attr_and_grid->ldc_attr), param->stTask.name, &u64PhyAddr, &pVirAddr, gdc_attr_and_grid->grid);
+            ret = bm_ldc_gen_gdc_mesh(handle, param->size_in.width, param->size_in.height,
+                                      &(gdc_attr_and_grid->ldc_attr), param->stTask.name, &phyaddr, &pVirAddr, gdc_attr_and_grid->grid);
             if (ret != BM_SUCCESS) {
                 bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "bm_ldc_gen_gdc_mesh(%s) fail\n", param->stTask.name);
                 ret = BM_ERR_FAILURE;
             }
-            param->stTask.au64privateData[0] = u64PhyAddr;
+            param->stTask.privatedata[0] = phyaddr;
             ret = bm_ldc_add_gdc_task(handle, fd, param->hHandle, &param->stTask, &(gdc_attr_and_grid->ldc_attr), param->enRotation, mid_dmem);
             if (ret != BM_SUCCESS) {
                 bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "bm_ldc_add_gdc_task in BM_LDC_GDC failed!\n");
@@ -2225,25 +2225,25 @@ static bm_status_t bm_ldc_basic_add_tsk(bm_handle_t handle, int fd, bm_ldc_basic
             break;
         case BM_LDC_GDC_GEN_MESH:
             gen_mesh_param = (bm_gen_mesh_param *)ptr;
-            ret = bm_ldc_save_gdc_mesh(handle, param->size_in.u32Width, param->size_in.u32Height,
-                                      &(gen_mesh_param->ldc_attr), &(gen_mesh_param->dmem), param->stTask.name, &u64PhyAddr, &pVirAddr);
+            ret = bm_ldc_save_gdc_mesh(handle, param->size_in.width, param->size_in.height,
+                                      &(gen_mesh_param->ldc_attr), &(gen_mesh_param->dmem), param->stTask.name, &phyaddr, &pVirAddr);
             if (ret != BM_SUCCESS) {
                 bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "bm_ldc_save_gdc_mesh(%s) fail\n", param->stTask.name);
                 ret = BM_ERR_FAILURE;
             }
-            param->stTask.au64privateData[0] = u64PhyAddr;
-            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "In bm_ldc_basic_add_tsk, param->stTask.au64privateData[0] = %#"PRIx64"\n", param->stTask.au64privateData[0]);
+            param->stTask.privatedata[0] = phyaddr;
+            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "In bm_ldc_basic_add_tsk, param->stTask.au64privateData[0] = %#"PRIx64"\n", param->stTask.privatedata[0]);
             break;
         case BM_LDC_GDC_LOAD_MESH:
             a2dem = (bm_device_mem_t *)ptr;
-            LDC_ATTR_S stLDCAttr = {0};
-            ret = bm_ldc_load_gdc_mesh(handle, param->size_out.u32Width, param->size_out.u32Height,
-                                      a2dem, param->stTask.name, &u64PhyAddr, &pVirAddr);
+            ldc_attr_s stLDCAttr = {0};
+            ret = bm_ldc_load_gdc_mesh(handle, param->size_out.width, param->size_out.height,
+                                      a2dem, param->stTask.name, &phyaddr, &pVirAddr);
             if (ret != BM_SUCCESS) {
                 bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "bm_ldc_load_gdc_mesh(%s) fail\n", param->stTask.name);
                 ret = BM_ERR_FAILURE;
             }
-            param->stTask.au64privateData[0] = u64PhyAddr;
+            param->stTask.privatedata[0] = phyaddr;
             ret = bm_ldc_add_gdc_task(handle, fd, param->hHandle, &param->stTask, &stLDCAttr, BMCV_ROTATION_0, mid_dmem);
             if (ret != BM_SUCCESS) {
                 bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "bm_ldc_add_gdc_task in BM_LDC_GDC_LOAD_MESH failed!\n");
@@ -2298,9 +2298,9 @@ bm_status_t bm_ldc_basic(bm_handle_t handle,
     if (param->op == BM_LDC_GDC || param->op == BM_LDC_GDC_LOAD_MESH)
     {
         if (param->enPixelFormat == PIXEL_FORMAT_NV21 || param->enPixelFormat == PIXEL_FORMAT_NV12) {
-            dem_size = param->size_out.u32Width * param->size_out.u32Height * 3 / 2;
+            dem_size = param->size_out.width * param->size_out.height * 3 / 2;
         } else {
-            dem_size = param->size_out.u32Width * param->size_out.u32Height;
+            dem_size = param->size_out.width * param->size_out.height;
         }
         ret = bm_malloc_device_byte(handle, &mid_mem, dem_size);
         if (ret != BM_SUCCESS) {
@@ -2384,31 +2384,31 @@ bm_status_t check_bm_ldc_image_param(bm_image *input_img, bm_image *output_img) 
     return ret;
 }
 
-bm_status_t check_ldc_attr_param(LDC_ATTR_S *ldc_attr) {
-    if (ldc_attr->bAspect == false) {
-        if (ldc_attr->s32XRatio < 0 || ldc_attr->s32XRatio > 100) {
+bm_status_t check_ldc_attr_param(ldc_attr_s *ldc_attr) {
+    if (ldc_attr->aspect == false) {
+        if (ldc_attr->x_ratio < 0 || ldc_attr->x_ratio > 100) {
             bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "ldc_attr->s32XRatio should be in [0, 100]!\n");
             return BM_ERR_FAILURE;
         }
-        if (ldc_attr->s32YRatio < 0 || ldc_attr->s32YRatio > 100) {
+        if (ldc_attr->y_ratio < 0 || ldc_attr->y_ratio > 100) {
             bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "ldc_attr->s32YRatio should be in [0, 100]!\n");
             return BM_ERR_FAILURE;
         }
     } else {
-        if (ldc_attr->s32XYRatio < 0 || ldc_attr->s32YRatio > 100) {
+        if (ldc_attr->xy_ratio < 0 || ldc_attr->y_ratio > 100) {
             bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "ldc_attr->s32YRatio should be in [0, 100]!\n");
             return BM_ERR_FAILURE;
         }
     }
-    if (ldc_attr->s32CenterXOffset < -511 || ldc_attr->s32CenterXOffset > 511) {
+    if (ldc_attr->center_x_offset < -511 || ldc_attr->center_x_offset > 511) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "ldc_attr->s32CenterXOffset should be in [-511, 511]!\n");
         return BM_ERR_FAILURE;
     }
-    if (ldc_attr->s32CenterYOffset < -511 || ldc_attr->s32CenterYOffset > 511) {
+    if (ldc_attr->center_y_offset < -511 || ldc_attr->center_y_offset > 511) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "ldc_attr->s32CenterYOffset should be in [-511, 511]!\n");
         return BM_ERR_FAILURE;
     }
-    if (ldc_attr->s32DistortionRatio < -300 || ldc_attr->s32DistortionRatio > 500) {
+    if (ldc_attr->distortion_ratio < -300 || ldc_attr->distortion_ratio > 500) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "ldc_attr->s32DistortionRatio should be in [-300, 500]!\n");
         return BM_ERR_FAILURE;
     }
@@ -2422,7 +2422,7 @@ bm_status_t bm_ldc_rot_internal(bm_handle_t          handle,
 {
     bm_status_t ret = BM_SUCCESS;
     bm_ldc_basic_param param = {0};
-    ROTATION_E rotation_mode = (ROTATION_E)rot_mode;
+    rotation_e rotation_mode = (rotation_e)rot_mode;
     if((rotation_mode != ROTATION_0) && (rotation_mode != ROTATION_90) && (rotation_mode != ROTATION_270)) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "ERROR! LDC output mode not supported!\n");
         return BM_ERR_FAILURE;
@@ -2432,17 +2432,17 @@ bm_status_t bm_ldc_rot_internal(bm_handle_t          handle,
     if(ret != BM_SUCCESS) {
         return ret;
     }
-    param.size_in.u32Width   = in_image.width;
-    param.size_in.u32Height  = in_image.height;
-    param.size_out.u32Width  = (out_image.width  + (LDC_ALIGN - 1)) & ~(LDC_ALIGN - 1);
-    param.size_out.u32Height = (out_image.height + (LDC_ALIGN - 1)) & ~(LDC_ALIGN - 1);
+    param.size_in.width   = in_image.width;
+    param.size_in.height  = in_image.height;
+    param.size_out.width  = (out_image.width  + (LDC_ALIGN - 1)) & ~(LDC_ALIGN - 1);
+    param.size_out.height = (out_image.height + (LDC_ALIGN - 1)) & ~(LDC_ALIGN - 1);
     bm_image_format_to_cvi_format(in_image.image_format, in_image.data_type, &param.enPixelFormat);
 
     snprintf(param.stTask.name, sizeof(param.stTask.name), "tsk_rot");
-    param.identity.enModId = CVI_ID_USER;
-    param.identity.u32ID = 0;
+    param.identity.mod_id = ID_USER;
+    param.identity.id = 0;
     // snprintf(param.identity.Name, sizeof(param.identity.Name), "job_rot");
-    param.identity.syncIo = true;
+    param.identity.sync_io = true;
 
     param.op = BM_LDC_ROT;
 
@@ -2460,21 +2460,21 @@ bm_status_t bm_ldc_gdc_internal(bm_handle_t          handle,
                                 bmcv_gdc_attr        ldc_attr)
 {
     bm_status_t ret = BM_SUCCESS;
-    LDC_ATTR_S ldc_param = {0};
+    ldc_attr_s ldc_param = {0};
     bm_ldc_basic_param param = {0};
     memset(&param, 0, sizeof(param));
     memset(&ldc_param, 0, sizeof(ldc_param));
 
-    param.size_in.u32Width   = in_image.width;
-    param.size_in.u32Height  = in_image.height;
-    param.size_out.u32Width  = (out_image.width  + (LDC_ALIGN - 1)) & ~(LDC_ALIGN - 1);
-    param.size_out.u32Height = (out_image.height + (LDC_ALIGN - 1)) & ~(LDC_ALIGN - 1);
+    param.size_in.width   = in_image.width;
+    param.size_in.height  = in_image.height;
+    param.size_out.width  = (out_image.width  + (LDC_ALIGN - 1)) & ~(LDC_ALIGN - 1);
+    param.size_out.height = (out_image.height + (LDC_ALIGN - 1)) & ~(LDC_ALIGN - 1);
     bm_image_format_to_cvi_format(in_image.image_format, in_image.data_type, &param.enPixelFormat);
 
     param.op = BM_LDC_GDC;
-    param.identity.enModId = CVI_ID_USER;
-    param.identity.u32ID = 0;
-    param.identity.syncIo = true;
+    param.identity.mod_id = ID_USER;
+    param.identity.id = 0;
+    param.identity.sync_io = true;
 
     bm_gdc_attr_and_grid_info gdc_with_grid;
     memset(&gdc_with_grid, 0, sizeof(gdc_with_grid));
@@ -2483,23 +2483,23 @@ bm_status_t bm_ldc_gdc_internal(bm_handle_t          handle,
         snprintf(param.stTask.name, sizeof(param.stTask.name), "tsk_gdc");      // mesh name
         // snprintf(param.identity.Name, sizeof(param.identity.Name), "job_gdc");
 
-        gdc_with_grid.ldc_attr.bAspect = ldc_attr.bAspect;
-        gdc_with_grid.ldc_attr.s32CenterXOffset = ldc_attr.s32CenterXOffset;
-        gdc_with_grid.ldc_attr.s32CenterYOffset = ldc_attr.s32CenterYOffset;
-        gdc_with_grid.ldc_attr.s32DistortionRatio = ldc_attr.s32DistortionRatio;
-        gdc_with_grid.ldc_attr.s32XRatio = ldc_attr.s32XRatio;
-        gdc_with_grid.ldc_attr.s32XYRatio = ldc_attr.s32XYRatio;
-        gdc_with_grid.ldc_attr.s32YRatio = ldc_attr.s32YRatio;
-        gdc_with_grid.ldc_attr.stGridInfoAttr.Enable = false;
+        gdc_with_grid.ldc_attr.aspect = ldc_attr.bAspect;
+        gdc_with_grid.ldc_attr.center_x_offset = ldc_attr.s32CenterXOffset;
+        gdc_with_grid.ldc_attr.center_y_offset = ldc_attr.s32CenterYOffset;
+        gdc_with_grid.ldc_attr.distortion_ratio = ldc_attr.s32DistortionRatio;
+        gdc_with_grid.ldc_attr.x_ratio = ldc_attr.s32XRatio;
+        gdc_with_grid.ldc_attr.xy_ratio = ldc_attr.s32XYRatio;
+        gdc_with_grid.ldc_attr.y_ratio = ldc_attr.s32YRatio;
+        gdc_with_grid.ldc_attr.grid_info_attr.enable = false;
         gdc_with_grid.grid = NULL;
     } else {
         snprintf(param.stTask.name, sizeof(param.stTask.name), "tsk_gdc_grid_0");
         // snprintf(param.identity.Name, sizeof(param.identity.Name), "job_gdc_grid_0");
 
-        gdc_with_grid.ldc_attr.stGridInfoAttr.Enable = true;
+        gdc_with_grid.ldc_attr.grid_info_attr.enable = true;
         gdc_with_grid.grid = (char *)ldc_attr.grid_info.u.system.system_addr;
-        strcpy(gdc_with_grid.ldc_attr.stGridInfoAttr.gridFileName, "grid_info_79_44_3476_80_45_1280x720.dat");
-        strcpy(gdc_with_grid.ldc_attr.stGridInfoAttr.gridBindName, param.stTask.name);
+        strcpy(gdc_with_grid.ldc_attr.grid_info_attr.grid_file_name, "grid_info_79_44_3476_80_45_1280x720.dat");
+        strcpy(gdc_with_grid.ldc_attr.grid_info_attr.grid_bind_name, param.stTask.name);
     }
 
     ret = bm_ldc_basic(handle, in_image, out_image, &param, (void *)&gdc_with_grid);
@@ -2519,29 +2519,29 @@ bm_status_t bm_ldc_gdc_gen_mesh_internal(bm_handle_t          handle,
     bm_status_t ret = BM_SUCCESS;
     bm_ldc_basic_param param = {0};
 
-    param.size_in.u32Width   = in_image.width;
-    param.size_in.u32Height  = in_image.height;
-    param.size_out.u32Width  = (out_image.width  + (LDC_ALIGN - 1)) & ~(LDC_ALIGN - 1);
-    param.size_out.u32Height = (out_image.height + (LDC_ALIGN - 1)) & ~(LDC_ALIGN - 1);
+    param.size_in.width   = in_image.width;
+    param.size_in.height  = in_image.height;
+    param.size_out.width  = (out_image.width  + (LDC_ALIGN - 1)) & ~(LDC_ALIGN - 1);
+    param.size_out.height = (out_image.height + (LDC_ALIGN - 1)) & ~(LDC_ALIGN - 1);
     bm_image_format_to_cvi_format(in_image.image_format, in_image.data_type, &param.enPixelFormat);
 
     snprintf(param.stTask.name, sizeof(param.stTask.name), "tsk_gdc");      // mesh name
-    param.identity.enModId = CVI_ID_USER;
-    param.identity.u32ID = 0;
-    param.identity.syncIo = true;
+    param.identity.mod_id = ID_USER;
+    param.identity.id = 0;
+    param.identity.sync_io = true;
 
     param.op = BM_LDC_GDC_GEN_MESH;
 
     bm_gen_mesh_param gen_param;
 
-    gen_param.ldc_attr.bAspect = ldc_attr.bAspect;
-    gen_param.ldc_attr.s32CenterXOffset = ldc_attr.s32CenterXOffset;
-    gen_param.ldc_attr.s32CenterYOffset = ldc_attr.s32CenterYOffset;
-    gen_param.ldc_attr.s32DistortionRatio = ldc_attr.s32DistortionRatio;
-    gen_param.ldc_attr.s32XRatio = ldc_attr.s32XRatio;
-    gen_param.ldc_attr.s32XYRatio = ldc_attr.s32XYRatio;
-    gen_param.ldc_attr.s32YRatio = ldc_attr.s32YRatio;
-    gen_param.ldc_attr.stGridInfoAttr.Enable = false;
+    gen_param.ldc_attr.aspect = ldc_attr.bAspect;
+    gen_param.ldc_attr.center_x_offset = ldc_attr.s32CenterXOffset;
+    gen_param.ldc_attr.center_y_offset = ldc_attr.s32CenterYOffset;
+    gen_param.ldc_attr.distortion_ratio = ldc_attr.s32DistortionRatio;
+    gen_param.ldc_attr.x_ratio = ldc_attr.s32XRatio;
+    gen_param.ldc_attr.xy_ratio = ldc_attr.s32XYRatio;
+    gen_param.ldc_attr.y_ratio = ldc_attr.s32YRatio;
+    gen_param.ldc_attr.grid_info_attr.enable = false;
 
     gen_param.dmem = dmem;
 
@@ -2555,7 +2555,7 @@ bm_status_t bm_ldc_gdc_gen_mesh_internal(bm_handle_t          handle,
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "bm_ldc_basic in bm_ldc_gdc_gen_mesh_internal failed!\n");
         return ret;
     }
-    dmem.u.device.device_addr = param.stTask.au64privateData[0];
+    dmem.u.device.device_addr = param.stTask.privatedata[0];
     bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "In bm_ldc_gdc_gen_mesh_internal, dmem->u.device.device_addr = %#"PRIx64"\n", (uint64_t)dmem.u.device.device_addr);
     return ret;
 }
@@ -2568,17 +2568,17 @@ bm_status_t bm_ldc_gdc_load_mesh_internal(bm_handle_t          handle,
     bm_status_t ret = BM_SUCCESS;
     bm_ldc_basic_param param = {0};
 
-    param.size_in.u32Width   = in_image.width;
-    param.size_in.u32Height  = in_image.height;
-    param.size_out.u32Width  = (out_image.width  + (LDC_ALIGN - 1)) & ~(LDC_ALIGN - 1);
-    param.size_out.u32Height = (out_image.height + (LDC_ALIGN - 1)) & ~(LDC_ALIGN - 1);
+    param.size_in.width   = in_image.width;
+    param.size_in.height  = in_image.height;
+    param.size_out.width  = (out_image.width  + (LDC_ALIGN - 1)) & ~(LDC_ALIGN - 1);
+    param.size_out.height = (out_image.height + (LDC_ALIGN - 1)) & ~(LDC_ALIGN - 1);
     bm_image_format_to_cvi_format(in_image.image_format, in_image.data_type, &param.enPixelFormat);
 
     snprintf(param.stTask.name, sizeof(param.stTask.name), "tsk_gdc");
-    param.identity.enModId = CVI_ID_USER;
-    param.identity.u32ID = 0;
+    param.identity.mod_id = ID_USER;
+    param.identity.id = 0;
     // snprintf(param.identity.Name, sizeof(param.identity.Name), "job_gdc");
-    param.identity.syncIo = true;
+    param.identity.sync_io = true;
 
     param.op = BM_LDC_GDC_LOAD_MESH;
 

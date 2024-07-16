@@ -1362,3 +1362,33 @@ bm_status_t bmcv_width_align(bm_handle_t handle,
 
     return BM_SUCCESS;
 }
+
+/**
+ * Abandoned interface, supports compatibility settings
+ * Not recommended for use
+*/
+
+bm_status_t bmcv_image_crop(
+    bm_handle_t         handle,
+    int                 crop_num,
+    bmcv_rect_t *       rects,
+    bm_image            input,
+    bm_image *          output){
+    return bmcv_image_vpp_convert(handle, crop_num, input, output, rects, BMCV_INTER_LINEAR);
+}
+
+bm_status_t bm_image_dev_mem_alloc(bm_image image, int heap_id){
+    return bm_image_alloc_dev_mem(image, heap_id);
+}
+
+bm_status_t bm_image_dettach_contiguous_mem(int image_num, bm_image *images){
+    return bm_image_detach_contiguous_mem(image_num, images);
+}
+
+bm_status_t bmcv_image_yuv2bgr_ext(
+    bm_handle_t handle,
+    int         image_num,
+    bm_image *  input,
+    bm_image *  output){
+    return bmcv_image_storage_convert(handle, image_num, input, output);
+}

@@ -288,7 +288,7 @@ static void finish_output_buffer(void *context, void *acquired_handle)
     ((void)(context));
 }
 
-static void cleanup_task(void* arg)
+static int cleanup_task(void* arg)
 {
     VpuEncContext* ctx = (void*)arg;
     int i;
@@ -298,7 +298,7 @@ static void cleanup_task(void* arg)
     printf("Clean up thread 0x%lx\n", GetCurrentThreadId());
 #endif
     if (ctx==NULL)
-        return;
+        return 0;
 
     /* Close the previously opened encoder instance */
     if (ctx->video_encoder >= 0)
@@ -333,6 +333,7 @@ static void cleanup_task(void* arg)
 
     if (ctx != NULL)
         free(ctx);
+    return 0;
 }
 
 static int run_once(InputParameter* par)
@@ -722,6 +723,7 @@ re_send:
             send_frame_status = bmvpu_enc_send_frame(ctx->video_encoder, &(ctx->input_frame), false);
 
 get_stream:
+            if (g_exit_flag) break;
             ret = bmvpu_enc_get_stream(ctx->video_encoder, &(ctx->output_frame));
             if (ret == BM_VPU_ENC_RETURN_CODE_ENC_END) {
                 printf( "encoding end!\n");
@@ -892,7 +894,7 @@ cleanup:
 
 
     g_thread_running[par->thread_id] = g_thread_running[par->thread_id] & ~0x2;
-    cleanup_task((void*)ctx);
+    ret = cleanup_task((void*)ctx);
 
     par->result = ret;
 #ifdef __linux__
@@ -1562,6 +1564,8 @@ int main(int argc, char *argv[])
 			printf("release thread error\n");
         }
 #endif
+        thread_handle[i] = NULL;
+        threads.handles[i] = NULL;
     }
 
     for (i=0; i<par.thread_number; i++)

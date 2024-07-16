@@ -50,7 +50,7 @@ int open_ive_dev()
     return dev_fd;
 }
 
-IVE_HANDLE BM_IVE_CreateHandle()
+ive_handle BM_IVE_CreateHandle()
 {
     int ret = -1;
 
@@ -82,29 +82,29 @@ void close_ive_dev()
     return;
 }
 
-void BM_IVE_DestroyHandle(IVE_HANDLE pIveHandle)
+void BM_IVE_DestroyHandle(ive_handle ive_handle)
 {
-    // pIveHandle is not used here
+    // ive_handle is not used here
     close_ive_dev();
     return;
 }
 
-IVE_IMAGE_TYPE_E bm_image_type_convert_to_ive_image_type(bm_image_format_ext image_format, bm_image_data_format_ext data_type)
+ive_image_type_e bm_image_type_convert_to_ive_image_type(bm_image_format_ext image_format, bm_image_data_format_ext data_type)
 {
-    IVE_IMAGE_TYPE_E enType = IVE_IMAGE_TYPE_BUTT;
+    ive_image_type_e type = IVE_IMAGE_TYPE_BUTT;
 
     switch (image_format) {
         case FORMAT_GRAY:
             if (data_type == DATA_TYPE_EXT_1N_BYTE) {
-                enType = IVE_IMAGE_TYPE_U8C1;
+                type = IVE_IMAGE_TYPE_U8C1;
             } else if (data_type == DATA_TYPE_EXT_1N_BYTE_SIGNED) {
-                enType = IVE_IMAGE_TYPE_S8C1;
+                type = IVE_IMAGE_TYPE_S8C1;
             } else if (data_type == DATA_TYPE_EXT_U16) {
-                enType = IVE_IMAGE_TYPE_U16C1;
+                type = IVE_IMAGE_TYPE_U16C1;
             } else if (data_type == DATA_TYPE_EXT_S16) {
-                enType = IVE_IMAGE_TYPE_S16C1;
+                type = IVE_IMAGE_TYPE_S16C1;
             } else if (data_type == DATA_TYPE_EXT_U32){
-                enType = IVE_IMAGE_TYPE_U32C1;
+                type = IVE_IMAGE_TYPE_U32C1;
             } else {
                 bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_WARNING,
                         "unsupported image format for ive, image_format = %d, data_type = %d, %s: %s: %d\n",
@@ -113,10 +113,10 @@ IVE_IMAGE_TYPE_E bm_image_type_convert_to_ive_image_type(bm_image_format_ext ima
             }
             break;
         case FORMAT_YUV420P:
-            enType = IVE_IMAGE_TYPE_YUV420P;
+            type = IVE_IMAGE_TYPE_YUV420P;
             break;
         case FORMAT_NV21:
-            enType = IVE_IMAGE_TYPE_YUV420SP;
+            type = IVE_IMAGE_TYPE_YUV420SP;
             break;
         case FORMAT_RGBP_SEPARATE:
         case FORMAT_BGRP_SEPARATE:
@@ -124,16 +124,16 @@ IVE_IMAGE_TYPE_E bm_image_type_convert_to_ive_image_type(bm_image_format_ext ima
         case FORMAT_RGB_PLANAR:
         case FORMAT_BGR_PLANAR:
         case FORMAT_YUV444P:
-            enType = IVE_IMAGE_TYPE_U8C3_PLANAR;
+            type = IVE_IMAGE_TYPE_U8C3_PLANAR;
             break;
         case FORMAT_NV61:
-            enType = IVE_IMAGE_TYPE_YUV422SP;
+            type = IVE_IMAGE_TYPE_YUV422SP;
             break;
         case FORMAT_RGB_PACKED:
         case FORMAT_BGR_PACKED:
         case FORMAT_YUV444_PACKED:
         case FORMAT_YVU444_PACKED:
-            enType = IVE_IMAGE_TYPE_U8C3_PACKAGE;
+            type = IVE_IMAGE_TYPE_U8C3_PACKAGE;
             break;
         default:
             bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_WARNING,
@@ -142,17 +142,17 @@ IVE_IMAGE_TYPE_E bm_image_type_convert_to_ive_image_type(bm_image_format_ext ima
             return IVE_IMAGE_TYPE_BUTT;
     }
 
-    return enType;
+    return type;
 }
 
-bm_status_t bm_image_convert_to_ive_image(bm_handle_t handle, bm_image *bm_img, IVE_IMAGE_S *ive_img)
+bm_status_t bm_image_convert_to_ive_image(bm_handle_t handle, bm_image *bm_img, ive_image_s *ive_img)
 {
      int plane_num = 0;
     int stride[4];
     bm_device_mem_t device_mem[4];
     bm_image_format_ext image_format;
     bm_image_data_format_ext data_type;
-    IVE_IMAGE_TYPE_E enType;
+    ive_image_type_e type;
     int i;
     int planar_to_seperate = 0;
     if((bm_img->image_format == FORMAT_RGB_PLANAR || bm_img->image_format == FORMAT_BGR_PLANAR))
@@ -177,28 +177,28 @@ bm_status_t bm_image_convert_to_ive_image(bm_handle_t handle, bm_image *bm_img, 
     // transfer image format depends on image format and data type
     image_format = bm_img->image_format;
     data_type = bm_img->data_type;
-    enType = bm_image_type_convert_to_ive_image_type(image_format, data_type);
+    type = bm_image_type_convert_to_ive_image_type(image_format, data_type);
 
-    ive_img->enType = enType;
-    ive_img->u32Width = bm_img->width;
-    ive_img->u32Height = bm_img->height;
+    ive_img->type = type;
+    ive_img->width = bm_img->width;
+    ive_img->height = bm_img->height;
 
     for(i = 0; i < plane_num; i++){
-        ive_img->u32Stride[i] = stride[i];
-        ive_img->u64PhyAddr[i] = device_mem[i].u.device.device_addr;
+        ive_img->stride[i] = stride[i];
+        ive_img->phy_addr[i] = device_mem[i].u.device.device_addr;
     }
 
     if(planar_to_seperate){
         for(int i = 0; i < 3; ++i){
-            ive_img->u32Stride[i] = stride[0];
-            ive_img->u64PhyAddr[i] = device_mem[0].u.device.device_addr + (stride[0] * bm_img->height * i);
+            ive_img->stride[i] = stride[0];
+            ive_img->phy_addr[i] = device_mem[0].u.device.device_addr + (stride[0] * bm_img->height * i);
         }
     }
 
     return BM_SUCCESS;
 }
 
-bm_status_t bm_image_convert_to_ive_data(bm_handle_t handle, int i, bm_image *bm_img, IVE_DATA_S *ive_data)
+bm_status_t bm_image_convert_to_ive_data(bm_handle_t handle, int i, bm_image *bm_img, ive_data_s *ive_data)
 {
     int plane_num = 0;
     int stride[4];
@@ -220,10 +220,10 @@ bm_status_t bm_image_convert_to_ive_data(bm_handle_t handle, int i, bm_image *bm
         return BM_ERR_FAILURE;
     }
 
-    ive_data->u32Width = bm_img->image_private->memory_layout[i].W;
-    ive_data->u32Height = bm_img->image_private->memory_layout[i].H;
-    ive_data->u64PhyAddr = device_mem[i].u.device.device_addr;
-    ive_data->u32Stride = stride[i];
+    ive_data->width = bm_img->image_private->memory_layout[i].W;
+    ive_data->height = bm_img->image_private->memory_layout[i].H;
+    ive_data->phy_addr = device_mem[i].u.device.device_addr;
+    ive_data->stride = stride[i];
 
     return BM_SUCCESS;
 }
@@ -252,13 +252,13 @@ int bm_image_convert_to_map_mode(bm_image src, bm_image dst) {
     }
 }
 
-bm_status_t BM_IVE_Add(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstSrc1,
-            IVE_SRC_IMAGE_S *pstSrc2, IVE_DST_IMAGE_S *pstDst,
-            IVE_ADD_CTRL_S *pstCtrl, bool bInstant)
+bm_status_t BM_IVE_Add(ive_handle ive_handle, ive_src_image_s *psrc1,
+            ive_src_image_s *psrc2, ive_dst_image_s *pdst,
+            ive_add_ctrl_s *pctrl, bool instant)
 {
-    struct cvi_ive_ioctl_arg ioctl_arg;
-    struct cvi_ive_ioctl_add_arg ive_arg;
-    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)pIveHandle;
+    struct ive_ioctl_arg ioctl_arg;
+    struct ive_ioctl_add_arg ive_arg;
+    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)ive_handle;
 
     // check if ive device is opened
     if (p == NULL || p->dev_fd <= 0) {
@@ -268,30 +268,30 @@ bm_status_t BM_IVE_Add(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstSrc1,
         return BM_ERR_DEVNOTREADY;
     }
 
-    ive_arg.pIveHandle = pIveHandle;
-    ive_arg.stSrc1 = *pstSrc1;
-    ive_arg.stSrc2 = *pstSrc2;
-    ive_arg.stDst = *pstDst;
-    ive_arg.pstCtrl = *pstCtrl;
-    ive_arg.bInstant = bInstant;
+    ive_arg.ive_handle = ive_handle;
+    ive_arg.src1 = *psrc1;
+    ive_arg.src2 = *psrc2;
+    ive_arg.dst = *pdst;
+    ive_arg.ctrl = *pctrl;
+    ive_arg.instant = instant;
 
     // invoke ive api in driver
-    ioctl_arg.input_data = (CVI_U64)&ive_arg;
-    if (ioctl(p->dev_fd, CVI_IVE_IOC_Add, &ioctl_arg) < 0) {
+    ioctl_arg.input_data = (uint64_t)&ive_arg;
+    if (ioctl(p->dev_fd, IVE_IOC_ADD, &ioctl_arg) < 0) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
-            "CVI_IVE_IOC_Add failed %s: %s: %d\n",
+            "IVE_IOC_Add failed %s: %s: %d\n",
             filename(__FILE__), __func__, __LINE__);
         return BM_ERR_FAILURE;
     }
     return BM_SUCCESS;
 }
 
-bm_status_t BM_IVE_And(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstSrc1,
-            IVE_SRC_IMAGE_S *pstSrc2, IVE_DST_IMAGE_S *pstDst, bool bInstant)
+bm_status_t BM_IVE_And(ive_handle ive_handle, ive_src_image_s *psrc1,
+            ive_src_image_s *psrc2, ive_dst_image_s *pdst, bool instant)
 {
-    struct cvi_ive_ioctl_arg ioctl_arg;
-    struct cvi_ive_ioctl_and_arg ive_arg;
-    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)pIveHandle;
+    struct ive_ioctl_arg ioctl_arg;
+    struct ive_ioctl_and_arg ive_arg;
+    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)ive_handle;
 
     // check if ive device is opened
     if (p == NULL || p->dev_fd <= 0) {
@@ -301,30 +301,30 @@ bm_status_t BM_IVE_And(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstSrc1,
         return BM_ERR_DEVNOTREADY;
     }
 
-    ive_arg.pIveHandle = pIveHandle;
-    ive_arg.stSrc1 = *pstSrc1;
-    ive_arg.stSrc2 = *pstSrc2;
-    ive_arg.stDst = *pstDst;
-    ive_arg.bInstant = bInstant;
+    ive_arg.ive_handle = ive_handle;
+    ive_arg.src1 = *psrc1;
+    ive_arg.src2 = *psrc2;
+    ive_arg.dst = *pdst;
+    ive_arg.instant = instant;
 
     // invoke ive api in driver
-    ioctl_arg.input_data = (CVI_U64)&ive_arg;
-    if (ioctl(p->dev_fd, CVI_IVE_IOC_And, &ioctl_arg) < 0) {
+    ioctl_arg.input_data = (uint64_t)&ive_arg;
+    if (ioctl(p->dev_fd, IVE_IOC_AND, &ioctl_arg) < 0) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
-            "CVI_IVE_IOC_And failed %s: %s: %d\n",
+            "IVE_IOC_And failed %s: %s: %d\n",
             filename(__FILE__), __func__, __LINE__);
         return BM_ERR_FAILURE;
     }
     return BM_SUCCESS;
 }
 
-bm_status_t BM_IVE_Sub(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstSrc1,
-            IVE_SRC_IMAGE_S *pstSrc2, IVE_DST_IMAGE_S *pstDst,
-            IVE_SUB_CTRL_S *pstCtrl, bool bInstant)
+bm_status_t BM_IVE_Sub(ive_handle ive_handle, ive_src_image_s *psrc1,
+            ive_src_image_s *psrc2, ive_dst_image_s *pdst,
+            ive_sub_ctrl_s *pctrl, bool instant)
 {
-    struct cvi_ive_ioctl_arg ioctl_arg;
-    struct cvi_ive_ioctl_sub_arg ive_arg;
-    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)pIveHandle;
+    struct ive_ioctl_arg ioctl_arg;
+    struct ive_ioctl_sub_arg ive_arg;
+    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)ive_handle;
 
     // check if ive device is opened
     if (p == NULL || p->dev_fd <= 0) {
@@ -334,16 +334,16 @@ bm_status_t BM_IVE_Sub(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstSrc1,
         return BM_ERR_DEVNOTREADY;
     }
 
-    ive_arg.pIveHandle = pIveHandle;
-    ive_arg.stSrc1 = *pstSrc1;
-    ive_arg.stSrc2 = *pstSrc2;
-    ive_arg.stDst = *pstDst;
-    ive_arg.stCtrl = *pstCtrl;
-    ive_arg.bInstant = bInstant;
+    ive_arg.ive_handle = ive_handle;
+    ive_arg.src1 = *psrc1;
+    ive_arg.src2 = *psrc2;
+    ive_arg.dst = *pdst;
+    ive_arg.ctrl = *pctrl;
+    ive_arg.instant = instant;
 
     // invoke ive api in driver
-    ioctl_arg.input_data = (CVI_U64)&ive_arg;
-    if (ioctl(p->dev_fd, CVI_IVE_IOC_Sub, &ioctl_arg) < 0) {
+    ioctl_arg.input_data = (uint64_t)&ive_arg;
+    if (ioctl(p->dev_fd, IVE_IOC_SUB, &ioctl_arg) < 0) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
             "CVI_IVE_IOC_Sub failed %s: %s: %d\n",
             filename(__FILE__), __func__, __LINE__);
@@ -352,12 +352,12 @@ bm_status_t BM_IVE_Sub(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstSrc1,
     return BM_SUCCESS;
 }
 
-bm_status_t BM_IVE_Or(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstSrc1,
-            IVE_SRC_IMAGE_S *pstSrc2, IVE_DST_IMAGE_S *pstDst, bool bInstant)
+bm_status_t BM_IVE_Or(ive_handle ive_handle, ive_src_image_s *psrc1,
+            ive_src_image_s *psrc2, ive_dst_image_s *pdst, bool instant)
 {
-    struct cvi_ive_ioctl_arg ioctl_arg;
-    struct cvi_ive_ioctl_or_arg ive_arg;
-    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)pIveHandle;
+    struct ive_ioctl_arg ioctl_arg;
+    struct ive_ioctl_or_arg ive_arg;
+    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)ive_handle;
 
     // check if ive device is opened
     if (p == NULL || p->dev_fd <= 0) {
@@ -367,15 +367,15 @@ bm_status_t BM_IVE_Or(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstSrc1,
         return BM_ERR_DEVNOTREADY;
     }
 
-    ive_arg.pIveHandle = pIveHandle;
-    ive_arg.stSrc1 = *pstSrc1;
-    ive_arg.stSrc2 = *pstSrc2;
-    ive_arg.stDst = *pstDst;
-    ive_arg.bInstant = bInstant;
+    ive_arg.ive_handle = ive_handle;
+    ive_arg.src1 = *psrc1;
+    ive_arg.src2 = *psrc2;
+    ive_arg.dst = *pdst;
+    ive_arg.instant = instant;
 
     // invoke ive api in driver
-    ioctl_arg.input_data = (CVI_U64)&ive_arg;
-    if (ioctl(p->dev_fd, CVI_IVE_IOC_Or, &ioctl_arg) < 0) {
+    ioctl_arg.input_data = (uint64_t)&ive_arg;
+    if (ioctl(p->dev_fd, IVE_IOC_OR, &ioctl_arg) < 0) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
             "CVI_IVE_IOC_Or failed %s: %s: %d\n",
             filename(__FILE__), __func__, __LINE__);
@@ -384,12 +384,12 @@ bm_status_t BM_IVE_Or(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstSrc1,
     return BM_SUCCESS;
 }
 
-bm_status_t BM_IVE_Xor(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstSrc1,
-            IVE_SRC_IMAGE_S *pstSrc2, IVE_DST_IMAGE_S *pstDst, bool bInstant)
+bm_status_t BM_IVE_Xor(ive_handle ive_handle, ive_src_image_s *psrc1,
+            ive_src_image_s *psrc2, ive_dst_image_s *pdst, bool instant)
 {
-    struct cvi_ive_ioctl_arg ioctl_arg;
-    struct cvi_ive_ioctl_xor_arg ive_arg;
-    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)pIveHandle;
+    struct ive_ioctl_arg ioctl_arg;
+    struct ive_ioctl_xor_arg ive_arg;
+    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)ive_handle;
 
     // check if ive device is opened
     if (p == NULL || p->dev_fd <= 0) {
@@ -399,15 +399,15 @@ bm_status_t BM_IVE_Xor(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstSrc1,
         return BM_ERR_DEVNOTREADY;
     }
 
-    ive_arg.pIveHandle = pIveHandle;
-    ive_arg.stSrc1 = *pstSrc1;
-    ive_arg.stSrc2 = *pstSrc2;
-    ive_arg.stDst = *pstDst;
-    ive_arg.bInstant = bInstant;
+    ive_arg.ive_handle = ive_handle;
+    ive_arg.src1 = *psrc1;
+    ive_arg.src2 = *psrc2;
+    ive_arg.dst = *pdst;
+    ive_arg.instant = instant;
 
     // invoke ive api in driver
-    ioctl_arg.input_data = (CVI_U64)&ive_arg;
-    if (ioctl(p->dev_fd, CVI_IVE_IOC_Xor, &ioctl_arg) < 0) {
+    ioctl_arg.input_data = (uint64_t)&ive_arg;
+    if (ioctl(p->dev_fd, IVE_IOC_XOR, &ioctl_arg) < 0) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
             "CVI_IVE_IOC_Xor failed %s: %s: %d\n",
             filename(__FILE__), __func__, __LINE__);
@@ -424,18 +424,18 @@ bm_status_t bm_ive_add(
     bmcv_ive_add_attr    attr)
 {
     bm_status_t ret = BM_SUCCESS;
-    IVE_HANDLE pIveHandle = NULL;
-    IVE_SRC_IMAGE_S stSrc1, stSrc2;
-    IVE_DST_IMAGE_S stDst;
-    IVE_ADD_CTRL_S stAddCtrl;
+    ive_handle ive_handle = NULL;
+    ive_src_image_s src1, src2;
+    ive_dst_image_s dst;
+    ive_add_ctrl_s stAddCtrl;
 
-    memset(&stSrc1, 0, sizeof(IVE_SRC_IMAGE_S));
-    memset(&stSrc2, 0, sizeof(IVE_SRC_IMAGE_S));
-    memset(&stDst, 0, sizeof(IVE_DST_IMAGE_S));
-    memset(&stAddCtrl, 0, sizeof(IVE_ADD_CTRL_S));
+    memset(&src1, 0, sizeof(ive_src_image_s));
+    memset(&src2, 0, sizeof(ive_src_image_s));
+    memset(&dst, 0, sizeof(ive_dst_image_s));
+    memset(&stAddCtrl, 0, sizeof(ive_add_ctrl_s));
 
     // transfer bm struct to ive struct
-    ret = bm_image_convert_to_ive_image(handle, &input1, &stSrc1);
+    ret = bm_image_convert_to_ive_image(handle, &input1, &src1);
     if (ret != BM_SUCCESS) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
             "failed to convert bm_image to ive_image %s: %s: %d\n",
@@ -443,7 +443,7 @@ bm_status_t bm_ive_add(
         return BM_ERR_FAILURE;
     }
 
-    ret = bm_image_convert_to_ive_image(handle, &input2, &stSrc2);
+    ret = bm_image_convert_to_ive_image(handle, &input2, &src2);
     if (ret != BM_SUCCESS) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
             "failed to convert bm_image to ive_image %s: %s: %d\n",
@@ -451,7 +451,7 @@ bm_status_t bm_ive_add(
         return BM_ERR_FAILURE;
     }
 
-    ret = bm_image_convert_to_ive_image(handle, &output, &stDst);
+    ret = bm_image_convert_to_ive_image(handle, &output, &dst);
     if (ret != BM_SUCCESS) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
             "failed to convert bm_image to ive_image %s: %s: %d\n",
@@ -460,24 +460,24 @@ bm_status_t bm_ive_add(
     }
 
     // get ive handle and invoke ive funtion
-    pIveHandle = BM_IVE_CreateHandle();
-    if (pIveHandle == NULL) {
+    ive_handle = BM_IVE_CreateHandle();
+    if (ive_handle == NULL) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "failed to create ive handle %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
         return BM_ERR_FAILURE;
     }
 
-    memcpy(&stAddCtrl, (void*)&attr, sizeof(IVE_ADD_CTRL_S));
-    ret = BM_IVE_Add(pIveHandle, &stSrc1, &stSrc2, &stDst, &stAddCtrl, true);
+    memcpy(&stAddCtrl, (void*)&attr, sizeof(ive_add_ctrl_s));
+    ret = BM_IVE_Add(ive_handle, &src1, &src2, &dst, &stAddCtrl, true);
     if(ret != BM_SUCCESS){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "bm_ive_add error %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
-        BM_IVE_DestroyHandle(pIveHandle);
+        BM_IVE_DestroyHandle(ive_handle);
         return BM_ERR_FAILURE;
     }
-    BM_IVE_DestroyHandle(pIveHandle);
+    BM_IVE_DestroyHandle(ive_handle);
 
     return ret;
 }
@@ -489,16 +489,16 @@ bm_status_t bm_ive_and(
     bm_image            output)
 {
     bm_status_t ret = BM_SUCCESS;
-    IVE_HANDLE pIveHandle = NULL;
-    IVE_SRC_IMAGE_S stSrc1, stSrc2;
-    IVE_DST_IMAGE_S stDst;
+    ive_handle ive_handle = NULL;
+    ive_src_image_s src1, src2;
+    ive_dst_image_s dst;
 
-    memset(&stSrc1, 0, sizeof(IVE_SRC_IMAGE_S));
-    memset(&stSrc2, 0, sizeof(IVE_SRC_IMAGE_S));
-    memset(&stDst, 0, sizeof(IVE_DST_IMAGE_S));
+    memset(&src1, 0, sizeof(ive_src_image_s));
+    memset(&src2, 0, sizeof(ive_src_image_s));
+    memset(&dst, 0, sizeof(ive_dst_image_s));
 
     // transfer bm struct to ive struct
-    ret = bm_image_convert_to_ive_image(handle, &input1, &stSrc1);
+    ret = bm_image_convert_to_ive_image(handle, &input1, &src1);
     if (ret != BM_SUCCESS) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
             "failed to convert bm_image to ive_image %s: %s: %d\n",
@@ -506,7 +506,7 @@ bm_status_t bm_ive_and(
         return BM_ERR_FAILURE;
     }
 
-    ret = bm_image_convert_to_ive_image(handle, &input2, &stSrc2);
+    ret = bm_image_convert_to_ive_image(handle, &input2, &src2);
     if (ret != BM_SUCCESS) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
             "failed to convert bm_image to ive_image %s: %s: %d\n",
@@ -514,7 +514,7 @@ bm_status_t bm_ive_and(
         return BM_ERR_FAILURE;
     }
 
-    ret = bm_image_convert_to_ive_image(handle, &output, &stDst);
+    ret = bm_image_convert_to_ive_image(handle, &output, &dst);
     if (ret != BM_SUCCESS) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
             "failed to convert bm_image to ive_image %s: %s: %d\n",
@@ -523,23 +523,23 @@ bm_status_t bm_ive_and(
     }
 
     // get ive handle and invoke ive funtion
-    pIveHandle = BM_IVE_CreateHandle();
-    if (pIveHandle == NULL) {
+    ive_handle = BM_IVE_CreateHandle();
+    if (ive_handle == NULL) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "failed to create ive handle %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
         return BM_ERR_FAILURE;
     }
 
-    ret = BM_IVE_And(pIveHandle, &stSrc1, &stSrc2, &stDst, true);
+    ret = BM_IVE_And(ive_handle, &src1, &src2, &dst, true);
     if(ret != BM_SUCCESS){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "bm_ive_and error %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
-        BM_IVE_DestroyHandle(pIveHandle);
+        BM_IVE_DestroyHandle(ive_handle);
         return BM_ERR_FAILURE;
     }
-    BM_IVE_DestroyHandle(pIveHandle);
+    BM_IVE_DestroyHandle(ive_handle);
 
     return ret;
 }
@@ -551,16 +551,16 @@ bm_status_t bm_ive_or(
     bm_image             output)
 {
     bm_status_t ret = BM_SUCCESS;
-    IVE_HANDLE pIveHandle = NULL;
-    IVE_SRC_IMAGE_S stSrc1, stSrc2;
-    IVE_DST_IMAGE_S stDst;
+    ive_handle ive_handle = NULL;
+    ive_src_image_s src1, src2;
+    ive_dst_image_s dst;
 
-    memset(&stSrc1, 0, sizeof(IVE_SRC_IMAGE_S));
-    memset(&stSrc2, 0, sizeof(IVE_SRC_IMAGE_S));
-    memset(&stDst, 0, sizeof(IVE_DST_IMAGE_S));
+    memset(&src1, 0, sizeof(ive_src_image_s));
+    memset(&src2, 0, sizeof(ive_src_image_s));
+    memset(&dst, 0, sizeof(ive_dst_image_s));
 
     // transfer bm struct to ive struct
-    ret = bm_image_convert_to_ive_image(handle, &input1, &stSrc1);
+    ret = bm_image_convert_to_ive_image(handle, &input1, &src1);
     if (ret != BM_SUCCESS) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
             "failed to convert bm_image to ive_image %s: %s: %d\n",
@@ -568,7 +568,7 @@ bm_status_t bm_ive_or(
         return BM_ERR_FAILURE;
     }
 
-    ret = bm_image_convert_to_ive_image(handle, &input2, &stSrc2);
+    ret = bm_image_convert_to_ive_image(handle, &input2, &src2);
     if (ret != BM_SUCCESS) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
             "failed to convert bm_image to ive_image %s: %s: %d\n",
@@ -576,7 +576,7 @@ bm_status_t bm_ive_or(
         return BM_ERR_FAILURE;
     }
 
-    ret = bm_image_convert_to_ive_image(handle, &output, &stDst);
+    ret = bm_image_convert_to_ive_image(handle, &output, &dst);
     if (ret != BM_SUCCESS) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
             "failed to convert bm_image to ive_image %s: %s: %d\n",
@@ -585,23 +585,23 @@ bm_status_t bm_ive_or(
     }
 
     // get ive handle and invoke ive funtion
-    pIveHandle = BM_IVE_CreateHandle();
-    if (pIveHandle == NULL) {
+    ive_handle = BM_IVE_CreateHandle();
+    if (ive_handle == NULL) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "failed to create ive handle %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
         return BM_ERR_FAILURE;
     }
 
-    ret = BM_IVE_Or(pIveHandle, &stSrc1, &stSrc2, &stDst, true);
+    ret = BM_IVE_Or(ive_handle, &src1, &src2, &dst, true);
     if(ret != BM_SUCCESS){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "bm_ive_and error %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
-        BM_IVE_DestroyHandle(pIveHandle);
+        BM_IVE_DestroyHandle(ive_handle);
         return BM_ERR_FAILURE;
     }
-    BM_IVE_DestroyHandle(pIveHandle);
+    BM_IVE_DestroyHandle(ive_handle);
 
     return ret;
 }
@@ -614,18 +614,18 @@ bm_status_t bm_ive_sub(
     bmcv_ive_sub_attr    attr)
 {
     bm_status_t ret = BM_SUCCESS;
-    IVE_HANDLE pIveHandle = NULL;
-    IVE_SRC_IMAGE_S stSrc1, stSrc2;
-    IVE_DST_IMAGE_S stDst;
-    IVE_SUB_CTRL_S stSubCtrl;
+    ive_handle ive_handle = NULL;
+    ive_src_image_s src1, src2;
+    ive_dst_image_s dst;
+    ive_sub_ctrl_s stSubCtrl;
 
-    memset(&stSrc1, 0, sizeof(IVE_SRC_IMAGE_S));
-    memset(&stSrc2, 0, sizeof(IVE_SRC_IMAGE_S));
-    memset(&stDst, 0, sizeof(IVE_DST_IMAGE_S));
-    memset(&stSubCtrl, 0, sizeof(IVE_SUB_CTRL_S));
+    memset(&src1, 0, sizeof(ive_src_image_s));
+    memset(&src2, 0, sizeof(ive_src_image_s));
+    memset(&dst, 0, sizeof(ive_dst_image_s));
+    memset(&stSubCtrl, 0, sizeof(ive_sub_ctrl_s));
 
     // transfer bm struct to ive struct
-    ret = bm_image_convert_to_ive_image(handle, &input1, &stSrc1);
+    ret = bm_image_convert_to_ive_image(handle, &input1, &src1);
     if (ret != BM_SUCCESS) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
             "failed to convert bm_image to ive_image %s: %s: %d\n",
@@ -633,7 +633,7 @@ bm_status_t bm_ive_sub(
         return BM_ERR_FAILURE;
     }
 
-    ret = bm_image_convert_to_ive_image(handle, &input2, &stSrc2);
+    ret = bm_image_convert_to_ive_image(handle, &input2, &src2);
     if (ret != BM_SUCCESS) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
             "failed to convert bm_image to ive_image %s: %s: %d\n",
@@ -641,7 +641,7 @@ bm_status_t bm_ive_sub(
         return BM_ERR_FAILURE;
     }
 
-    ret = bm_image_convert_to_ive_image(handle, &output, &stDst);
+    ret = bm_image_convert_to_ive_image(handle, &output, &dst);
     if (ret != BM_SUCCESS) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
             "failed to convert bm_image to ive_image %s: %s: %d\n",
@@ -650,24 +650,24 @@ bm_status_t bm_ive_sub(
     }
 
     // get ive handle and invoke ive funtion
-    pIveHandle = BM_IVE_CreateHandle();
-    if (pIveHandle == NULL) {
+    ive_handle = BM_IVE_CreateHandle();
+    if (ive_handle == NULL) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "failed to create ive handle %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
         return BM_ERR_FAILURE;
     }
 
-    memcpy(&stSubCtrl, (void*)&attr, sizeof(IVE_SUB_CTRL_S));
-    ret = BM_IVE_Sub(pIveHandle, &stSrc1, &stSrc2, &stDst, &stSubCtrl, true);
+    memcpy(&stSubCtrl, (void*)&attr, sizeof(ive_sub_ctrl_s));
+    ret = BM_IVE_Sub(ive_handle, &src1, &src2, &dst, &stSubCtrl, true);
     if(ret != BM_SUCCESS){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "bm_ive_sub error %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
-        BM_IVE_DestroyHandle(pIveHandle);
+        BM_IVE_DestroyHandle(ive_handle);
         return BM_ERR_FAILURE;
     }
-    BM_IVE_DestroyHandle(pIveHandle);
+    BM_IVE_DestroyHandle(ive_handle);
 
     return ret;
 }
@@ -680,16 +680,16 @@ bm_status_t bm_ive_xor(
     bm_image             output)
 {
     bm_status_t ret = BM_SUCCESS;
-    IVE_HANDLE pIveHandle = NULL;
-    IVE_SRC_IMAGE_S stSrc1, stSrc2;
-    IVE_DST_IMAGE_S stDst;
+    ive_handle ive_handle = NULL;
+    ive_src_image_s src1, src2;
+    ive_dst_image_s dst;
 
-    memset(&stSrc1, 0, sizeof(IVE_SRC_IMAGE_S));
-    memset(&stSrc2, 0, sizeof(IVE_SRC_IMAGE_S));
-    memset(&stDst, 0, sizeof(IVE_DST_IMAGE_S));
+    memset(&src1, 0, sizeof(ive_src_image_s));
+    memset(&src2, 0, sizeof(ive_src_image_s));
+    memset(&dst, 0, sizeof(ive_dst_image_s));
 
     // transfer bm struct to ive struct
-    ret = bm_image_convert_to_ive_image(handle, &input1, &stSrc1);
+    ret = bm_image_convert_to_ive_image(handle, &input1, &src1);
     if (ret != BM_SUCCESS) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
             "failed to convert bm_image to ive_image %s: %s: %d\n",
@@ -697,7 +697,7 @@ bm_status_t bm_ive_xor(
         return BM_ERR_FAILURE;
     }
 
-    ret = bm_image_convert_to_ive_image(handle, &input2, &stSrc2);
+    ret = bm_image_convert_to_ive_image(handle, &input2, &src2);
     if (ret != BM_SUCCESS) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
             "failed to convert bm_image to ive_image %s: %s: %d\n",
@@ -705,7 +705,7 @@ bm_status_t bm_ive_xor(
         return BM_ERR_FAILURE;
     }
 
-    ret = bm_image_convert_to_ive_image(handle, &output, &stDst);
+    ret = bm_image_convert_to_ive_image(handle, &output, &dst);
     if (ret != BM_SUCCESS) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
             "failed to convert bm_image to ive_image %s: %s: %d\n",
@@ -714,33 +714,33 @@ bm_status_t bm_ive_xor(
     }
 
     // get ive handle and invoke ive funtion
-    pIveHandle = BM_IVE_CreateHandle();
-    if (pIveHandle == NULL) {
+    ive_handle = BM_IVE_CreateHandle();
+    if (ive_handle == NULL) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "failed to create ive handle %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
         return BM_ERR_FAILURE;
     }
 
-    ret = BM_IVE_Xor(pIveHandle, &stSrc1, &stSrc2, &stDst, true);
+    ret = BM_IVE_Xor(ive_handle, &src1, &src2, &dst, true);
     if(ret != BM_SUCCESS){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "bm_ive_xor error %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
-        BM_IVE_DestroyHandle(pIveHandle);
+        BM_IVE_DestroyHandle(ive_handle);
         return BM_ERR_FAILURE;
     }
-    BM_IVE_DestroyHandle(pIveHandle);
+    BM_IVE_DestroyHandle(ive_handle);
 
     return ret;
 }
 
-bm_status_t BM_IVE_Thresh(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstSrc,
-            IVE_DST_IMAGE_S *pstDst, IVE_THRESH_CTRL_S *pstCtrl, bool bInstant)
+bm_status_t BM_IVE_Thresh(ive_handle ive_handle, ive_src_image_s *psrc,
+            ive_dst_image_s *pdst, ive_thresh_ctrl_s *pctrl, bool instant)
 {
-    struct cvi_ive_ioctl_arg ioctl_arg;
-    struct cvi_ive_ioctl_thresh_arg ive_arg;
-    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)pIveHandle;
+    struct ive_ioctl_arg ioctl_arg;
+    struct ive_ioctl_thresh_arg ive_arg;
+    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)ive_handle;
 
     // check if ive device is opened
     if (p == NULL || p->dev_fd <= 0) {
@@ -750,15 +750,15 @@ bm_status_t BM_IVE_Thresh(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstSrc,
         return BM_ERR_DEVNOTREADY;
     }
 
-    ive_arg.pIveHandle = pIveHandle;
-    ive_arg.stSrc = *pstSrc;
-    ive_arg.stDst = *pstDst;
-    ive_arg.stCtrl = *pstCtrl;
-    ive_arg.bInstant = bInstant;
+    ive_arg.ive_handle = ive_handle;
+    ive_arg.src = *psrc;
+    ive_arg.dst = *pdst;
+    ive_arg.ctrl = *pctrl;
+    ive_arg.instant = instant;
 
     // invoke ive api in driver
-    ioctl_arg.input_data = (CVI_U64)&ive_arg;
-    if (ioctl(p->dev_fd, CVI_IVE_IOC_Thresh, &ioctl_arg) < 0) {
+    ioctl_arg.input_data = (uint64_t)&ive_arg;
+    if (ioctl(p->dev_fd, IVE_IOC_THRESH, &ioctl_arg) < 0) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
             "CVI_IVE_IOC_Thresh failed %s: %s: %d\n",
             filename(__FILE__), __func__, __LINE__);
@@ -767,12 +767,12 @@ bm_status_t BM_IVE_Thresh(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstSrc,
     return BM_SUCCESS;
 }
 
-bm_status_t BM_IVE_Thresh_U16(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstSrc,
-            IVE_DST_IMAGE_S *pstDst, IVE_THRESH_U16_CTRL_S *pstCtrl, bool bInstant)
+bm_status_t BM_IVE_Thresh_U16(ive_handle ive_handle, ive_src_image_s *psrc,
+            ive_dst_image_s *pdst, ive_thresh_u16_ctrl_s *pctrl, bool instant)
 {
-    struct cvi_ive_ioctl_arg ioctl_arg;
-    struct cvi_ive_ioctl_thres_su16_arg ive_arg;
-    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)pIveHandle;
+    struct ive_ioctl_arg ioctl_arg;
+    struct ive_ioctl_thresh_u16_arg ive_arg;
+    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)ive_handle;
 
     // check if ive device is opened
     if (p == NULL || p->dev_fd <= 0) {
@@ -782,15 +782,15 @@ bm_status_t BM_IVE_Thresh_U16(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstSrc,
         return BM_ERR_DEVNOTREADY;
     }
 
-    ive_arg.pIveHandle = pIveHandle;
-    ive_arg.stSrc = *pstSrc;
-    ive_arg.stDst = *pstDst;
-    ive_arg.stCtrl = *pstCtrl;
-    ive_arg.bInstant = bInstant;
+    ive_arg.ive_handle = ive_handle;
+    ive_arg.src = *psrc;
+    ive_arg.dst = *pdst;
+    ive_arg.ctrl = *pctrl;
+    ive_arg.instant = instant;
 
     // invoke ive api in driver
-    ioctl_arg.input_data = (CVI_U64)&ive_arg;
-    if (ioctl(p->dev_fd, CVI_IVE_IOC_Thresh_U16, &ioctl_arg) < 0) {
+    ioctl_arg.input_data = (uint64_t)&ive_arg;
+    if (ioctl(p->dev_fd, IVE_IOC_THRESH_U16, &ioctl_arg) < 0) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
             "CVI_IVE_IOC_Thresh_U16 failed %s: %s: %d\n",
             filename(__FILE__), __func__, __LINE__);
@@ -799,12 +799,12 @@ bm_status_t BM_IVE_Thresh_U16(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstSrc,
     return BM_SUCCESS;
 }
 
-bm_status_t BM_IVE_Thresh_S16(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstSrc,
-            IVE_DST_IMAGE_S *pstDst, IVE_THRESH_S16_CTRL_S *pstCtrl, bool bInstant)
+bm_status_t BM_IVE_Thresh_S16(ive_handle ive_handle, ive_src_image_s *psrc,
+            ive_dst_image_s *pdst, ive_thresh_s16_ctrl_s *pctrl, bool instant)
 {
-    struct cvi_ive_ioctl_arg ioctl_arg;
-    struct cvi_ive_ioctl_thresh_s16_arg ive_arg;
-    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)pIveHandle;
+    struct ive_ioctl_arg ioctl_arg;
+    struct ive_ioctl_thresh_s16_arg ive_arg;
+    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)ive_handle;
 
     // check if ive device is opened
     if (p == NULL || p->dev_fd <= 0) {
@@ -814,15 +814,15 @@ bm_status_t BM_IVE_Thresh_S16(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstSrc,
         return BM_ERR_DEVNOTREADY;
     }
 
-    ive_arg.pIveHandle = pIveHandle;
-    ive_arg.stSrc = *pstSrc;
-    ive_arg.stDst = *pstDst;
-    ive_arg.stCtrl = *pstCtrl;
-    ive_arg.bInstant = bInstant;
+    ive_arg.ive_handle = ive_handle;
+    ive_arg.src = *psrc;
+    ive_arg.dst = *pdst;
+    ive_arg.ctrl = *pctrl;
+    ive_arg.instant = instant;
 
     // invoke ive api in driver
-    ioctl_arg.input_data = (CVI_U64)&ive_arg;
-    if (ioctl(p->dev_fd, CVI_IVE_IOC_Thresh_S16, &ioctl_arg) < 0) {
+    ioctl_arg.input_data = (uint64_t)&ive_arg;
+    if (ioctl(p->dev_fd, IVE_IOC_THRESH_S16, &ioctl_arg) < 0) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
             "CVI_IVE_IOC_Thresh_S16 failed %s: %s: %d\n",
             filename(__FILE__), __func__, __LINE__);
@@ -926,21 +926,21 @@ bm_status_t bm_ive_thresh(
     bmcv_ive_thresh_attr    attr)
 {
     bm_status_t ret = BM_SUCCESS;
-    IVE_HANDLE pIveHandle = NULL;
-    IVE_SRC_IMAGE_S stSrc;
-    IVE_DST_IMAGE_S stDst;
-    IVE_THRESH_CTRL_S stThreshCtrl;
-    IVE_THRESH_U16_CTRL_S stThreshU16Ctrl;
-    IVE_THRESH_S16_CTRL_S stThreshS16Ctrl;
+    ive_handle ive_handle = NULL;
+    ive_src_image_s src;
+    ive_dst_image_s dst;
+    ive_thresh_ctrl_s stThreshCtrl;
+    ive_thresh_u16_ctrl_s stThreshU16Ctrl;
+    ive_thresh_s16_ctrl_s stThreshS16Ctrl;
 
-    memset(&stSrc, 0, sizeof(IVE_SRC_IMAGE_S));
-    memset(&stDst, 0, sizeof(IVE_DST_IMAGE_S));
-    memset(&stThreshCtrl, 0, sizeof(IVE_THRESH_CTRL_S));
-    memset(&stThreshU16Ctrl, 0, sizeof(IVE_THRESH_U16_CTRL_S));
-    memset(&stThreshS16Ctrl, 0, sizeof(IVE_THRESH_S16_CTRL_S));
+    memset(&src, 0, sizeof(ive_src_image_s));
+    memset(&dst, 0, sizeof(ive_dst_image_s));
+    memset(&stThreshCtrl, 0, sizeof(ive_thresh_ctrl_s));
+    memset(&stThreshU16Ctrl, 0, sizeof(ive_thresh_u16_ctrl_s));
+    memset(&stThreshS16Ctrl, 0, sizeof(ive_thresh_s16_ctrl_s));
 
     // transfer bm struct to ive struct
-    ret = bm_image_convert_to_ive_image(handle, &input, &stSrc);
+    ret = bm_image_convert_to_ive_image(handle, &input, &src);
     if (ret != BM_SUCCESS) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
             "failed to convert bm_image to ive_image %s: %s: %d\n",
@@ -948,7 +948,7 @@ bm_status_t bm_ive_thresh(
         return BM_ERR_FAILURE;
     }
 
-    ret = bm_image_convert_to_ive_image(handle, &output, &stDst);
+    ret = bm_image_convert_to_ive_image(handle, &output, &dst);
     if (ret != BM_SUCCESS) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
             "failed to convert bm_image to ive_image %s: %s: %d\n",
@@ -957,8 +957,8 @@ bm_status_t bm_ive_thresh(
     }
 
     // get ive handle and invoke ive funtion
-    pIveHandle = BM_IVE_CreateHandle();
-    if (pIveHandle == NULL) {
+    ive_handle = BM_IVE_CreateHandle();
+    if (ive_handle == NULL) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "failed to create ive handle %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
@@ -967,59 +967,59 @@ bm_status_t bm_ive_thresh(
     int opType = bm_image_convert_to_thresh_opType(input, output);
     switch (opType) {
         case MOD_U8:
-            stThreshCtrl.enMode = (IVE_THRESH_MODE_E)thransform_pattern(thresh_mode);
-            if (stThreshCtrl.enMode < 0 || stThreshCtrl.enMode >= IVE_THRESH_MODE_BUTT) {
+            stThreshCtrl.mode = (ive_thresh_mode_e)thransform_pattern(thresh_mode);
+            if (stThreshCtrl.mode < 0 || stThreshCtrl.mode >= IVE_THRESH_MODE_BUTT) {
                 bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                         "unknown thresh mode %d, %s: %s: %d\n",
                         thresh_mode, filename(__FILE__), __func__, __LINE__);
                 break;
             }
 
-            stThreshCtrl.u8LowThr = (u8)(attr.low_thr & 0xff);
-            stThreshCtrl.u8HighThr = (u8)(attr.high_thr & 0xff);
-            stThreshCtrl.u8MinVal = (u8)(attr.min_val & 0xff);
-            stThreshCtrl.u8MidVal = (u8)(attr.mid_val & 0xff);
-            stThreshCtrl.u8MaxVal = (u8)(attr.max_val & 0xff);
-            ret = BM_IVE_Thresh(pIveHandle, &stSrc, &stDst, &stThreshCtrl, true);
+            stThreshCtrl.low_thr = (u8)(attr.low_thr & 0xff);
+            stThreshCtrl.high_thr = (u8)(attr.high_thr & 0xff);
+            stThreshCtrl.min_val = (u8)(attr.min_val & 0xff);
+            stThreshCtrl.mid_val = (u8)(attr.mid_val & 0xff);
+            stThreshCtrl.max_val = (u8)(attr.max_val & 0xff);
+            ret = BM_IVE_Thresh(ive_handle, &src, &dst, &stThreshCtrl, true);
             break;
         case MOD_U16:
-            stThreshU16Ctrl.enMode = (IVE_THRESH_U16_MODE_E)thransform_pattern(thresh_mode);
-            if (stThreshU16Ctrl.enMode < 0 || stThreshU16Ctrl.enMode >= IVE_THRESH_U16_MODE_BUTT) {
+            stThreshU16Ctrl.mode = (ive_thresh_u16_mode_e)thransform_pattern(thresh_mode);
+            if (stThreshU16Ctrl.mode < 0 || stThreshU16Ctrl.mode >= IVE_THRESH_U16_MODE_BUTT) {
                 bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                         "unknown thresh mode %d, %s: %s: %d\n",
                         thresh_mode, filename(__FILE__), __func__, __LINE__);
                 break;
             }
 
-            stThreshU16Ctrl.u16LowThr = (u16)(attr.low_thr & 0xffff);
-            stThreshU16Ctrl.u16HighThr = (u16)(attr.high_thr & 0xffff);
-            stThreshU16Ctrl.u8MinVal = (u8)(attr.min_val & 0xff);
-            stThreshU16Ctrl.u8MidVal = (u8)(attr.mid_val & 0xff);
-            stThreshU16Ctrl.u8MaxVal = (u8)(attr.max_val & 0xff);
-            ret = BM_IVE_Thresh_U16(pIveHandle, &stSrc, &stDst, &stThreshU16Ctrl, true);
+            stThreshU16Ctrl.low_thr = (u16)(attr.low_thr & 0xffff);
+            stThreshU16Ctrl.high_thr = (u16)(attr.high_thr & 0xffff);
+            stThreshU16Ctrl.min_val = (u8)(attr.min_val & 0xff);
+            stThreshU16Ctrl.mid_val = (u8)(attr.mid_val & 0xff);
+            stThreshU16Ctrl.max_val = (u8)(attr.max_val & 0xff);
+            ret = BM_IVE_Thresh_U16(ive_handle, &src, &dst, &stThreshU16Ctrl, true);
             break;
         case MOD_S16:
-            stThreshS16Ctrl.enMode = (IVE_THRESH_S16_MODE_E)thransform_pattern(thresh_mode);
-            if (stThreshS16Ctrl.enMode < 0 || stThreshS16Ctrl.enMode >= IVE_THRESH_S16_MODE_BUTT) {
+            stThreshS16Ctrl.mode = (ive_thresh_s16_mode_e)thransform_pattern(thresh_mode);
+            if (stThreshS16Ctrl.mode < 0 || stThreshS16Ctrl.mode >= IVE_THRESH_S16_MODE_BUTT) {
                 bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                         "unknown thresh mode %d, %s: %s: %d\n",
                         thresh_mode, filename(__FILE__), __func__, __LINE__);
                 break;
             }
 
-            stThreshS16Ctrl.s16LowThr = (s16)(attr.low_thr & 0xffff);
-            stThreshS16Ctrl.s16HighThr = (s16)(attr.high_thr & 0xffff);
-            if (stThreshS16Ctrl.enMode == IVE_THRESH_S16_MODE_S16_TO_S8_MIN_MID_MAX ||
-                stThreshS16Ctrl.enMode == IVE_THRESH_S16_MODE_S16_TO_S8_MIN_ORI_MAX) {
-                    stThreshS16Ctrl.un8MinVal.s8Val = (s8)(attr.min_val & 0xff);
-                    stThreshS16Ctrl.un8MidVal.s8Val = (s8)(attr.mid_val & 0xff);
-                    stThreshS16Ctrl.un8MaxVal.s8Val = (s8)(attr.max_val & 0xff);
+            stThreshS16Ctrl.low_thr = (s16)(attr.low_thr & 0xffff);
+            stThreshS16Ctrl.high_thr = (s16)(attr.high_thr & 0xffff);
+            if (stThreshS16Ctrl.mode == IVE_THRESH_S16_MODE_S16_TO_S8_MIN_MID_MAX ||
+                stThreshS16Ctrl.mode == IVE_THRESH_S16_MODE_S16_TO_S8_MIN_ORI_MAX) {
+                    stThreshS16Ctrl.min_val.s8_val = (s8)(attr.min_val & 0xff);
+                    stThreshS16Ctrl.mid_val.s8_val = (s8)(attr.mid_val & 0xff);
+                    stThreshS16Ctrl.max_val.s8_val = (s8)(attr.max_val & 0xff);
             } else {
-                    stThreshS16Ctrl.un8MinVal.u8Val = (u8)(attr.min_val & 0xff);
-                    stThreshS16Ctrl.un8MidVal.u8Val = (u8)(attr.mid_val & 0xff);
-                    stThreshS16Ctrl.un8MaxVal.u8Val = (u8)(attr.max_val & 0xff);
+                    stThreshS16Ctrl.min_val.u8_val = (u8)(attr.min_val & 0xff);
+                    stThreshS16Ctrl.mid_val.u8_val = (u8)(attr.mid_val & 0xff);
+                    stThreshS16Ctrl.max_val.u8_val = (u8)(attr.max_val & 0xff);
             }
-            ret = BM_IVE_Thresh_S16(pIveHandle, &stSrc, &stDst, &stThreshS16Ctrl, true);
+            ret = BM_IVE_Thresh_S16(ive_handle, &src, &dst, &stThreshS16Ctrl, true);
             break;
         default:
             bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
@@ -1032,21 +1032,21 @@ bm_status_t bm_ive_thresh(
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "bm_ive_thresh error %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
-        BM_IVE_DestroyHandle(pIveHandle);
+        BM_IVE_DestroyHandle(ive_handle);
         return BM_ERR_FAILURE;
     }
-    BM_IVE_DestroyHandle(pIveHandle);
+    BM_IVE_DestroyHandle(ive_handle);
 
     return ret;
 }
 
-bm_status_t BM_IVE_DMA(IVE_HANDLE pIveHandle, IVE_DATA_S *pstSrc,
-            IVE_DST_DATA_S *pstDst, IVE_DMA_CTRL_S *pstCtrl,
-            bool bInstant)
+bm_status_t BM_IVE_DMA(ive_handle ive_handle, ive_data_s *psrc,
+            ive_dst_data_s *pdst, ive_dma_ctrl_s *pctrl,
+            bool instant)
 {
-    struct cvi_ive_ioctl_arg ioctl_arg;
-    struct cvi_ive_ioctl_dma_arg ive_arg;
-    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)pIveHandle;
+    struct ive_ioctl_arg ioctl_arg;
+    struct ive_ioctl_dma_arg ive_arg;
+    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)ive_handle;
 
     if (p == NULL || p->dev_fd <= 0) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
@@ -1055,15 +1055,15 @@ bm_status_t BM_IVE_DMA(IVE_HANDLE pIveHandle, IVE_DATA_S *pstSrc,
         return BM_ERR_DEVNOTREADY;
     }
 
-    ive_arg.pIveHandle = pIveHandle;
-    ive_arg.stSrc = *pstSrc;
-    ive_arg.stDst = *pstDst;
-    ive_arg.stCtrl = *pstCtrl;
-    ive_arg.bInstant = bInstant;
+    ive_arg.ive_handle = ive_handle;
+    ive_arg.src = *psrc;
+    ive_arg.dst = *pdst;
+    ive_arg.ctrl = *pctrl;
+    ive_arg.instant = instant;
 
     // invoke ive api in driver
-    ioctl_arg.input_data = (CVI_U64)&ive_arg;
-    if (ioctl(p->dev_fd, CVI_IVE_IOC_DMA, &ioctl_arg) < 0) {
+    ioctl_arg.input_data = (uint64_t)&ive_arg;
+    if (ioctl(p->dev_fd, IVE_IOC_DMA, &ioctl_arg) < 0) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
             "CVI_IVE_IOC_DMA failed %s: %s: %d\n",
             filename(__FILE__), __func__, __LINE__);
@@ -1079,18 +1079,18 @@ bm_status_t bm_ive_dma_set(
     unsigned long long               val)
 {
     bm_status_t ret = BM_SUCCESS;
-    IVE_HANDLE pIveHandle = NULL;
-    IVE_DATA_S stSrc;
-    IVE_DST_DATA_S stDst;
-    IVE_DMA_CTRL_S stDmaCtrl;
+    ive_handle ive_handle = NULL;
+    ive_data_s src;
+    ive_dst_data_s dst;
+    ive_dma_ctrl_s stDmaCtrl;
 
-    memset(&stSrc, 0, sizeof(IVE_DATA_S));
-    memset(&stDst, 0, sizeof(IVE_DATA_S));
-    memset(&stDmaCtrl, 0, sizeof(IVE_DMA_CTRL_S));
+    memset(&src, 0, sizeof(ive_data_s));
+    memset(&dst, 0, sizeof(ive_data_s));
+    memset(&stDmaCtrl, 0, sizeof(ive_dma_ctrl_s));
 
     // transfer bm struct to ive struct
     // TODO: only support one channel now
-    ret = bm_image_convert_to_ive_data(handle, 0, &image, &stSrc);
+    ret = bm_image_convert_to_ive_data(handle, 0, &image, &src);
     if (ret != BM_SUCCESS) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
             "failed to convert bm_image to ive_data %s: %s: %d\n",
@@ -1106,31 +1106,31 @@ bm_status_t bm_ive_dma_set(
     }
 
     // get ive handle and invoke ive funtion
-    pIveHandle = BM_IVE_CreateHandle();
-    if (pIveHandle == NULL) {
+    ive_handle = BM_IVE_CreateHandle();
+    if (ive_handle == NULL) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "failed to create ive handle %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
         return BM_ERR_FAILURE;
     }
-    stDmaCtrl.enMode = (IVE_DMA_MODE_E)(dma_set_mode + 2);
-    printf("stDmaCtrl.enMode = %d \n", stDmaCtrl.enMode);
-    stDmaCtrl.u64Val = val;
-    stDmaCtrl.u8HorSegSize = 0;
-    stDmaCtrl.u8ElemSize = 0;
-    stDmaCtrl.u8VerSegRows = 0;
+    stDmaCtrl.mode = (ive_dma_mode_e)(dma_set_mode + 2);
+    printf("stDmaCtrl.mode = %d \n", stDmaCtrl.mode);
+    stDmaCtrl.val = val;
+    stDmaCtrl.hor_seg_size = 0;
+    stDmaCtrl.elem_size = 0;
+    stDmaCtrl.ver_seg_rows = 0;
 
-    ret = BM_IVE_DMA(pIveHandle, &stSrc, &stDst, &stDmaCtrl, true);
+    ret = BM_IVE_DMA(ive_handle, &src, &dst, &stDmaCtrl, true);
 
     if(ret != BM_SUCCESS){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "bm_ive_dma_set error %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
-        BM_IVE_DestroyHandle(pIveHandle);
+        BM_IVE_DestroyHandle(ive_handle);
         return BM_ERR_FAILURE;
     }
 
-    BM_IVE_DestroyHandle(pIveHandle);
+    BM_IVE_DestroyHandle(ive_handle);
 
     return ret;
 }
@@ -1143,18 +1143,18 @@ bm_status_t bm_ive_dma(
     bmcv_ive_interval_dma_attr *    attr)
 {
     bm_status_t ret = BM_SUCCESS;
-    IVE_HANDLE pIveHandle = NULL;
-    IVE_DATA_S stSrc;
-    IVE_DST_DATA_S stDst;
-    IVE_DMA_CTRL_S stDmaCtrl;
+    ive_handle ive_handle = NULL;
+    ive_data_s src;
+    ive_dst_data_s dst;
+    ive_dma_ctrl_s stDmaCtrl;
 
-    memset(&stSrc, 0, sizeof(IVE_DATA_S));
-    memset(&stDst, 0, sizeof(IVE_DATA_S));
-    memset(&stDmaCtrl, 0, sizeof(IVE_DMA_CTRL_S));
+    memset(&src, 0, sizeof(ive_data_s));
+    memset(&dst, 0, sizeof(ive_data_s));
+    memset(&stDmaCtrl, 0, sizeof(ive_dma_ctrl_s));
 
     // transfer bm struct to ive struct
     // TODO: only support one channel now
-    ret = bm_image_convert_to_ive_data(handle, 0, &input, &stSrc);
+    ret = bm_image_convert_to_ive_data(handle, 0, &input, &src);
     if (ret != BM_SUCCESS) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
             "failed to convert bm_image to ive_data %s: %s: %d\n",
@@ -1162,7 +1162,7 @@ bm_status_t bm_ive_dma(
         return BM_ERR_FAILURE;
     }
 
-    ret = bm_image_convert_to_ive_data(handle, 0, &output, &stDst);
+    ret = bm_image_convert_to_ive_data(handle, 0, &output, &dst);
     if (ret != BM_SUCCESS) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
             "failed to convert bm_image to ive_data %s: %s: %d\n",
@@ -1178,48 +1178,48 @@ bm_status_t bm_ive_dma(
     }
 
     // get ive handle and invoke ive funtion
-    pIveHandle = BM_IVE_CreateHandle();
-    if (pIveHandle == NULL) {
+    ive_handle = BM_IVE_CreateHandle();
+    if (ive_handle == NULL) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "failed to create ive handle %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
         return BM_ERR_FAILURE;
     }
-    stDmaCtrl.enMode = (IVE_DMA_MODE_E)dma_mode;
+    stDmaCtrl.mode = (ive_dma_mode_e)dma_mode;
     if (dma_mode == 0) {
-        stDmaCtrl.u64Val = 0;
-        stDmaCtrl.u8HorSegSize = 0;
-        stDmaCtrl.u8ElemSize = 0;
-        stDmaCtrl.u8VerSegRows = 0;
+        stDmaCtrl.val = 0;
+        stDmaCtrl.hor_seg_size = 0;
+        stDmaCtrl.elem_size = 0;
+        stDmaCtrl.ver_seg_rows = 0;
     } else if (dma_mode == 1){
-        stDmaCtrl.u64Val = 0;
-        stDmaCtrl.u8HorSegSize = (u8)attr->hor_seg_size;
-        stDmaCtrl.u8ElemSize = (u8)attr->elem_size;
-        stDmaCtrl.u8VerSegRows = (u8)attr->ver_seg_rows;
+        stDmaCtrl.val = 0;
+        stDmaCtrl.hor_seg_size = (u8)attr->hor_seg_size;
+        stDmaCtrl.elem_size = (u8)attr->elem_size;
+        stDmaCtrl.ver_seg_rows = (u8)attr->ver_seg_rows;
     }
 
-    ret = BM_IVE_DMA(pIveHandle, &stSrc, &stDst, &stDmaCtrl, true);
+    ret = BM_IVE_DMA(ive_handle, &src, &dst, &stDmaCtrl, true);
 
     if(ret != BM_SUCCESS){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "bm_ive_dma error %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
-        BM_IVE_DestroyHandle(pIveHandle);
+        BM_IVE_DestroyHandle(ive_handle);
         return BM_ERR_FAILURE;
     }
 
-    BM_IVE_DestroyHandle(pIveHandle);
+    BM_IVE_DestroyHandle(ive_handle);
 
     return ret;
 }
 
-bm_status_t BM_IVE_MAP(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstSrc,
-            IVE_SRC_MEM_INFO_S *pstMap, IVE_DST_IMAGE_S *pstDst,
-            IVE_MAP_CTRL_S *pstCtrl, bool bInstant)
+bm_status_t BM_IVE_MAP(ive_handle ive_handle, ive_src_image_s *psrc,
+            ive_src_mem_info_s *pmap, ive_dst_image_s *pdst,
+            ive_map_ctrl_s *pctrl, bool instant)
 {
-    struct cvi_ive_ioctl_arg ioctl_arg;
-    struct cvi_ive_ioctl_map_arg ive_arg;
-    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)pIveHandle;
+    struct ive_ioctl_arg ioctl_arg;
+    struct ive_ioctl_map_arg ive_arg;
+    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)ive_handle;
 
     if (p == NULL || p->dev_fd <= 0) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
@@ -1228,18 +1228,18 @@ bm_status_t BM_IVE_MAP(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstSrc,
         return BM_ERR_DEVNOTREADY;
     }
 
-    ive_arg.pIveHandle = pIveHandle;
-    ive_arg.stSrc = *pstSrc;
-    ive_arg.stMap = *pstMap;
-    ive_arg.stDst = *pstDst;
-    ive_arg.stCtrl = *pstCtrl;
-    ive_arg.bInstant = bInstant;
+    ive_arg.ive_handle = ive_handle;
+    ive_arg.src = *psrc;
+    ive_arg.map = *pmap;
+    ive_arg.dst = *pdst;
+    ive_arg.ctrl = *pctrl;
+    ive_arg.instant = instant;
 
     // invoke ive api in driver
-    ioctl_arg.input_data = (CVI_U64)&ive_arg;
-    ioctl_arg.buffer = (void *)pstMap->u64VirAddr;
-    ioctl_arg.u32Size = pstMap->u32Size;
-    if (ioctl(p->dev_fd, CVI_IVE_IOC_Map, &ioctl_arg) < 0) {
+    ioctl_arg.input_data = (uint64_t)&ive_arg;
+    ioctl_arg.buffer = (void *)pmap->vir_addr;
+    ioctl_arg.size = pmap->size;
+    if (ioctl(p->dev_fd, IVE_IOC_MAP, &ioctl_arg) < 0) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
             "CVI_IVE_IOC_Map failed %s: %s: %d\n",
             filename(__FILE__), __func__, __LINE__);
@@ -1255,19 +1255,19 @@ bm_status_t bm_ive_map(
     bm_device_mem_t         map_table)
 {
     bm_status_t ret = BM_SUCCESS;
-    IVE_HANDLE pIveHandle = NULL;
-    IVE_IMAGE_S stSrc;
-    IVE_SRC_MEM_INFO_S stTable;
-    IVE_DST_IMAGE_S stDst;
-    IVE_MAP_CTRL_S stMapCtrl;
+    ive_handle ive_handle = NULL;
+    ive_image_s src;
+    ive_src_mem_info_s stTable;
+    ive_dst_image_s dst;
+    ive_map_ctrl_s mapCtrl;
 
-    memset(&stSrc, 0, sizeof(IVE_IMAGE_S));
-    memset(&stTable, 0, sizeof(IVE_SRC_MEM_INFO_S));
-    memset(&stDst, 0, sizeof(IVE_DST_IMAGE_S));
-    memset(&stMapCtrl, 0, sizeof(IVE_MAP_CTRL_S));
+    memset(&src, 0, sizeof(ive_image_s));
+    memset(&stTable, 0, sizeof(ive_src_mem_info_s));
+    memset(&dst, 0, sizeof(ive_dst_image_s));
+    memset(&mapCtrl, 0, sizeof(ive_map_ctrl_s));
 
     // transfer bm struct to ive struct
-    ret = bm_image_convert_to_ive_image(handle, &input, &stSrc);
+    ret = bm_image_convert_to_ive_image(handle, &input, &src);
     if (ret != BM_SUCCESS) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
             "failed to convert bm_image to ive_image %s: %s: %d\n",
@@ -1275,7 +1275,7 @@ bm_status_t bm_ive_map(
         return BM_ERR_FAILURE;
     }
 
-    ret = bm_image_convert_to_ive_image(handle, &output, &stDst);
+    ret = bm_image_convert_to_ive_image(handle, &output, &dst);
     if (ret != BM_SUCCESS) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
             "failed to convert bm_image to ive_image %s: %s: %d\n",
@@ -1298,44 +1298,44 @@ bm_status_t bm_ive_map(
             filename(__FILE__), __func__, __LINE__);
         return BM_ERR_FAILURE;
     } else {
-        stMapCtrl.enMode = (IVE_MAP_MODE_E)mapMode;
+        mapCtrl.mode = (ive_map_mode_e)mapMode;
     }
-    stTable.u32Size = map_table.size;
-    stTable.u64PhyAddr = map_table.u.device.device_addr;
-    stTable.u64VirAddr = virt_addr;
+    stTable.size = map_table.size;
+    stTable.phy_addr = map_table.u.device.device_addr;
+    stTable.vir_addr = virt_addr;
 
     // get ive handle and invoke ive funtion
-    pIveHandle = BM_IVE_CreateHandle();
-    if (pIveHandle == NULL) {
+    ive_handle = BM_IVE_CreateHandle();
+    if (ive_handle == NULL) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "failed to create ive handle %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
         return BM_ERR_FAILURE;
     }
 
-    ret = BM_IVE_MAP(pIveHandle, &stSrc, &stTable, &stDst, &stMapCtrl, true);
+    ret = BM_IVE_MAP(ive_handle, &src, &stTable, &dst, &mapCtrl, true);
     if(ret != BM_SUCCESS){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "BM_IVE_MAP failed %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
-        BM_IVE_DestroyHandle(pIveHandle);
+        BM_IVE_DestroyHandle(ive_handle);
 
         bm_mem_unmap_device_mem(handle, (void *)virt_addr, MAP_TABLE_SIZE);
         return ret;
     }
 
-    BM_IVE_DestroyHandle(pIveHandle);
+    BM_IVE_DestroyHandle(ive_handle);
 
     bm_mem_unmap_device_mem(handle, (void *)virt_addr, MAP_TABLE_SIZE);
 
     return ret;
 }
 
-bm_status_t BM_IVE_Hist(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstSrc,
-              IVE_DST_MEM_INFO_S *pstDst, bool bInstant){
-    struct cvi_ive_ioctl_arg ioctl_arg;
-    struct cvi_ive_ioctl_hist_arg ive_arg;
-    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)pIveHandle;
+bm_status_t BM_IVE_Hist(ive_handle ive_handle, ive_src_image_s *psrc,
+              ive_dst_mem_info_s *pdst, bool instant){
+    struct ive_ioctl_arg ioctl_arg;
+    struct ive_ioctl_hist_arg ive_arg;
+    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)ive_handle;
 
     if (p == NULL || p->dev_fd <= 0) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
@@ -1343,14 +1343,14 @@ bm_status_t BM_IVE_Hist(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstSrc,
             filename(__FILE__), __func__, __LINE__);
         return BM_ERR_DEVNOTREADY;
     }
-    ive_arg.pIveHandle = pIveHandle;
-    ive_arg.pIveHandle = pIveHandle;
-    ive_arg.stSrc = *pstSrc;
-    ive_arg.stDst = *pstDst;
-    ive_arg.bInstant = bInstant;
+    ive_arg.ive_handle = ive_handle;
+    ive_arg.ive_handle = ive_handle;
+    ive_arg.src = *psrc;
+    ive_arg.dst = *pdst;
+    ive_arg.instant = instant;
 
-    ioctl_arg.input_data = (CVI_U64)&ive_arg;
-    bm_status_t ret = (bm_status_t)ioctl(p->dev_fd, CVI_IVE_IOC_Hist, &ioctl_arg);
+    ioctl_arg.input_data = (uint64_t)&ive_arg;
+    bm_status_t ret = (bm_status_t)ioctl(p->dev_fd, IVE_IOC_HIST, &ioctl_arg);
     return ret;
 }
 
@@ -1360,12 +1360,12 @@ bm_status_t bm_ive_hist(
     bm_device_mem_t  output)
 {
     bm_status_t ret = BM_SUCCESS;
-    IVE_HANDLE pIveHandle = NULL;
-    IVE_SRC_IMAGE_S src;
-    IVE_DST_MEM_INFO_S dst;
+    ive_handle ive_handle = NULL;
+    ive_src_image_s src;
+    ive_dst_mem_info_s dst;
 
-    memset(&src, 0, sizeof(IVE_SRC_IMAGE_S));
-    memset(&dst, 0, sizeof(IVE_DST_MEM_INFO_S));
+    memset(&src, 0, sizeof(ive_src_image_s));
+    memset(&dst, 0, sizeof(ive_dst_mem_info_s));
     ret = bm_image_convert_to_ive_image(handle, &image, &src);
     if(ret != BM_SUCCESS){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
@@ -1383,43 +1383,43 @@ bm_status_t bm_ive_hist(
         return BM_ERR_FAILURE;
     }
 
-    dst.u64VirAddr = vir_addr;
-    dst.u64PhyAddr = bm_mem_get_device_addr(output);
-    dst.u32Size = output.size;
+    dst.vir_addr = vir_addr;
+    dst.phy_addr = bm_mem_get_device_addr(output);
+    dst.size = output.size;
 
     // get ive handle and invoke ive funtion
-    pIveHandle = BM_IVE_CreateHandle();
-    if (pIveHandle == NULL) {
+    ive_handle = BM_IVE_CreateHandle();
+    if (ive_handle == NULL) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "failed to create ive handle %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
         return BM_ERR_FAILURE;
     }
 
-    // bInstant: true is interrupt mode, false is polling mode
-    ret = BM_IVE_Hist(pIveHandle, &src, &dst, true);
+    // instant: true is interrupt mode, false is polling mode
+    ret = BM_IVE_Hist(ive_handle, &src, &dst, true);
     if(ret != BM_SUCCESS){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "cvi_ive_hist error %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
-        BM_IVE_DestroyHandle(pIveHandle);
+        BM_IVE_DestroyHandle(ive_handle);
         bm_mem_unmap_device_mem(handle, (void *)vir_addr, output.size);
         return BM_ERR_FAILURE;
     }
 
-    BM_IVE_DestroyHandle(pIveHandle);
+    BM_IVE_DestroyHandle(ive_handle);
     bm_mem_unmap_device_mem(handle, (void *)vir_addr, output.size);
 
     return ret;
 }
 
-bm_status_t BM_IVE_Integ(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstSrc,
-              IVE_DST_MEM_INFO_S *pstDst, IVE_INTEG_CTRL_S *pstCtrl,
-              bool bInstant)
+bm_status_t BM_IVE_Integ(ive_handle ive_handle, ive_src_image_s *psrc,
+              ive_dst_mem_info_s *pdst, ive_integ_ctrl_s *pctrl,
+              bool instant)
 {
-    struct cvi_ive_ioctl_arg ioctl_arg;
-    struct cvi_ive_ioctl_integ_arg ive_arg;
-    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)pIveHandle;
+    struct ive_ioctl_arg ioctl_arg;
+    struct ive_ioctl_integ_arg ive_arg;
+    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)ive_handle;
     if (p == NULL || p->dev_fd <= 0) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
             "Device ive is not open, please check it %s: %s: %d\n",
@@ -1427,13 +1427,13 @@ bm_status_t BM_IVE_Integ(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstSrc,
         return BM_ERR_DEVNOTREADY;
     }
 
-    ive_arg.pIveHandle = pIveHandle;
-    ive_arg.stSrc = *pstSrc;
-    ive_arg.stDst = *pstDst;
-    ive_arg.stCtrl = *pstCtrl;
+    ive_arg.ive_handle = ive_handle;
+    ive_arg.src = *psrc;
+    ive_arg.dst = *pdst;
+    ive_arg.ctrl = *pctrl;
 
-    ioctl_arg.input_data = (CVI_U64)&ive_arg;
-    bm_status_t ret = (bm_status_t)ioctl(p->dev_fd, CVI_IVE_IOC_Integ, &ioctl_arg);
+    ioctl_arg.input_data = (uint64_t)&ive_arg;
+    bm_status_t ret = (bm_status_t)ioctl(p->dev_fd, IVE_IOC_INTEG, &ioctl_arg);
     return ret;
 }
 
@@ -1444,14 +1444,14 @@ bm_status_t bm_ive_integ(
     bmcv_ive_integ_ctrl_s    integ_attr)
 {
     bm_status_t ret = BM_SUCCESS;
-    IVE_HANDLE pIveHandle = NULL;
-    IVE_SRC_IMAGE_S src;
-    IVE_DST_MEM_INFO_S dst;
-    IVE_INTEG_CTRL_S pstIntegCtrl;
+    ive_handle ive_handle = NULL;
+    ive_src_image_s src;
+    ive_dst_mem_info_s dst;
+    ive_integ_ctrl_s pstIntegCtrl;
 
-    memset(&src, 0, sizeof(IVE_SRC_IMAGE_S));
-    memset(&dst, 0, sizeof(IVE_DST_MEM_INFO_S));
-    memset(&pstIntegCtrl, 0, sizeof(IVE_INTEG_CTRL_S));
+    memset(&src, 0, sizeof(ive_src_image_s));
+    memset(&dst, 0, sizeof(ive_dst_mem_info_s));
+    memset(&pstIntegCtrl, 0, sizeof(ive_integ_ctrl_s));
 
     ret = bm_image_convert_to_ive_image(handle, &input, &src);
     if(ret != BM_SUCCESS){
@@ -1470,45 +1470,45 @@ bm_status_t bm_ive_integ(
         return BM_ERR_FAILURE;
     }
 
-    dst.u64VirAddr = vir_addr;
-    dst.u32Size = output.size;
-    dst.u64PhyAddr = bm_mem_get_device_addr(output);
+    dst.vir_addr = vir_addr;
+    dst.size = output.size;
+    dst.phy_addr = bm_mem_get_device_addr(output);
 
     // set ive integ params
-    pstIntegCtrl.enOutCtrl = integ_attr.en_out_ctrl;
+    pstIntegCtrl.out_ctrl = integ_attr.en_out_ctrl;
 
     // get ive handle and invoke ive funtion
-    pIveHandle = BM_IVE_CreateHandle();
-    if (pIveHandle == NULL) {
+    ive_handle = BM_IVE_CreateHandle();
+    if (ive_handle == NULL) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "failed to create ive handle %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
         return BM_ERR_FAILURE;
     }
 
-    // bInstant: true is interrupt mode, false is polling mode
-    ret = BM_IVE_Integ(pIveHandle, &src, &dst, &pstIntegCtrl, true);
+    // instant: true is interrupt mode, false is polling mode
+    ret = BM_IVE_Integ(ive_handle, &src, &dst, &pstIntegCtrl, true);
     if(ret != BM_SUCCESS){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "cvi_ive_intge error %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
-        BM_IVE_DestroyHandle(pIveHandle);
+        BM_IVE_DestroyHandle(ive_handle);
         bm_mem_unmap_device_mem(handle, (void *)vir_addr, output.size);
         return BM_ERR_FAILURE;
     }
 
-    BM_IVE_DestroyHandle(pIveHandle);
+    BM_IVE_DestroyHandle(ive_handle);
     bm_mem_unmap_device_mem(handle, (void *)vir_addr, output.size);
     return ret;
 }
 
-bm_status_t BM_IVE_NCC(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstSrc1,
-            IVE_SRC_IMAGE_S *pstSrc2, IVE_DST_MEM_INFO_S *pstDst,
-            bool bInstant)
+bm_status_t BM_IVE_NCC(ive_handle ive_handle, ive_src_image_s *psrc1,
+            ive_src_image_s *psrc2, ive_dst_mem_info_s *pdst,
+            bool instant)
 {
-    struct cvi_ive_ioctl_arg ioctl_arg;
-    struct cvi_ive_ioctl_ncc_arg ive_arg;
-    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)pIveHandle;
+    struct ive_ioctl_arg ioctl_arg;
+    struct ive_ioctl_ncc_arg ive_arg;
+    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)ive_handle;
 
     if(p == NULL || p->dev_fd <= 0){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
@@ -1517,16 +1517,16 @@ bm_status_t BM_IVE_NCC(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstSrc1,
         return BM_ERR_DEVNOTREADY;
     }
 
-    ive_arg.pIveHandle = pIveHandle;
-    ive_arg.stSrc1 = *pstSrc1;
-    ive_arg.stSrc2 = *pstSrc2;
-    ive_arg.stDst = *pstDst;
-    ive_arg.bInstant = bInstant;
+    ive_arg.ive_handle = ive_handle;
+    ive_arg.src1 = *psrc1;
+    ive_arg.src2 = *psrc2;
+    ive_arg.dst = *pdst;
+    ive_arg.instant = instant;
 
-    ioctl_arg.input_data = (CVI_U64)&ive_arg;
-    ioctl_arg.buffer = (void *)pstDst->u64VirAddr;
-    ioctl_arg.u32Size = sizeof(IVE_NCC_DST_MEM_S);
-    bm_status_t ret = (bm_status_t)ioctl(p->dev_fd, CVI_IVE_IOC_NCC, &ioctl_arg);
+    ioctl_arg.input_data = (uint64_t)&ive_arg;
+    ioctl_arg.buffer = (void *)pdst->vir_addr;
+    ioctl_arg.size = sizeof(ive_ncc_dst_mem_s);
+    bm_status_t ret = (bm_status_t)ioctl(p->dev_fd, IVE_IOC_NCC, &ioctl_arg);
     return ret;
 }
 
@@ -1537,14 +1537,14 @@ bm_status_t bm_ive_ncc(
     bm_device_mem_t     output)
 {
     bm_status_t ret = BM_SUCCESS;
-    IVE_HANDLE pIveHandle = NULL;
-    IVE_SRC_IMAGE_S src1;
-    IVE_SRC_IMAGE_S src2;
-    IVE_DST_MEM_INFO_S dst;
+    ive_handle ive_handle = NULL;
+    ive_src_image_s src1;
+    ive_src_image_s src2;
+    ive_dst_mem_info_s dst;
 
-    memset(&src1, 0, sizeof(IVE_SRC_IMAGE_S));
-    memset(&src2, 0, sizeof(IVE_SRC_IMAGE_S));
-    memset(&dst, 0, sizeof(IVE_DST_MEM_INFO_S));
+    memset(&src1, 0, sizeof(ive_src_image_s));
+    memset(&src2, 0, sizeof(ive_src_image_s));
+    memset(&dst, 0, sizeof(ive_dst_mem_info_s));
 
     ret = bm_image_convert_to_ive_image(handle, &input1, &src1);
     if(ret != BM_SUCCESS){
@@ -1571,43 +1571,43 @@ bm_status_t bm_ive_ncc(
         return BM_ERR_FAILURE;
     }
 
-    dst.u64VirAddr = vir_addr;
-    dst.u64PhyAddr = bm_mem_get_device_addr(output);
-    dst.u32Size = output.size;
+    dst.vir_addr = vir_addr;
+    dst.phy_addr = bm_mem_get_device_addr(output);
+    dst.size = output.size;
 
     // get ive handle and invoke ive funtion
-    pIveHandle = BM_IVE_CreateHandle();
-    if (pIveHandle == NULL) {
+    ive_handle = BM_IVE_CreateHandle();
+    if (ive_handle == NULL) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "failed to create ive handle %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
         return BM_ERR_FAILURE;
     }
 
-    // bInstant: true is interrupt mode, false is polling mode
-    ret = BM_IVE_NCC(pIveHandle, &src1, &src2, &dst, true);
+    // instant: true is interrupt mode, false is polling mode
+    ret = BM_IVE_NCC(ive_handle, &src1, &src2, &dst, true);
     if(ret != BM_SUCCESS){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "cvi_ive_ncc error %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
-        BM_IVE_DestroyHandle(pIveHandle);
+        BM_IVE_DestroyHandle(ive_handle);
         bm_mem_unmap_device_mem(handle, (void *)vir_addr, output.size);
         return BM_ERR_FAILURE;
     }
 
-    BM_IVE_DestroyHandle(pIveHandle);
+    BM_IVE_DestroyHandle(ive_handle);
     bm_mem_unmap_device_mem(handle, (void *)vir_addr, output.size);
     return ret;
 }
 
-bm_status_t BM_IVE_OrdStatFilter(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstSrc,
-                  IVE_DST_IMAGE_S *pstDst,
-                  IVE_ORD_STAT_FILTER_CTRL_S *pstCtrl,
-                  bool bInstant)
+bm_status_t BM_IVE_OrdStatFilter(ive_handle ive_handle, ive_src_image_s *psrc,
+                  ive_dst_image_s *pdst,
+                  ive_ord_stat_filter_ctrl_s *pctrl,
+                  bool instant)
 {
-    struct cvi_ive_ioctl_arg ioctl_arg;
-    struct cvi_ive_ioctl_ord_stat_filter_arg ive_arg;
-    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)pIveHandle;
+    struct ive_ioctl_arg ioctl_arg;
+    struct ive_ioctl_ord_stat_filter_arg ive_arg;
+    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)ive_handle;
 
     if(p == NULL || p->dev_fd <= 0){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
@@ -1616,14 +1616,14 @@ bm_status_t BM_IVE_OrdStatFilter(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstSrc,
         return BM_ERR_DEVNOTREADY;
     }
 
-    ive_arg.pIveHandle = pIveHandle;
-    ive_arg.stSrc = *pstSrc;
-    ive_arg.stDst = *pstDst;
-    ive_arg.stCtrl = *pstCtrl;
-    ive_arg.bInstant = bInstant;
+    ive_arg.ive_handle = ive_handle;
+    ive_arg.src = *psrc;
+    ive_arg.dst = *pdst;
+    ive_arg.ctrl = *pctrl;
+    ive_arg.instant = instant;
 
-    ioctl_arg.input_data = (CVI_U64)&ive_arg;
-    bm_status_t ret = (bm_status_t)ioctl(p->dev_fd, CVI_IVE_IOC_OrdStatFilter, &ioctl_arg);
+    ioctl_arg.input_data = (uint64_t)&ive_arg;
+    bm_status_t ret = (bm_status_t)ioctl(p->dev_fd, IVE_IOC_ORD_STAT_FILTER, &ioctl_arg);
     return ret;
 }
 
@@ -1634,14 +1634,14 @@ bm_status_t bm_ive_ord_stat_filter(
     bmcv_ive_ord_stat_filter_mode mode)
 {
     bm_status_t ret = BM_SUCCESS;
-    IVE_HANDLE pIveHandle = NULL;
-    IVE_SRC_IMAGE_S src;
-    IVE_DST_IMAGE_S dst;
-    IVE_ORD_STAT_FILTER_CTRL_S pstCtrl;
+    ive_handle ive_handle = NULL;
+    ive_src_image_s src;
+    ive_dst_image_s dst;
+    ive_ord_stat_filter_ctrl_s pctrl;
 
-    memset(&src, 0, sizeof(IVE_SRC_IMAGE_S));
-    memset(&dst, 0, sizeof(IVE_DST_IMAGE_S));
-    memset(&pstCtrl, 0, sizeof(IVE_ORD_STAT_FILTER_CTRL_S));
+    memset(&src, 0, sizeof(ive_src_image_s));
+    memset(&dst, 0, sizeof(ive_dst_image_s));
+    memset(&pctrl, 0, sizeof(ive_ord_stat_filter_ctrl_s));
 
     ret = bm_image_convert_to_ive_image(handle, input, &src);
     if(ret != BM_SUCCESS){
@@ -1659,38 +1659,38 @@ bm_status_t bm_ive_ord_stat_filter(
             return BM_ERR_FAILURE;
     }
 
-    pstCtrl.enMode = mode;
+    pctrl.mode = mode;
 
     // get ive handle and invoke ive funtion
-    pIveHandle = BM_IVE_CreateHandle();
-    if (pIveHandle == NULL) {
+    ive_handle = BM_IVE_CreateHandle();
+    if (ive_handle == NULL) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "failed to create ive handle %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
         return BM_ERR_FAILURE;
     }
 
-    // bInstant: true is interrupt mode, false is polling mode
-    ret = BM_IVE_OrdStatFilter(pIveHandle, &src, &dst, &pstCtrl, true);
+    // instant: true is interrupt mode, false is polling mode
+    ret = BM_IVE_OrdStatFilter(ive_handle, &src, &dst, &pctrl, true);
     if(ret != BM_SUCCESS){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "cvi_ive_ordStatFilter error %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
-        BM_IVE_DestroyHandle(pIveHandle);
+        BM_IVE_DestroyHandle(ive_handle);
         return BM_ERR_FAILURE;
     }
 
-    BM_IVE_DestroyHandle(pIveHandle);
+    BM_IVE_DestroyHandle(ive_handle);
     return ret;
 }
 
-bm_status_t BM_IVE_LBP(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstSrc,
-            IVE_DST_IMAGE_S *pstDst, IVE_LBP_CTRL_S *pstCtrl,
-            bool bInstant)
+bm_status_t BM_IVE_LBP(ive_handle ive_handle, ive_src_image_s *psrc,
+            ive_dst_image_s *pdst, ive_lbp_ctrl_s *pctrl,
+            bool instant)
 {
-    struct cvi_ive_ioctl_arg ioctl_arg;
-    struct cvi_ive_ioctl_lbp_arg ive_arg;
-    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)pIveHandle;
+    struct ive_ioctl_arg ioctl_arg;
+    struct ive_ioctl_lbp_arg ive_arg;
+    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)ive_handle;
 
     if(p == NULL || p->dev_fd <= 0){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
@@ -1699,13 +1699,13 @@ bm_status_t BM_IVE_LBP(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstSrc,
         return BM_ERR_DEVNOTREADY;
     }
 
-    ive_arg.stSrc = *pstSrc;
-    ive_arg.stDst = *pstDst;
-    ive_arg.stCtrl = *pstCtrl;
-    ive_arg.bInstant = bInstant;
+    ive_arg.src = *psrc;
+    ive_arg.dst = *pdst;
+    ive_arg.ctrl = *pctrl;
+    ive_arg.instant = instant;
 
-    ioctl_arg.input_data = (CVI_U64)&ive_arg;
-    bm_status_t ret = (bm_status_t)ioctl(p->dev_fd, CVI_IVE_IOC_LBP, &ioctl_arg);
+    ioctl_arg.input_data = (uint64_t)&ive_arg;
+    bm_status_t ret = (bm_status_t)ioctl(p->dev_fd, IVE_IOC_LBP, &ioctl_arg);
     return ret;
 }
 
@@ -1716,14 +1716,14 @@ bm_status_t bm_ive_lbp(
     bmcv_ive_lbp_ctrl_attr * lbp_attr)
 {
     bm_status_t ret = BM_SUCCESS;
-    IVE_HANDLE pIveHandle = NULL;
-    IVE_SRC_IMAGE_S src;
-    IVE_DST_IMAGE_S dst;
-    IVE_LBP_CTRL_S pstlbpCtrl;
+    ive_handle ive_handle = NULL;
+    ive_src_image_s src;
+    ive_dst_image_s dst;
+    ive_lbp_ctrl_s pstlbpCtrl;
 
-    memset(&src, 0, sizeof(IVE_SRC_IMAGE_S));
-    memset(&dst, 0, sizeof(IVE_DST_IMAGE_S));
-    memset(&pstlbpCtrl, 0, sizeof(IVE_LBP_CTRL_S));
+    memset(&src, 0, sizeof(ive_src_image_s));
+    memset(&dst, 0, sizeof(ive_dst_image_s));
+    memset(&pstlbpCtrl, 0, sizeof(ive_lbp_ctrl_s));
 
     ret = bm_image_convert_to_ive_image(handle, input, &src);
     if(ret != BM_SUCCESS){
@@ -1741,39 +1741,39 @@ bm_status_t bm_ive_lbp(
             return BM_ERR_FAILURE;
     }
 
-    memcpy(&pstlbpCtrl, lbp_attr, sizeof(IVE_LBP_CTRL_S));
+    memcpy(&pstlbpCtrl, lbp_attr, sizeof(ive_lbp_ctrl_s));
 
     // get ive handle and invoke ive funtion
-    pIveHandle = BM_IVE_CreateHandle();
-    if (pIveHandle == NULL) {
+    ive_handle = BM_IVE_CreateHandle();
+    if (ive_handle == NULL) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "failed to create ive handle %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
         return BM_ERR_FAILURE;
     }
 
-    // bInstant: true is interrupt mode, false is polling mode
-    ret = BM_IVE_LBP(pIveHandle, &src, &dst, &pstlbpCtrl, true);
+    // instant: true is interrupt mode, false is polling mode
+    ret = BM_IVE_LBP(ive_handle, &src, &dst, &pstlbpCtrl, true);
     if(ret != BM_SUCCESS){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "cvi_ive_lbp error %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
-        BM_IVE_DestroyHandle(pIveHandle);
+        BM_IVE_DestroyHandle(ive_handle);
         return BM_ERR_FAILURE;
     }
 
-    BM_IVE_DestroyHandle(pIveHandle);
+    BM_IVE_DestroyHandle(ive_handle);
     return ret;
 }
 
 
-bm_status_t BM_IVE_Dilate(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstSrc,
-               IVE_DST_IMAGE_S *pstDst, IVE_DILATE_CTRL_S *pstctrl,
-               bool bInstant)
+bm_status_t BM_IVE_Dilate(ive_handle ive_handle, ive_src_image_s *psrc,
+               ive_dst_image_s *pdst, ive_dilate_ctrl_s *pctrl,
+               bool instant)
 {
-    struct cvi_ive_ioctl_arg ioctl_arg;
-    struct cvi_ive_ioctl_dilate_arg ive_arg;
-    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)pIveHandle;
+    struct ive_ioctl_arg ioctl_arg;
+    struct ive_ioctl_dilate_arg ive_arg;
+    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)ive_handle;
 
     if(p == NULL || p->dev_fd <= 0){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
@@ -1782,14 +1782,14 @@ bm_status_t BM_IVE_Dilate(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstSrc,
         return BM_ERR_DEVNOTREADY;
     }
 
-    ive_arg.pIveHandle = pIveHandle;
-    ive_arg.stSrc = *pstSrc;
-    ive_arg.stDst = *pstDst;
-    ive_arg.stCtrl = *pstctrl;
-    ive_arg.bInstant = bInstant;
+    ive_arg.ive_handle = ive_handle;
+    ive_arg.src = *psrc;
+    ive_arg.dst = *pdst;
+    ive_arg.ctrl = *pctrl;
+    ive_arg.instant = instant;
 
-    ioctl_arg.input_data = (CVI_U64)&ive_arg;
-    bm_status_t ret = (bm_status_t)ioctl(p->dev_fd, CVI_IVE_IOC_Dilate, &ioctl_arg);
+    ioctl_arg.input_data = (uint64_t)&ive_arg;
+    bm_status_t ret = (bm_status_t)ioctl(p->dev_fd, IVE_IOC_DILATE, &ioctl_arg);
     return ret;
 }
 
@@ -1800,14 +1800,14 @@ bm_status_t bm_ive_dilate(
     unsigned char*        dilate_mask)
 {
     bm_status_t ret = BM_SUCCESS;
-    IVE_HANDLE pIveHandle = NULL;
-    IVE_SRC_IMAGE_S src;
-    IVE_DST_IMAGE_S dst;
-    IVE_DILATE_CTRL_S dilateCtrl;
+    ive_handle ive_handle = NULL;
+    ive_src_image_s src;
+    ive_dst_image_s dst;
+    ive_dilate_ctrl_s dilateCtrl;
 
-    memset(&src, 0, sizeof(IVE_SRC_IMAGE_S));
-    memset(&dst, 0, sizeof(IVE_DST_IMAGE_S));
-    memset(&dilateCtrl, 0, sizeof(IVE_DILATE_CTRL_S));
+    memset(&src, 0, sizeof(ive_src_image_s));
+    memset(&dst, 0, sizeof(ive_dst_image_s));
+    memset(&dilateCtrl, 0, sizeof(ive_dilate_ctrl_s));
 
     ret = bm_image_convert_to_ive_image(handle, input, &src);
     if(ret != BM_SUCCESS){
@@ -1825,38 +1825,38 @@ bm_status_t bm_ive_dilate(
             return BM_ERR_FAILURE;
     }
 
-    memcpy(&dilateCtrl.au8Mask, dilate_mask, sizeof(IVE_DILATE_CTRL_S));
+    memcpy(&dilateCtrl.mask, dilate_mask, sizeof(ive_dilate_ctrl_s));
 
     // get ive handle and invoke ive funtion
-    pIveHandle = BM_IVE_CreateHandle();
-    if (pIveHandle == NULL) {
+    ive_handle = BM_IVE_CreateHandle();
+    if (ive_handle == NULL) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "failed to create ive handle %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
         return BM_ERR_FAILURE;
     }
 
-    // bInstant: true is polling mode, false is interrupt mode
-    ret = BM_IVE_Dilate(pIveHandle, &src, &dst, &dilateCtrl, true);
+    // instant: true is polling mode, false is interrupt mode
+    ret = BM_IVE_Dilate(ive_handle, &src, &dst, &dilateCtrl, true);
     if(ret != BM_SUCCESS){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "cvi_ive_dilate error %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
-        BM_IVE_DestroyHandle(pIveHandle);
+        BM_IVE_DestroyHandle(ive_handle);
         return BM_ERR_FAILURE;
     }
 
-    BM_IVE_DestroyHandle(pIveHandle);
+    BM_IVE_DestroyHandle(ive_handle);
     return ret;
 }
 
-bm_status_t BM_IVE_Erode(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstSrc,
-              IVE_DST_IMAGE_S *pstDst, IVE_ERODE_CTRL_S *pstCtrl,
-              bool bInstant)
+bm_status_t BM_IVE_Erode(ive_handle ive_handle, ive_src_image_s *psrc,
+              ive_dst_image_s *pdst, ive_erode_ctrl_s *pctrl,
+              bool instant)
 {
-    struct cvi_ive_ioctl_arg ioctl_arg;
-    struct cvi_ive_ioctl_erode_arg ive_arg;
-    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)pIveHandle;
+    struct ive_ioctl_arg ioctl_arg;
+    struct ive_ioctl_erode_arg ive_arg;
+    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)ive_handle;
 
     if(p == NULL || p->dev_fd <= 0){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
@@ -1865,14 +1865,14 @@ bm_status_t BM_IVE_Erode(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstSrc,
         return BM_ERR_DEVNOTREADY;
     }
 
-    ive_arg.pIveHandle = pIveHandle;
-    ive_arg.stSrc = *pstSrc;
-    ive_arg.stDst = *pstDst;
-    ive_arg.stCtrl = *pstCtrl;
-    ive_arg.bInstant = bInstant;
+    ive_arg.ive_handle = ive_handle;
+    ive_arg.src = *psrc;
+    ive_arg.dst = *pdst;
+    ive_arg.ctrl = *pctrl;
+    ive_arg.instant = instant;
 
-    ioctl_arg.input_data = (CVI_U64)&ive_arg;
-    bm_status_t ret = (bm_status_t)ioctl(p->dev_fd, CVI_IVE_IOC_Erode, &ioctl_arg);
+    ioctl_arg.input_data = (uint64_t)&ive_arg;
+    bm_status_t ret = (bm_status_t)ioctl(p->dev_fd, IVE_IOC_ERODE, &ioctl_arg);
     return ret;
 }
 
@@ -1883,14 +1883,14 @@ bm_status_t bm_ive_erode(
     unsigned char *       erode_mask)
 {
     bm_status_t ret = BM_SUCCESS;
-    IVE_HANDLE pIveHandle = NULL;
-    IVE_SRC_IMAGE_S src;
-    IVE_DST_IMAGE_S dst;
-    IVE_ERODE_CTRL_S pstErodeCtrl;
+    ive_handle ive_handle = NULL;
+    ive_src_image_s src;
+    ive_dst_image_s dst;
+    ive_erode_ctrl_s pstErodeCtrl;
 
-    memset(&src, 0, sizeof(IVE_SRC_IMAGE_S));
-    memset(&dst, 0, sizeof(IVE_DST_IMAGE_S));
-    memset(&pstErodeCtrl, 0, sizeof(IVE_ERODE_CTRL_S));
+    memset(&src, 0, sizeof(ive_src_image_s));
+    memset(&dst, 0, sizeof(ive_dst_image_s));
+    memset(&pstErodeCtrl, 0, sizeof(ive_erode_ctrl_s));
 
     ret = bm_image_convert_to_ive_image(handle, input, &src);
     if(ret != BM_SUCCESS){
@@ -1908,39 +1908,39 @@ bm_status_t bm_ive_erode(
             return BM_ERR_FAILURE;
     }
 
-    // memcpy(&pstErodeCtrl, erode_attr, sizeof(IVE_ERODE_CTRL_S));
-    memcpy(&pstErodeCtrl.au8Mask, erode_mask, sizeof(IVE_ERODE_CTRL_S));
+    // memcpy(&pstErodeCtrl, erode_attr, sizeof(ive_erode_ctrl_s));
+    memcpy(&pstErodeCtrl.mask, erode_mask, sizeof(ive_erode_ctrl_s));
     // get ive handle and invoke ive funtion
-    pIveHandle = BM_IVE_CreateHandle();
-    if (pIveHandle == NULL) {
+    ive_handle = BM_IVE_CreateHandle();
+    if (ive_handle == NULL) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "failed to create ive handle %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
         return BM_ERR_FAILURE;
     }
 
-    // bInstant: true is interrupt mode, false is polling mode
-    ret = BM_IVE_Erode(pIveHandle, &src, &dst, &pstErodeCtrl, true);
+    // instant: true is interrupt mode, false is polling mode
+    ret = BM_IVE_Erode(ive_handle, &src, &dst, &pstErodeCtrl, true);
     if(ret != BM_SUCCESS){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "cvi_ive_erode error %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
-        BM_IVE_DestroyHandle(pIveHandle);
+        BM_IVE_DestroyHandle(ive_handle);
         return BM_ERR_FAILURE;
     }
 
-    BM_IVE_DestroyHandle(pIveHandle);
+    BM_IVE_DestroyHandle(ive_handle);
     return ret;
 }
 
-bm_status_t BM_IVE_MagAndAng(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstSrc,
-              IVE_DST_IMAGE_S *pstDstMag,
-              IVE_DST_IMAGE_S *pstDstAng,
-              IVE_MAG_AND_ANG_CTRL_S *pstCtrl, bool bInstant)
+bm_status_t BM_IVE_MagAndAng(ive_handle ive_handle, ive_src_image_s *psrc,
+              ive_dst_image_s *pdstMag,
+              ive_dst_image_s *pdstAng,
+              ive_mag_and_ang_ctrl_s *pctrl, bool instant)
 {
-    struct cvi_ive_ioctl_arg ioctl_arg;
-    struct cvi_ive_ioctl_maganang_arg ive_arg;
-    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)pIveHandle;
+    struct ive_ioctl_arg ioctl_arg;
+    struct ive_ioctl_maganang_arg ive_arg;
+    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)ive_handle;
     if(p == NULL || p->dev_fd <= 0){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
             "Device ive is not open, please check it %s: %s: %d\n",
@@ -1948,17 +1948,17 @@ bm_status_t BM_IVE_MagAndAng(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstSrc,
         return BM_ERR_DEVNOTREADY;
     }
 
-    ive_arg.pIveHandle = pIveHandle;
-    ive_arg.stSrc = *pstSrc;
-    if (pstDstMag != NULL)
-        ive_arg.stDstMag = *pstDstMag;
-    if (pstDstAng != NULL)
-        ive_arg.stDstAng = *pstDstAng;
-    ive_arg.stCtrl = *pstCtrl;
-    ive_arg.bInstant = bInstant;
+    ive_arg.ive_handle = ive_handle;
+    ive_arg.src = *psrc;
+    if (pdstMag != NULL)
+        ive_arg.dst_mag = *pdstMag;
+    if (pdstAng != NULL)
+        ive_arg.dst_ang = *pdstAng;
+    ive_arg.ctrl = *pctrl;
+    ive_arg.instant = instant;
 
-    ioctl_arg.input_data = (CVI_U64)&ive_arg;
-    bm_status_t ret = (bm_status_t)ioctl(p->dev_fd, CVI_IVE_IOC_MagAndAng, &ioctl_arg);
+    ioctl_arg.input_data = (uint64_t)&ive_arg;
+    bm_status_t ret = (bm_status_t)ioctl(p->dev_fd, IVE_IOC_MAG_AND_ANG, &ioctl_arg);
     return ret;
 }
 
@@ -1970,16 +1970,16 @@ bm_status_t bm_ive_mag_and_ang(
     bmcv_ive_mag_and_ang_ctrl *   attr)
 {
     bm_status_t ret = BM_SUCCESS;
-    IVE_HANDLE pIveHandle = NULL;
-    IVE_SRC_IMAGE_S src;
-    IVE_DST_IMAGE_S dstMag;
-    IVE_DST_IMAGE_S dstAng;
-    IVE_MAG_AND_ANG_CTRL_S magAndAng_outCtrl;
+    ive_handle ive_handle = NULL;
+    ive_src_image_s src;
+    ive_dst_image_s dstMag;
+    ive_dst_image_s dstAng;
+    ive_mag_and_ang_ctrl_s magAndAng_outCtrl;
 
-    memset(&src, 0, sizeof(IVE_SRC_IMAGE_S));
-    memset(&dstMag, 0, sizeof(IVE_DST_IMAGE_S));
-    memset(&dstAng, 0, sizeof(IVE_DST_IMAGE_S));
-    memset(&magAndAng_outCtrl, 0, sizeof(IVE_MAG_AND_ANG_CTRL_S));
+    memset(&src, 0, sizeof(ive_src_image_s));
+    memset(&dstMag, 0, sizeof(ive_dst_image_s));
+    memset(&dstAng, 0, sizeof(ive_dst_image_s));
+    memset(&magAndAng_outCtrl, 0, sizeof(ive_mag_and_ang_ctrl_s));
 
     ret = bm_image_convert_to_ive_image(handle, input, &src);
     if(ret != BM_SUCCESS){
@@ -2007,38 +2007,38 @@ bm_status_t bm_ive_mag_and_ang(
         }
     }
 
-    memcpy(&magAndAng_outCtrl, attr, sizeof(IVE_MAG_AND_ANG_CTRL_S));
+    memcpy(&magAndAng_outCtrl, attr, sizeof(ive_mag_and_ang_ctrl_s));
 
     // get ive handle and invoke ive funtion
-    pIveHandle = BM_IVE_CreateHandle();
-    if (pIveHandle == NULL) {
+    ive_handle = BM_IVE_CreateHandle();
+    if (ive_handle == NULL) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "failed to create ive handle %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
         return BM_ERR_FAILURE;
     }
 
-    // bInstant: true is interrupt mode, false is polling mode
-    ret = BM_IVE_MagAndAng(pIveHandle, &src, &dstMag, &dstAng, &magAndAng_outCtrl, true);
+    // instant: true is interrupt mode, false is polling mode
+    ret = BM_IVE_MagAndAng(ive_handle, &src, &dstMag, &dstAng, &magAndAng_outCtrl, true);
     if(ret != BM_SUCCESS){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "cvi_ive_magAndAng error %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
-        BM_IVE_DestroyHandle(pIveHandle);
+        BM_IVE_DestroyHandle(ive_handle);
         return BM_ERR_FAILURE;
     }
 
-    BM_IVE_DestroyHandle(pIveHandle);
+    BM_IVE_DestroyHandle(ive_handle);
     return ret;
 }
 
-bm_status_t BM_IVE_Sobel(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstSrc,
-              IVE_DST_IMAGE_S *pstDstH, IVE_DST_IMAGE_S *pstDstV,
-              IVE_SOBEL_CTRL_S *pstCtrl, bool bInstant)
+bm_status_t BM_IVE_Sobel(ive_handle ive_handle, ive_src_image_s *psrc,
+              ive_dst_image_s *pdstH, ive_dst_image_s *pdstV,
+              ive_sobel_ctrl_s *pctrl, bool instant)
 {
-    struct cvi_ive_ioctl_arg ioctl_arg;
-    struct cvi_ive_ioctl_sobel_arg ive_arg;
-    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)pIveHandle;
+    struct ive_ioctl_arg ioctl_arg;
+    struct ive_ioctl_sobel_arg ive_arg;
+    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)ive_handle;
     if(p == NULL || p->dev_fd <= 0){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
             "Device ive is not open, please check it %s: %s: %d\n",
@@ -2046,17 +2046,17 @@ bm_status_t BM_IVE_Sobel(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstSrc,
         return BM_ERR_DEVNOTREADY;
     }
 
-    ive_arg.pIveHandle = pIveHandle;
-    ive_arg.stSrc = *pstSrc;
-    if(pstDstH != NULL)
-        ive_arg.stDstH = *pstDstH;
-    if(pstDstV != NULL)
-        ive_arg.stDstV = *pstDstV;
-    ive_arg.stCtrl = *pstCtrl;
-    ive_arg.bInstant = bInstant;
+    ive_arg.ive_handle = ive_handle;
+    ive_arg.src = *psrc;
+    if(pdstH != NULL)
+        ive_arg.dst_h = *pdstH;
+    if(pdstV != NULL)
+        ive_arg.dst_v = *pdstV;
+    ive_arg.ctrl = *pctrl;
+    ive_arg.instant = instant;
 
-    ioctl_arg.input_data = (CVI_U64)&ive_arg;
-    bm_status_t ret = (bm_status_t)ioctl(p->dev_fd, CVI_IVE_IOC_Sobel, &ioctl_arg);
+    ioctl_arg.input_data = (uint64_t)&ive_arg;
+    bm_status_t ret = (bm_status_t)ioctl(p->dev_fd, IVE_IOC_SOBEL, &ioctl_arg);
     return ret;
 }
 
@@ -2068,16 +2068,16 @@ bm_status_t bm_ive_sobel(
     bmcv_ive_sobel_ctrl * sobel_attr)
 {
     bm_status_t ret = BM_SUCCESS;
-    IVE_HANDLE pIveHandle = NULL;
-    IVE_SRC_IMAGE_S src;
-    IVE_DST_IMAGE_S dstH;
-    IVE_DST_IMAGE_S dstV;
-    IVE_SOBEL_CTRL_S sobelCtrl;
+    ive_handle ive_handle = NULL;
+    ive_src_image_s src;
+    ive_dst_image_s dstH;
+    ive_dst_image_s dstV;
+    ive_sobel_ctrl_s sobelCtrl;
 
-    memset(&src, 0, sizeof(IVE_SRC_IMAGE_S));
-    memset(&dstH, 0, sizeof(IVE_DST_IMAGE_S));
-    memset(&dstV, 0, sizeof(IVE_DST_IMAGE_S));
-    memset(&sobelCtrl, 0, sizeof(IVE_SOBEL_CTRL_S));
+    memset(&src, 0, sizeof(ive_src_image_s));
+    memset(&dstH, 0, sizeof(ive_dst_image_s));
+    memset(&dstV, 0, sizeof(ive_dst_image_s));
+    memset(&sobelCtrl, 0, sizeof(ive_sobel_ctrl_s));
 
     ret = bm_image_convert_to_ive_image(handle, input, &src);
     if(ret != BM_SUCCESS){
@@ -2109,39 +2109,39 @@ bm_status_t bm_ive_sobel(
         }
     }
 
-    memcpy(&sobelCtrl, sobel_attr, sizeof(IVE_SOBEL_CTRL_S));
+    memcpy(&sobelCtrl, sobel_attr, sizeof(ive_sobel_ctrl_s));
 
     // get ive handle and invoke ive funtion
-    pIveHandle = BM_IVE_CreateHandle();
-    if (pIveHandle == NULL) {
+    ive_handle = BM_IVE_CreateHandle();
+    if (ive_handle == NULL) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "failed to create ive handle %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
         return BM_ERR_FAILURE;
     }
 
-    // bInstant: true is interrupt mode, false is polling mode
-    ret = BM_IVE_Sobel(pIveHandle, &src, &dstH, &dstV, &sobelCtrl, true);
+    // instant: true is interrupt mode, false is polling mode
+    ret = BM_IVE_Sobel(ive_handle, &src, &dstH, &dstV, &sobelCtrl, true);
     if(ret != BM_SUCCESS){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "cvi_ive_sobel error %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
-        BM_IVE_DestroyHandle(pIveHandle);
+        BM_IVE_DestroyHandle(ive_handle);
         return BM_ERR_FAILURE;
     }
 
-    BM_IVE_DestroyHandle(pIveHandle);
+    BM_IVE_DestroyHandle(ive_handle);
     return ret;
 }
 
-bm_status_t BM_IVE_NormGrad(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstSrc,
-             IVE_DST_IMAGE_S *pstDstH, IVE_DST_IMAGE_S *pstDstV,
-             IVE_DST_IMAGE_S *pstDstHV,
-             IVE_NORM_GRAD_CTRL_S *pstCtrl, bool bInstant)
+bm_status_t BM_IVE_NormGrad(ive_handle ive_handle, ive_src_image_s *psrc,
+             ive_dst_image_s *pdstH, ive_dst_image_s *pdstV,
+             ive_dst_image_s *pdstHV,
+             ive_norm_grad_ctrl_s  *pctrl, bool instant)
 {
-    struct cvi_ive_ioctl_arg ioctl_arg;
-    struct cvi_ive_ioctl_norm_grad_arg ive_arg;
-    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)pIveHandle;
+    struct ive_ioctl_arg ioctl_arg;
+    struct ive_ioctl_norm_grad_arg ive_arg;
+    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)ive_handle;
     if(p == NULL || p->dev_fd <= 0){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
             "Device ive is not open, please check it %s: %s: %d\n",
@@ -2149,19 +2149,19 @@ bm_status_t BM_IVE_NormGrad(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstSrc,
         return BM_ERR_DEVNOTREADY;
     }
 
-    ive_arg.pIveHandle = pIveHandle;
-    ive_arg.stSrc = *pstSrc;
-    if(pstDstH != NULL)
-        ive_arg.stDstH = *pstDstH;
-    if(pstDstV != NULL)
-        ive_arg.stDstV = *pstDstV;
-    if(pstDstHV != NULL)
-        ive_arg.stDstHV = *pstDstHV;
-    ive_arg.stCtrl = *pstCtrl;
-    ive_arg.bInstant = bInstant;
+    ive_arg.ive_handle = ive_handle;
+    ive_arg.src = *psrc;
+    if(pdstH != NULL)
+        ive_arg.dst_h = *pdstH;
+    if(pdstV != NULL)
+        ive_arg.dst_v = *pdstV;
+    if(pdstHV != NULL)
+        ive_arg.dst_hv = *pdstHV;
+    ive_arg.ctrl = *pctrl;
+    ive_arg.instant = instant;
 
-    ioctl_arg.input_data = (CVI_U64)&ive_arg;
-    bm_status_t ret = (bm_status_t)ioctl(p->dev_fd, CVI_IVE_IOC_NormGrad, &ioctl_arg);
+    ioctl_arg.input_data = (uint64_t)&ive_arg;
+    bm_status_t ret = (bm_status_t)ioctl(p->dev_fd, IVE_IOC_NORMGRAD, &ioctl_arg);
     return ret;
 }
 
@@ -2174,18 +2174,18 @@ bm_status_t bm_ive_normgrad(
     bmcv_ive_normgrad_ctrl * normgrad_attr)
 {
     bm_status_t ret = BM_SUCCESS;
-    IVE_HANDLE pIveHandle = NULL;
-    IVE_SRC_IMAGE_S src;
-    IVE_DST_IMAGE_S dstH;
-    IVE_DST_IMAGE_S dstV;
-    IVE_DST_IMAGE_S dstHV;
-    IVE_NORM_GRAD_CTRL_S normGradCtrl;
+    ive_handle ive_handle = NULL;
+    ive_src_image_s src;
+    ive_dst_image_s dstH;
+    ive_dst_image_s dstV;
+    ive_dst_image_s dstHV;
+    ive_norm_grad_ctrl_s normGradCtrl;
 
-    memset(&src, 0, sizeof(IVE_SRC_IMAGE_S));
-    memset(&dstH, 0, sizeof(IVE_DST_IMAGE_S));
-    memset(&dstV, 0, sizeof(IVE_DST_IMAGE_S));
-    memset(&dstHV, 0, sizeof(IVE_DST_IMAGE_S));
-    memset(&normGradCtrl, 0, sizeof(IVE_NORM_GRAD_CTRL_S));
+    memset(&src, 0, sizeof(ive_src_image_s));
+    memset(&dstH, 0, sizeof(ive_dst_image_s));
+    memset(&dstV, 0, sizeof(ive_dst_image_s));
+    memset(&dstHV, 0, sizeof(ive_dst_image_s));
+    memset(&normGradCtrl, 0, sizeof(ive_norm_grad_ctrl_s));
 
 
     ret = bm_image_convert_to_ive_image(handle, input, &src);
@@ -2230,39 +2230,39 @@ bm_status_t bm_ive_normgrad(
         }
     }
 
-    memcpy(&normGradCtrl, normgrad_attr, sizeof(IVE_NORM_GRAD_CTRL_S));
+    memcpy(&normGradCtrl, normgrad_attr, sizeof(ive_norm_grad_ctrl_s));
 
     // get ive handle and invoke ive funtion
-    pIveHandle = BM_IVE_CreateHandle();
-    if (pIveHandle == NULL) {
+    ive_handle = BM_IVE_CreateHandle();
+    if (ive_handle == NULL) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "failed to create ive handle %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
         return BM_ERR_FAILURE;
     }
 
-    // bInstant: true is interrupt mode, false is polling mode
-    ret = BM_IVE_NormGrad(pIveHandle, &src, &dstH, &dstV, &dstHV, &normGradCtrl, true);
+    // instant: true is interrupt mode, false is polling mode
+    ret = BM_IVE_NormGrad(ive_handle, &src, &dstH, &dstV, &dstHV, &normGradCtrl, true);
     if(ret != BM_SUCCESS){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "cvi_ive_normgrad error %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
-        BM_IVE_DestroyHandle(pIveHandle);
+        BM_IVE_DestroyHandle(ive_handle);
         return BM_ERR_FAILURE;
     }
 
-    BM_IVE_DestroyHandle(pIveHandle);
+    BM_IVE_DestroyHandle(ive_handle);
     return ret;
 }
 
-bm_status_t BM_IVE_GMM(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstSrc,
-            IVE_DST_IMAGE_S *pstFg, IVE_DST_IMAGE_S *pstBg,
-            IVE_MEM_INFO_S *pstModel, IVE_GMM_CTRL_S *pstCtrl,
-            bool bInstant)
+bm_status_t BM_IVE_GMM(ive_handle ive_handle, ive_src_image_s *psrc,
+            ive_dst_image_s *pstFg, ive_dst_image_s *pstBg,
+            ive_mem_info_s *pstModel, ive_gmm_ctrl_s *pctrl,
+            bool instant)
 {
-    struct cvi_ive_ioctl_arg ioctl_arg;
-    struct cvi_ive_ioctl_gmm_arg ive_arg;
-    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)pIveHandle;
+    struct ive_ioctl_arg ioctl_arg;
+    struct ive_ioctl_gmm_arg ive_arg;
+    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)ive_handle;
     if(p == NULL || p->dev_fd <= 0){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
             "Device ive is not open, please check it %s: %s: %d\n",
@@ -2270,16 +2270,16 @@ bm_status_t BM_IVE_GMM(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstSrc,
         return BM_ERR_DEVNOTREADY;
     }
 
-    ive_arg.pIveHandle = pIveHandle;
-    ive_arg.stSrc = *pstSrc;
-    ive_arg.stFg = *pstFg;
-    ive_arg.stBg = *pstBg;
-    ive_arg.stModel = *pstModel;
-    ive_arg.stCtrl = *pstCtrl;
-    ive_arg.bInstant = bInstant;
+    ive_arg.ive_handle = ive_handle;
+    ive_arg.src = *psrc;
+    ive_arg.fg = *pstFg;
+    ive_arg.bg = *pstBg;
+    ive_arg.model = *pstModel;
+    ive_arg.ctrl = *pctrl;
+    ive_arg.instant = instant;
 
-    ioctl_arg.input_data = (CVI_U64)&ive_arg;
-    bm_status_t ret = (bm_status_t)ioctl(p->dev_fd, CVI_IVE_IOC_GMM, &ioctl_arg);
+    ioctl_arg.input_data = (uint64_t)&ive_arg;
+    bm_status_t ret = (bm_status_t)ioctl(p->dev_fd, IVE_IOC_GMM, &ioctl_arg);
     return ret;
 }
 
@@ -2292,18 +2292,18 @@ bm_status_t bm_ive_gmm(
     bmcv_ive_gmm_ctrl *    gmm_attr)
 {
     bm_status_t ret = BM_SUCCESS;
-    IVE_HANDLE pIveHandle = NULL;
-    IVE_SRC_IMAGE_S src;
-    IVE_DST_IMAGE_S dstFg;
-    IVE_DST_IMAGE_S dstBg;
-    IVE_MEM_INFO_S  dstModel;
-    IVE_GMM_CTRL_S gmmCtrl;
+    ive_handle ive_handle = NULL;
+    ive_src_image_s src;
+    ive_dst_image_s dstFg;
+    ive_dst_image_s dstBg;
+    ive_mem_info_s  dstModel;
+    ive_gmm_ctrl_s gmmCtrl;
 
-    memset(&src, 0, sizeof(IVE_SRC_IMAGE_S));
-    memset(&dstFg, 0, sizeof(IVE_DST_IMAGE_S));
-    memset(&dstBg, 0, sizeof(IVE_DST_IMAGE_S));
-    memset(&dstModel, 0, sizeof(IVE_MEM_INFO_S));
-    memset(&gmmCtrl, 0, sizeof(IVE_GMM_CTRL_S));
+    memset(&src, 0, sizeof(ive_src_image_s));
+    memset(&dstFg, 0, sizeof(ive_dst_image_s));
+    memset(&dstBg, 0, sizeof(ive_dst_image_s));
+    memset(&dstModel, 0, sizeof(ive_mem_info_s));
+    memset(&gmmCtrl, 0, sizeof(ive_gmm_ctrl_s));
 
     ret = bm_image_convert_to_ive_image(handle, input, &src);
     if(ret != BM_SUCCESS){
@@ -2338,47 +2338,47 @@ bm_status_t bm_ive_gmm(
         return BM_ERR_FAILURE;
     }
 
-    dstModel.u64VirAddr = vir_addr;
-    dstModel.u64PhyAddr = bm_mem_get_device_addr(*output_model);
-    dstModel.u32Size = output_model->size;
+    dstModel.vir_addr = vir_addr;
+    dstModel.phy_addr = bm_mem_get_device_addr(*output_model);
+    dstModel.size = output_model->size;
 
-    memcpy(&gmmCtrl, gmm_attr, sizeof(IVE_GMM_CTRL_S));
+    memcpy(&gmmCtrl, gmm_attr, sizeof(ive_gmm_ctrl_s));
 
     // get ive handle and invoke ive funtion
-    pIveHandle = BM_IVE_CreateHandle();
-    if (pIveHandle == NULL) {
+    ive_handle = BM_IVE_CreateHandle();
+    if (ive_handle == NULL) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "failed to create ive handle %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
         return BM_ERR_FAILURE;
     }
 
-    // bInstant: true is interrupt mode, false is polling mode
-    ret = BM_IVE_GMM(pIveHandle, &src, &dstFg, &dstBg, &dstModel, &gmmCtrl, true);
+    // instant: true is interrupt mode, false is polling mode
+    ret = BM_IVE_GMM(ive_handle, &src, &dstFg, &dstBg, &dstModel, &gmmCtrl, true);
     if(ret != BM_SUCCESS){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "cvi_ive_gmm error %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
-        BM_IVE_DestroyHandle(pIveHandle);
+        BM_IVE_DestroyHandle(ive_handle);
         bm_mem_unmap_device_mem(handle, (void *)vir_addr, output_model->size);
         return BM_ERR_FAILURE;
     }
 
-    BM_IVE_DestroyHandle(pIveHandle);
+    BM_IVE_DestroyHandle(ive_handle);
     bm_mem_unmap_device_mem(handle, (void *)vir_addr, output_model->size);
 
     return ret;
 }
 
-bm_status_t BM_IVE_GMM2(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstSrc,
-             IVE_SRC_IMAGE_S *pstFactor, IVE_DST_IMAGE_S *pstFg,
-             IVE_DST_IMAGE_S *pstBg, IVE_DST_IMAGE_S *pstMatchModelInfo,
-             IVE_MEM_INFO_S *pstModel, IVE_GMM2_CTRL_S *pstCtrl,
-             bool bInstant)
+bm_status_t BM_IVE_GMM2(ive_handle ive_handle, ive_src_image_s *psrc,
+             ive_src_image_s *pstFactor, ive_dst_image_s *pstFg,
+             ive_dst_image_s *pstBg, ive_dst_image_s *pstMatchModelInfo,
+             ive_mem_info_s *pstModel, ive_gmm2_ctrl_s *pctrl,
+             bool instant)
 {
-    struct cvi_ive_ioctl_arg ioctl_arg;
-    struct cvi_ive_ioctl_gmm2_arg ive_arg;
-    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)pIveHandle;
+    struct ive_ioctl_arg ioctl_arg;
+    struct ive_ioctl_gmm2_arg ive_arg;
+    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)ive_handle;
     if(p == NULL || p->dev_fd <= 0){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
             "Device ive is not open, please check it %s: %s: %d\n",
@@ -2386,18 +2386,18 @@ bm_status_t BM_IVE_GMM2(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstSrc,
         return BM_ERR_DEVNOTREADY;
     }
 
-    ive_arg.pIveHandle = pIveHandle;
-    ive_arg.stSrc = *pstSrc;
-    ive_arg.stFactor = *pstFactor;
-    ive_arg.stFg = *pstFg;
-    ive_arg.stBg = *pstBg;
+    ive_arg.ive_handle = ive_handle;
+    ive_arg.src = *psrc;
+    ive_arg.factor = *pstFactor;
+    ive_arg.fg = *pstFg;
+    ive_arg.bg = *pstBg;
     ive_arg.stInfo = *pstMatchModelInfo;
-    ive_arg.stModel = *pstModel;
-    ive_arg.stCtrl = *pstCtrl;
-    ive_arg.bInstant = bInstant;
+    ive_arg.model = *pstModel;
+    ive_arg.ctrl = *pctrl;
+    ive_arg.instant = instant;
 
-    ioctl_arg.input_data = (CVI_U64)&ive_arg;
-    bm_status_t ret = (bm_status_t)ioctl(p->dev_fd, CVI_IVE_IOC_GMM2, &ioctl_arg);
+    ioctl_arg.input_data = (uint64_t)&ive_arg;
+    bm_status_t ret = (bm_status_t)ioctl(p->dev_fd, IVE_IOC_GMM2, &ioctl_arg);
     return ret;
 }
 
@@ -2412,22 +2412,22 @@ bm_status_t bm_ive_gmm2(
     bmcv_ive_gmm2_ctrl *   gmm2_attr)
 {
     bm_status_t ret = BM_SUCCESS;
-    IVE_HANDLE pIveHandle = NULL;
-    IVE_SRC_IMAGE_S src;
-    IVE_SRC_IMAGE_S srcFactor;
-    IVE_DST_IMAGE_S dstFg;
-    IVE_DST_IMAGE_S dstBg;
-    IVE_DST_IMAGE_S dstMatchModelInfo;
-    IVE_MEM_INFO_S  dstModel;
-    IVE_GMM2_CTRL_S gmm2Ctrl;
+    ive_handle ive_handle = NULL;
+    ive_src_image_s src;
+    ive_src_image_s srcFactor;
+    ive_dst_image_s dstFg;
+    ive_dst_image_s dstBg;
+    ive_dst_image_s dstMatchModelInfo;
+    ive_mem_info_s  dstModel;
+    ive_gmm2_ctrl_s gmm2Ctrl;
 
-    memset(&src, 0, sizeof(IVE_SRC_IMAGE_S));
-    memset(&srcFactor, 0, sizeof(IVE_SRC_IMAGE_S));
-    memset(&dstFg, 0, sizeof(IVE_DST_IMAGE_S));
-    memset(&dstBg, 0, sizeof(IVE_DST_IMAGE_S));
-    memset(&dstMatchModelInfo, 0, sizeof(IVE_DST_IMAGE_S));
-    memset(&dstModel, 0, sizeof(IVE_MEM_INFO_S));
-    memset(&gmm2Ctrl, 0, sizeof(IVE_GMM2_CTRL_S));
+    memset(&src, 0, sizeof(ive_src_image_s));
+    memset(&srcFactor, 0, sizeof(ive_src_image_s));
+    memset(&dstFg, 0, sizeof(ive_dst_image_s));
+    memset(&dstBg, 0, sizeof(ive_dst_image_s));
+    memset(&dstMatchModelInfo, 0, sizeof(ive_dst_image_s));
+    memset(&dstModel, 0, sizeof(ive_mem_info_s));
+    memset(&gmm2Ctrl, 0, sizeof(ive_gmm2_ctrl_s));
 
     ret = bm_image_convert_to_ive_image(handle, input, &src);
     if(ret != BM_SUCCESS){
@@ -2478,46 +2478,46 @@ bm_status_t bm_ive_gmm2(
         return BM_ERR_FAILURE;
     }
 
-    dstModel.u64VirAddr = vir_addr;
-    dstModel.u64PhyAddr = bm_mem_get_device_addr(*output_model);
-    dstModel.u32Size = output_model->size;
+    dstModel.vir_addr = vir_addr;
+    dstModel.phy_addr = bm_mem_get_device_addr(*output_model);
+    dstModel.size = output_model->size;
 
-    memcpy(&gmm2Ctrl, gmm2_attr, sizeof(IVE_GMM2_CTRL_S));
+    memcpy(&gmm2Ctrl, gmm2_attr, sizeof(ive_gmm2_ctrl_s));
 
     // get ive handle and invoke ive funtion
-    pIveHandle = BM_IVE_CreateHandle();
-    if (pIveHandle == NULL) {
+    ive_handle = BM_IVE_CreateHandle();
+    if (ive_handle == NULL) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "failed to create ive handle %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
         return BM_ERR_FAILURE;
     }
 
-    // bInstant: true is interrupt mode, false is polling mode
-    ret = BM_IVE_GMM2(pIveHandle, &src, &srcFactor, &dstFg, &dstBg,
+    // instant: true is interrupt mode, false is polling mode
+    ret = BM_IVE_GMM2(ive_handle, &src, &srcFactor, &dstFg, &dstBg,
                            &dstMatchModelInfo, &dstModel, &gmm2Ctrl, true);
     if(ret != BM_SUCCESS){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "cvi_ive_gmm2 error %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
-        BM_IVE_DestroyHandle(pIveHandle);
+        BM_IVE_DestroyHandle(ive_handle);
         bm_mem_unmap_device_mem(handle, (void *)vir_addr, output_model->size);
         return BM_ERR_FAILURE;
     }
 
-    BM_IVE_DestroyHandle(pIveHandle);
+    BM_IVE_DestroyHandle(ive_handle);
     bm_mem_unmap_device_mem(handle, (void *)vir_addr, output_model->size);
 
     return ret;
 }
 
-bm_status_t BM_IVE_CanngHysEdge(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstSrc,
-             IVE_DST_IMAGE_S *pstEdge, IVE_DST_MEM_INFO_S *pstStack,
-             IVE_CANNY_HYS_EDGE_CTRL_S *pstCtrl, bool bInstant)
+bm_status_t BM_IVE_CanngHysEdge(ive_handle ive_handle, ive_src_image_s *psrc,
+             ive_dst_image_s *pstEdge, ive_dst_mem_info_s *pstStack,
+             ive_canny_hys_edge_ctrl_s *pctrl, bool instant)
 {
-    struct cvi_ive_ioctl_arg ioctl_arg;
-    struct cvi_ive_ioctl_canny_hys_edge_arg ive_arg;
-    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)pIveHandle;
+    struct ive_ioctl_arg ioctl_arg;
+    struct ive_ioctl_canny_hys_edge_arg ive_arg;
+    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)ive_handle;
     if(p == NULL || p->dev_fd <= 0){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
             "Device ive is not open, please check it %s: %s: %d\n",
@@ -2525,15 +2525,15 @@ bm_status_t BM_IVE_CanngHysEdge(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstSrc,
         return BM_ERR_DEVNOTREADY;
     }
 
-    ive_arg.pIveHandle = pIveHandle;
-    ive_arg.stSrc = *pstSrc;
-    ive_arg.stDst = *pstEdge;
-    ive_arg.stStack = *pstStack;
-    ive_arg.stCtrl = *pstCtrl;
-    ive_arg.bInstant = bInstant;
+    ive_arg.ive_handle = ive_handle;
+    ive_arg.src = *psrc;
+    ive_arg.dst = *pstEdge;
+    ive_arg.stack = *pstStack;
+    ive_arg.ctrl = *pctrl;
+    ive_arg.instant = instant;
 
-    ioctl_arg.input_data = (CVI_U64)&ive_arg;
-    bm_status_t ret = (bm_status_t)ioctl(p->dev_fd, CVI_IVE_IOC_CannyHysEdge, &ioctl_arg);
+    ioctl_arg.input_data = (uint64_t)&ive_arg;
+    bm_status_t ret = (bm_status_t)ioctl(p->dev_fd, IVE_IOC_CANNYHYSEDGE, &ioctl_arg);
     return ret;
 }
 
@@ -2545,16 +2545,16 @@ bm_status_t bm_ive_canny_hsy_edge(
     bmcv_ive_canny_hys_edge_ctrl * canny_hys_edge_attr)
 {
     bm_status_t ret = BM_SUCCESS;
-    IVE_HANDLE pIveHandle = NULL;
-    IVE_SRC_IMAGE_S src;
-    IVE_DST_IMAGE_S dstEdge;
-    IVE_DST_MEM_INFO_S dstStack;
-    IVE_CANNY_HYS_EDGE_CTRL_S cannyHysEdgeCtrl;
+    ive_handle ive_handle = NULL;
+    ive_src_image_s src;
+    ive_dst_image_s dstEdge;
+    ive_dst_mem_info_s dstStack;
+    ive_canny_hys_edge_ctrl_s cannyHysEdgeCtrl;
 
-    memset(&src, 0, sizeof(IVE_SRC_IMAGE_S));
-    memset(&dstEdge, 0, sizeof(IVE_DST_IMAGE_S));
-    memset(&dstStack, 0, sizeof(IVE_DST_MEM_INFO_S));
-    memset(&cannyHysEdgeCtrl, 0, sizeof(IVE_CANNY_HYS_EDGE_CTRL_S));
+    memset(&src, 0, sizeof(ive_src_image_s));
+    memset(&dstEdge, 0, sizeof(ive_dst_image_s));
+    memset(&dstStack, 0, sizeof(ive_dst_mem_info_s));
+    memset(&cannyHysEdgeCtrl, 0, sizeof(ive_canny_hys_edge_ctrl_s));
 
     ret = bm_image_convert_to_ive_image(handle, input, &src);
     if(ret != BM_SUCCESS){
@@ -2580,46 +2580,46 @@ bm_status_t bm_ive_canny_hsy_edge(
             filename(__FILE__), __func__, __LINE__);
         return BM_ERR_FAILURE;
     }
-    dstStack.u64VirAddr = vir_addr;
-    dstStack.u64PhyAddr = bm_mem_get_device_addr(*output_stack);
-    dstStack.u32Size = output_stack->size;
+    dstStack.vir_addr = vir_addr;
+    dstStack.phy_addr = bm_mem_get_device_addr(*output_stack);
+    dstStack.size = output_stack->size;
 
-    cannyHysEdgeCtrl.u16LowThr = canny_hys_edge_attr->u16_low_thr;
-    cannyHysEdgeCtrl.u16HighThr = canny_hys_edge_attr->u16_high_thr;
-    memcpy(cannyHysEdgeCtrl.as8Mask, canny_hys_edge_attr->as8_mask, 5 * 5 * sizeof(signed char));
+    cannyHysEdgeCtrl.low_thr = canny_hys_edge_attr->u16_low_thr;
+    cannyHysEdgeCtrl.high_thr = canny_hys_edge_attr->u16_high_thr;
+    memcpy(cannyHysEdgeCtrl.mask, canny_hys_edge_attr->as8_mask, 5 * 5 * sizeof(signed char));
 
     // get ive handle and invoke ive funtion
-    pIveHandle = BM_IVE_CreateHandle();
-    if (pIveHandle == NULL) {
+    ive_handle = BM_IVE_CreateHandle();
+    if (ive_handle == NULL) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "failed to create ive handle %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
         return BM_ERR_FAILURE;
     }
 
-    // bInstant: true is interrupt mode, false is polling mode
-    ret = BM_IVE_CanngHysEdge(pIveHandle, &src, &dstEdge, &dstStack, &cannyHysEdgeCtrl, true);
+    // instant: true is interrupt mode, false is polling mode
+    ret = BM_IVE_CanngHysEdge(ive_handle, &src, &dstEdge, &dstStack, &cannyHysEdgeCtrl, true);
     if(ret != BM_SUCCESS){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "cvi_ive_cannyHysEdge error %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
-        BM_IVE_DestroyHandle(pIveHandle);
+        BM_IVE_DestroyHandle(ive_handle);
         bm_mem_unmap_device_mem(handle, (void *)vir_addr, output_stack->size);
         return BM_ERR_FAILURE;
     }
 
-    BM_IVE_DestroyHandle(pIveHandle);
+    BM_IVE_DestroyHandle(ive_handle);
     bm_mem_unmap_device_mem(handle, (void *)vir_addr, output_stack->size);
     return ret;
 }
 
-bm_status_t BM_IVE_Filter(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstSrc,
-               IVE_DST_IMAGE_S *pstDst, IVE_FILTER_CTRL_S *pstCtrl,
-               bool bInstant)
+bm_status_t BM_IVE_Filter(ive_handle ive_handle, ive_src_image_s *psrc,
+               ive_dst_image_s *pdst, ive_filter_ctrl_s *pctrl,
+               bool instant)
 {
-    struct cvi_ive_ioctl_arg ioctl_arg;
-    struct cvi_ive_ioctl_filter_arg ive_arg;
-    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)pIveHandle;
+    struct ive_ioctl_arg ioctl_arg;
+    struct ive_ioctl_filter_arg ive_arg;
+    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)ive_handle;
     if(p == NULL || p->dev_fd <= 0){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
             "Device ive is not open, please check it %s: %s: %d\n",
@@ -2627,14 +2627,14 @@ bm_status_t BM_IVE_Filter(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstSrc,
         return BM_ERR_DEVNOTREADY;
     }
 
-    ive_arg.pIveHandle = pIveHandle;
-    ive_arg.stSrc = *pstSrc;
-    ive_arg.stDst = *pstDst;
-    ive_arg.stCtrl = *pstCtrl;
-    ive_arg.bInstant = bInstant;
+    ive_arg.ive_handle = ive_handle;
+    ive_arg.src = *psrc;
+    ive_arg.dst = *pdst;
+    ive_arg.ctrl = *pctrl;
+    ive_arg.instant = instant;
 
-    ioctl_arg.input_data = (CVI_U64)&ive_arg;
-    bm_status_t ret = (bm_status_t)ioctl(p->dev_fd, CVI_IVE_IOC_Filter, &ioctl_arg);
+    ioctl_arg.input_data = (uint64_t)&ive_arg;
+    bm_status_t ret = (bm_status_t)ioctl(p->dev_fd, IVE_IOC_FILTER, &ioctl_arg);
     return ret;
 }
 
@@ -2645,14 +2645,14 @@ bm_status_t bm_ive_filter(
     bmcv_ive_filter_ctrl         filter_attr)
 {
     bm_status_t ret = BM_SUCCESS;
-    IVE_HANDLE pIveHandle = NULL;
-    IVE_SRC_IMAGE_S src;
-    IVE_DST_IMAGE_S dst;
-    IVE_FILTER_CTRL_S filterAttr;
+    ive_handle ive_handle = NULL;
+    ive_src_image_s src;
+    ive_dst_image_s dst;
+    ive_filter_ctrl_s filterAttr;
 
-    memset(&src, 0, sizeof(IVE_SRC_IMAGE_S));
-    memset(&dst, 0, sizeof(IVE_DST_IMAGE_S));
-    memset(&filterAttr, 0, sizeof(IVE_FILTER_CTRL_S));
+    memset(&src, 0, sizeof(ive_src_image_s));
+    memset(&dst, 0, sizeof(ive_dst_image_s));
+    memset(&filterAttr, 0, sizeof(ive_filter_ctrl_s));
 
     ret = bm_image_convert_to_ive_image(handle, &input, &src);
     if(ret != BM_SUCCESS){
@@ -2670,39 +2670,39 @@ bm_status_t bm_ive_filter(
             return BM_ERR_FAILURE;
     }
 
-    memcpy(&filterAttr, &filter_attr, sizeof(IVE_FILTER_CTRL_S));
+    memcpy(&filterAttr, &filter_attr, sizeof(ive_filter_ctrl_s));
 
     // get ive handle and invoke ive funtion
-    pIveHandle = BM_IVE_CreateHandle();
-    if (pIveHandle == NULL) {
+    ive_handle = BM_IVE_CreateHandle();
+    if (ive_handle == NULL) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "failed to create ive handle %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
         return BM_ERR_FAILURE;
     }
 
-    // bInstant: true is interrupt mode, false is polling mode
-    ret = BM_IVE_Filter(pIveHandle, &src, &dst, &filterAttr, true);
+    // instant: true is interrupt mode, false is polling mode
+    ret = BM_IVE_Filter(ive_handle, &src, &dst, &filterAttr, true);
     if(ret != BM_SUCCESS){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "cvi_ive_filter error %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
-        BM_IVE_DestroyHandle(pIveHandle);
+        BM_IVE_DestroyHandle(ive_handle);
         return BM_ERR_FAILURE;
     }
 
-    BM_IVE_DestroyHandle(pIveHandle);
+    BM_IVE_DestroyHandle(ive_handle);
 
     return ret;
 }
 
-bm_status_t BM_IVE_CSC(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstSrc,
-            IVE_DST_IMAGE_S *pstDst, IVE_CSC_CTRL_S *pstCtrl,
-            bool bInstant)
+bm_status_t BM_IVE_CSC(ive_handle ive_handle, ive_src_image_s *psrc,
+            ive_dst_image_s *pdst, ive_csc_ctrl_s *pctrl,
+            bool instant)
 {
-    struct cvi_ive_ioctl_arg ioctl_arg;
-    struct cvi_ive_ioctl_csc_arg ive_arg;
-    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)pIveHandle;
+    struct ive_ioctl_arg ioctl_arg;
+    struct ive_ioctl_csc_arg ive_arg;
+    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)ive_handle;
     if(p == NULL || p->dev_fd <= 0){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
             "Device ive is not open, please check it %s: %s: %d\n",
@@ -2710,14 +2710,14 @@ bm_status_t BM_IVE_CSC(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstSrc,
         return BM_ERR_DEVNOTREADY;
     }
 
-    ive_arg.pIveHandle = pIveHandle;
-    ive_arg.stSrc = *pstSrc;
-    ive_arg.stDst = *pstDst;
-    ive_arg.stCtrl = *pstCtrl;
-    ive_arg.bInstant = bInstant;
+    ive_arg.ive_handle = ive_handle;
+    ive_arg.src = *psrc;
+    ive_arg.dst = *pdst;
+    ive_arg.ctrl = *pctrl;
+    ive_arg.instant = instant;
 
-    ioctl_arg.input_data = (CVI_U64)&ive_arg;
-    bm_status_t ret = (bm_status_t)ioctl(p->dev_fd, CVI_IVE_IOC_CSC, &ioctl_arg);
+    ioctl_arg.input_data = (uint64_t)&ive_arg;
+    bm_status_t ret = (bm_status_t)ioctl(p->dev_fd, IVE_IOC_CSC, &ioctl_arg);
     return ret;
 }
 
@@ -2740,9 +2740,9 @@ bm_status_t bm_input_format_check(bm_image* input)
     return BM_ERR_FAILURE;
 }
 
-IVE_CSC_MODE_E bm_image_format_to_ive_csc_mode(csc_type_t csc_type, bm_image* input, bm_image* output)
+ive_csc_mode_e bm_image_format_to_ive_csc_mode(csc_type_t csc_type, bm_image* input, bm_image* output)
 {
-    IVE_CSC_MODE_E mode = IVE_CSC_MODE_BUTT;
+    ive_csc_mode_e mode = IVE_CSC_MODE_BUTT;
 
     switch (csc_type)
     {
@@ -2809,14 +2809,14 @@ bm_status_t bm_ive_csc(
     csc_type_t      csc_type)
 {
     bm_status_t ret = BM_SUCCESS;
-    IVE_HANDLE pIveHandle = NULL;
-    IVE_SRC_IMAGE_S src;
-    IVE_DST_IMAGE_S dst;
-    IVE_CSC_CTRL_S cscCtrl;
+    ive_handle ive_handle = NULL;
+    ive_src_image_s src;
+    ive_dst_image_s dst;
+    ive_csc_ctrl_s cscCtrl;
 
-    memset(&src, 0, sizeof(IVE_SRC_IMAGE_S));
-    memset(&dst, 0, sizeof(IVE_DST_IMAGE_S));
-    memset(&cscCtrl, 0, sizeof(IVE_CSC_CTRL_S));
+    memset(&src, 0, sizeof(ive_src_image_s));
+    memset(&dst, 0, sizeof(ive_dst_image_s));
+    memset(&cscCtrl, 0, sizeof(ive_csc_ctrl_s));
 
     ret = bm_image_convert_to_ive_image(handle, input, &src);
     if(ret != BM_SUCCESS){
@@ -2840,39 +2840,39 @@ bm_status_t bm_ive_csc(
             " csc_type is error, please check it. %s: %s: %d\n",
             filename(__FILE__), __func__, __LINE__);
     }
-    cscCtrl.enMode = (IVE_CSC_MODE_E)csc_mode;
+    cscCtrl.mode = (ive_csc_mode_e)csc_mode;
 
     // get ive handle and invoke ive funtion
-    pIveHandle = BM_IVE_CreateHandle();
-    if (pIveHandle == NULL) {
+    ive_handle = BM_IVE_CreateHandle();
+    if (ive_handle == NULL) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "failed to create ive handle %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
         return BM_ERR_FAILURE;
     }
 
-    // bInstant: true is interrupt mode, false is polling mode
-    ret = BM_IVE_CSC(pIveHandle, &src, &dst, &cscCtrl, true);
+    // instant: true is interrupt mode, false is polling mode
+    ret = BM_IVE_CSC(ive_handle, &src, &dst, &cscCtrl, true);
     if(ret != BM_SUCCESS){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "cvi_ive_csc error %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
-        BM_IVE_DestroyHandle(pIveHandle);
+        BM_IVE_DestroyHandle(ive_handle);
         return BM_ERR_FAILURE;
     }
 
-    BM_IVE_DestroyHandle(pIveHandle);
+    BM_IVE_DestroyHandle(ive_handle);
 
     return ret;
 }
 
-bm_status_t BM_IVE_Resize(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *astSrc,
-               IVE_DST_IMAGE_S *astDst, IVE_RESIZE_CTRL_S *pstCtrl,
-               bool bInstant)
+bm_status_t BM_IVE_Resize(ive_handle ive_handle, ive_src_image_s *asrc,
+               ive_dst_image_s *adst, ive_resize_ctrl_s *pctrl,
+               bool instant)
 {
-    struct cvi_ive_ioctl_arg ioctl_arg;
-    struct cvi_ive_ioctl_resize_arg ive_arg;
-    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)pIveHandle;
+    struct ive_ioctl_arg ioctl_arg;
+    struct ive_ioctl_resize_arg ive_arg;
+    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)ive_handle;
 
     if (p == NULL || p->dev_fd <= 0) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
@@ -2880,14 +2880,14 @@ bm_status_t BM_IVE_Resize(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *astSrc,
             filename(__FILE__), __func__, __LINE__);
         return BM_ERR_DEVNOTREADY;
     }
-    ive_arg.pIveHandle = pIveHandle;
-    ive_arg.stSrc = *astSrc;
-    ive_arg.stDst = *astDst;
-    ive_arg.stCtrl = *pstCtrl;
-    ive_arg.bInstant = bInstant;
+    ive_arg.ive_handle = ive_handle;
+    ive_arg.src = *asrc;
+    ive_arg.dst = *adst;
+    ive_arg.ctrl = *pctrl;
+    ive_arg.instant = instant;
 
-    ioctl_arg.input_data = (CVI_U64)&ive_arg;
-    bm_status_t ret = (bm_status_t)ioctl(p->dev_fd, CVI_IVE_IOC_Resize, &ioctl_arg);
+    ioctl_arg.input_data = (uint64_t)&ive_arg;
+    bm_status_t ret = (bm_status_t)ioctl(p->dev_fd, IVE_IOC_RESIZE, &ioctl_arg);
     return ret;
 }
 
@@ -2898,17 +2898,17 @@ bm_status_t bm_ive_resize(
     bmcv_resize_algorithm     resize_mode)
 {
     bm_status_t ret = BM_SUCCESS;
-    IVE_HANDLE pIveHandle = NULL;
-    IVE_SRC_IMAGE_S stSrc;
-    IVE_DST_IMAGE_S stDst;
-    IVE_RESIZE_CTRL_S stCtrl;
+    ive_handle ive_handle = NULL;
+    ive_src_image_s src;
+    ive_dst_image_s dst;
+    ive_resize_ctrl_s ctrl;
 
-    memset(&stSrc, 0, sizeof(IVE_SRC_IMAGE_S));
-    memset(&stDst, 0, sizeof(IVE_DST_IMAGE_S));
-    memset(&stCtrl, 0, sizeof(IVE_RESIZE_CTRL_S));
+    memset(&src, 0, sizeof(ive_src_image_s));
+    memset(&dst, 0, sizeof(ive_dst_image_s));
+    memset(&ctrl, 0, sizeof(ive_resize_ctrl_s));
 
     // transfer bm struct to ive struct
-    ret = bm_image_convert_to_ive_image(handle, input, &stSrc);
+    ret = bm_image_convert_to_ive_image(handle, input, &src);
     if (ret != BM_SUCCESS) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
         "failed to convert bm_image to ive_image %s: %s: %d\n",
@@ -2916,7 +2916,7 @@ bm_status_t bm_ive_resize(
         return BM_ERR_FAILURE;
     }
 
-    ret = bm_image_convert_to_ive_image(handle, output, &stDst);
+    ret = bm_image_convert_to_ive_image(handle, output, &dst);
     if (ret != BM_SUCCESS) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
         "failed to convert bm_image to ive_image %s: %s: %d\n",
@@ -2926,10 +2926,10 @@ bm_status_t bm_ive_resize(
 
     // set ive resize params
     if(resize_mode == BMCV_INTER_LINEAR){
-        stCtrl.enMode = resize_mode - 1;
+        ctrl.mode = resize_mode - 1;
     } else if (resize_mode == BMCV_INTER_AREA)
     {
-        stCtrl.enMode = resize_mode - 2;
+        ctrl.mode = resize_mode - 2;
     } else {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
         "please check, ive no support this resize mode. %s: %s: %d\n",
@@ -2938,35 +2938,35 @@ bm_status_t bm_ive_resize(
     }
 
     // get ive handle and invoke ive funtion
-    pIveHandle = BM_IVE_CreateHandle();
-    if (pIveHandle == NULL) {
+    ive_handle = BM_IVE_CreateHandle();
+    if (ive_handle == NULL) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "failed to create ive handle %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
         return BM_ERR_FAILURE;
     }
 
-    // bInstant: true is interrupt mode, false is polling mode
-    ret = BM_IVE_Resize(pIveHandle, &stSrc, &stDst, &stCtrl, true);
+    // instant: true is interrupt mode, false is polling mode
+    ret = BM_IVE_Resize(ive_handle, &src, &dst, &ctrl, true);
     if(ret != BM_SUCCESS){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "cvi_ive_resize error %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
-        BM_IVE_DestroyHandle(pIveHandle);
+        BM_IVE_DestroyHandle(ive_handle);
         return BM_ERR_FAILURE;
     }
-    BM_IVE_DestroyHandle(pIveHandle);
+    BM_IVE_DestroyHandle(ive_handle);
 
     return ret;
 }
 
-bm_status_t BM_IVE_STCandiCorner(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstSrc,
-                  IVE_DST_IMAGE_S *pstDst, IVE_ST_CANDI_CORNER_CTRL_S *pstCtrl,
-                  bool bInstant)
+bm_status_t BM_IVE_STCandiCorner(ive_handle ive_handle, ive_src_image_s *psrc,
+                  ive_dst_image_s *pdst, ive_st_candi_corner_ctrl_s *pctrl,
+                  bool instant)
 {
-    struct cvi_ive_ioctl_arg ioctl_arg;
-    struct cvi_ive_ioctl_stcandicorner ive_arg;
-    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)pIveHandle;
+    struct ive_ioctl_arg ioctl_arg;
+    struct ive_ioctl_stcandicorner ive_arg;
+    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)ive_handle;
 
     if (p == NULL || p->dev_fd <= 0) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
@@ -2975,14 +2975,14 @@ bm_status_t BM_IVE_STCandiCorner(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstSrc,
         return BM_ERR_DEVNOTREADY;
     }
 
-    ive_arg.pIveHandle = pIveHandle;
-    ive_arg.stSrc = *pstSrc;
-    ive_arg.stDst = *pstDst;
-    ive_arg.stCtrl = *pstCtrl;
-    ive_arg.bInstant = bInstant;
+    ive_arg.ive_handle = ive_handle;
+    ive_arg.src = *psrc;
+    ive_arg.dst = *pdst;
+    ive_arg.ctrl = *pctrl;
+    ive_arg.instant = instant;
 
-    ioctl_arg.input_data = (CVI_U64)&ive_arg;
-    bm_status_t ret = (bm_status_t)ioctl(p->dev_fd, CVI_IVE_IOC_STCandiCorner, &ioctl_arg);
+    ioctl_arg.input_data = (uint64_t)&ive_arg;
+    bm_status_t ret = (bm_status_t)ioctl(p->dev_fd, IVE_IOC_ST_CANDI_CORNER, &ioctl_arg);
     return ret;
 }
 
@@ -2993,14 +2993,14 @@ bm_status_t bm_ive_stCandiCorner(
     bmcv_ive_stcandicorner_attr * stcandicorner_attr)
 {
     bm_status_t ret = BM_SUCCESS;
-    IVE_HANDLE pIveHandle = NULL;
-    IVE_SRC_IMAGE_S src;
-    IVE_DST_IMAGE_S dst;
-    IVE_ST_CANDI_CORNER_CTRL_S stCandiCornerAttr;
+    ive_handle ive_handle = NULL;
+    ive_src_image_s src;
+    ive_dst_image_s dst;
+    ive_st_candi_corner_ctrl_s stCandiCornerAttr;
 
-    memset(&src, 0, sizeof(IVE_SRC_IMAGE_S));
-    memset(&dst, 0, sizeof(IVE_DST_IMAGE_S));
-    memset(&stCandiCornerAttr, 0, sizeof(IVE_ST_CANDI_CORNER_CTRL_S));
+    memset(&src, 0, sizeof(ive_src_image_s));
+    memset(&dst, 0, sizeof(ive_dst_image_s));
+    memset(&stCandiCornerAttr, 0, sizeof(ive_st_candi_corner_ctrl_s));
 
     ret = bm_image_convert_to_ive_image(handle, input, &src);
     if(ret != BM_SUCCESS){
@@ -3026,44 +3026,44 @@ bm_status_t bm_ive_stCandiCorner(
             filename(__FILE__), __func__, __LINE__);
         return BM_ERR_FAILURE;
     }
-    stCandiCornerAttr.stMem.u64VirAddr = vir_addr;
-    stCandiCornerAttr.stMem.u64PhyAddr = bm_mem_get_device_addr(stcandicorner_attr->st_mem);
-    stCandiCornerAttr.stMem.u32Size = stcandicorner_attr->st_mem.size;
-    stCandiCornerAttr.u0q8QualityLevel = stcandicorner_attr->u0q8_quality_level;
+    stCandiCornerAttr.mem.vir_addr = vir_addr;
+    stCandiCornerAttr.mem.phy_addr = bm_mem_get_device_addr(stcandicorner_attr->st_mem);
+    stCandiCornerAttr.mem.size = stcandicorner_attr->st_mem.size;
+    stCandiCornerAttr.quality_level = stcandicorner_attr->u0q8_quality_level;
 
     // get ive handle and invoke ive funtion
-    pIveHandle = BM_IVE_CreateHandle();
-    if (pIveHandle == NULL) {
+    ive_handle = BM_IVE_CreateHandle();
+    if (ive_handle == NULL) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "failed to create ive handle %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
         return BM_ERR_FAILURE;
     }
 
-    // bInstant: true is interrupt mode, false is polling mode
-    ret = BM_IVE_STCandiCorner(pIveHandle, &src, &dst, &stCandiCornerAttr, true);
+    // instant: true is interrupt mode, false is polling mode
+    ret = BM_IVE_STCandiCorner(ive_handle, &src, &dst, &stCandiCornerAttr, true);
     if(ret != BM_SUCCESS){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "BM_IVE_STCandiCorner error %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
-        BM_IVE_DestroyHandle(pIveHandle);
+        BM_IVE_DestroyHandle(ive_handle);
         bm_mem_unmap_device_mem(handle, (void *)vir_addr, stcandicorner_attr->st_mem.size);
         return BM_ERR_FAILURE;
     }
 
-    BM_IVE_DestroyHandle(pIveHandle);
+    BM_IVE_DestroyHandle(ive_handle);
     bm_mem_unmap_device_mem(handle, (void *)vir_addr, stcandicorner_attr->st_mem.size);
     return ret;
 }
 
-bm_status_t BM_IVE_GradFg(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstBgDiffFg,
-               IVE_SRC_IMAGE_S *pstCurGrad, IVE_SRC_IMAGE_S *pstBgGrad,
-               IVE_DST_IMAGE_S *pstGradFg, IVE_GRAD_FG_CTRL_S *pstCtrl,
-               bool bInstant)
+bm_status_t BM_IVE_GradFg(ive_handle ive_handle, ive_src_image_s *pstBgDiffFg,
+               ive_src_image_s *pstCurGrad, ive_src_image_s *pstBgGrad,
+               ive_dst_image_s *pstGradFg, ive_grad_fg_ctrl_s *pctrl,
+               bool instant)
 {
-    struct cvi_ive_ioctl_arg ioctl_arg;
-    struct cvi_ive_ioctl_grad_fg_arg ive_arg;
-    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)pIveHandle;
+    struct ive_ioctl_arg ioctl_arg;
+    struct ive_ioctl_grad_fg_arg ive_arg;
+    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)ive_handle;
 
     if (p == NULL || p->dev_fd <= 0) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
@@ -3072,16 +3072,16 @@ bm_status_t BM_IVE_GradFg(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstBgDiffFg,
         return BM_ERR_DEVNOTREADY;
     }
 
-    ive_arg.pIveHandle = pIveHandle;
-    if(pstBgDiffFg != NULL) ive_arg.stBgDiffFg = *pstBgDiffFg;
-    if(pstCurGrad != NULL) ive_arg.stCurGrad = *pstCurGrad;
-    ive_arg.stBgGrad = *pstBgGrad;
-    ive_arg.stGradFg = *pstGradFg;
-    ive_arg.stCtrl = *pstCtrl;
-    ive_arg.bInstant = bInstant;
+    ive_arg.ive_handle = ive_handle;
+    if(pstBgDiffFg != NULL) ive_arg.bg_diff_fg = *pstBgDiffFg;
+    if(pstCurGrad != NULL) ive_arg.cur_grad = *pstCurGrad;
+    ive_arg.bg_grad = *pstBgGrad;
+    ive_arg.grad_fg = *pstGradFg;
+    ive_arg.ctrl = *pctrl;
+    ive_arg.instant = instant;
 
-    ioctl_arg.input_data = (CVI_U64)&ive_arg;
-    bm_status_t ret = (bm_status_t)ioctl(p->dev_fd, CVI_IVE_IOC_GradFg, &ioctl_arg);
+    ioctl_arg.input_data = (uint64_t)&ive_arg;
+    bm_status_t ret = (bm_status_t)ioctl(p->dev_fd, IVE_IOC_GRADFG, &ioctl_arg);
 
     return ret;
 }
@@ -3095,18 +3095,18 @@ bm_status_t bm_ive_gradFg(
     bmcv_ive_gradfg_attr *  gradfg_attr)
 {
     bm_status_t ret = BM_SUCCESS;
-    IVE_HANDLE pIveHandle = NULL;
-    IVE_SRC_IMAGE_S srcBgDiffFg;
-    IVE_SRC_IMAGE_S srcCurGrad;
-    IVE_SRC_IMAGE_S srcBgGrad;
-    IVE_DST_IMAGE_S dstGradFg;
-    IVE_GRAD_FG_CTRL_S gradFgAttr;
+    ive_handle ive_handle = NULL;
+    ive_src_image_s srcBgDiffFg;
+    ive_src_image_s srcCurGrad;
+    ive_src_image_s srcBgGrad;
+    ive_dst_image_s dstGradFg;
+    ive_grad_fg_ctrl_s gradFgAttr;
 
-    memset(&srcBgDiffFg, 0, sizeof(IVE_SRC_IMAGE_S));
-    memset(&srcCurGrad, 0, sizeof(IVE_SRC_IMAGE_S));
-    memset(&srcBgGrad, 0, sizeof(IVE_SRC_IMAGE_S));
-    memset(&dstGradFg, 0, sizeof(IVE_DST_IMAGE_S));
-    memset(&gradFgAttr, 0, sizeof(IVE_GRAD_FG_CTRL_S));
+    memset(&srcBgDiffFg, 0, sizeof(ive_src_image_s));
+    memset(&srcCurGrad, 0, sizeof(ive_src_image_s));
+    memset(&srcBgGrad, 0, sizeof(ive_src_image_s));
+    memset(&dstGradFg, 0, sizeof(ive_dst_image_s));
+    memset(&gradFgAttr, 0, sizeof(ive_grad_fg_ctrl_s));
 
     ret = bm_image_convert_to_ive_image(handle, input_bgDiffFg, &srcBgDiffFg);
     if(ret != BM_SUCCESS){
@@ -3140,39 +3140,39 @@ bm_status_t bm_ive_gradFg(
             return BM_ERR_FAILURE;
     }
 
-    memcpy(&gradFgAttr, gradfg_attr, sizeof(IVE_GRAD_FG_CTRL_S));
+    memcpy(&gradFgAttr, gradfg_attr, sizeof(ive_grad_fg_ctrl_s));
 
     // get ive handle and invoke ive funtion
-    pIveHandle = BM_IVE_CreateHandle();
-    if (pIveHandle == NULL) {
+    ive_handle = BM_IVE_CreateHandle();
+    if (ive_handle == NULL) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "failed to create ive handle %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
         return BM_ERR_FAILURE;
     }
 
-    // bInstant: true is interrupt mode, false is polling mode
-    ret = BM_IVE_GradFg(pIveHandle, &srcBgDiffFg, &srcCurGrad, &srcBgGrad, &dstGradFg, &gradFgAttr, true);
+    // instant: true is interrupt mode, false is polling mode
+    ret = BM_IVE_GradFg(ive_handle, &srcBgDiffFg, &srcCurGrad, &srcBgGrad, &dstGradFg, &gradFgAttr, true);
     if(ret != BM_SUCCESS){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "BM_IVE_GradFg error %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
-        BM_IVE_DestroyHandle(pIveHandle);
+        BM_IVE_DestroyHandle(ive_handle);
         return BM_ERR_FAILURE;
     }
 
-    BM_IVE_DestroyHandle(pIveHandle);
+    BM_IVE_DestroyHandle(ive_handle);
     return ret;
 }
 
-bm_status_t BM_IVE_SAD(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstSrc1,
-            IVE_SRC_IMAGE_S *pstSrc2, IVE_DST_IMAGE_S *pstSad,
-            IVE_DST_IMAGE_S *pstThr, IVE_SAD_CTRL_S *pstCtrl,
-            bool bInstant)
+bm_status_t BM_IVE_SAD(ive_handle ive_handle, ive_src_image_s *psrc1,
+            ive_src_image_s *psrc2, ive_dst_image_s *pstSad,
+            ive_dst_image_s *pstThr, ive_sad_ctrl_s *pctrl,
+            bool instant)
 {
-    struct cvi_ive_ioctl_arg ioctl_arg;
-    struct cvi_ive_ioctl_sad_arg ive_arg;
-    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)pIveHandle;
+    struct ive_ioctl_arg ioctl_arg;
+    struct ive_ioctl_sad_arg ive_arg;
+    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)ive_handle;
 
     if (p == NULL || p->dev_fd <= 0) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
@@ -3181,16 +3181,16 @@ bm_status_t BM_IVE_SAD(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstSrc1,
         return BM_ERR_DEVNOTREADY;
     }
 
-    ive_arg.pIveHandle = pIveHandle;
-    ive_arg.stSrc1 = *pstSrc1;
-    ive_arg.stSrc2 = *pstSrc2;
-    ive_arg.stSad = *pstSad;
-    ive_arg.stThr = *pstThr;
-    ive_arg.stCtrl = *pstCtrl;
-    ive_arg.bInstant = bInstant;
+    ive_arg.ive_handle = ive_handle;
+    ive_arg.src1 = *psrc1;
+    ive_arg.src2 = *psrc2;
+    ive_arg.sad = *pstSad;
+    ive_arg.thr = *pstThr;
+    ive_arg.ctrl = *pctrl;
+    ive_arg.instant = instant;
 
-    ioctl_arg.input_data = (CVI_U64)&ive_arg;
-    bm_status_t ret = (bm_status_t)ioctl(p->dev_fd, CVI_IVE_IOC_SAD, &ioctl_arg);
+    ioctl_arg.input_data = (uint64_t)&ive_arg;
+    bm_status_t ret = (bm_status_t)ioctl(p->dev_fd, IVE_IOC_SAD, &ioctl_arg);
     return ret;
 }
 
@@ -3232,18 +3232,18 @@ bm_status_t bm_ive_sad(
     bmcv_ive_sad_thresh_attr*  thresh_attr)
 {
     bm_status_t ret = BM_SUCCESS;
-    IVE_HANDLE pIveHandle = NULL;
-    IVE_SRC_IMAGE_S src1;
-    IVE_SRC_IMAGE_S src2;
-    IVE_DST_IMAGE_S dst_sad;
-    IVE_DST_IMAGE_S dst_thr;
-    IVE_SAD_CTRL_S sadAttr;
+    ive_handle ive_handle = NULL;
+    ive_src_image_s src1;
+    ive_src_image_s src2;
+    ive_dst_image_s dst_sad;
+    ive_dst_image_s dst_thr;
+    ive_sad_ctrl_s sadAttr;
 
-    memset(&src1, 0, sizeof(IVE_SRC_IMAGE_S));
-    memset(&src2, 0, sizeof(IVE_SRC_IMAGE_S));
-    memset(&dst_sad, 0, sizeof(IVE_DST_IMAGE_S));
-    memset(&dst_thr, 0, sizeof(IVE_DST_IMAGE_S));
-    memset(&sadAttr, 0, sizeof(IVE_SAD_CTRL_S));
+    memset(&src1, 0, sizeof(ive_src_image_s));
+    memset(&src2, 0, sizeof(ive_src_image_s));
+    memset(&dst_sad, 0, sizeof(ive_dst_image_s));
+    memset(&dst_thr, 0, sizeof(ive_dst_image_s));
+    memset(&sadAttr, 0, sizeof(ive_sad_ctrl_s));
 
     ret = bm_image_convert_to_ive_image(handle, &input[0], &src1);
     if(ret != BM_SUCCESS){
@@ -3277,50 +3277,50 @@ bm_status_t bm_ive_sad(
             return BM_ERR_FAILURE;
     }
 
-    sadAttr.enMode = sad_attr->en_mode;
-    sadAttr.enOutCtrl = (IVE_SAD_OUT_CTRL_E)bm_image_convert_to_sad_enOutCtrl(sad_attr, output_sad);
+    sadAttr.mode = sad_attr->en_mode;
+    sadAttr.out_ctrl = (ive_sad_out_ctrl_e)bm_image_convert_to_sad_enOutCtrl(sad_attr, output_sad);
     if(thresh_attr == NULL) {
-        sadAttr.u16Thr = 0;
-        sadAttr.u8MaxVal = 0;
-        sadAttr.u8MinVal = 0;
+        sadAttr.thr = 0;
+        sadAttr.max_val = 0;
+        sadAttr.min_val = 0;
     } else {
-        sadAttr.u16Thr = thresh_attr->u16_thr;
-        sadAttr.u8MaxVal = thresh_attr->u8_max_val;
-        sadAttr.u8MinVal = thresh_attr->u8_min_val;
+        sadAttr.thr = thresh_attr->u16_thr;
+        sadAttr.max_val = thresh_attr->u8_max_val;
+        sadAttr.min_val = thresh_attr->u8_min_val;
     }
     // memcpy(&sadAttr, sad_attr, sizeof(IVE_SAD_CTRL_S));
 
     // get ive handle and invoke ive funtion
-    pIveHandle = BM_IVE_CreateHandle();
-    if (pIveHandle == NULL) {
+    ive_handle = BM_IVE_CreateHandle();
+    if (ive_handle == NULL) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "failed to create ive handle %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
         return BM_ERR_FAILURE;
     }
 
-    // bInstant: true is interrupt mode, false is polling mode
-    ret = BM_IVE_SAD(pIveHandle, &src1, &src2, &dst_sad, &dst_thr, &sadAttr, true);
+    // instant: true is interrupt mode, false is polling mode
+    ret = BM_IVE_SAD(ive_handle, &src1, &src2, &dst_sad, &dst_thr, &sadAttr, true);
     if(ret != BM_SUCCESS){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "cvi_ive_sad error %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
-        BM_IVE_DestroyHandle(pIveHandle);
+        BM_IVE_DestroyHandle(ive_handle);
         return BM_ERR_FAILURE;
     }
 
-    BM_IVE_DestroyHandle(pIveHandle);
+    BM_IVE_DestroyHandle(ive_handle);
     return ret;
 }
 
-bm_status_t BM_IVE_MatchBgModel(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstCurImg,
-                 IVE_DATA_S *pstBgModel, IVE_IMAGE_S *pstFgFlag,
-                 IVE_DST_IMAGE_S *pstDiffFg, IVE_DST_MEM_INFO_S *pstStatData,
-                 IVE_MATCH_BG_MODEL_CTRL_S *pstCtrl, bool bInstant)
+bm_status_t BM_IVE_MatchBgModel(ive_handle ive_handle, ive_src_image_s *pcur_img,
+                 ive_data_s *pbg_model, ive_image_s *pfg_flag,
+                 ive_dst_image_s *pstDiffFg, ive_dst_mem_info_s *pstat_data,
+                 ive_match_bg_model_ctrl_s *pctrl, bool instant)
 {
-    struct cvi_ive_ioctl_arg ioctl_arg;
-    struct cvi_ive_ioctl_match_bgmodel_arg ive_arg;
-    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)pIveHandle;
+    struct ive_ioctl_arg ioctl_arg;
+    struct ive_ioctl_match_bgmodel_arg ive_arg;
+    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)ive_handle;
 
     if (p == NULL || p->dev_fd <= 0) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
@@ -3329,19 +3329,19 @@ bm_status_t BM_IVE_MatchBgModel(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstCurIm
         return BM_ERR_DEVNOTREADY;
     }
 
-    ive_arg.pIveHandle = pIveHandle;
-    ive_arg.stCurImg = *pstCurImg;
-    ive_arg.stBgModel = *pstBgModel;
-    ive_arg.stFgFlag = *pstFgFlag;
+    ive_arg.ive_handle = ive_handle;
+    ive_arg.cur_img = *pcur_img;
+    ive_arg.bg_model = *pbg_model;
+    ive_arg.fg_flag = *pfg_flag;
     ive_arg.stDiffFg = *pstDiffFg;
-    ive_arg.stStatData = *pstStatData;
-    ive_arg.stCtrl = *pstCtrl;
-    ive_arg.bInstant = bInstant;
+    ive_arg.stat_data = *pstat_data;
+    ive_arg.ctrl = *pctrl;
+    ive_arg.instant = instant;
 
-    ioctl_arg.input_data = (CVI_U64)&ive_arg;
-    ioctl_arg.buffer = (void *)(uintptr_t)pstStatData->u64VirAddr;
-    ioctl_arg.u32Size = sizeof(IVE_BG_STAT_DATA_S);
-    bm_status_t ret = (bm_status_t)ioctl(p->dev_fd, CVI_IVE_IOC_MatchBgModel, &ioctl_arg);
+    ioctl_arg.input_data = (uint64_t)&ive_arg;
+    ioctl_arg.buffer = (void *)(uintptr_t)pstat_data->vir_addr;
+    ioctl_arg.size = sizeof(ive_bg_stat_data_s);
+    bm_status_t ret = (bm_status_t)ioctl(p->dev_fd, IVE_IOC_MATCH_BGMODEM, &ioctl_arg);
     return ret;
 }
 
@@ -3355,22 +3355,22 @@ bm_status_t bm_ive_match_bgmodel(
         bmcv_ive_match_bgmodel_attr * attr)
 {
     bm_status_t ret = BM_SUCCESS;
-    IVE_HANDLE pIveHandle = NULL;
-    IVE_SRC_IMAGE_S  pstCurImg;
-    IVE_DATA_S pstBgModel;
-    IVE_IMAGE_S pstFgFlag;
-    IVE_DST_IMAGE_S pstDiffFg;
-    IVE_DST_MEM_INFO_S pstStatData;
-    IVE_MATCH_BG_MODEL_CTRL_S pstCtrl;
+    ive_handle ive_handle = NULL;
+    ive_src_image_s  pcur_img;
+    ive_data_s pbg_model;
+    ive_image_s pfg_flag;
+    ive_dst_image_s pstDiffFg;
+    ive_dst_mem_info_s pstat_data;
+    ive_match_bg_model_ctrl_s  pctrl;
 
-    memset(&pstCurImg, 0, sizeof(IVE_SRC_IMAGE_S));
-    memset(&pstBgModel, 0, sizeof(IVE_DATA_S));
-    memset(&pstFgFlag, 0, sizeof(IVE_IMAGE_S));
-    memset(&pstDiffFg, 0, sizeof(IVE_DST_IMAGE_S));
-    memset(&pstStatData, 0, sizeof(IVE_DST_MEM_INFO_S));
-    memset(&pstCtrl, 0, sizeof(IVE_MATCH_BG_MODEL_CTRL_S));
+    memset(&pcur_img, 0, sizeof(ive_src_image_s));
+    memset(&pbg_model, 0, sizeof(ive_data_s));
+    memset(&pfg_flag, 0, sizeof(ive_image_s));
+    memset(&pstDiffFg, 0, sizeof(ive_dst_image_s));
+    memset(&pstat_data, 0, sizeof(ive_dst_mem_info_s));
+    memset(&pctrl, 0, sizeof(ive_match_bg_model_ctrl_s));
 
-    ret = bm_image_convert_to_ive_image(handle, cur_img, &pstCurImg);
+    ret = bm_image_convert_to_ive_image(handle, cur_img, &pcur_img);
     if(ret != BM_SUCCESS){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
             "failed to convert bm_image to ive_image %s: %s: %d\n",
@@ -3378,7 +3378,7 @@ bm_status_t bm_ive_match_bgmodel(
             return BM_ERR_FAILURE;
     }
 
-    ret = bm_image_convert_to_ive_data(handle, 0, bgmodel_img, &pstBgModel);
+    ret = bm_image_convert_to_ive_data(handle, 0, bgmodel_img, &pbg_model);
     if(ret != BM_SUCCESS){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
             "failed to convert bm_image to ive_data %s: %s: %d\n",
@@ -3386,7 +3386,7 @@ bm_status_t bm_ive_match_bgmodel(
             return BM_ERR_FAILURE;
     }
 
-    ret = bm_image_convert_to_ive_image(handle, fgflag_img, &pstFgFlag);
+    ret = bm_image_convert_to_ive_image(handle, fgflag_img, &pfg_flag);
     if(ret != BM_SUCCESS){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
             "failed to convert bm_image to ive_image %s: %s: %d\n",
@@ -3410,45 +3410,45 @@ bm_status_t bm_ive_match_bgmodel(
             filename(__FILE__), __func__, __LINE__);
         return BM_ERR_FAILURE;
     }
-    pstStatData.u64VirAddr = vir_addr;
-    pstStatData.u64PhyAddr = bm_mem_get_device_addr(*stat_data_mem);
-    pstStatData.u32Size = stat_data_mem->size;
+    pstat_data.vir_addr = vir_addr;
+    pstat_data.phy_addr = bm_mem_get_device_addr(*stat_data_mem);
+    pstat_data.size = stat_data_mem->size;
 
-    memcpy(&pstCtrl, attr, sizeof(IVE_MATCH_BG_MODEL_CTRL_S));
+    memcpy(&pctrl, attr, sizeof(ive_match_bg_model_ctrl_s));
 
     // get ive handle and invoke ive funtion
-    pIveHandle = BM_IVE_CreateHandle();
-    if (pIveHandle == NULL) {
+    ive_handle = BM_IVE_CreateHandle();
+    if (ive_handle == NULL) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "failed to create ive handle %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
         return BM_ERR_FAILURE;
     }
 
-    ret = BM_IVE_MatchBgModel(pIveHandle, &pstCurImg, &pstBgModel,
-                 &pstFgFlag, &pstDiffFg, &pstStatData, &pstCtrl, true);
+    ret = BM_IVE_MatchBgModel(ive_handle, &pcur_img, &pbg_model,
+                 &pfg_flag, &pstDiffFg, &pstat_data, &pctrl, true);
     if(ret != BM_SUCCESS){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "cvi_ive_match_bgmodel error %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
         bm_mem_unmap_device_mem(handle, (void *)vir_addr, stat_data_mem->size);
-        BM_IVE_DestroyHandle(pIveHandle);
+        BM_IVE_DestroyHandle(ive_handle);
         return BM_ERR_FAILURE;
     }
 
     bm_mem_unmap_device_mem(handle, (void *)vir_addr, stat_data_mem->size);
-    BM_IVE_DestroyHandle(pIveHandle);
+    BM_IVE_DestroyHandle(ive_handle);
     return ret;
 }
 
-bm_status_t BM_IVE_UpdateBgModel(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstCurImg, IVE_DATA_S *pstBgModel,
-            IVE_IMAGE_S *pstFgFlag, IVE_DST_IMAGE_S *pstBgImg,
-            IVE_DST_IMAGE_S *pstChgSta, IVE_DST_MEM_INFO_S *pstStatData,
-            IVE_UPDATE_BG_MODEL_CTRL_S *pstCtrl, bool bInstant)
+bm_status_t BM_IVE_UpdateBgModel(ive_handle ive_handle, ive_src_image_s *pcur_img, ive_data_s *pbg_model,
+            ive_image_s *pfg_flag, ive_dst_image_s *pbg_img,
+            ive_dst_image_s *pchg_sta, ive_dst_mem_info_s *pstat_data,
+            ive_update_bg_model_ctrl_s *pctrl, bool instant)
 {
-    struct cvi_ive_ioctl_arg ioctl_arg;
-    struct cvi_ive_ioctl_update_bgmodel_arg ive_arg;
-    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)pIveHandle;
+    struct ive_ioctl_arg ioctl_arg;
+    struct ive_ioctl_update_bgmodel_arg ive_arg;
+    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)ive_handle;
 
     if (p == NULL || p->dev_fd <= 0) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
@@ -3456,20 +3456,20 @@ bm_status_t BM_IVE_UpdateBgModel(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstCurI
             filename(__FILE__), __func__, __LINE__);
         return BM_ERR_DEVNOTREADY;
     }
-    ive_arg.pIveHandle = pIveHandle;
-    ive_arg.stCurImg = *pstCurImg;
-    ive_arg.stBgModel = *pstBgModel;
-    ive_arg.stFgFlag = *pstFgFlag;
-    ive_arg.stBgImg = *pstBgImg;
-    ive_arg.stChgSta = *pstChgSta;
-    ive_arg.stStatData = *pstStatData;
-    ive_arg.stCtrl = *pstCtrl;
-    ive_arg.bInstant = bInstant;
+    ive_arg.ive_handle = ive_handle;
+    ive_arg.cur_img = *pcur_img;
+    ive_arg.bg_model = *pbg_model;
+    ive_arg.fg_flag = *pfg_flag;
+    ive_arg.bg_img = *pbg_img;
+    ive_arg.chg_sta = *pchg_sta;
+    ive_arg.stat_data = *pstat_data;
+    ive_arg.ctrl = *pctrl;
+    ive_arg.instant = instant;
 
-    ioctl_arg.input_data = (CVI_U64)&ive_arg;
-    ioctl_arg.buffer = (void *)(uintptr_t)pstStatData->u64VirAddr;
-    ioctl_arg.u32Size = sizeof(IVE_BG_STAT_DATA_S);
-    bm_status_t ret = (bm_status_t)ioctl(p->dev_fd, CVI_IVE_IOC_UpdateBgModel, &ioctl_arg);
+    ioctl_arg.input_data = (uint64_t)&ive_arg;
+    ioctl_arg.buffer = (void *)(uintptr_t)pstat_data->vir_addr;
+    ioctl_arg.size = sizeof(ive_bg_stat_data_s);
+    bm_status_t ret = (bm_status_t)ioctl(p->dev_fd, IVE_IOC_UPDATE_BGMODEL, &ioctl_arg);
     return ret;
 }
 
@@ -3484,23 +3484,23 @@ bm_status_t bm_ive_update_bgmodel(
     bmcv_ive_update_bgmodel_attr * attr)
 {
     bm_status_t ret = BM_SUCCESS;
-    IVE_HANDLE pIveHandle = NULL;
-    IVE_SRC_IMAGE_S  pstCurImg;
-    IVE_DATA_S pstBgModel;
-    IVE_IMAGE_S pstFgFlag;
-    IVE_DST_IMAGE_S pstBgImg;
-    IVE_DST_IMAGE_S pstChgSta;
-    IVE_DST_MEM_INFO_S pstStatData;
-    IVE_UPDATE_BG_MODEL_CTRL_S pstCtrl;
+    ive_handle ive_handle = NULL;
+    ive_src_image_s  pcur_img;
+    ive_data_s pbg_model;
+    ive_image_s pfg_flag;
+    ive_dst_image_s pbg_img;
+    ive_dst_image_s pchg_sta;
+    ive_dst_mem_info_s pstat_data;
+    ive_update_bg_model_ctrl_s pctrl;
 
-    memset(&pstCurImg, 0, sizeof(IVE_SRC_IMAGE_S));
-    memset(&pstBgModel, 0, sizeof(IVE_DATA_S));
-    memset(&pstFgFlag, 0, sizeof(IVE_IMAGE_S));
-    memset(&pstBgImg, 0, sizeof(IVE_DST_IMAGE_S));
-    memset(&pstChgSta, 0, sizeof(IVE_DST_MEM_INFO_S));
-    memset(&pstCtrl, 0, sizeof(IVE_UPDATE_BG_MODEL_CTRL_S));
+    memset(&pcur_img, 0, sizeof(ive_src_image_s));
+    memset(&pbg_model, 0, sizeof(ive_data_s));
+    memset(&pfg_flag, 0, sizeof(ive_image_s));
+    memset(&pbg_img, 0, sizeof(ive_dst_image_s));
+    memset(&pchg_sta, 0, sizeof(ive_dst_mem_info_s));
+    memset(&pctrl, 0, sizeof(ive_update_bg_model_ctrl_s));
 
-    ret = bm_image_convert_to_ive_image(handle, cur_img, &pstCurImg);
+    ret = bm_image_convert_to_ive_image(handle, cur_img, &pcur_img);
     if(ret != BM_SUCCESS){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
             "failed to convert bm_image to ive_data %s: %s: %d\n",
@@ -3508,7 +3508,7 @@ bm_status_t bm_ive_update_bgmodel(
             return BM_ERR_FAILURE;
     }
 
-    ret = bm_image_convert_to_ive_data(handle, 0, bgmodel_img, &pstBgModel);
+    ret = bm_image_convert_to_ive_data(handle, 0, bgmodel_img, &pbg_model);
     if(ret != BM_SUCCESS){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
             "failed to convert bm_image to ive_data %s: %s: %d\n",
@@ -3516,7 +3516,7 @@ bm_status_t bm_ive_update_bgmodel(
             return BM_ERR_FAILURE;
     }
 
-    ret = bm_image_convert_to_ive_image(handle, fgflag_img, &pstFgFlag);
+    ret = bm_image_convert_to_ive_image(handle, fgflag_img, &pfg_flag);
     if(ret != BM_SUCCESS){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
             "failed to convert bm_image to ive_image %s: %s: %d\n",
@@ -3524,7 +3524,7 @@ bm_status_t bm_ive_update_bgmodel(
             return BM_ERR_FAILURE;
     }
 
-    ret = bm_image_convert_to_ive_image(handle, bg_img, &pstBgImg);
+    ret = bm_image_convert_to_ive_image(handle, bg_img, &pbg_img);
     if(ret != BM_SUCCESS){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
             "failed to convert bm_image to ive_image %s: %s: %d\n",
@@ -3532,7 +3532,7 @@ bm_status_t bm_ive_update_bgmodel(
             return BM_ERR_FAILURE;
     }
 
-    ret = bm_image_convert_to_ive_image(handle, chgsta_img, &pstChgSta);
+    ret = bm_image_convert_to_ive_image(handle, chgsta_img, &pchg_sta);
     if(ret != BM_SUCCESS){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
             "failed to convert bm_image to ive_image %s: %s: %d\n",
@@ -3549,44 +3549,44 @@ bm_status_t bm_ive_update_bgmodel(
         return BM_ERR_FAILURE;
     }
 
-    pstStatData.u64VirAddr = vir_addr;
-    pstStatData.u64PhyAddr = bm_mem_get_device_addr(*stat_data_mem);
-    pstStatData.u32Size = stat_data_mem->size;
+    pstat_data.vir_addr = vir_addr;
+    pstat_data.phy_addr = bm_mem_get_device_addr(*stat_data_mem);
+    pstat_data.size = stat_data_mem->size;
 
-    memcpy(&pstCtrl, attr, sizeof(IVE_UPDATE_BG_MODEL_CTRL_S));
+    memcpy(&pctrl, attr, sizeof(ive_update_bg_model_ctrl_s));
 
     // get ive handle and invoke ive funtion
-    pIveHandle = BM_IVE_CreateHandle();
-    if (pIveHandle == NULL) {
+    ive_handle = BM_IVE_CreateHandle();
+    if (ive_handle == NULL) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "failed to create ive handle %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
         return BM_ERR_FAILURE;
     }
 
-    ret = BM_IVE_UpdateBgModel(pIveHandle, &pstCurImg, &pstBgModel, &pstFgFlag,
-                       &pstBgImg, &pstChgSta, &pstStatData, &pstCtrl, true);
+    ret = BM_IVE_UpdateBgModel(ive_handle, &pcur_img, &pbg_model, &pfg_flag,
+                       &pbg_img, &pchg_sta, &pstat_data, &pctrl, true);
     if(ret != BM_SUCCESS){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "cvi_ive_update_bgmodel error %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
         bm_mem_unmap_device_mem(handle, (void *)vir_addr, stat_data_mem->size);
-        BM_IVE_DestroyHandle(pIveHandle);
+        BM_IVE_DestroyHandle(ive_handle);
         return BM_ERR_FAILURE;
     }
 
     bm_mem_unmap_device_mem(handle, (void *)vir_addr, stat_data_mem->size);
-    BM_IVE_DestroyHandle(pIveHandle);
+    BM_IVE_DestroyHandle(ive_handle);
     return ret;
 }
 
-bm_status_t BM_IVE_CCL(IVE_HANDLE pIveHandle, IVE_IMAGE_S *pstSrcDst,
-        IVE_DST_MEM_INFO_S *pstBlob, IVE_CCL_CTRL_S *pstCclCtrl,
-        CVI_BOOL bInstant)
+bm_status_t BM_IVE_CCL(ive_handle ive_handle, ive_image_s *psrc_dst,
+        ive_dst_mem_info_s *pblob, ive_ccl_ctrl_s *ccl_ctrl,
+        unsigned char instant)
 {
-    struct cvi_ive_ioctl_arg ioctl_arg;
-    struct cvi_ive_ioctl_ccl_arg ive_arg;
-    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)pIveHandle;
+    struct ive_ioctl_arg ioctl_arg;
+    struct ive_ioctl_ccl_arg ive_arg;
+    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)ive_handle;
 
     if (p == NULL || p->dev_fd <= 0) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
@@ -3595,16 +3595,16 @@ bm_status_t BM_IVE_CCL(IVE_HANDLE pIveHandle, IVE_IMAGE_S *pstSrcDst,
         return BM_ERR_DEVNOTREADY;
     }
 
-    ive_arg.pIveHandle = pIveHandle;
-    ive_arg.stSrcDst = *pstSrcDst;
-    ive_arg.stBlob = *pstBlob;
-    ive_arg.stCclCtrl = *pstCclCtrl;
-    ive_arg.bInstant = bInstant;
+    ive_arg.ive_handle = ive_handle;
+    ive_arg.src_dst = *psrc_dst;
+    ive_arg.blob = *pblob;
+    ive_arg.ccl_ctrl = *ccl_ctrl;
+    ive_arg.instant = instant;
 
-    ioctl_arg.input_data = (CVI_U64)&ive_arg;
-    ioctl_arg.buffer = (void *)(uintptr_t)pstBlob->u64VirAddr;
-    ioctl_arg.u32Size = sizeof(CVI_U16) + sizeof(CVI_S8) + sizeof(CVI_U8);
-    bm_status_t ret = (bm_status_t) ioctl(p->dev_fd, CVI_IVE_IOC_CCL, &ioctl_arg);
+    ioctl_arg.input_data = (uint64_t)&ive_arg;
+    ioctl_arg.buffer = (void *)(uintptr_t)pblob->vir_addr;
+    ioctl_arg.size = sizeof(unsigned short) + sizeof(signed char) + sizeof(unsigned char);
+    bm_status_t ret = (bm_status_t) ioctl(p->dev_fd, IVE_IOC_CCL, &ioctl_arg);
 
     return ret;
 }
@@ -3616,16 +3616,16 @@ bm_status_t bm_ive_ccl(
     bmcv_ive_ccl_attr *  ccl_attr)
 {
     bm_status_t ret = BM_SUCCESS;
-    IVE_HANDLE pIveHandle = NULL;
-    IVE_IMAGE_S pstSrcDst;
-    IVE_DST_MEM_INFO_S pstBlob;
-    IVE_CCL_CTRL_S pstCclCtrl;
+    ive_handle ive_handle = NULL;
+    ive_image_s psrc_dst;
+    ive_dst_mem_info_s pblob;
+    ive_ccl_ctrl_s ccl_ctrl;
 
-    memset(&pstSrcDst, 0, sizeof(IVE_IMAGE_S));
-    memset(&pstBlob, 0, sizeof(IVE_DST_MEM_INFO_S));
-    memset(&pstCclCtrl, 0, sizeof(IVE_CCL_CTRL_S));
+    memset(&psrc_dst, 0, sizeof(ive_image_s));
+    memset(&pblob, 0, sizeof(ive_dst_mem_info_s));
+    memset(&ccl_ctrl, 0, sizeof(ive_ccl_ctrl_s));
 
-    ret = bm_image_convert_to_ive_image(handle, src_dst_image, &pstSrcDst);
+    ret = bm_image_convert_to_ive_image(handle, src_dst_image, &psrc_dst);
     if(ret != BM_SUCCESS){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
             "failed to convert bm_image to ive_image %s: %s: %d\n",
@@ -3642,43 +3642,43 @@ bm_status_t bm_ive_ccl(
         return BM_ERR_FAILURE;
     }
 
-    pstBlob.u64VirAddr = vir_addr;
-    pstBlob.u64PhyAddr = bm_mem_get_device_addr(*ccblob_output);
-    pstBlob.u32Size = ccblob_output->size;
+    pblob.vir_addr = vir_addr;
+    pblob.phy_addr = bm_mem_get_device_addr(*ccblob_output);
+    pblob.size = ccblob_output->size;
 
-    memcpy(&pstCclCtrl, ccl_attr, sizeof(IVE_CCL_CTRL_S));
+    memcpy(&ccl_ctrl, ccl_attr, sizeof(ive_ccl_ctrl_s));
 
      // get ive handle and invoke ive funtion
-    pIveHandle = BM_IVE_CreateHandle();
-    if (pIveHandle == NULL) {
+    ive_handle = BM_IVE_CreateHandle();
+    if (ive_handle == NULL) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "failed to create ive handle %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
         return BM_ERR_FAILURE;
     }
 
-    ret = BM_IVE_CCL(pIveHandle, &pstSrcDst, &pstBlob, &pstCclCtrl, true);
+    ret = BM_IVE_CCL(ive_handle, &psrc_dst, &pblob, &ccl_ctrl, true);
     if(ret != BM_SUCCESS){
          bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "BM_IVE_CCL error %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
         bm_mem_unmap_device_mem(handle, (void *)vir_addr, ccblob_output->size);
-        BM_IVE_DestroyHandle(pIveHandle);
+        BM_IVE_DestroyHandle(ive_handle);
         return BM_ERR_FAILURE;
     }
 
     bm_mem_unmap_device_mem(handle, (void *)vir_addr, ccblob_output->size);
-    BM_IVE_DestroyHandle(pIveHandle);
+    BM_IVE_DestroyHandle(ive_handle);
     return ret;
 }
 
-bm_status_t BM_IVE_BERNSEN(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstSrc,
-                IVE_DST_IMAGE_S *pstDst, IVE_BERNSEN_CTRL_S *pstCtrl,
-                CVI_BOOL bInstant)
+bm_status_t BM_IVE_BERNSEN(ive_handle ive_handle, ive_src_image_s *psrc,
+                ive_dst_image_s *pdst, ive_bernsen_ctrl_s *pctrl,
+                unsigned char instant)
 {
-    struct cvi_ive_ioctl_arg ioctl_arg;
-    struct cvi_ive_ioctl_bernsen_arg ive_arg;
-    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)pIveHandle;
+    struct ive_ioctl_arg ioctl_arg;
+    struct ive_ioctl_bernsen_arg ive_arg;
+    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)ive_handle;
 
     if (p == NULL || p->dev_fd <= 0) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
@@ -3687,14 +3687,14 @@ bm_status_t BM_IVE_BERNSEN(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstSrc,
         return BM_ERR_DEVNOTREADY;
     }
 
-    ive_arg.pIveHandle = pIveHandle;
-    ive_arg.stSrc = *pstSrc;
-    ive_arg.stDst = *pstDst;
-    ive_arg.stCtrl = *pstCtrl;
-    ive_arg.bInstant = bInstant;
+    ive_arg.ive_handle = ive_handle;
+    ive_arg.src = *psrc;
+    ive_arg.dst = *pdst;
+    ive_arg.ctrl = *pctrl;
+    ive_arg.instant = instant;
 
-    ioctl_arg.input_data = (CVI_U64)&ive_arg;
-    bm_status_t ret = (bm_status_t) ioctl(p->dev_fd, CVI_IVE_IOC_Bernsen, &ioctl_arg);
+    ioctl_arg.input_data = (uint64_t)&ive_arg;
+    bm_status_t ret = (bm_status_t) ioctl(p->dev_fd, IVE_IOC_BERNSEN, &ioctl_arg);
 
     return ret;
 }
@@ -3706,14 +3706,14 @@ bm_status_t bm_ive_bernsen(
     bmcv_ive_bernsen_attr attr)
 {
     bm_status_t ret = BM_SUCCESS;
-    IVE_HANDLE pIveHandle = NULL;
-    IVE_SRC_IMAGE_S src;
-    IVE_DST_IMAGE_S dst;
-    IVE_BERNSEN_CTRL_S bernsenAttr;
+    ive_handle ive_handle = NULL;
+    ive_src_image_s src;
+    ive_dst_image_s dst;
+    ive_bernsen_ctrl_s bernsenAttr;
 
-    memset(&src, 0, sizeof(IVE_SRC_IMAGE_S));
-    memset(&dst, 0, sizeof(IVE_DST_IMAGE_S));
-    memset(&bernsenAttr, 0, sizeof(IVE_BERNSEN_CTRL_S));
+    memset(&src, 0, sizeof(ive_src_image_s));
+    memset(&dst, 0, sizeof(ive_dst_image_s));
+    memset(&bernsenAttr, 0, sizeof(ive_bernsen_ctrl_s));
 
     ret = bm_image_convert_to_ive_image(handle, &input, &src);
     if(ret != BM_SUCCESS){
@@ -3731,39 +3731,39 @@ bm_status_t bm_ive_bernsen(
             return BM_ERR_FAILURE;
     }
 
-    memcpy(&bernsenAttr, &attr, sizeof(IVE_BERNSEN_CTRL_S));
+    memcpy(&bernsenAttr, &attr, sizeof(ive_bernsen_ctrl_s));
 
     // get ive handle and invoke ive funtion
-    pIveHandle = BM_IVE_CreateHandle();
-    if (pIveHandle == NULL) {
+    ive_handle = BM_IVE_CreateHandle();
+    if (ive_handle == NULL) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "failed to create ive handle %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
         return BM_ERR_FAILURE;
     }
 
-    ret = BM_IVE_BERNSEN(pIveHandle, &src, &dst, &bernsenAttr, true);
+    ret = BM_IVE_BERNSEN(ive_handle, &src, &dst, &bernsenAttr, true);
     if(ret != BM_SUCCESS){
          bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "BM_IVE_BERNSEN error %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
-        BM_IVE_DestroyHandle(pIveHandle);
+        BM_IVE_DestroyHandle(ive_handle);
         return BM_ERR_FAILURE;
     }
 
-    BM_IVE_DestroyHandle(pIveHandle);
+    BM_IVE_DestroyHandle(ive_handle);
 
     return ret;
 }
 
-bm_status_t BM_IVE_FilterAndCsc(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstSrc,
-                    IVE_DST_IMAGE_S *pstDst,
-                    IVE_FILTER_AND_CSC_CTRL_S *pstCtrl,
-                    CVI_BOOL bInstant)
+bm_status_t BM_IVE_FilterAndCsc(ive_handle ive_handle, ive_src_image_s *psrc,
+                    ive_dst_image_s *pdst,
+                    ive_filter_and_csc_ctrl_s *pctrl,
+                    unsigned char instant)
 {
-    struct cvi_ive_ioctl_arg ioctl_arg;
-    struct cvi_ive_ioctl_filter_and_csc_arg ive_arg;
-    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)pIveHandle;
+    struct ive_ioctl_arg ioctl_arg;
+    struct ive_ioctl_filter_and_csc_arg ive_arg;
+    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)ive_handle;
 
     if (p == NULL || p->dev_fd <= 0) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
@@ -3772,14 +3772,14 @@ bm_status_t BM_IVE_FilterAndCsc(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstSrc,
         return BM_ERR_DEVNOTREADY;
     }
 
-    ive_arg.pIveHandle = pIveHandle;
-    ive_arg.stSrc = *pstSrc;
-    ive_arg.stDst = *pstDst;
-    ive_arg.stCtrl = *pstCtrl;
-    ive_arg.bInstant = bInstant;
+    ive_arg.ive_handle = ive_handle;
+    ive_arg.src = *psrc;
+    ive_arg.dst = *pdst;
+    ive_arg.ctrl = *pctrl;
+    ive_arg.instant = instant;
 
-    ioctl_arg.input_data = (CVI_U64)&ive_arg;
-    bm_status_t ret = (bm_status_t) ioctl(p->dev_fd, CVI_IVE_IOC_FilterAndCSC, &ioctl_arg);
+    ioctl_arg.input_data = (uint64_t)&ive_arg;
+    bm_status_t ret = (bm_status_t) ioctl(p->dev_fd, IVE_IOC_FILTER_AND_CSC, &ioctl_arg);
 
     return ret;
 }
@@ -3814,14 +3814,14 @@ bm_status_t bm_ive_filterAndCsc(
     csc_type_t              csc_type)
 {
     bm_status_t ret = BM_SUCCESS;
-    IVE_HANDLE pIveHandle = NULL;
-    IVE_SRC_IMAGE_S src;
-    IVE_DST_IMAGE_S dst;
-    IVE_FILTER_AND_CSC_CTRL_S ctrl;
+    ive_handle ive_handle = NULL;
+    ive_src_image_s src;
+    ive_dst_image_s dst;
+    ive_filter_and_csc_ctrl_s ctrl;
 
-    memset(&src, 0, sizeof(IVE_SRC_IMAGE_S));
-    memset(&dst, 0, sizeof(IVE_DST_IMAGE_S));
-    memset(&ctrl, 0, sizeof(IVE_FILTER_AND_CSC_CTRL_S));
+    memset(&src, 0, sizeof(ive_src_image_s));
+    memset(&dst, 0, sizeof(ive_dst_image_s));
+    memset(&ctrl, 0, sizeof(ive_filter_and_csc_ctrl_s));
 
     ret = bm_image_convert_to_ive_image(handle, &input, &src);
     if(ret != BM_SUCCESS){
@@ -3839,47 +3839,47 @@ bm_status_t bm_ive_filterAndCsc(
             return BM_ERR_FAILURE;
     }
 
-    ctrl.u8Norm = attr.u8_norm;
-    memcpy(ctrl.as8Mask, attr.as8_mask, 5 * 5 * sizeof(signed char));
+    ctrl.norm = attr.u8_norm;
+    memcpy(ctrl.mask, attr.as8_mask, 5 * 5 * sizeof(signed char));
     int csc_mode = bm_image_format_filterandcsc_mode(csc_type);
     if (csc_mode < 0 || csc_mode >= IVE_CSC_MODE_BUTT) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
             " csc_type is error, please check it. %s: %s: %d\n",
             filename(__FILE__), __func__, __LINE__);
     }
-    ctrl.enMode = (IVE_CSC_MODE_E)csc_mode;
+    ctrl.mode = (ive_csc_mode_e)csc_mode;
 
     // get ive handle and invoke ive funtion
-    pIveHandle = BM_IVE_CreateHandle();
-    if (pIveHandle == NULL) {
+    ive_handle = BM_IVE_CreateHandle();
+    if (ive_handle == NULL) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "failed to create ive handle %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
         return BM_ERR_FAILURE;
     }
 
-    ret = BM_IVE_FilterAndCsc(pIveHandle, &src, &dst, &ctrl, true);
+    ret = BM_IVE_FilterAndCsc(ive_handle, &src, &dst, &ctrl, true);
     if(ret != BM_SUCCESS){
          bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "BM_IVE_FilterAndCsc error %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
-        BM_IVE_DestroyHandle(pIveHandle);
+        BM_IVE_DestroyHandle(ive_handle);
         return BM_ERR_FAILURE;
     }
 
-    BM_IVE_DestroyHandle(pIveHandle);
+    BM_IVE_DestroyHandle(ive_handle);
 
     return ret;
 }
 
-bm_status_t BM_IVE_16BitTo8Bit(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstSrc,
-                IVE_DST_IMAGE_S *pstDst,
-                IVE_16BIT_TO_8BIT_CTRL_S *pstCtrl,
-                bool bInstant)
+bm_status_t BM_IVE_16BitTo8Bit(ive_handle ive_handle, ive_src_image_s *psrc,
+                ive_dst_image_s *pdst,
+                ive_16bit_to_8bit_ctrl_s *pctrl,
+                bool instant)
 {
-    struct cvi_ive_ioctl_arg ioctl_arg;
-    struct cvi_ive_ioctl_16bit_to_8bit_arg ive_arg;
-    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)pIveHandle;
+    struct ive_ioctl_arg ioctl_arg;
+    struct ive_ioctl_16bit_to_8bit_arg ive_arg;
+    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)ive_handle;
 
     if (p == NULL || p->dev_fd <= 0) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
@@ -3888,13 +3888,13 @@ bm_status_t BM_IVE_16BitTo8Bit(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstSrc,
         return BM_ERR_DEVNOTREADY;
     }
 
-    ive_arg.pIveHandle = pIveHandle;
-    ive_arg.stSrc = *pstSrc;
-    ive_arg.stDst = *pstDst;
-    ive_arg.stCtrl = *pstCtrl;
-    ive_arg.bInstant = bInstant;
-    ioctl_arg.input_data = (CVI_U64)&ive_arg;
-    bm_status_t ret = (bm_status_t) ioctl(p->dev_fd, CVI_IVE_IOC_16BitTo8Bit, &ioctl_arg);
+    ive_arg.ive_handle = ive_handle;
+    ive_arg.src = *psrc;
+    ive_arg.dst = *pdst;
+    ive_arg.ctrl = *pctrl;
+    ive_arg.instant = instant;
+    ioctl_arg.input_data = (uint64_t)&ive_arg;
+    bm_status_t ret = (bm_status_t) ioctl(p->dev_fd, IVE_IOC_16BIT_TO_8BIT, &ioctl_arg);
 
     return ret;
 }
@@ -3906,14 +3906,14 @@ bm_status_t bm_ive_16bit_to_8bit(
     bmcv_ive_16bit_to_8bit_attr attr)
 {
     bm_status_t ret = BM_SUCCESS;
-    IVE_HANDLE pIveHandle = NULL;
-    IVE_SRC_IMAGE_S src;
-    IVE_DST_IMAGE_S dst;
-    IVE_16BIT_TO_8BIT_CTRL_S ctrl;
+    ive_handle ive_handle = NULL;
+    ive_src_image_s src;
+    ive_dst_image_s dst;
+    ive_16bit_to_8bit_ctrl_s ctrl;
 
-    memset(&src, 0, sizeof(IVE_SRC_IMAGE_S));
-    memset(&dst, 0, sizeof(IVE_DST_IMAGE_S));
-    memset(&ctrl, 0, sizeof(IVE_16BIT_TO_8BIT_CTRL_S));
+    memset(&src, 0, sizeof(ive_src_image_s));
+    memset(&dst, 0, sizeof(ive_dst_image_s));
+    memset(&ctrl, 0, sizeof(ive_16bit_to_8bit_ctrl_s));
 
     ret = bm_image_convert_to_ive_image(handle, &input, &src);
     if(ret != BM_SUCCESS){
@@ -3931,39 +3931,39 @@ bm_status_t bm_ive_16bit_to_8bit(
             return BM_ERR_FAILURE;
     }
 
-    memcpy(&ctrl, &attr, sizeof(IVE_16BIT_TO_8BIT_CTRL_S));
+    memcpy(&ctrl, &attr, sizeof(ive_16bit_to_8bit_ctrl_s));
 
     // get ive handle and invoke ive funtion
-    pIveHandle = BM_IVE_CreateHandle();
-    if (pIveHandle == NULL) {
+    ive_handle = BM_IVE_CreateHandle();
+    if (ive_handle == NULL) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "failed to create ive handle %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
         return BM_ERR_FAILURE;
     }
 
-    ret = BM_IVE_16BitTo8Bit(pIveHandle, &src, &dst, &ctrl, true);
+    ret = BM_IVE_16BitTo8Bit(ive_handle, &src, &dst, &ctrl, true);
     if(ret != BM_SUCCESS){
          bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "BM_IVE_16BitTo8Bit error %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
-        BM_IVE_DestroyHandle(pIveHandle);
+        BM_IVE_DestroyHandle(ive_handle);
         return BM_ERR_FAILURE;
     }
 
-    BM_IVE_DestroyHandle(pIveHandle);
+    BM_IVE_DestroyHandle(ive_handle);
 
     return ret;
 }
 
-bm_status_t BM_IVE_FrameDiffMotion(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstSrc1,
-            IVE_SRC_IMAGE_S *pstSrc2, IVE_DST_IMAGE_S *pstDst,
-            IVE_FRAME_DIFF_MOTION_CTRL_S *pstCtrl,
-            CVI_BOOL bInstant)
+bm_status_t BM_IVE_FrameDiffMotion(ive_handle ive_handle, ive_src_image_s *psrc1,
+            ive_src_image_s *psrc2, ive_dst_image_s *pdst,
+            ive_frame_diff_motion_ctrl_s *pctrl,
+            unsigned char instant)
 {
-    struct cvi_ive_ioctl_arg ioctl_arg;
-    struct cvi_ive_ioctl_md ive_arg;
-    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)pIveHandle;
+    struct ive_ioctl_arg ioctl_arg;
+    struct ive_ioctl_md ive_arg;
+    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)ive_handle;
 
     if (p == NULL || p->dev_fd <= 0) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
@@ -3972,15 +3972,15 @@ bm_status_t BM_IVE_FrameDiffMotion(IVE_HANDLE pIveHandle, IVE_SRC_IMAGE_S *pstSr
         return BM_ERR_DEVNOTREADY;
     }
 
-    ive_arg.pIveHandle = pIveHandle;
-    ive_arg.stSrc1 = *pstSrc1;
-    ive_arg.stSrc2 = *pstSrc2;
-    ive_arg.stDst = *pstDst;
-    ive_arg.stCtrl = *pstCtrl;
-    ive_arg.bInstant = bInstant;
+    ive_arg.ive_handle = ive_handle;
+    ive_arg.src1 = *psrc1;
+    ive_arg.src2 = *psrc2;
+    ive_arg.dst = *pdst;
+    ive_arg.ctrl = *pctrl;
+    ive_arg.instant = instant;
 
-    ioctl_arg.input_data = (CVI_U64)&ive_arg;
-    bm_status_t ret = (bm_status_t) ioctl(p->dev_fd, CVI_IVE_IOC_MD, &ioctl_arg);
+    ioctl_arg.input_data = (uint64_t)&ive_arg;
+    bm_status_t ret = (bm_status_t) ioctl(p->dev_fd, IVE_IOC_MD, &ioctl_arg);
 
     return ret;
 }
@@ -3993,15 +3993,15 @@ bm_status_t bm_ive_frame_diff_motion(
     bmcv_ive_frame_diff_motion_attr attr)
 {
     bm_status_t ret = BM_SUCCESS;
-    IVE_HANDLE pIveHandle = NULL;
-    IVE_SRC_IMAGE_S src1, src2;
-    IVE_DST_IMAGE_S dst;
-    IVE_FRAME_DIFF_MOTION_CTRL_S ctrl;
+    ive_handle ive_handle = NULL;
+    ive_src_image_s src1, src2;
+    ive_dst_image_s dst;
+    ive_frame_diff_motion_ctrl_s ctrl;
 
-    memset(&src1, 0, sizeof(IVE_SRC_IMAGE_S));
-    memset(&src2, 0, sizeof(IVE_SRC_IMAGE_S));
-    memset(&dst, 0, sizeof(IVE_DST_IMAGE_S));
-    memset(&ctrl, 0, sizeof(IVE_FRAME_DIFF_MOTION_CTRL_S));
+    memset(&src1, 0, sizeof(ive_src_image_s));
+    memset(&src2, 0, sizeof(ive_src_image_s));
+    memset(&dst, 0, sizeof(ive_dst_image_s));
+    memset(&ctrl, 0, sizeof(ive_frame_diff_motion_ctrl_s));
 
 
     ret = bm_image_convert_to_ive_image(handle, &input1, &src1);
@@ -4029,36 +4029,36 @@ bm_status_t bm_ive_frame_diff_motion(
     }
 
     // config setting
-    ctrl.enSubMode = attr.sub_mode;
-    ctrl.enThrMode = (IVE_THRESH_MODE_E)thransform_pattern(attr.thr_mode);
-    ctrl.u8ThrLow = attr.u8_thr_low;
-    ctrl.u8ThrHigh = attr.u8_thr_high;
-    ctrl.u8ThrMinVal = attr.u8_thr_min_val;
-    ctrl.u8ThrMidVal = attr.u8_thr_mid_val;
-    ctrl.u8ThrMaxVal = attr.u8_thr_max_val;
+    ctrl.sub_mode = attr.sub_mode;
+    ctrl.thr_mode = (ive_thresh_mode_e)thransform_pattern(attr.thr_mode);
+    ctrl.thr_low = attr.u8_thr_low;
+    ctrl.thr_high = attr.u8_thr_high;
+    ctrl.thr_min_val = attr.u8_thr_min_val;
+    ctrl.thr_mid_val = attr.u8_thr_mid_val;
+    ctrl.thr_max_val = attr.u8_thr_max_val;
 
-    memcpy(&ctrl.au8ErodeMask, &attr.au8_erode_mask, 25 * sizeof(unsigned char));
-    memcpy(&ctrl.au8DilateMask, &attr.au8_dilate_mask, 25 * sizeof(unsigned char));
+    memcpy(&ctrl.erode_mask, &attr.au8_erode_mask, 25 * sizeof(unsigned char));
+    memcpy(&ctrl.dilate_mask, &attr.au8_dilate_mask, 25 * sizeof(unsigned char));
 
     // get ive handle and invoke ive funtion
-    pIveHandle = BM_IVE_CreateHandle();
-    if (pIveHandle == NULL) {
+    ive_handle = BM_IVE_CreateHandle();
+    if (ive_handle == NULL) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "failed to create ive handle %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
         return BM_ERR_FAILURE;
     }
 
-    ret = BM_IVE_FrameDiffMotion(pIveHandle, &src1, &src2, &dst, &ctrl, true);
+    ret = BM_IVE_FrameDiffMotion(ive_handle, &src1, &src2, &dst, &ctrl, true);
     if(ret != BM_SUCCESS){
          bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "BM_IVE_FrameDiffMotion error %s: %s: %d\n",
                 filename(__FILE__), __func__, __LINE__);
-        BM_IVE_DestroyHandle(pIveHandle);
+        BM_IVE_DestroyHandle(ive_handle);
         return BM_ERR_FAILURE;
     }
 
-    BM_IVE_DestroyHandle(pIveHandle);
+    BM_IVE_DestroyHandle(ive_handle);
 
     return ret;
 }

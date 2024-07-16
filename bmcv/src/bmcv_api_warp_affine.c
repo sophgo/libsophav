@@ -83,7 +83,9 @@ static bm_status_t per_image_deal_nearest(bm_handle_t handle,
     }
 
     bm_image_get_stride(input, &(param.src_w_stride));
-    ret = bm_malloc_device_byte(handle, &tensor_S, image_dh * image_dw * image_c * 4);
+    int index_size_temp = image_dw > image_dh ? ALIGN(image_dw, 64) : ALIGN(image_dh, 64);
+    ret = bm_malloc_device_byte(handle, &tensor_S, index_size_temp * index_size_temp * image_c * 4);
+    // ret = bm_malloc_device_byte(handle, &tensor_S, image_dh * image_dw * image_c * 4);
     if(BM_SUCCESS != ret) {
         printf("bm_malloc error\n");
         bm_free_device(handle, tensor_temp);
@@ -138,6 +140,7 @@ static bm_status_t per_image_deal_bilinear(bm_handle_t handle,
     param.input_image_addr = bm_mem_get_device_addr(tensor_input);
 
     ret = bm_malloc_device_byte(handle, &tensor_temp_r, input.height * input.width * 4);
+    int index_size_temp = image_dw > image_dh ? ALIGN(image_dw, 64) : ALIGN(image_dh, 64);
     if (BM_SUCCESS != ret) {
         printf("bm_malloc error\n");
         goto ERR_0;
@@ -185,7 +188,8 @@ static bm_status_t per_image_deal_bilinear(bm_handle_t handle,
         param.m.m[i] = matrix.matrix->m[i];
     }
 
-    ret = bm_malloc_device_byte(handle, &tensor_S, image_dh * image_dw * image_c * 4);
+    // ret = bm_malloc_device_byte(handle, &tensor_S, image_dh * image_dw * image_c * 4);
+    ret = bm_malloc_device_byte(handle, &tensor_S, index_size_temp * index_size_temp * image_c * 4);
     if(BM_SUCCESS != ret) {
         printf("bm_malloc error\n");
         goto ERR_5;

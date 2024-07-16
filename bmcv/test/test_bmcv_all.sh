@@ -397,6 +397,22 @@ run_all(){
   run_ive
   run_tde
   run_kill_vpss
+  run_kill_tpu
+  run_kill_dpu
+  run_kill_ldc
+  run_kill_dwa
+  run_kill_ive
+#  run_kill_blend
+}
+
+run_kill(){
+  run_kill_vpss
+  run_kill_tpu
+  run_kill_dpu
+  run_kill_ldc
+  run_kill_dwa
+  run_kill_ive
+#  run_kill_blend
 }
 
 run_kill_vpss(){
@@ -451,11 +467,294 @@ run_kill_vpss(){
   kill_processes
 }
 
+
+run_kill_tpu(){
+  COMMAND1="test_cv_absdiff &
+            test_cv_absdiff &
+            test_cv_absdiff &
+            test_cv_absdiff &
+            test_cv_absdiff &
+            test_cv_absdiff &
+            test_cv_absdiff &
+            test_cv_absdiff &
+            "
+  COMMAND2="test_cv_add_weight & \
+            test_cv_add_weight & \
+            test_cv_add_weight & \
+            test_cv_add_weight &
+            "
+
+  start_command1() {
+    if ! pgrep -f "test_cv_absdiff" >/dev/null; then
+      eval "$COMMAND1" &
+      eval "$COMMAND1" &
+    fi
+  }
+
+  start_command2() {
+    eval "$COMMAND2" &
+    eval "$COMMAND2" &
+  }
+
+  kill_processes() {
+      pkill -9 -f "test_cv_absdiff"
+  }
+
+  END=$(( $(date +%s) + 5*60 ))
+
+  while [ $(date +%s) -lt $END ]; do
+    start_command1
+    start_command2
+
+    if [ $(( $(date +%s) % 20 )) -lt 2 ]; then
+      kill_processes
+    fi
+
+    sleep 10
+  done
+  kill_processes
+}
+
+run_kill_dpu(){
+  COMMAND1="test_dpu_sgbm_thread 512 284 3 dpu_data/sofa_left_img_512x284.bin dpu_data/sofa_right_img_512x284.bin dpu_data/205pU8Disp_ref_512x284.bin &
+            test_dpu_sgbm_thread 512 284 3 dpu_data/sofa_left_img_512x284.bin dpu_data/sofa_right_img_512x284.bin dpu_data/205pU8Disp_ref_512x284.bin &
+            test_dpu_sgbm_thread 512 284 3 dpu_data/sofa_left_img_512x284.bin dpu_data/sofa_right_img_512x284.bin dpu_data/205pU8Disp_ref_512x284.bin &
+            test_dpu_sgbm_thread 512 284 3 dpu_data/sofa_left_img_512x284.bin dpu_data/sofa_right_img_512x284.bin dpu_data/205pU8Disp_ref_512x284.bin &
+            test_dpu_sgbm_thread 512 284 3 dpu_data/sofa_left_img_512x284.bin dpu_data/sofa_right_img_512x284.bin dpu_data/205pU8Disp_ref_512x284.bin &
+            test_dpu_sgbm_thread 512 284 3 dpu_data/sofa_left_img_512x284.bin dpu_data/sofa_right_img_512x284.bin dpu_data/205pU8Disp_ref_512x284.bin &
+            test_dpu_sgbm_thread 512 284 3 dpu_data/sofa_left_img_512x284.bin dpu_data/sofa_right_img_512x284.bin dpu_data/205pU8Disp_ref_512x284.bin &
+            test_dpu_sgbm_thread 512 284 3 dpu_data/sofa_left_img_512x284.bin dpu_data/sofa_right_img_512x284.bin dpu_data/205pU8Disp_ref_512x284.bin &
+            "
+  COMMAND2="test_dpu_online_thread 512 284 4 dpu_data/sofa_left_img_512x284.bin dpu_data/sofa_right_img_512x284.bin dpu_data/fgs_512x284_res.bin 0 0 1 1 & \
+            test_dpu_online_thread 512 284 4 dpu_data/sofa_left_img_512x284.bin dpu_data/sofa_right_img_512x284.bin dpu_data/fgs_512x284_res.bin 0 0 1 1 &
+            "
+
+  start_command1() {
+    if ! pgrep -f "test_dpu_sgbm_thread" >/dev/null; then
+      eval "$COMMAND1" &
+      eval "$COMMAND1" &
+    fi
+  }
+
+  start_command2() {
+    eval "$COMMAND2" &
+    eval "$COMMAND2" &
+  }
+
+  kill_processes() {
+      pkill -9 -f "test_dpu_sgbm_thread"
+  }
+
+  END=$(( $(date +%s) + 5*60 ))
+
+  while [ $(date +%s) -lt $END ]; do
+    start_command1
+    start_command2
+
+    if [ $(( $(date +%s) % 20 )) -lt 2 ]; then
+      kill_processes
+    fi
+
+    sleep 10
+  done
+  kill_processes
+}
+
+run_kill_ldc(){
+  COMMAND1="test_ldc_rot_thread ldc_data/1920x1088_nv21.bin ldc_data/out_1920x1088_rot0.yuv 1920 1088 0 4 4 1 1 &
+            test_ldc_rot_thread ldc_data/1920x1088_nv21.bin ldc_data/out_1920x1088_rot0.yuv 1920 1088 0 4 4 1 1 &
+            test_ldc_rot_thread ldc_data/1920x1088_nv21.bin ldc_data/out_1920x1088_rot0.yuv 1920 1088 0 4 4 1 1 &
+            test_ldc_rot_thread ldc_data/1920x1088_nv21.bin ldc_data/out_1920x1088_rot0.yuv 1920 1088 0 4 4 1 1 &
+            test_ldc_rot_thread ldc_data/1920x1088_nv21.bin ldc_data/out_1920x1088_rot0.yuv 1920 1088 0 4 4 1 1 &
+            test_ldc_rot_thread ldc_data/1920x1088_nv21.bin ldc_data/out_1920x1088_rot0.yuv 1920 1088 0 4 4 1 1 &
+            test_ldc_rot_thread ldc_data/1920x1088_nv21.bin ldc_data/out_1920x1088_rot0.yuv 1920 1088 0 4 4 1 1 &
+            test_ldc_rot_thread ldc_data/1920x1088_nv21.bin ldc_data/out_1920x1088_rot0.yuv 1920 1088 0 4 4 1 1 &
+            "
+  COMMAND2="test_ldc_gdc_thread ldc_data/1920x1080_barrel_0.3.yuv ldc_data/out_barrel_0.yuv 1920 1080 4 4 1 0 0 0 0 0 -200 1 1 & \
+            test_ldc_gdc_thread ldc_data/1920x1080_barrel_0.3.yuv ldc_data/out_barrel_0.yuv 1920 1080 4 4 1 0 0 0 0 0 -200 1 1 & \
+            test_ldc_gdc_thread ldc_data/1920x1080_barrel_0.3.yuv ldc_data/out_barrel_0.yuv 1920 1080 4 4 1 0 0 0 0 0 -200 1 1 & \
+            test_ldc_gdc_thread ldc_data/1920x1080_barrel_0.3.yuv ldc_data/out_barrel_0.yuv 1920 1080 4 4 1 0 0 0 0 0 -200 1 1 &
+            "
+
+  start_command1() {
+    if ! pgrep -f "test_ldc_rot_thread" >/dev/null; then
+      eval "$COMMAND1" &
+      eval "$COMMAND1" &
+    fi
+  }
+
+  start_command2() {
+    eval "$COMMAND2" &
+    eval "$COMMAND2" &
+  }
+
+  kill_processes() {
+      pkill -9 -f "test_ldc_rot_thread"
+  }
+
+  END=$(( $(date +%s) + 5*60 ))
+
+  while [ $(date +%s) -lt $END ]; do
+    start_command1
+    start_command2
+
+    if [ $(( $(date +%s) % 20 )) -lt 2 ]; then
+      kill_processes
+    fi
+
+    sleep 10
+  done
+  kill_processes
+}
+
+run_kill_dwa(){
+  COMMAND1="test_dwa_rot_thread 128 128 14 dwa_data/128x128_sophgo.bin dwa_data/out_128x128_rot0.bin 0 1 1 e001fc14213febf4751fbd8d739d8f28 &
+            test_dwa_rot_thread 128 128 14 dwa_data/128x128_sophgo.bin dwa_data/out_128x128_rot0.bin 0 1 1 e001fc14213febf4751fbd8d739d8f28 &
+            test_dwa_rot_thread 128 128 14 dwa_data/128x128_sophgo.bin dwa_data/out_128x128_rot0.bin 0 1 1 e001fc14213febf4751fbd8d739d8f28 &
+            test_dwa_rot_thread 128 128 14 dwa_data/128x128_sophgo.bin dwa_data/out_128x128_rot0.bin 0 1 1 e001fc14213febf4751fbd8d739d8f28 &
+            test_dwa_rot_thread 128 128 14 dwa_data/128x128_sophgo.bin dwa_data/out_128x128_rot0.bin 0 1 1 e001fc14213febf4751fbd8d739d8f28 &
+            test_dwa_rot_thread 128 128 14 dwa_data/128x128_sophgo.bin dwa_data/out_128x128_rot0.bin 0 1 1 e001fc14213febf4751fbd8d739d8f28 &
+            test_dwa_rot_thread 128 128 14 dwa_data/128x128_sophgo.bin dwa_data/out_128x128_rot0.bin 0 1 1 e001fc14213febf4751fbd8d739d8f28 &
+            test_dwa_rot_thread 128 128 14 dwa_data/128x128_sophgo.bin dwa_data/out_128x128_rot0.bin 0 1 1 e001fc14213febf4751fbd8d739d8f28 &
+            "
+  COMMAND2="test_dwa_gdc_thread 1920 1080 0 dwa_data/1920x1080_barrel_0.3.yuv dwa_data/out_barrel_0.yuv 1 0 0 0 0 0 -200 1 1 0b8dfc8c16d1fa8b3024107a49471253 & \
+            test_dwa_gdc_thread 1920 1080 0 dwa_data/1920x1080_barrel_0.3.yuv dwa_data/out_barrel_0.yuv 1 0 0 0 0 0 -200 1 1 0b8dfc8c16d1fa8b3024107a49471253 & \
+            test_dwa_gdc_thread 1920 1080 0 dwa_data/1920x1080_barrel_0.3.yuv dwa_data/out_barrel_0.yuv 1 0 0 0 0 0 -200 1 1 0b8dfc8c16d1fa8b3024107a49471253 & \
+            test_dwa_gdc_thread 1920 1080 0 dwa_data/1920x1080_barrel_0.3.yuv dwa_data/out_barrel_0.yuv 1 0 0 0 0 0 -200 1 1 0b8dfc8c16d1fa8b3024107a49471253 &
+            "
+
+  start_command1() {
+    if ! pgrep -f "test_dwa_rot_thread" >/dev/null; then
+      eval "$COMMAND1" &
+      eval "$COMMAND1" &
+    fi
+  }
+
+  start_command2() {
+    eval "$COMMAND2" &
+    eval "$COMMAND2" &
+  }
+
+  kill_processes() {
+      pkill -9 -f "test_dwa_rot_thread"
+  }
+
+  END=$(( $(date +%s) + 5*60 ))
+
+  while [ $(date +%s) -lt $END ]; do
+    start_command1
+    start_command2
+
+    if [ $(( $(date +%s) % 20 )) -lt 2 ]; then
+      kill_processes
+    fi
+
+    sleep 10
+  done
+  kill_processes
+}
+
+run_kill_ive(){
+  COMMAND1="test_ive_add_thread 352 288 14 14 19584 45952 ive_data/00_352x288_y.yuv ive_data/01_352x288_y.yuv ive_data/result/sample_Add.yuv 0 1 1 0 &
+            test_ive_add_thread 352 288 14 14 19584 45952 ive_data/00_352x288_y.yuv ive_data/01_352x288_y.yuv ive_data/result/sample_Add.yuv 0 1 1 0 &
+            test_ive_add_thread 352 288 14 14 19584 45952 ive_data/00_352x288_y.yuv ive_data/01_352x288_y.yuv ive_data/result/sample_Add.yuv 0 1 1 0 &
+            test_ive_add_thread 352 288 14 14 19584 45952 ive_data/00_352x288_y.yuv ive_data/01_352x288_y.yuv ive_data/result/sample_Add.yuv 0 1 1 0 &
+            test_ive_add_thread 352 288 14 14 19584 45952 ive_data/00_352x288_y.yuv ive_data/01_352x288_y.yuv ive_data/result/sample_Add.yuv 0 1 1 0 &
+            test_ive_add_thread 352 288 14 14 19584 45952 ive_data/00_352x288_y.yuv ive_data/01_352x288_y.yuv ive_data/result/sample_Add.yuv 0 1 1 0 &
+            test_ive_add_thread 352 288 14 14 19584 45952 ive_data/00_352x288_y.yuv ive_data/01_352x288_y.yuv ive_data/result/sample_Add.yuv 0 1 1 0 &
+            test_ive_add_thread 352 288 14 14 19584 45952 ive_data/00_352x288_y.yuv ive_data/01_352x288_y.yuv ive_data/result/sample_Add.yuv 0 1 1 0 &
+            "
+  COMMAND2="test_ive_dilate_thread 640 480 0 ive_data/sky_640x480.yuv ive_data/result/sample_tile_Dilate_3x3.yuv 0 1 1 0 & \
+            test_ive_dilate_thread 640 480 0 ive_data/sky_640x480.yuv ive_data/result/sample_tile_Dilate_3x3.yuv 0 1 1 0 & \
+            test_ive_dilate_thread 640 480 0 ive_data/sky_640x480.yuv ive_data/result/sample_tile_Dilate_3x3.yuv 0 1 1 0 & \
+            test_ive_dilate_thread 640 480 0 ive_data/sky_640x480.yuv ive_data/result/sample_tile_Dilate_3x3.yuv 0 1 1 0 &
+            "
+
+  start_command1() {
+    if ! pgrep -f "test_ive_add_thread" >/dev/null; then
+      eval "$COMMAND1" &
+      eval "$COMMAND1" &
+    fi
+  }
+
+  start_command2() {
+    eval "$COMMAND2" &
+    eval "$COMMAND2" &
+  }
+
+  kill_processes() {
+      pkill -9 -f "test_ive_add_thread"
+  }
+
+  END=$(( $(date +%s) + 5*60 ))
+
+  while [ $(date +%s) -lt $END ]; do
+    start_command1
+    start_command2
+
+    if [ $(( $(date +%s) % 20 )) -lt 2 ]; then
+      kill_processes
+    fi
+
+    sleep 10
+  done
+  kill_processes
+}
+
+#run_kill_blend(){
+#  COMMAND1="test_2way_blending -a stitch/c01_lft__1536x384_pure_color.yuv -b stitch/c01_rht__1088x384_pure_color.yuv -c 1536 -d 384 -e 1088 -f 384 -g 0 -h out/2way-2400x384.yuv420p -i 2400 -j 384 -k 0 -l 1312 -m 1535 -r stitch/c01_alpha_m2__384x224_short.bin -s stitch/c01_beta_m2__384x224_short.bin -z stitch/c01_result_c2_2400x384_pure_color1.yuv &
+#            test_2way_blending -a stitch/c01_lft__1536x384_pure_color.yuv -b stitch/c01_rht__1088x384_pure_color.yuv -c 1536 -d 384 -e 1088 -f 384 -g 0 -h out/2way-2400x384.yuv420p -i 2400 -j 384 -k 0 -l 1312 -m 1535 -r stitch/c01_alpha_m2__384x224_short.bin -s stitch/c01_beta_m2__384x224_short.bin -z stitch/c01_result_c2_2400x384_pure_color1.yuv &
+#            test_2way_blending -a stitch/c01_lft__1536x384_pure_color.yuv -b stitch/c01_rht__1088x384_pure_color.yuv -c 1536 -d 384 -e 1088 -f 384 -g 0 -h out/2way-2400x384.yuv420p -i 2400 -j 384 -k 0 -l 1312 -m 1535 -r stitch/c01_alpha_m2__384x224_short.bin -s stitch/c01_beta_m2__384x224_short.bin -z stitch/c01_result_c2_2400x384_pure_color1.yuv &
+#            test_2way_blending -a stitch/c01_lft__1536x384_pure_color.yuv -b stitch/c01_rht__1088x384_pure_color.yuv -c 1536 -d 384 -e 1088 -f 384 -g 0 -h out/2way-2400x384.yuv420p -i 2400 -j 384 -k 0 -l 1312 -m 1535 -r stitch/c01_alpha_m2__384x224_short.bin -s stitch/c01_beta_m2__384x224_short.bin -z stitch/c01_result_c2_2400x384_pure_color1.yuv &
+#            "
+#  COMMAND2="test_4way_blending -N 2 -a stitch/c01_lft__128x128.yuv -b stitch/c01_rht__128x128.yuv -e 128 -f 128 -g 0 -h out/2way-192x128.yuv420p -i 192 -j 128 -k 0 -l 64 -m 127 -r stitch/c01_alpha_444p_m2__0_128x64.bin -s stitch/c01_beta_444p_m2__0_128x64.bin -z stitch/c01_result_c2_192x128.yuv & \
+#            test_4way_blending -N 2 -a stitch/c01_lft__128x128.yuv -b stitch/c01_rht__128x128.yuv -e 128 -f 128 -g 0 -h out/2way-192x128.yuv420p -i 192 -j 128 -k 0 -l 64 -m 127 -r stitch/c01_alpha_444p_m2__0_128x64.bin -s stitch/c01_beta_444p_m2__0_128x64.bin -z stitch/c01_result_c2_192x128.yuv &
+#            "
+#  start_command1() {
+#    if ! pgrep -f "test_2way_blending" >/dev/null; then
+#      eval "$COMMAND1" &
+#      eval "$COMMAND1" &
+#    fi
+#  }
+
+#  start_command2() {
+#    eval "$COMMAND2" &
+#    eval "$COMMAND2" &
+#  }
+
+#  kill_processes() {
+#      pkill -9 -f "test_2way_blending"
+#  }
+
+#  END=$(( $(date +%s) + 5*60 ))
+
+#  while [ $(date +%s) -lt $END ]; do
+#    start_command1
+#    start_command2
+
+#    if [ $(( $(date +%s) % 20 )) -lt 2 ]; then
+#      kill_processes
+#    fi
+
+#    sleep 10
+#  done
+#  kill_processes
+#}
+
 if [ $bmcv_case = "all" ]; then
   eval "mkdir -p out"
   while [ $count -le $loop ]
   do
       run_all
+      ((count++))
+  done
+fi
+
+if [ $bmcv_case = "kill" ]; then
+  eval "mkdir -p out"
+  while [ $count -le $loop ]
+  do
+      run_kill
       ((count++))
   done
 fi
@@ -532,9 +831,68 @@ if [ $bmcv_case = "tde" ]; then
   done
 fi
 
-if [ $bmcv_case = "kill" ]; then
-  run_kill_vpss
+if [ $bmcv_case = "kill_vpss" ]; then
+  eval "mkdir -p out"
+  while [ $count -le $loop ]
+  do
+      run_kill_vpss
+      ((count++))
+  done
 fi
+
+if [ $bmcv_case = "kill_tpu" ]; then
+  eval "mkdir -p out"
+  while [ $count -le $loop ]
+  do
+      run_kill_tpu
+      ((count++))
+  done
+fi
+
+if [ $bmcv_case = "kill_dpu" ]; then
+  eval "mkdir -p out"
+  while [ $count -le $loop ]
+  do
+      run_kill_dpu
+      ((count++))
+  done
+fi
+
+if [ $bmcv_case = "kill_ldc" ]; then
+  eval "mkdir -p out"
+  while [ $count -le $loop ]
+  do
+      run_kill_ldc
+      ((count++))
+  done
+fi
+
+if [ $bmcv_case = "kill_dwa" ]; then
+  eval "mkdir -p out"
+  while [ $count -le $loop ]
+  do
+      run_kill_dwa
+      ((count++))
+  done
+fi
+
+if [ $bmcv_case = "kill_ive" ]; then
+  eval "mkdir -p out"
+  while [ $count -le $loop ]
+  do
+      run_kill_ive
+      ((count++))
+  done
+fi
+
+#if [ $bmcv_case = "kill_blend" ]; then
+#  eval "mkdir -p out"
+#  while [ $count -le $loop ]
+#  do
+#      run_kill_blend
+#      ((count++))
+#  done
+#fi
 
 if [ $failed_count -gt 0 ]; then
   echo "Total failed commands: $failed_count"

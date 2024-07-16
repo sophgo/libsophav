@@ -84,15 +84,15 @@
     ((fmt == PIXEL_FORMAT_YUV_PLANAR_420) || (fmt == PIXEL_FORMAT_RGB_888_PLANAR) ||    \
     (fmt == PIXEL_FORMAT_YUV_PLANAR_444) || (fmt == PIXEL_FORMAT_YUV_400))
 
-#define CHECK_DWA_FORMAT(imgIn, imgOut)                                                                                \
+#define CHECK_DWA_FORMAT(img_in, img_out)                                                                                \
     do {                                                                                                           \
-        if (imgIn.stVFrame.enPixelFormat != imgOut.stVFrame.enPixelFormat) {                                   \
+        if (img_in.video_frame.pixel_format != img_out.video_frame.pixel_format) {                                   \
             bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "in/out pixelformat(%d-%d) mismatch\n",                             \
-                        imgIn.stVFrame.enPixelFormat, imgOut.stVFrame.enPixelFormat);                    \
+                        img_in.video_frame.pixel_format, img_out.video_frame.pixel_format);                    \
             return BM_ERR_FAILURE;                                                              \
         }                                                                                                      \
-        if (!DWA_SUPPORT_FMT(imgIn.stVFrame.enPixelFormat)) {                                                  \
-            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pixelformat(%d) unsupported\n", imgIn.stVFrame.enPixelFormat);     \
+        if (!DWA_SUPPORT_FMT(img_in.video_frame.pixel_format)) {                                                  \
+            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pixelformat(%d) unsupported\n", img_in.video_frame.pixel_format);     \
             return BM_ERR_FAILURE;                                                              \
         }                                                                                                      \
     } while (0)
@@ -119,15 +119,15 @@ typedef enum _BM_DWA_TEST_OP {
 } bm_dwa_test_op;
 
 typedef struct _BM_DWA_BASIC_PARAM {
-    SIZE_S size_in;
-    SIZE_S size_out;
+    size_s size_in;
+    size_s size_out;
     u32 u32BlkSizeIn, u32BlkSizeOut;
-    VIDEO_FRAME_INFO_S stVideoFrameIn;
-    VIDEO_FRAME_INFO_S stVideoFrameOut;
-    PIXEL_FORMAT_E enPixelFormat;
+    video_frame_info_s stVideoFrameIn;
+    video_frame_info_s stVideoFrameOut;
+    pixel_format_e enPixelFormat;
     DWA_HANDLE hHandle;
-    GDC_TASK_ATTR_S stTask;
-    GDC_IDENTITY_ATTR_S identity;
+    gdc_task_attr_s stTask;
+    gdc_identity_attr_s identity;
     bm_dwa_test_op op;
     bool needPef;
 } bm_dwa_basic_param;
@@ -173,8 +173,8 @@ typedef struct _FISHEYE_ATTR {
     double TCoef;                   // KeyStone Corection coefficient.
     double FStrength;               // Fan Correction coefficient.
 
-    USAGE_MODE UsageMode;           // Panorama.360, Panorama.180, Mode1~Mode7. total = 9 for now.
-    FISHEYE_MOUNT_MODE_E MntMode;   // CEILING/ FLOOR/ WALL
+    usage_mode UsageMode;           // Panorama.360, Panorama.180, Mode1~Mode7. total = 9 for now.
+    fisheye_mount_mode_e MntMode;   // CEILING/ FLOOR/ WALL
     bm_format_8bits_rgb BgColor;       // give background color RGB.
 
     //bm_mesh_struct DstRgnMeshInfo[16384];    // frame-based dst mesh info.  maximum num=128*28 = 16384 meshes.
@@ -234,6 +234,12 @@ typedef struct _FISHEYE_REGION_ATTR {
     bm_projection_mode ViewMode;                           // projection method. ex: Panorama.360, Panorama.180, Region
 } bm_fisheye_region_attr;
 
+enum grid_info_mode {
+    GRID_MODE_REGION_BASE = 0,
+    GRID_MODE_MESH_BASE,
+    GRID_MODE_MAX,
+};
+
 typedef struct _BM_MESH_DATA_ALL_S {
     char grid_name[64];
     bool balloc;
@@ -253,6 +259,7 @@ typedef struct _BM_MESH_DATA_ALL_S {
     bool _bhomo;
     float _homography[10];
     int corners[10];
+    enum grid_info_mode grid_mode;
     float *_pmapx, *_pmapy;
 } bm_mesh_data_all_s;
 
@@ -284,44 +291,44 @@ typedef struct mesh_param {
 
 typedef struct _BM_ROT_NAME {
     bm_dwa_basic_param param;
-    ROTATION_E rotation_mode;
+    rotation_e rotation_mode;
 } bm_rot_name;
 
 typedef struct _BM_GDC_NAME {
     bm_dwa_basic_param param;
-    LDC_ATTR_S ldc_attr;
+    ldc_attr_s ldc_attr;
     char grid[MD5_STRING_LENGTH + 1];
 } bm_gdc_name;
 
 typedef struct _BM_AFFINE_NAME {
     bm_dwa_basic_param param;
-    AFFINE_ATTR_S affine_attr;
+    affine_attr_s affine_attr;
 } bm_affine_name;
 
 typedef struct _BM_FISHEYE_NAME {
     bm_dwa_basic_param param;
-    FISHEYE_ATTR_S fisheye_attr;
+    fisheye_attr_s fisheye_attr;
     char grid[MD5_STRING_LENGTH + 1];
 } bm_fisheye_name;
 
 typedef struct _BM_DEWARP_NAME {
     bm_dwa_basic_param param;
-    WARP_ATTR_S dewarp_attr;
+    warp_attr_s dewarp_attr;
     char grid[MD5_STRING_LENGTH + 1];
 } bm_dewarp_name;
 
 typedef struct _BM_DEWARP_ATTR_AND_GRID {
-    WARP_ATTR_S dewarp_attr;
+    warp_attr_s dewarp_attr;
     char *grid;
 } bm_dewarp_attr_and_grid;
 
 typedef struct _BM_GDC_ATTR_AND_GRID {
-    LDC_ATTR_S ldc_attr;
+    ldc_attr_s ldc_attr;
     char *grid;
 } bm_gdc_attr_and_grid;
 
 typedef struct _BM_FISHEYE_ATTR_AND_GRID {
-    FISHEYE_ATTR_S fisheye_attr;
+    fisheye_attr_s fisheye_attr;
     char *grid;
 } bm_fisheye_attr_and_grid;
 

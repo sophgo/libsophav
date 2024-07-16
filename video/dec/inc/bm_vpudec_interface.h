@@ -59,6 +59,7 @@ typedef struct {
     int                 perf;
     int                 core_idx;
     int                 cmd_queue_depth;
+    int                 reorder_disable;
     int                 reserved[13];
 } BMVidDecParam;
 

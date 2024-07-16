@@ -18,16 +18,16 @@ typedef struct border {
 	u8 value_r;
 	u8 value_g;
 	u8 value_b;
-	u8 thickness;
+	u16 thickness;
 } border_t;
 
 typedef struct coverex_cfg {
-	struct cvi_rgn_coverex_param coverex_param[4];
+	struct rgn_coverex_param coverex_param[4];
 	u8 cover_num;
 } coverex_cfg;
 
 typedef struct bm_rgn_cfg {
-	struct cvi_rgn_param* param;
+	struct rgn_param* param;
 	u8 rgn_num;
 } bmcv_rgn_cfg;
 

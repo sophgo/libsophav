@@ -462,13 +462,7 @@ bm_status_t check_bm_vpss_image_param(
 					"frame [%d], padding_attr if_memset wrong  %s: %s: %d\n",
 					frame_idx, filename(__FILE__), __func__, __LINE__);
 				return BM_ERR_PARAM;
-			}
-			if (padding_attr[frame_idx].if_memset == 1) {
-				dst_crop_rect.start_x = 0;
-				dst_crop_rect.start_y = 0;
-				dst_crop_rect.crop_w  = output[frame_idx].width;
-				dst_crop_rect.crop_h  = output[frame_idx].height;
-			} else if (padding_attr[frame_idx].if_memset == 0) {
+			} else {
 				dst_crop_rect.start_x = padding_attr[frame_idx].dst_crop_stx;
 				dst_crop_rect.start_y = padding_attr[frame_idx].dst_crop_sty;
 				dst_crop_rect.crop_w  = padding_attr[frame_idx].dst_crop_w;
@@ -494,10 +488,10 @@ bm_status_t check_bm_vpss_image_param(
 			 (dst_crop_rect.crop_h < VPSS_MIN_H) ) {
 			bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,\
 				"bm_vpss frame_idx %d, width or height abnormal,"
-				"input[frame_idx].width %d,input[frame_idx].height %d,"
-				"src_crop_rect[frame_idx].crop_w %d,src_crop_rect[frame_idx].crop_h %d,"
-				"output[frame_idx].width %d, output[frame_idx].height %d,"
-				"dst_crop_rect[frame_idx].crop_w %d, dst_crop_rect[frame_idx].crop_h %d,"
+				"input.width %d,input.height %d,"
+				"src_crop_rect.crop_w %d,src_crop_rect.crop_h %d,"
+				"output.width %d, output.height %d,"
+				"dst_crop_rect.crop_w %d, dst_crop_rect.crop_h %d,"
 				"%s: %s: %d\n",\
 				frame_idx,input[frame_idx].width,input[frame_idx].height,src_crop_rect.crop_w,
 				src_crop_rect.crop_h, output[frame_idx].width, output[frame_idx].height,
@@ -528,8 +522,17 @@ bm_status_t check_bm_vpss_image_param(
 			 (dst_crop_rect.start_x + dst_crop_rect.crop_w > output[frame_idx].width) ||
 			 (dst_crop_rect.start_y + dst_crop_rect.crop_h > output[frame_idx].height)) {
 			bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
-				"frame [%d], input or output  crop is out of range  %s: %s: %d\n",
-				frame_idx, filename(__FILE__), __func__, __LINE__);
+				"frame [%d], input or output crop is out of range"
+				"src_crop_rect.start_x %d, src_crop_rect.crop_w %d, input.width %d,"
+				"src_crop_rect.start_y %d, src_crop_rect.crop_h %d, input.height %d,"
+				"dst_crop_rect.start_x %d, dst_crop_rect.crop_w %d, output.width %d,"
+				"dst_crop_rect.start_y %d, dst_crop_rect.crop_h %d, output.height %d,"
+				"%s: %s: %d\n",
+				frame_idx, src_crop_rect.start_x, src_crop_rect.crop_w, input[frame_idx].width,
+				src_crop_rect.start_y, src_crop_rect.crop_h, input[frame_idx].height,
+				dst_crop_rect.start_x, dst_crop_rect.crop_w, output[frame_idx].width,
+				dst_crop_rect.start_y, dst_crop_rect.crop_h, output[frame_idx].height,
+				filename(__FILE__), __func__, __LINE__);
 			return BM_ERR_PARAM;
 		}
 
@@ -538,10 +541,17 @@ bm_status_t check_bm_vpss_image_param(
 				if (border_param[frame_idx].border_cfg[i].rect_border_enable == 1) {
 					if ((border_param[frame_idx].border_cfg[i].st_x > input[frame_idx].width) ||
 						(border_param[frame_idx].border_cfg[i].st_y > input[frame_idx].height) ||
+						(border_param[frame_idx].border_cfg[i].thickness > (border_param[frame_idx].border_cfg[i].width / 2)) ||
+						(border_param[frame_idx].border_cfg[i].thickness > (border_param[frame_idx].border_cfg[i].height / 2)) ||
 						(output[frame_idx].data_type != DATA_TYPE_EXT_1N_BYTE)) {
 						bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
-							"bm_vpss draw rectangle param wrong, frame(%d) idx(%d) maybe st_x(%d),st_y(%d) wrong or data_type(%d) not supported, %s: %s: %d\n",
-							frame_idx, i, border_param[frame_idx].border_cfg[i].st_x, border_param[frame_idx].border_cfg[i].st_y, output[frame_idx].data_type, filename(__FILE__), __func__, __LINE__);
+							"bm_vpss draw rectangle param wrong,"
+							"frame(%d) idx(%d) rect st_x(%d) st_y(%d) w(%d) h(%d) thick(%d) input.width(%d) input.height(%d) wrong"
+							"or data_type(%d) not supported, %s: %s: %d\n",
+							frame_idx, i, border_param[frame_idx].border_cfg[i].st_x, border_param[frame_idx].border_cfg[i].st_y,
+							border_param[frame_idx].border_cfg[i].width, border_param[frame_idx].border_cfg[i].height,
+							border_param[frame_idx].border_cfg[i].thickness, input[frame_idx].width, input[frame_idx].height,
+							output[frame_idx].data_type, filename(__FILE__), __func__, __LINE__);
 						return BM_ERR_PARAM;
 					}
 				}
@@ -614,7 +624,7 @@ bm_status_t check_bm_vpss_continuity(
 	return BM_SUCCESS;
 }
 
-bm_status_t bm_image_format_to_cvi(bm_image_format_ext fmt, bm_image_data_format_ext datatype, PIXEL_FORMAT_E * cvi_fmt) {
+bm_status_t bm_image_format_to_cvi(bm_image_format_ext fmt, bm_image_data_format_ext datatype, pixel_format_e * cvi_fmt) {
 	if (datatype != DATA_TYPE_EXT_1N_BYTE) {
 		switch(datatype) {
 			case DATA_TYPE_EXT_1N_BYTE_SIGNED:
@@ -706,7 +716,7 @@ bm_status_t bm_image_format_to_cvi(bm_image_format_ext fmt, bm_image_data_format
 	return BM_SUCCESS;
 }
 
-bm_status_t bm_algorithm_to_cvi(bmcv_resize_algorithm algorithm, VPSS_SCALE_COEF_E * enCoef) {
+bm_status_t bm_algorithm_to_cvi(bmcv_resize_algorithm algorithm, vpss_scale_coef_e * enCoef) {
 	switch (algorithm) {
 	case BMCV_INTER_NEAREST:
 		*enCoef = VPSS_SCALE_COEF_NEAREST;
@@ -724,70 +734,70 @@ bm_status_t bm_algorithm_to_cvi(bmcv_resize_algorithm algorithm, VPSS_SCALE_COEF
 	return BM_SUCCESS;
 }
 
-bm_status_t bm_send_image_frame(bm_image image, VIDEO_FRAME_INFO_S *stVideoFrame, PIXEL_FORMAT_E enPixelFormat)
+bm_status_t bm_send_image_frame(bm_image image, video_frame_info_s *stVideoFrame, pixel_format_e pixel_format)
 {
 	int planar_to_seperate = 0;
 	if ((image.image_format == FORMAT_RGB_PLANAR || image.image_format == FORMAT_BGR_PLANAR))
 		planar_to_seperate = 1;
 
-	stVideoFrame->stVFrame.enCompressMode = COMPRESS_MODE_NONE;
-	stVideoFrame->stVFrame.enPixelFormat = enPixelFormat;
-	stVideoFrame->stVFrame.enVideoFormat = VIDEO_FORMAT_LINEAR;
-	stVideoFrame->stVFrame.u32Width = image.width;
-	stVideoFrame->stVFrame.u32Height = image.height;
+	stVideoFrame->video_frame.compress_mode = COMPRESS_MODE_NONE;
+	stVideoFrame->video_frame.pixel_format = pixel_format;
+	stVideoFrame->video_frame.video_format = VIDEO_FORMAT_LINEAR;
+	stVideoFrame->video_frame.width = image.width;
+	stVideoFrame->video_frame.height = image.height;
 	if ((!is_full_image(image.image_format)) || image.image_format == FORMAT_COMPRESSED)
-		stVideoFrame->stVFrame.u32Width = stVideoFrame->stVFrame.u32Width & (~0x1);
+		stVideoFrame->video_frame.width = stVideoFrame->video_frame.width & (~0x1);
 	if (is_yuv420_image(image.image_format) || image.image_format == FORMAT_COMPRESSED)
-		stVideoFrame->stVFrame.u32Height = stVideoFrame->stVFrame.u32Height & (~0x1);
+		stVideoFrame->video_frame.height = stVideoFrame->video_frame.height & (~0x1);
 	for (int i = 0; i < image.image_private->plane_num; ++i) {
 		if ((i == 3) && (image.image_format == FORMAT_COMPRESSED)) {
-			stVideoFrame->stVFrame.u64ExtPhyAddr = image.image_private->data[i].u.device.device_addr;
-			stVideoFrame->stVFrame.u32ExtLength = image.image_private->memory_layout[i].size;
-			stVideoFrame->stVFrame.pu8ExtVirtAddr = (unsigned char*)image.image_private->data[i].u.system.system_addr;
-			stVideoFrame->stVFrame.enCompressMode = COMPRESS_MODE_FRAME;
+			stVideoFrame->video_frame.ext_phy_addr = image.image_private->data[i].u.device.device_addr;
+			stVideoFrame->video_frame.ext_length = image.image_private->memory_layout[i].size;
+			stVideoFrame->video_frame.ext_virt_addr = (unsigned char*)image.image_private->data[i].u.system.system_addr;
+			stVideoFrame->video_frame.compress_mode = COMPRESS_MODE_FRAME;
 		} else if ((i > 0) && (image.image_format == FORMAT_COMPRESSED)) {
 			continue;
 		} else {
-			stVideoFrame->stVFrame.u32Stride[i] = image.image_private->memory_layout[i].pitch_stride;
-			stVideoFrame->stVFrame.u32Length[i] = image.image_private->memory_layout[i].size;
-			stVideoFrame->stVFrame.u64PhyAddr[i] = image.image_private->data[i].u.device.device_addr;
-			stVideoFrame->stVFrame.pu8VirAddr[i] = (unsigned char*)image.image_private->data[i].u.system.system_addr;
+			stVideoFrame->video_frame.stride[i] = image.image_private->memory_layout[i].pitch_stride;
+			stVideoFrame->video_frame.length[i] = image.image_private->memory_layout[i].size;
+			stVideoFrame->video_frame.phyaddr[i] = image.image_private->data[i].u.device.device_addr;
+			stVideoFrame->video_frame.viraddr[i] = (unsigned char*)image.image_private->data[i].u.system.system_addr;
 		}
 	}
 
 	if (planar_to_seperate) {
 		for (int i = 1; i < 3; ++i) {
-			stVideoFrame->stVFrame.u32Stride[i] = image.image_private->memory_layout[0].pitch_stride;
-			stVideoFrame->stVFrame.u32Length[i] = image.image_private->memory_layout[0].pitch_stride * image.height;
-			stVideoFrame->stVFrame.u64PhyAddr[i] = image.image_private->data[0].u.device.device_addr + image.image_private->memory_layout[0].pitch_stride * image.height * i;
+			stVideoFrame->video_frame.stride[i] = image.image_private->memory_layout[0].pitch_stride;
+			stVideoFrame->video_frame.length[i] = image.image_private->memory_layout[0].pitch_stride * image.height;
+			stVideoFrame->video_frame.phyaddr[i] = image.image_private->data[0].u.device.device_addr + image.image_private->memory_layout[0].pitch_stride * image.height * i;
 		}
 	}
 
 	if (image.image_format == FORMAT_COMPRESSED) {
 		for (int i = 1, j = 2; i < 3; ++i, --j) {
-			stVideoFrame->stVFrame.u32Stride[i] = image.image_private->memory_layout[j].pitch_stride;
-			stVideoFrame->stVFrame.u32Length[i] = image.image_private->memory_layout[j].size;
-			stVideoFrame->stVFrame.u64PhyAddr[i] = image.image_private->data[j].u.device.device_addr;
-			stVideoFrame->stVFrame.pu8VirAddr[i] = (unsigned char*)image.image_private->data[j].u.system.system_addr;
+			stVideoFrame->video_frame.stride[i] = image.image_private->memory_layout[j].pitch_stride;
+			stVideoFrame->video_frame.length[i] = image.image_private->memory_layout[j].size;
+			stVideoFrame->video_frame.phyaddr[i] = image.image_private->data[j].u.device.device_addr;
+			stVideoFrame->video_frame.viraddr[i] = (unsigned char*)image.image_private->data[j].u.system.system_addr;
 		}
 	}
 
-	if ((enPixelFormat == PIXEL_FORMAT_UINT8_C3_PLANAR || enPixelFormat == PIXEL_FORMAT_INT8_C3_PLANAR ||
-		enPixelFormat == PIXEL_FORMAT_BF16_C3_PLANAR || enPixelFormat == PIXEL_FORMAT_FP16_C3_PLANAR || enPixelFormat == PIXEL_FORMAT_FP32_C3_PLANAR) &&
+	if ((pixel_format == PIXEL_FORMAT_UINT8_C3_PLANAR || pixel_format == PIXEL_FORMAT_INT8_C3_PLANAR ||
+		pixel_format == PIXEL_FORMAT_BF16_C3_PLANAR || pixel_format == PIXEL_FORMAT_FP16_C3_PLANAR || pixel_format == PIXEL_FORMAT_FP32_C3_PLANAR) &&
 		(image.image_format == FORMAT_BGR_PLANAR || image.image_format == FORMAT_BGRP_SEPARATE)) {
-		stVideoFrame->stVFrame.u32Stride[0] = stVideoFrame->stVFrame.u32Stride[2];
-		stVideoFrame->stVFrame.u32Length[0] = stVideoFrame->stVFrame.u32Length[2];
-		stVideoFrame->stVFrame.u64PhyAddr[0] = stVideoFrame->stVFrame.u64PhyAddr[2];
-		stVideoFrame->stVFrame.u32Stride[2] = image.image_private->memory_layout[0].pitch_stride;
-		stVideoFrame->stVFrame.u32Length[2] = image.image_private->memory_layout[0].pitch_stride * image.height;
-		stVideoFrame->stVFrame.u64PhyAddr[2] = image.image_private->data[0].u.device.device_addr;
+		stVideoFrame->video_frame.stride[0] = stVideoFrame->video_frame.stride[2];
+		stVideoFrame->video_frame.length[0] = stVideoFrame->video_frame.length[2];
+		stVideoFrame->video_frame.phyaddr[0] = stVideoFrame->video_frame.phyaddr[2];
+		stVideoFrame->video_frame.stride[2] = image.image_private->memory_layout[0].pitch_stride;
+		stVideoFrame->video_frame.length[2] = image.image_private->memory_layout[0].pitch_stride * image.height;
+		stVideoFrame->video_frame.phyaddr[2] = image.image_private->data[0].u.device.device_addr;
 	}
 
-	stVideoFrame->stVFrame.u32Align = 1;
-	stVideoFrame->stVFrame.u32TimeRef = 0;
-	stVideoFrame->stVFrame.u64PTS = 0;
-	stVideoFrame->stVFrame.enDynamicRange = DYNAMIC_RANGE_SDR8;
-	stVideoFrame->u32PoolId = 0xffff;
+	stVideoFrame->video_frame.align = 1;
+	stVideoFrame->video_frame.time_ref = 0;
+	stVideoFrame->video_frame.pts = 0;
+	stVideoFrame->video_frame.dynamic_range = DYNAMIC_RANGE_SDR8;
+	stVideoFrame->pool_id = 0xffff;
 
 	return BM_SUCCESS;
 }
@@ -857,31 +867,31 @@ bm_status_t bm_vpss_set_csc(bmcv_csc_cfg *csc_cfg, bm_vpss_cfg *vpss_cfg) {
 
 bm_status_t bm_vpss_set_chn_draw_rect(bmcv_border* border_param, struct vpss_chn_draw_rect_cfg *draw_cfg) {
 	for (int i = 0; i < border_param->border_num; i++) {
-		draw_cfg->stDrawRect.astRect[i].bEnable = true;
-		draw_cfg->stDrawRect.astRect[i].stRect.s32X = border_param->border_cfg[i].st_x;
-		draw_cfg->stDrawRect.astRect[i].stRect.s32Y = border_param->border_cfg[i].st_y;
-		draw_cfg->stDrawRect.astRect[i].stRect.u32Width = border_param->border_cfg[i].width;
-		draw_cfg->stDrawRect.astRect[i].stRect.u32Height = border_param->border_cfg[i].height;
-		draw_cfg->stDrawRect.astRect[i].u16Thick = border_param->border_cfg[i].thickness;
-		draw_cfg->stDrawRect.astRect[i].u32BgColor = ((border_param->border_cfg[i].value_b) | (border_param->border_cfg[i].value_g << 8) | (border_param->border_cfg[i].value_r << 16));
+		draw_cfg->draw_rect.rects[i].enable = true;
+		draw_cfg->draw_rect.rects[i].rect.x = border_param->border_cfg[i].st_x;
+		draw_cfg->draw_rect.rects[i].rect.y = border_param->border_cfg[i].st_y;
+		draw_cfg->draw_rect.rects[i].rect.width = border_param->border_cfg[i].width;
+		draw_cfg->draw_rect.rects[i].rect.height = border_param->border_cfg[i].height;
+		draw_cfg->draw_rect.rects[i].thick = border_param->border_cfg[i].thickness;
+		draw_cfg->draw_rect.rects[i].bg_color = ((border_param->border_cfg[i].value_b) | (border_param->border_cfg[i].value_g << 8) | (border_param->border_cfg[i].value_r << 16));
 	}
 	return BM_SUCCESS;
 }
 
 bm_status_t bm_vpss_set_convertto(bmcv_convert_to_attr convertto_attr, struct vpss_chn_convert_cfg *cfg)
 {
-	cfg->stConvert.bEnable = true;
-	cfg->stConvert.u32aFactor[0] = convertto_attr.alpha_0 < 0 ? ((u32)(-convertto_attr.alpha_0 * 8192) | (1 << 25)) : (u32)(convertto_attr.alpha_0 * 8192);
-	cfg->stConvert.u32aFactor[1] = convertto_attr.alpha_1 < 0 ? ((u32)(-convertto_attr.alpha_1 * 8192) | (1 << 25)) : (u32)(convertto_attr.alpha_1 * 8192);
-	cfg->stConvert.u32aFactor[2] = convertto_attr.alpha_2 < 0 ? ((u32)(-convertto_attr.alpha_2 * 8192) | (1 << 25)) : (u32)(convertto_attr.alpha_2 * 8192);
-	cfg->stConvert.u32bFactor[0] = convertto_attr.beta_0 < 0 ? ((u32)(-convertto_attr.beta_0 * 8192) | (1 << 25)) : (u32)(convertto_attr.beta_0 * 8192);
-	cfg->stConvert.u32bFactor[1] = convertto_attr.beta_1 < 0 ? ((u32)(-convertto_attr.beta_1 * 8192) | (1 << 25)) : (u32)(convertto_attr.beta_1 * 8192);
-	cfg->stConvert.u32bFactor[2] = convertto_attr.beta_2 < 0 ? ((u32)(-convertto_attr.beta_2 * 8192) | (1 << 25)) : (u32)(convertto_attr.beta_2 * 8192);
+	cfg->convert.enable = true;
+	cfg->convert.a_factor[0] = convertto_attr.alpha_0 < 0 ? ((u32)(-convertto_attr.alpha_0 * 8192) | (1 << 25)) : (u32)(convertto_attr.alpha_0 * 8192);
+	cfg->convert.a_factor[1] = convertto_attr.alpha_1 < 0 ? ((u32)(-convertto_attr.alpha_1 * 8192) | (1 << 25)) : (u32)(convertto_attr.alpha_1 * 8192);
+	cfg->convert.a_factor[2] = convertto_attr.alpha_2 < 0 ? ((u32)(-convertto_attr.alpha_2 * 8192) | (1 << 25)) : (u32)(convertto_attr.alpha_2 * 8192);
+	cfg->convert.b_factor[0] = convertto_attr.beta_0 < 0 ? ((u32)(-convertto_attr.beta_0 * 8192) | (1 << 25)) : (u32)(convertto_attr.beta_0 * 8192);
+	cfg->convert.b_factor[1] = convertto_attr.beta_1 < 0 ? ((u32)(-convertto_attr.beta_1 * 8192) | (1 << 25)) : (u32)(convertto_attr.beta_1 * 8192);
+	cfg->convert.b_factor[2] = convertto_attr.beta_2 < 0 ? ((u32)(-convertto_attr.beta_2 * 8192) | (1 << 25)) : (u32)(convertto_attr.beta_2 * 8192);
 
 	return BM_SUCCESS;
 }
 
-bm_status_t bm_vpss_chn_set_gop(bmcv_rgn_cfg* gop_attr, struct cvi_rgn_cfg *cfg) {
+bm_status_t bm_vpss_chn_set_gop(bmcv_rgn_cfg* gop_attr, struct rgn_cfg *cfg) {
 	unsigned char layer_num = (gop_attr->rgn_num + 7) >> 3;
 	unsigned char gop_num = 0;
 	for (int i = 0; i < layer_num; i++) {
@@ -912,25 +922,25 @@ bm_status_t bm_vpss_chn_set_gop(bmcv_rgn_cfg* gop_attr, struct cvi_rgn_cfg *cfg)
 // 	bmlib_log("BMCV VPSS DUMP", BMLIB_LOG_ERROR, " %s: %s: %d\n", __FILE__, __func__, __LINE__);
 // 	bmlib_log("BMCV VPSS DUMP", BMLIB_LOG_ERROR, " frame_idx %d, grp_id %d, chn %d\n", frame_idx, grp_id, chn);
 // 	bmlib_log("BMCV VPSS DUMP", BMLIB_LOG_ERROR, " stVpssGrpAttr.u32MaxW %d, stVpssGrpAttr.u32MaxH %d\n", stVpssGrpAttr.u32MaxW, stVpssGrpAttr.u32MaxH);
-// 	bmlib_log("BMCV VPSS DUMP", BMLIB_LOG_ERROR, " stVpssGrpAttr.enPixelFormat %d\n", stVpssGrpAttr.enPixelFormat);
+// 	bmlib_log("BMCV VPSS DUMP", BMLIB_LOG_ERROR, " stVpssGrpAttr.pixel_format %d\n", stVpssGrpAttr.pixel_format);
 // 	bmlib_log("BMCV VPSS DUMP", BMLIB_LOG_ERROR, " input.data_type %d\n", input->data_type);
 // 	for (int i = 0; i < input->image_private->plane_num; i++)
 // 		bmlib_log("BMCV VPSS DUMP", BMLIB_LOG_ERROR, " plane idx %d, input.device_addr %lx, input.stride %d\n", i, input->image_private->data[i].u.device.device_addr, input->image_private->memory_layout[i].pitch_stride);
-// 	bmlib_log("BMCV VPSS DUMP", BMLIB_LOG_ERROR, " astVpssChnAttr.u32Width %d, astVpssChnAttr.u32Height %d\n", astVpssChnAttr.u32Width, astVpssChnAttr.u32Height);
+// 	bmlib_log("BMCV VPSS DUMP", BMLIB_LOG_ERROR, " astVpssChnAttr.width %d, astVpssChnAttr.height %d\n", astVpssChnAttr.width, astVpssChnAttr.height);
 // 	bmlib_log("BMCV VPSS DUMP", BMLIB_LOG_ERROR, " astVpssChnAttr.u32Depth %d, astVpssChnAttr.stNormalize.bEnable %d\n", astVpssChnAttr.u32Depth, astVpssChnAttr.stNormalize.bEnable);
 // 	bmlib_log("BMCV VPSS DUMP", BMLIB_LOG_ERROR, " astVpssChnAttr.stNormalize.factor[0] %f, mean[0] %f\n", astVpssChnAttr.stNormalize.factor[0], astVpssChnAttr.stNormalize.mean[0]);
 // 	bmlib_log("BMCV VPSS DUMP", BMLIB_LOG_ERROR, " astVpssChnAttr.stNormalize.factor[1] %f, mean[1] %f\n", astVpssChnAttr.stNormalize.factor[1], astVpssChnAttr.stNormalize.mean[1]);
 // 	bmlib_log("BMCV VPSS DUMP", BMLIB_LOG_ERROR, " astVpssChnAttr.stNormalize.factor[2] %f, mean[2] %f\n", astVpssChnAttr.stNormalize.factor[2], astVpssChnAttr.stNormalize.mean[2]);
-// 	bmlib_log("BMCV VPSS DUMP", BMLIB_LOG_ERROR, " astVpssChnAttr.stAspectRatio.enMode %d, bEnableBgColor %d\n", astVpssChnAttr.stAspectRatio.enMode, astVpssChnAttr.stAspectRatio.bEnableBgColor);
-// 	bmlib_log("BMCV VPSS DUMP", BMLIB_LOG_ERROR, " astVpssChnAttr.stAspectRatio.stVideoRect.s32X %d, s32Y %d\n", astVpssChnAttr.stAspectRatio.stVideoRect.s32X, astVpssChnAttr.stAspectRatio.stVideoRect.s32Y);
-// 	bmlib_log("BMCV VPSS DUMP", BMLIB_LOG_ERROR, " astVpssChnAttr.stAspectRatio.stVideoRect.u32Width %d, u32Height %d\n", astVpssChnAttr.stAspectRatio.stVideoRect.u32Width, astVpssChnAttr.stAspectRatio.stVideoRect.u32Height);
-// 	bmlib_log("BMCV VPSS DUMP", BMLIB_LOG_ERROR, " astVpssChnAttr.stAspectRatio.u32BgColor %lx, astVpssChnAttr.enPixelFormat %d\n", astVpssChnAttr.stAspectRatio.u32BgColor, astVpssChnAttr.enPixelFormat);
+// 	bmlib_log("BMCV VPSS DUMP", BMLIB_LOG_ERROR, " astVpssChnAttr.aspect_ratio.enMode %d, bEnableBgColor %d\n", astVpssChnAttr.aspect_ratio.enMode, astVpssChnAttr.aspect_ratio.bEnableBgColor);
+// 	bmlib_log("BMCV VPSS DUMP", BMLIB_LOG_ERROR, " astVpssChnAttr.aspect_ratio.video_rect.s32X %d, s32Y %d\n", astVpssChnAttr.aspect_ratio.video_rect.s32X, astVpssChnAttr.aspect_ratio.video_rect.s32Y);
+// 	bmlib_log("BMCV VPSS DUMP", BMLIB_LOG_ERROR, " astVpssChnAttr.aspect_ratio.video_rect.width %d, height %d\n", astVpssChnAttr.aspect_ratio.video_rect.width, astVpssChnAttr.aspect_ratio.video_rect.height);
+// 	bmlib_log("BMCV VPSS DUMP", BMLIB_LOG_ERROR, " astVpssChnAttr.aspect_ratio.u32BgColor %lx, astVpssChnAttr.pixel_format %d\n", astVpssChnAttr.aspect_ratio.u32BgColor, astVpssChnAttr.pixel_format);
 // 	for (int i = 0; i < output->image_private->plane_num; i++)
 // 		bmlib_log("BMCV VPSS DUMP", BMLIB_LOG_ERROR, " plane idx %d, output.device_addr %lx, output.stride %d\n", i, output->image_private->data[i].u.device.device_addr, output->image_private->memory_layout[i].pitch_stride);
 // 	bmlib_log("BMCV VPSS DUMP", BMLIB_LOG_ERROR, " astVpssChnAttr.bMirror %d, astVpssChnAttr.bFlip %d\n", astVpssChnAttr.bMirror, astVpssChnAttr.bFlip);
 // 	bmlib_log("BMCV VPSS DUMP", BMLIB_LOG_ERROR, " pstCropInfo.bEnable %d, enCropCoordinate %d\n", pstCropInfo.bEnable, pstCropInfo.enCropCoordinate);
-// 	bmlib_log("BMCV VPSS DUMP", BMLIB_LOG_ERROR, " pstCropInfo.stCropRect.s32X %d, s32Y %d\n", pstCropInfo.stCropRect.s32X, pstCropInfo.stCropRect.s32Y);
-// 	bmlib_log("BMCV VPSS DUMP", BMLIB_LOG_ERROR, " pstCropInfo.stCropRect.u32Width %d, u32Height %d\n", pstCropInfo.stCropRect.u32Width, pstCropInfo.stCropRect.u32Height);
+// 	bmlib_log("BMCV VPSS DUMP", BMLIB_LOG_ERROR, " pstCropInfo.crop_rect.s32X %d, s32Y %d\n", pstCropInfo.crop_rect.s32X, pstCropInfo.crop_rect.s32Y);
+// 	bmlib_log("BMCV VPSS DUMP", BMLIB_LOG_ERROR, " pstCropInfo.crop_rect.width %d, height %d\n", pstCropInfo.crop_rect.width, pstCropInfo.crop_rect.height);
 // 	bmlib_log("BMCV VPSS DUMP", BMLIB_LOG_ERROR, " algorithm %d, csc_type %d is_fancy %d\n", algorithm, csc_cfg->csc_type, csc_cfg->is_fancy);
 // 	if (csc_cfg->is_user_defined_matrix) {
 // 		bmlib_log("BMCV VPSS DUMP", BMLIB_LOG_ERROR, " matrix.csc_coe00 %d, csc_coe01 %d\n", csc_cfg->csc_matrix.coef[0][0], csc_cfg->csc_matrix.coef[0][1]);
@@ -996,69 +1006,69 @@ bm_status_t bm_vpss_asic(
 	bm_status_t ret = BM_SUCCESS;
 	int fd = 0;
 	bm_vpss_cfg vpss_cfg;
-	VPSS_CROP_INFO_S pstCropInfo;
+	vpss_crop_info_s pstCropInfo;
 	ret = bm_get_vpss_fd(&fd);
 	if (ret != BM_SUCCESS) return ret;
 
 	for (int i = 0; i < frame_number; i++) {
 		memset(&vpss_cfg, 0, sizeof(bm_vpss_cfg));
 
-		vpss_cfg.grp_attr.stGrpAttr.stFrameRate.s32SrcFrameRate = 0x7fff;
-		vpss_cfg.grp_attr.stGrpAttr.stFrameRate.s32DstFrameRate = 0x7fff;
-		vpss_cfg.grp_attr.stGrpAttr.u32MaxW = input[i].width;
-		vpss_cfg.grp_attr.stGrpAttr.u32MaxH = input[i].height;
+		vpss_cfg.grp_attr.grp_attr.frame_rate.src_frame_rate = 0x7fff;
+		vpss_cfg.grp_attr.grp_attr.frame_rate.dst_frame_rate = 0x7fff;
+		vpss_cfg.grp_attr.grp_attr.w = input[i].width;
+		vpss_cfg.grp_attr.grp_attr.h = input[i].height;
 
 		if ((!is_full_image(input[i].image_format)) || input[i].image_format == FORMAT_COMPRESSED)
-			vpss_cfg.grp_attr.stGrpAttr.u32MaxW = vpss_cfg.grp_attr.stGrpAttr.u32MaxW & (~0x1);
+			vpss_cfg.grp_attr.grp_attr.w = vpss_cfg.grp_attr.grp_attr.w & (~0x1);
 		if (is_yuv420_image(input[i].image_format) || input[i].image_format == FORMAT_COMPRESSED)
-			vpss_cfg.grp_attr.stGrpAttr.u32MaxH = vpss_cfg.grp_attr.stGrpAttr.u32MaxH & (~0x1);
-		ret = bm_image_format_to_cvi(input[i].image_format, input[i].data_type, &vpss_cfg.grp_attr.stGrpAttr.enPixelFormat);
+			vpss_cfg.grp_attr.grp_attr.h = vpss_cfg.grp_attr.grp_attr.h & (~0x1);
+		ret = bm_image_format_to_cvi(input[i].image_format, input[i].data_type, &vpss_cfg.grp_attr.grp_attr.pixel_format);
 		if (ret != BM_SUCCESS) return ret;
 
-		vpss_cfg.chn_attr.stChnAttr.u32Width = output[i].width;
-		vpss_cfg.chn_attr.stChnAttr.u32Height = output[i].height;
+		vpss_cfg.chn_attr.chn_attr.width = output[i].width;
+		vpss_cfg.chn_attr.chn_attr.height = output[i].height;
 		if (!is_full_image(output[i].image_format))
-			vpss_cfg.chn_attr.stChnAttr.u32Width = vpss_cfg.chn_attr.stChnAttr.u32Width & (~0x1);
+			vpss_cfg.chn_attr.chn_attr.width = vpss_cfg.chn_attr.chn_attr.width & (~0x1);
 		if (is_yuv420_image(output[i].image_format))
-			vpss_cfg.chn_attr.stChnAttr.u32Height = vpss_cfg.chn_attr.stChnAttr.u32Height & (~0x1);
-		vpss_cfg.chn_attr.stChnAttr.enVideoFormat = VIDEO_FORMAT_LINEAR;
-		ret = bm_image_format_to_cvi(output[i].image_format, output[i].data_type, &vpss_cfg.chn_attr.stChnAttr.enPixelFormat);
+			vpss_cfg.chn_attr.chn_attr.height = vpss_cfg.chn_attr.chn_attr.height & (~0x1);
+		vpss_cfg.chn_attr.chn_attr.video_format = VIDEO_FORMAT_LINEAR;
+		ret = bm_image_format_to_cvi(output[i].image_format, output[i].data_type, &vpss_cfg.chn_attr.chn_attr.pixel_format);
 		if (ret != BM_SUCCESS) return ret;
 
 		if (convert_to_attr != NULL && output[i].data_type == DATA_TYPE_EXT_1N_BYTE)
-			vpss_cfg.chn_attr.stChnAttr.enPixelFormat = PIXEL_FORMAT_UINT8_C3_PLANAR;
+			vpss_cfg.chn_attr.chn_attr.pixel_format = PIXEL_FORMAT_UINT8_C3_PLANAR;
 
-		vpss_cfg.chn_attr.stChnAttr.stFrameRate.s32SrcFrameRate = 30;
-		vpss_cfg.chn_attr.stChnAttr.stFrameRate.s32DstFrameRate = 30;
-		vpss_cfg.chn_attr.stChnAttr.u32Depth = 1;
+		vpss_cfg.chn_attr.chn_attr.frame_rate.src_frame_rate = 30;
+		vpss_cfg.chn_attr.chn_attr.frame_rate.dst_frame_rate = 30;
+		vpss_cfg.chn_attr.chn_attr.depth = 1;
 		if (csc_cfg->flip_mode != NO_FLIP) {
-			vpss_cfg.chn_attr.stChnAttr.bMirror = (csc_cfg->flip_mode == HORIZONTAL_FLIP || csc_cfg->flip_mode == ROTATE_180);
-			vpss_cfg.chn_attr.stChnAttr.bFlip = (csc_cfg->flip_mode == VERTICAL_FLIP || csc_cfg->flip_mode == ROTATE_180);
+			vpss_cfg.chn_attr.chn_attr.mirror = (csc_cfg->flip_mode == HORIZONTAL_FLIP || csc_cfg->flip_mode == ROTATE_180);
+			vpss_cfg.chn_attr.chn_attr.flip = (csc_cfg->flip_mode == VERTICAL_FLIP || csc_cfg->flip_mode == ROTATE_180);
 		}
 		if ((padding_attr != NULL) && (padding_attr[i].dst_crop_stx != 0 || padding_attr[i].dst_crop_sty != 0 ||
 				padding_attr[i].dst_crop_w != output[i].width || padding_attr[i].dst_crop_h != output[i].width)) {
-			vpss_cfg.chn_attr.stChnAttr.stAspectRatio.enMode = ASPECT_RATIO_MANUAL;
-			vpss_cfg.chn_attr.stChnAttr.stAspectRatio.stVideoRect.s32X = padding_attr[i].dst_crop_stx;
-			vpss_cfg.chn_attr.stChnAttr.stAspectRatio.stVideoRect.s32Y = padding_attr[i].dst_crop_sty;
-			vpss_cfg.chn_attr.stChnAttr.stAspectRatio.stVideoRect.u32Width = padding_attr[i].dst_crop_w;
-			vpss_cfg.chn_attr.stChnAttr.stAspectRatio.stVideoRect.u32Height = padding_attr[i].dst_crop_h;
+			vpss_cfg.chn_attr.chn_attr.aspect_ratio.mode = ASPECT_RATIO_MANUAL;
+			vpss_cfg.chn_attr.chn_attr.aspect_ratio.video_rect.x = padding_attr[i].dst_crop_stx;
+			vpss_cfg.chn_attr.chn_attr.aspect_ratio.video_rect.y = padding_attr[i].dst_crop_sty;
+			vpss_cfg.chn_attr.chn_attr.aspect_ratio.video_rect.width = padding_attr[i].dst_crop_w;
+			vpss_cfg.chn_attr.chn_attr.aspect_ratio.video_rect.height = padding_attr[i].dst_crop_h;
 			if (!is_full_image(output[i].image_format))
-				vpss_cfg.chn_attr.stChnAttr.stAspectRatio.stVideoRect.u32Width = vpss_cfg.chn_attr.stChnAttr.stAspectRatio.stVideoRect.u32Width & (~0x1);
+				vpss_cfg.chn_attr.chn_attr.aspect_ratio.video_rect.width = vpss_cfg.chn_attr.chn_attr.aspect_ratio.video_rect.width & (~0x1);
 			if (is_yuv420_image(output[i].image_format))
-				vpss_cfg.chn_attr.stChnAttr.stAspectRatio.stVideoRect.u32Height = vpss_cfg.chn_attr.stChnAttr.stAspectRatio.stVideoRect.u32Height & (~0x1);
+				vpss_cfg.chn_attr.chn_attr.aspect_ratio.video_rect.height = vpss_cfg.chn_attr.chn_attr.aspect_ratio.video_rect.height & (~0x1);
 			if (padding_attr[i].if_memset == 1) {
-				vpss_cfg.chn_attr.stChnAttr.stAspectRatio.bEnableBgColor = 1;
-				vpss_cfg.chn_attr.stChnAttr.stAspectRatio.u32BgColor = RGB_8BIT(padding_attr[i].padding_r, padding_attr[i].padding_g, padding_attr[i].padding_b);
+				vpss_cfg.chn_attr.chn_attr.aspect_ratio.enable_bgcolor = 1;
+				vpss_cfg.chn_attr.chn_attr.aspect_ratio.bgcolor = RGB_8BIT(padding_attr[i].padding_r, padding_attr[i].padding_g, padding_attr[i].padding_b);
 			}
 		} else {
-			vpss_cfg.chn_attr.stChnAttr.stAspectRatio.enMode = ASPECT_RATIO_MANUAL;
-			vpss_cfg.chn_attr.stChnAttr.stAspectRatio.stVideoRect.s32X = 0;
-			vpss_cfg.chn_attr.stChnAttr.stAspectRatio.stVideoRect.s32Y = 0;
-			vpss_cfg.chn_attr.stChnAttr.stAspectRatio.stVideoRect.u32Width = vpss_cfg.chn_attr.stChnAttr.u32Width;
-			vpss_cfg.chn_attr.stChnAttr.stAspectRatio.stVideoRect.u32Height = vpss_cfg.chn_attr.stChnAttr.u32Height;
+			vpss_cfg.chn_attr.chn_attr.aspect_ratio.mode = ASPECT_RATIO_MANUAL;
+			vpss_cfg.chn_attr.chn_attr.aspect_ratio.video_rect.x = 0;
+			vpss_cfg.chn_attr.chn_attr.aspect_ratio.video_rect.y = 0;
+			vpss_cfg.chn_attr.chn_attr.aspect_ratio.video_rect.width = vpss_cfg.chn_attr.chn_attr.width;
+			vpss_cfg.chn_attr.chn_attr.aspect_ratio.video_rect.height = vpss_cfg.chn_attr.chn_attr.height;
 		}
 
-		ret = bm_algorithm_to_cvi(algorithm, &vpss_cfg.chn_coef_level_cfg.enCoef);
+		ret = bm_algorithm_to_cvi(algorithm, &vpss_cfg.chn_coef_level_cfg.coef);
 		if (ret != BM_SUCCESS) return ret;
 
 		bm_vpss_set_csc(csc_cfg, &vpss_cfg);
@@ -1066,20 +1076,20 @@ bm_status_t bm_vpss_asic(
 		if (input_crop_rect != NULL) {
 			if (input_crop_rect[i].start_x != 0 || input_crop_rect[i].start_y != 0 ||
 					input_crop_rect[i].crop_w != input[i].width || input_crop_rect[i].crop_h != input[i].height) {
-				pstCropInfo.bEnable = true;
-				pstCropInfo.enCropCoordinate = VPSS_CROP_ABS_COOR;
-				pstCropInfo.stCropRect.s32X = input_crop_rect[i].start_x;
-				pstCropInfo.stCropRect.s32Y = input_crop_rect[i].start_y;
-				pstCropInfo.stCropRect.u32Width = input_crop_rect[i].crop_w;
-				pstCropInfo.stCropRect.u32Height = input_crop_rect[i].crop_h;
-				if (pstCropInfo.stCropRect.u32Width > 4608 || pstCropInfo.stCropRect.u32Height > 8189)
-					vpss_cfg.chn_crop_cfg.stCropInfo = pstCropInfo;
+				pstCropInfo.enable = true;
+				pstCropInfo.crop_coordinate = VPSS_CROP_ABS_COOR;
+				pstCropInfo.crop_rect.x = input_crop_rect[i].start_x;
+				pstCropInfo.crop_rect.y = input_crop_rect[i].start_y;
+				pstCropInfo.crop_rect.width = input_crop_rect[i].crop_w;
+				pstCropInfo.crop_rect.height = input_crop_rect[i].crop_h;
+				if (pstCropInfo.crop_rect.width > 4608 || pstCropInfo.crop_rect.height > 8189)
+					vpss_cfg.chn_crop_cfg.crop_info = pstCropInfo;
 				else {
 					if ((!is_full_image(input[i].image_format)) || input[i].image_format == FORMAT_COMPRESSED)
-						pstCropInfo.stCropRect.u32Width = pstCropInfo.stCropRect.u32Width & (~0x1);
+						pstCropInfo.crop_rect.width = pstCropInfo.crop_rect.width & (~0x1);
 					if (is_yuv420_image(input[i].image_format) || input[i].image_format == FORMAT_COMPRESSED)
-						pstCropInfo.stCropRect.u32Height = pstCropInfo.stCropRect.u32Height & (~0x1);
-					vpss_cfg.grp_crop_cfg.stCropInfo = pstCropInfo;
+						pstCropInfo.crop_rect.height = pstCropInfo.crop_rect.height & (~0x1);
+					vpss_cfg.grp_crop_cfg.crop_info = pstCropInfo;
 				}
 			}
 		}
@@ -1098,13 +1108,13 @@ bm_status_t bm_vpss_asic(
 		if (gop_attr != NULL && gop_attr->rgn_num > 0)
 			bm_vpss_chn_set_gop(gop_attr, vpss_cfg.rgn_cfg);
 
-		bm_send_image_frame(input[i], &vpss_cfg.snd_frm_cfg.stVideoFrame, vpss_cfg.grp_attr.stGrpAttr.enPixelFormat);
+		bm_send_image_frame(input[i], &vpss_cfg.snd_frm_cfg.video_frame, vpss_cfg.grp_attr.grp_attr.pixel_format);
 
-		vpss_cfg.chn_frm_cfg.s32MilliSec = VPSS_TIMEOUT_MS;
+		vpss_cfg.chn_frm_cfg.milli_sec = VPSS_TIMEOUT_MS;
 
 		for (int k = 0; k < 8; k++) {
-			bm_send_image_frame(output[i], &vpss_cfg.chn_frm_cfg.stVideoFrame, vpss_cfg.chn_attr.stChnAttr.enPixelFormat);
-			ret = (bm_status_t)ioctl(fd, CVI_VPSS_BM_SEND_FRAME, &vpss_cfg);
+			bm_send_image_frame(output[i], &vpss_cfg.chn_frm_cfg.video_frame, vpss_cfg.chn_attr.chn_attr.pixel_format);
+			ret = (bm_status_t)ioctl(fd, VPSS_BM_SEND_FRAME, &vpss_cfg);
 			if (ret == BM_SUCCESS) break;
 			// dump_vpss_param(i, grp_id, VpssChn, input + i, output + i, stVpssGrpAttr, astVpssChnAttr[VpssChn],
 			// 	pstCropInfo, algorithm, csc_cfg, convert_to_attr, border_param, coverex_param, gop_attr);
@@ -1955,20 +1965,20 @@ bm_status_t bm_vpss_overlay(
 	unsigned char overlay_time = (rect_num + 15) >> 4;
 	unsigned char overlay_num = 0;
 	bmcv_rgn_cfg gop_attr;
-	struct cvi_rgn_param *gop_cfg = (struct cvi_rgn_param *)malloc(sizeof(struct cvi_rgn_param) * rect_num);
+	struct rgn_param *gop_cfg = (struct rgn_param *)malloc(sizeof(struct rgn_param) * rect_num);
 	for (int i = 0; i < overlay_time; i++) {
 		overlay_num = (i == (overlay_time - 1)) ? (rect_num - (i << 4)) : 16;
 		for (int j = 0; j < overlay_num; j++) {
 			int idx = ((i << 4) + j);
 			switch(overlay_image[idx].image_format) {
 				case FORMAT_ARGB_PACKED:
-				    gop_cfg[idx].fmt = CVI_RGN_FMT_ARGB8888;
+				    gop_cfg[idx].fmt = RGN_FMT_ARGB8888;
 					break;
 				case FORMAT_ARGB4444_PACKED:
-				    gop_cfg[idx].fmt = CVI_RGN_FMT_ARGB4444;
+				    gop_cfg[idx].fmt = RGN_FMT_ARGB4444;
 					break;
 				case FORMAT_ARGB1555_PACKED:
-				    gop_cfg[idx].fmt = CVI_RGN_FMT_ARGB1555;
+				    gop_cfg[idx].fmt = RGN_FMT_ARGB1555;
 					break;
 				default:
 				    printf("image format not supported \n");

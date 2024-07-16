@@ -4,7 +4,9 @@
 #include "string.h"
 #include "getopt.h"
 #include <sys/time.h>
+#include "signal.h"
 #include "bmcv_api_ext_c.h"
+#include <stdatomic.h>
 
 
 #define ALIGN(x, a)      (((x) + ((a)-1)) & ~((a)-1))
@@ -135,6 +137,17 @@ exit:
   return ret1;
 }
 
+void blend_HandleSig(int signum)
+{
+
+  signal(SIGINT, SIG_IGN);
+  signal(SIGTERM, SIG_IGN);
+
+  printf("signal happen  %d \n",signum);
+
+  exit(-1);
+}
+
 int main(int argc, char *argv[]) {
 
   struct option long_options[] = {
@@ -184,6 +197,9 @@ int main(int argc, char *argv[]) {
   struct stitch_param stitch_config;
   memset(&stitch_config, 0, sizeof(stitch_config));
   stitch_config.wgt_mode = BM_STITCH_WGT_YUV_SHARE;
+
+  signal(SIGINT, blend_HandleSig);
+  signal(SIGTERM, blend_HandleSig);
 
   int ch = 0, opt_idx = 0;
   while ((ch = getopt_long(argc, argv, "a:b:c:d:e:f:g:h:i:j:k:l:m:r:s:x:y:z:W:H", long_options, &opt_idx)) != -1) {
@@ -293,7 +309,7 @@ int main(int argc, char *argv[]) {
     time_total = time_total + time_single;
   }
   time_avg = time_total / loop_time;
-  fps = 1000000 *2 / time_avg;
+  fps = 1000000 / time_avg;
   pixel_per_sec = src_w[0] * src_h[0] * fps/1024/1024;
 
   if(NULL != dst_name)

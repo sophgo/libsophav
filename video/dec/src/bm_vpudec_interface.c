@@ -37,7 +37,7 @@
 #include "bm_vpudec_interface.h"
 #include "bm_ioctl.h"
 #include "bmlib_runtime.h"
-#include "linux/cvi_buffer.h"
+#include "linux/comm_buffer.h"
 
 //for dump frame for debuging lasi..
 #ifndef BM_PCIE_MODE
@@ -59,7 +59,7 @@ typedef struct _BM_VDEC_CTX{
 } BM_VDEC_CTX;
 
 BM_VDEC_CTX vpu_dec_chn[VDEC_MAX_CHN_NUM] = {0};
-static CVI_U32 u32ChannelCreatedCnt = 0;
+static unsigned int u32ChannelCreatedCnt = 0;
 static pthread_mutex_t VdecChn_Mutex = PTHREAD_MUTEX_INITIALIZER;
 
 int bmvpu_dec_dump_stream(BMVidCodHandle vidCodHandle, BMVidStream vidStream);
@@ -68,7 +68,7 @@ int bmvpu_dec_get_core_idx(BMVidCodHandle handle){
     int ret;
     int coreIdx = 0;
     int VdChn = *((int *)handle);
-    VDEC_CHN_STATUS_S stDecStatus = {0};
+    vdec_chn_status_s stDecStatus = {0};
     if(vpu_dec_chn[VdChn].chn_fd < 0){
         BMVPU_DEC_ERROR("Vdec device fd error.");
         return BM_ERR_VDEC_FAILURE;
@@ -122,8 +122,8 @@ int bmvpu_dec_create(BMVidCodHandle *pVidCodHandle, BMVidDecParam decParam)
     int is_jpu = 0;
     char devName[255];
 
-    VDEC_CHN_ATTR_S stAttr = {0};
-    VDEC_CHN_PARAM_S stChnParam;
+    vdec_chn_attr_s stAttr = {0};
+    vdec_chn_param_s stChnParam;
 
     BMVPU_DEC_TRACE("enter bmvpu_dec_create\n");
 
@@ -138,6 +138,16 @@ int bmvpu_dec_create(BMVidCodHandle *pVidCodHandle, BMVidDecParam decParam)
     stAttr.u32FrameBufCnt = (decParam.extraFrameBufferNum >= 0) ? decParam.extraFrameBufferNum : 2;
     stAttr.enCompressMode = (decParam.wtlFormat == BMDEC_OUTPUT_COMPRESSED) ? COMPRESS_MODE_FRAME : COMPRESS_MODE_NONE;
     stAttr.u8CommandQueueDepth = decParam.cmd_queue_depth;
+    if (decParam.reorder_disable)
+        stAttr.u8ReorderEnable = 0;
+    else
+        stAttr.u8ReorderEnable = 1; //default
+
+    if(getenv("NO_FRAMEBUFFER")!=NULL && strcmp(getenv("NO_FRAMEBUFFER"),"1")==0)
+    {
+        BMVPU_DEC_INFO("Capture the environment variable <NO_FRAMEBUFFER>!\n");
+        stAttr.u8ReorderEnable = 0;
+    }
 
     pthread_mutex_lock(&VdecChn_Mutex);
     /* create the device fd */
@@ -230,10 +240,10 @@ int bmvpu_dec_decode(BMVidCodHandle vidCodHandle, BMVidStream vidStream)
 {
     int ret = BM_SUCCESS;
     char *dump_num;
-    CVI_BOOL bEndOfStream = CVI_FALSE;
-    VDEC_STREAM_EX_S stStreamEx;
-    VDEC_STREAM_S stStream;
-    VDEC_CHN_ATTR_S stAttr;
+    unsigned char bEndOfStream = 0;
+    vdec_stream_ex_s stStreamEx;
+    vdec_stream_s stStream;
+    vdec_chn_attr_s stAttr;
     uint8_t *total_buf = NULL;
     int total_size;
 
@@ -253,11 +263,11 @@ int bmvpu_dec_decode(BMVidCodHandle vidCodHandle, BMVidStream vidStream)
     }
 
     if(stAttr.enMode == VIDEO_MODE_FRAME){
-        stStream.bEndOfFrame = CVI_TRUE;
-        stStream.bDisplay = CVI_TRUE;
+        stStream.bEndOfFrame = 1;
+        stStream.bDisplay = 1;
     }
     else{
-        stStream.bEndOfFrame = CVI_FALSE;
+        stStream.bEndOfFrame = 0;
     }
 
     if(vidStream.header_size != 0 && vidStream.header_buf != NULL) {
@@ -316,9 +326,9 @@ int bmvpu_dec_get_output(BMVidCodHandle vidCodHandle, BMVidFrame *bmFrame)
 
     BMVPU_DEC_TRACE("enter bmvpu_dec_get_output");
 
-    VIDEO_FRAME_INFO_S stFrameInfo = {0};
-    VIDEO_FRAME_INFO_EX_S stFrameInfoEx = {0};
-    VDEC_CHN_STATUS_S stChnStatus = {0};
+    video_frame_info_s stFrameInfo = {0};
+    video_frame_info_ex_s stFrameInfoEx = {0};
+    vdec_chn_status_s stChnStatus = {0};
     stFrameInfoEx.pstFrame = &stFrameInfo;
     stFrameInfoEx.s32MilliSec = 0;
 
@@ -328,12 +338,12 @@ int bmvpu_dec_get_output(BMVidCodHandle vidCodHandle, BMVidFrame *bmFrame)
     else
         BMVPU_DEC_LOG("get frame success");
 
-    if(stFrameInfo.stVFrame.enPixelFormat == PIXEL_FORMAT_NV12){
+    if(stFrameInfo.video_frame.pixel_format == PIXEL_FORMAT_NV12){
         bmFrame->frameFormat = 0;
         bmFrame->cbcrInterleave = 1;
         bmFrame->nv21 = 0;
     }
-    else if(stFrameInfo.stVFrame.enPixelFormat == PIXEL_FORMAT_NV21){
+    else if(stFrameInfo.video_frame.pixel_format == PIXEL_FORMAT_NV21){
         bmFrame->frameFormat = 0;
         bmFrame->cbcrInterleave = 1;
         bmFrame->nv21 = 1;
@@ -343,45 +353,45 @@ int bmvpu_dec_get_output(BMVidCodHandle vidCodHandle, BMVidFrame *bmFrame)
         bmFrame->cbcrInterleave = 0;
         bmFrame->nv21 = 0;
     }
-    bmFrame->compressed_mode = stFrameInfo.stVFrame.enCompressMode;
+    bmFrame->compressed_mode = stFrameInfo.video_frame.compress_mode;
 
     /* BMVidFrame.buf
     < 0: Y virt addr, 1: Cb virt addr: 2, Cr virt addr. 4: Y phy addr, 5: Cb phy addr, 6: Cr phy addr */
-    bmFrame->buf[0]   = stFrameInfo.stVFrame.pu8VirAddr[0];
-    bmFrame->buf[1]   = stFrameInfo.stVFrame.pu8VirAddr[1];
-    bmFrame->buf[2]   = stFrameInfo.stVFrame.pu8VirAddr[2];
-    bmFrame->buf[4]   = stFrameInfo.stVFrame.u64PhyAddr[0];
-    bmFrame->buf[5]   = stFrameInfo.stVFrame.u64PhyAddr[1];
-    bmFrame->buf[6]   = stFrameInfo.stVFrame.u64PhyAddr[2];
+    bmFrame->buf[0]   = stFrameInfo.video_frame.viraddr[0];
+    bmFrame->buf[1]   = stFrameInfo.video_frame.viraddr[1];
+    bmFrame->buf[2]   = stFrameInfo.video_frame.viraddr[2];
+    bmFrame->buf[4]   = stFrameInfo.video_frame.phyaddr[0];
+    bmFrame->buf[5]   = stFrameInfo.video_frame.phyaddr[1];
+    bmFrame->buf[6]   = stFrameInfo.video_frame.phyaddr[2];
 
-    bmFrame->stride[0] = stFrameInfo.stVFrame.u32Stride[0];
-    bmFrame->stride[4] = stFrameInfo.stVFrame.u32Stride[0];
-    bmFrame->stride[1] = stFrameInfo.stVFrame.u32Stride[1];
-    bmFrame->stride[5] = stFrameInfo.stVFrame.u32Stride[1];
-    if(stFrameInfo.stVFrame.enCompressMode != COMPRESS_MODE_FRAME) {
-        bmFrame->stride[2] = stFrameInfo.stVFrame.u32Stride[2];
-        bmFrame->stride[6] = stFrameInfo.stVFrame.u32Stride[2];
+    bmFrame->stride[0] = stFrameInfo.video_frame.stride[0];
+    bmFrame->stride[4] = stFrameInfo.video_frame.stride[0];
+    bmFrame->stride[1] = stFrameInfo.video_frame.stride[1];
+    bmFrame->stride[5] = stFrameInfo.video_frame.stride[1];
+    if(stFrameInfo.video_frame.compress_mode != COMPRESS_MODE_FRAME) {
+        bmFrame->stride[2] = stFrameInfo.video_frame.stride[2];
+        bmFrame->stride[6] = stFrameInfo.video_frame.stride[2];
     }
     else {
-        bmFrame->buf[3] = stFrameInfo.stVFrame.pu8ExtVirtAddr;
-        bmFrame->buf[7] = stFrameInfo.stVFrame.u64ExtPhyAddr;
+        bmFrame->buf[3] = stFrameInfo.video_frame.ext_virt_addr;
+        bmFrame->buf[7] = stFrameInfo.video_frame.ext_phy_addr;
 
-        bmFrame->stride[2] = stFrameInfo.stVFrame.u32Length[2];
-        bmFrame->stride[6] = stFrameInfo.stVFrame.u32Length[2];
-        bmFrame->stride[3] = stFrameInfo.stVFrame.u32ExtLength;
-        bmFrame->stride[7] = stFrameInfo.stVFrame.u32ExtLength;
+        bmFrame->stride[2] = stFrameInfo.video_frame.length[2];
+        bmFrame->stride[6] = stFrameInfo.video_frame.length[2];
+        bmFrame->stride[3] = stFrameInfo.video_frame.ext_length;
+        bmFrame->stride[7] = stFrameInfo.video_frame.ext_length;
     }
 
-    bmFrame->width    = stFrameInfo.stVFrame.u32Width;
-    bmFrame->height   = stFrameInfo.stVFrame.u32Height;
-    bmFrame->frameIdx = (uintptr_t)stFrameInfo.stVFrame.pPrivateData;
-    bmFrame->pts      = stFrameInfo.stVFrame.u64PTS;
-    bmFrame->dts      = stFrameInfo.stVFrame.u64DTS;
-    bmFrame->endian   = stFrameInfo.stVFrame.u8Endian;
-    bmFrame->sequenceNo = stFrameInfo.stVFrame.u32SeqenceNo;
-    bmFrame->picType  = stFrameInfo.stVFrame.u8PicType;
-    bmFrame->interlacedFrame = stFrameInfo.stVFrame.u8InterlacedFrame;
-    bmFrame->size = (stFrameInfo.stVFrame.u64PhyAddr[1] - stFrameInfo.stVFrame.u64PhyAddr[0]) * 3 / 2;
+    bmFrame->width    = stFrameInfo.video_frame.width;
+    bmFrame->height   = stFrameInfo.video_frame.height;
+    bmFrame->frameIdx = (uintptr_t)stFrameInfo.video_frame.private_data;
+    bmFrame->pts      = stFrameInfo.video_frame.pts;
+    bmFrame->dts      = stFrameInfo.video_frame.dts;
+    bmFrame->endian   = stFrameInfo.video_frame.endian;
+    bmFrame->sequenceNo = stFrameInfo.video_frame.seqenceno;
+    bmFrame->picType  = stFrameInfo.video_frame.pic_type;
+    bmFrame->interlacedFrame = stFrameInfo.video_frame.interl_aced_frame;
+    bmFrame->size = (stFrameInfo.video_frame.phyaddr[1] - stFrameInfo.video_frame.phyaddr[0]) * 3 / 2;
     bmFrame->lumaBitDepth = stChnStatus.stSeqinitalInfo.s32LumaBitdepth;
     bmFrame->chromaBitDepth = stChnStatus.stSeqinitalInfo.s32ChromaBitdepth;
     bmFrame->coded_width    = stChnStatus.stSeqinitalInfo.s32PicWidth;
@@ -393,7 +403,7 @@ int bmvpu_dec_get_output(BMVidCodHandle vidCodHandle, BMVidFrame *bmFrame)
     // frame->colorRange = stFrameInfo.stVFrame.
     // frame->chromaLocation = stFrameInfo.stVFrame.
 
-    if(stFrameInfo.stVFrame.enCompressMode == COMPRESS_MODE_FRAME){
+    if(stFrameInfo.video_frame.compress_mode == COMPRESS_MODE_FRAME){
         if(getenv("BMVPU_DEC_DUMP_FBC_NUM") != NULL) {
             int core_num = bmvpu_dec_get_core_idx(vidCodHandle);
             int inst_num = bmvpu_dec_get_inst_idx(vidCodHandle);
@@ -437,7 +447,7 @@ int bmvpu_dec_clear_output(BMVidCodHandle vidCodHandle, BMVidFrame *frame)
 {
     int ret;
     int VdChn = *((int *)vidCodHandle);
-    VIDEO_FRAME_INFO_S stFrameInfo = {0};
+    video_frame_info_s stFrameInfo = {0};
     if(vpu_dec_chn[VdChn].chn_fd < 0)
     {
         BMVPU_DEC_ERROR("Vdec device fd error.");
@@ -446,39 +456,39 @@ int bmvpu_dec_clear_output(BMVidCodHandle vidCodHandle, BMVidFrame *frame)
 
     BMVPU_DEC_TRACE("enter bmvpu_dec_clear_output\n");
 
-    stFrameInfo.stVFrame.u32Width        = frame->width;
-    stFrameInfo.stVFrame.u32Height       = frame->height;
-    stFrameInfo.stVFrame.u32Stride[0]    = frame->stride[0];
-    stFrameInfo.stVFrame.u32Stride[1]    = frame->stride[1];
-    stFrameInfo.stVFrame.u32Stride[2]    = frame->stride[2];
+    stFrameInfo.video_frame.width        = frame->width;
+    stFrameInfo.video_frame.height       = frame->height;
+    stFrameInfo.video_frame.stride[0]    = frame->stride[0];
+    stFrameInfo.video_frame.stride[1]    = frame->stride[1];
+    stFrameInfo.video_frame.stride[2]    = frame->stride[2];
 
-    stFrameInfo.stVFrame.pu8VirAddr[0]   = frame->buf[0];
-    stFrameInfo.stVFrame.pu8VirAddr[1]   = frame->buf[1];
-    stFrameInfo.stVFrame.pu8VirAddr[2]   = frame->buf[2];
-    stFrameInfo.stVFrame.u64PhyAddr[0]   = frame->buf[4];
-    stFrameInfo.stVFrame.u64PhyAddr[1]   = frame->buf[5];
-    stFrameInfo.stVFrame.u64PhyAddr[2]   = frame->buf[6];
+    stFrameInfo.video_frame.viraddr[0]   = frame->buf[0];
+    stFrameInfo.video_frame.viraddr[1]   = frame->buf[1];
+    stFrameInfo.video_frame.viraddr[2]   = frame->buf[2];
+    stFrameInfo.video_frame.phyaddr[0]   = frame->buf[4];
+    stFrameInfo.video_frame.phyaddr[1]   = frame->buf[5];
+    stFrameInfo.video_frame.phyaddr[2]   = frame->buf[6];
 
-    stFrameInfo.stVFrame.enCompressMode = frame->compressed_mode;
-    stFrameInfo.stVFrame.pPrivateData  = (void *)frame->frameIdx;
+    stFrameInfo.video_frame.compress_mode = frame->compressed_mode;
+    stFrameInfo.video_frame.private_data  = (void *)frame->frameIdx;
 
-    stFrameInfo.stVFrame.u32Length[0]   = frame->stride[0] * frame->height;
-    stFrameInfo.stVFrame.u32Length[1]   = frame->stride[1] * frame->height / 2;
-    if(stFrameInfo.stVFrame.enCompressMode != COMPRESS_MODE_FRAME) {
-        stFrameInfo.stVFrame.u32Length[2]   = frame->stride[2] * frame->height / 2;
+    stFrameInfo.video_frame.length[0]   = frame->stride[0] * frame->height;
+    stFrameInfo.video_frame.length[1]   = frame->stride[1] * frame->height / 2;
+    if(stFrameInfo.video_frame.compress_mode != COMPRESS_MODE_FRAME) {
+        stFrameInfo.video_frame.length[2]   = frame->stride[2] * frame->height / 2;
     }
     else{
-        stFrameInfo.stVFrame.u32Length[2]      = frame->stride[2];
-        stFrameInfo.stVFrame.u32ExtLength      = frame->stride[3];
+        stFrameInfo.video_frame.length[2]      = frame->stride[2];
+        stFrameInfo.video_frame.ext_length      = frame->stride[3];
 
-        stFrameInfo.stVFrame.pu8ExtVirtAddr    = frame->buf[3];
-        stFrameInfo.stVFrame.u64ExtPhyAddr     = frame->buf[7];
+        stFrameInfo.video_frame.ext_virt_addr    = frame->buf[3];
+        stFrameInfo.video_frame.ext_phy_addr     = frame->buf[7];
     }
 
     if(frame->cbcrInterleave == 1)
-        stFrameInfo.stVFrame.enPixelFormat = (frame->nv21 == 1) ? PIXEL_FORMAT_NV21 : PIXEL_FORMAT_NV12;
+        stFrameInfo.video_frame.pixel_format = (frame->nv21 == 1) ? PIXEL_FORMAT_NV21 : PIXEL_FORMAT_NV12;
     else
-        stFrameInfo.stVFrame.enPixelFormat = PIXEL_FORMAT_YUV_PLANAR_420;
+        stFrameInfo.video_frame.pixel_format = PIXEL_FORMAT_YUV_PLANAR_420;
 
     ret = bmdec_ioctl_release_frame(vpu_dec_chn[VdChn].chn_fd, &stFrameInfo, frame->size);
     if(ret != BM_SUCCESS) {
@@ -500,14 +510,14 @@ int bmvpu_dec_flush(BMVidCodHandle vidCodHandle)
         return BM_ERR_VDEC_INVALID_CHNID;
     }
 
-    VDEC_STREAM_S stStream;
-    VDEC_STREAM_EX_S stStreamEx;
+    vdec_stream_s stStream;
+    vdec_stream_ex_s stStreamEx;
 
-    memset(&stStream, 0 ,sizeof(VDEC_STREAM_S));
-    stStream.bEndOfStream = CVI_TRUE;
+    memset(&stStream, 0 ,sizeof(vdec_stream_s));
+    stStream.bEndOfStream = 1;
     stStreamEx.pstStream = &stStream;
     stStreamEx.s32MilliSec = -1;
-    while(bmdec_ioctl_send_stream(vpu_dec_chn[VdChn].chn_fd, &stStreamEx) != CVI_SUCCESS)
+    while(bmdec_ioctl_send_stream(vpu_dec_chn[VdChn].chn_fd, &stStreamEx) != 0)
     {
         usleep(1000);
     }
@@ -528,14 +538,14 @@ int bmvpu_dec_delete(BMVidCodHandle vidCodHandle)
     BMVPU_DEC_TRACE("enter bmvpu_dec_delete chn id = %d\n", VdChn);
 
     ret = bmdec_ioctl_stop_recv_stream(vpu_dec_chn[VdChn].chn_fd);
-    if(ret != CVI_SUCCESS)
+    if(ret != 0)
     {
         BMVPU_DEC_ERROR("ioctl CVI_VC_VDEC_STOP_RECV_STREAM fail with %d", ret);
         return ret;
     }
 
     ret = bmdec_ioctl_destory_chn(vpu_dec_chn[VdChn].chn_fd);
-    if(ret != CVI_SUCCESS)
+    if(ret != 0)
     {
         BMVPU_DEC_ERROR("ioctl CVI_VC_VDEC_DESTROY_CHN fail with %d", ret);
         return ret;
@@ -562,7 +572,7 @@ int bmvpu_dec_delete(BMVidCodHandle vidCodHandle)
 BMDecStatus bmvpu_dec_get_status(BMVidCodHandle vidCodHandle)
 {
     int ret;
-    VDEC_CHN_STATUS_S stDecStatus = {0};
+    vdec_chn_status_s stDecStatus = {0};
     BMDecStatus state;
     int VdChn = *((int *)vidCodHandle);
     if(vpu_dec_chn[VdChn].chn_fd < 0)
@@ -608,7 +618,7 @@ BMDecStatus bmvpu_dec_get_status(BMVidCodHandle vidCodHandle)
 int bmvpu_dec_get_caps(BMVidCodHandle vidCodHandle, BMVidStreamInfo *streamInfo)
 {
     int ret;
-    VDEC_CHN_STATUS_S stDecStatus = {0};
+    vdec_chn_status_s stDecStatus = {0};
     int VdChn = *((int *)vidCodHandle);
     if(vpu_dec_chn[VdChn].chn_fd < 0)
     {
@@ -650,7 +660,7 @@ int bmvpu_dec_get_caps(BMVidCodHandle vidCodHandle, BMVidStreamInfo *streamInfo)
 int bmvpu_dec_get_all_empty_input_buf_cnt(BMVidCodHandle vidCodHandle)
 {
     int ret;
-    VDEC_CHN_STATUS_S stDecStatus = {0};
+    vdec_chn_status_s stDecStatus = {0};
     int VdChn = *((int *)vidCodHandle);
     if(vpu_dec_chn[VdChn].chn_fd < 0)
     {
@@ -672,7 +682,7 @@ int bmvpu_dec_get_all_empty_input_buf_cnt(BMVidCodHandle vidCodHandle)
 int bmvpu_dec_get_pkt_in_buf_cnt(BMVidCodHandle vidCodHandle)
 {
     int ret;
-    VDEC_CHN_STATUS_S stDecStatus = {0};
+    vdec_chn_status_s stDecStatus = {0};
     int VdChn = *((int *)vidCodHandle);
     if(vpu_dec_chn[VdChn].chn_fd < 0)
     {
@@ -695,16 +705,16 @@ int bmvpu_dec_get_all_frame_in_buffer(BMVidCodHandle vidCodHandle)
 {
     int ret;
     int VdChn = *((int *)vidCodHandle);
-    VDEC_STREAM_S stStream;
-    VDEC_STREAM_EX_S stStreamEx;
+    vdec_stream_s stStream;
+    vdec_stream_ex_s stStreamEx;
     if(vpu_dec_chn[VdChn].chn_fd < 0)
     {
         BMVPU_DEC_ERROR("Vdec device fd error.");
         return BM_ERR_VDEC_INVALID_CHNID;
     }
 
-    memset(&stStream, 0 ,sizeof(VDEC_STREAM_S));
-    stStream.bEndOfStream = CVI_TRUE;
+    memset(&stStream, 0 ,sizeof(vdec_stream_s));
+    stStream.bEndOfStream = 1;
     stStreamEx.pstStream = &stStream;
     stStreamEx.s32MilliSec = -1;
     ret = bmdec_ioctl_send_stream(vpu_dec_chn[VdChn].chn_fd, &stStreamEx);

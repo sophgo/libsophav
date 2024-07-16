@@ -285,10 +285,9 @@ static int cpu_matmul(signed char* src_A, signed char* src_B, void* output, stru
     return ret;
 }
 
-static int tpu_matmul(signed char* input_A, signed char* input_B, void* output, struct Matpara para)
+static int tpu_matmul(signed char* input_A, signed char* input_B, void* output, struct Matpara para, bm_handle_t handle)
 {
     bm_status_t ret = BM_SUCCESS;
-    bm_handle_t handle;
     int M = para.M;
     int K = para.K;
     int N = para.N;
@@ -300,12 +299,6 @@ static int tpu_matmul(signed char* input_A, signed char* input_B, void* output, 
     float alpha = para.alpha;
     float beta = para.beta;
     struct timeval t1, t2;
-
-    ret = bm_dev_request(&handle, 0);
-    if (ret != BM_SUCCESS) {
-        printf("Create bm handle failed. ret = %d\n", ret);
-        return -1;
-    }
 
     gettimeofday(&t1, NULL);
     ret = bmcv_matmul(handle, M, N, K, bm_mem_from_system((void*)input_A),
@@ -320,7 +313,6 @@ static int tpu_matmul(signed char* input_A, signed char* input_B, void* output, 
         return -1;
     }
 
-    bm_dev_free(handle);
     return 0;
 }
 
@@ -385,7 +377,7 @@ static int test_matmul_random(struct Matpara para, bm_handle_t handle)
     gettimeofday(&t2, NULL);
     printf("Matmul CPU using time = %ld(us)\n", TIME_COST_US(t1, t2));
 
-    ret = tpu_matmul(input_A, input_B, tpu_out, para);
+    ret = tpu_matmul(input_A, input_B, tpu_out, para, handle);
     if (ret) {
         printf("the tpu_matmul is failed!\n");
         goto exit;

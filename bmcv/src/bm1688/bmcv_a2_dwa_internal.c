@@ -14,7 +14,7 @@
 #endif
 
 extern bm_status_t bm_image_format_to_cvi(bm_image_format_ext fmt, bm_image_data_format_ext datatype,
-                                          PIXEL_FORMAT_E * cvi_fmt);
+                                          pixel_format_e * cvi_fmt);
 
 unsigned short uncommonly_used_idx = DWA_MAX_TSK_MESH - 1;
 static int meshHor = MESH_HOR_DEFAULT;
@@ -31,77 +31,77 @@ bm_tsk_mesh_attr_s dwa_tskMesh[DWA_MAX_TSK_MESH];
 
 static s32 dwa_init(s32 fd)
 {
-    return ioctl(fd, CVI_DWA_INIT);
+    return ioctl(fd, DWA_INIT);
 }
 
 s32 dwa_deinit(s32 fd)
 {
-    return ioctl(fd, CVI_DWA_DEINIT);
+    return ioctl(fd, DWA_DEINIT);
 }
 
 static s32 dwa_begin_job(s32 fd, struct dwa_handle_data *cfg)
 {
-    return ioctl(fd, CVI_DWA_BEGIN_JOB, cfg);
+    return ioctl(fd, DWA_BEGIN_JOB, cfg);
 }
 
 static s32 dwa_end_job(s32 fd, struct dwa_handle_data *cfg)
 {
-    return ioctl(fd, CVI_DWA_END_JOB, cfg);
+    return ioctl(fd, DWA_END_JOB, cfg);
 }
 
 s32 dwa_cancel_job(s32 fd, struct dwa_handle_data *cfg)
 {
-    return ioctl(fd, CVI_DWA_CANCEL_JOB, cfg);
+    return ioctl(fd, DWA_CANCEL_JOB, cfg);
 }
 
 static s32 dwa_add_rotation_task(s32 fd, struct dwa_task_attr *attr)
 {
-    return ioctl(fd, CVI_DWA_ADD_ROT_TASK, attr);
+    return ioctl(fd, DWA_ADD_ROT_TASK, attr);
 }
 
 static s32 dwa_add_ldc_task(s32 fd, struct dwa_task_attr *attr)
 {
-    return ioctl(fd, CVI_DWA_ADD_LDC_TASK, attr);
+    return ioctl(fd, DWA_ADD_LDC_TASK, attr);
 }
 
 static s32 dwa_add_warp_task(s32 fd, struct dwa_task_attr *attr)
 {
-    return ioctl(fd, CVI_DWA_ADD_WAR_TASK, attr);
+    return ioctl(fd, DWA_ADD_WAR_TASK, attr);
 }
 
 static s32 dwa_add_correction_task(s32 fd, struct dwa_task_attr *attr)
 {
-    return ioctl(fd, CVI_DWA_ADD_COR_TASK, attr);
+    return ioctl(fd, DWA_ADD_COR_TASK, attr);
 }
 
 static s32 dwa_add_affine_task(s32 fd, struct dwa_task_attr *attr)
 {
-    return ioctl(fd, CVI_DWA_ADD_AFF_TASK, attr);
+    return ioctl(fd, DWA_ADD_AFF_TASK, attr);
 }
 
 static s32 dwa_set_job_identity(s32 fd, struct dwa_identity_attr *indentity)
 {
-    return ioctl(fd, CVI_DWA_SET_JOB_IDENTITY, indentity);
+    return ioctl(fd, DWA_SET_JOB_IDENTITY, indentity);
 }
 
 s32 dwa_get_work_job(s32 fd, struct dwa_handle_data *cfg)
 {
-    return ioctl(fd, CVI_DWA_GET_WORK_JOB, cfg);
+    return ioctl(fd, DWA_GET_WORK_JOB, cfg);
 }
 
 s32 dwa_get_chn_frm(s32 fd, struct dwa_chn_frm_cfg *cfg)
 {
-    return ioctl(fd, CVI_DWA_GET_CHN_FRM, cfg);
+    return ioctl(fd, DWA_GET_CHN_FRM, cfg);
 }
 
-static bool is_rect_overlap(POINT_S l1, POINT_S r1, POINT_S l2, POINT_S r2)
+static bool is_rect_overlap(point_s l1, point_s r1, point_s l2, point_s r2)
 {
     // If one rectangle is on left side of other
-    if (l1.s32X > r2.s32X || l2.s32X > r1.s32X)
+    if (l1.x > r2.x || l2.x > r1.x)
         return false;
 
     // If one rectangle is above other
-    if (l1.s32Y > r2.s32Y || l2.s32Y > r1.s32Y)
+    if (l1.y > r2.y || l2.y > r1.y)
         return false;
 
     return true;
@@ -148,7 +148,7 @@ static void bm_load_frame_config(bm_fisheye_attr *fisheye_config)
     }
 }
 
-static void bm_generate_mesh_id(bm_mesh_param *param, POINT_S dst_mesh_tbl[][4])
+static void bm_generate_mesh_id(bm_mesh_param *param, point_s dst_mesh_tbl[][4])
 {
     const int NUM_X_LINE_A_SLICE = DIV_UP(param->width, param->slice_num_w);
     const int NUM_Y_LINE_A_SLICE = ALIGN(DIV_UP(param->height, param->slice_num_h), NUMBER_Y_LINE_A_SUBTILE);
@@ -175,23 +175,23 @@ static void bm_generate_mesh_id(bm_mesh_param *param, POINT_S dst_mesh_tbl[][4])
             mesh_id[id_idx++] = (dst_y - src_y);
 
             for (int y = src_y; y < dst_y; y += NUMBER_Y_LINE_A_SUBTILE) {
-                POINT_S l1, r1, l2, r2;
+                point_s l1, r1, l2, r2;
 
-                l1.s32X = src_x;
-                l1.s32Y = y;
-                r1.s32X = dst_x;
-                r1.s32Y = y + NUMBER_Y_LINE_A_SUBTILE;
+                l1.x = src_x;
+                l1.y = y;
+                r1.x = dst_x;
+                r1.y = y + NUMBER_Y_LINE_A_SUBTILE;
                 mesh_id[id_idx++] = MESH_ID_FSP;
                 for (int m = 0; m < param->mesh_num; ++m) {
                     // To reduce time consumption
                     // assumption: dst mesh is ordered (left->right, up->down)
-                    if (dst_mesh_tbl[m][3].s32Y < l1.s32Y) continue;
-                    if (dst_mesh_tbl[m][0].s32Y > r1.s32Y) break;
+                    if (dst_mesh_tbl[m][3].y < l1.y) continue;
+                    if (dst_mesh_tbl[m][0].y > r1.y) break;
 
-                    l2.s32X = dst_mesh_tbl[m][0].s32X;
-                    l2.s32Y = dst_mesh_tbl[m][0].s32Y;
-                    r2.s32X = dst_mesh_tbl[m][3].s32X;
-                    r2.s32Y = dst_mesh_tbl[m][3].s32Y;
+                    l2.x = dst_mesh_tbl[m][0].x;
+                    l2.y = dst_mesh_tbl[m][0].y;
+                    r2.x = dst_mesh_tbl[m][3].x;
+                    r2.y = dst_mesh_tbl[m][3].y;
                     if (is_rect_overlap(l1, r1, l2, r2))
                         mesh_id[id_idx++] = m;
                 }
@@ -613,73 +613,73 @@ static void bm_load_region_config(bm_fisheye_attr* fisheye_config, bm_fisheye_re
     }
 }
 
-static void bm_image_to_cvi_frame(bm_image *image, PIXEL_FORMAT_E enPixelFormat, VIDEO_FRAME_INFO_S *stVideoFrame)
+static void bm_image_to_cvi_frame(bm_image *image, pixel_format_e enPixelFormat, video_frame_info_s *stVideoFrame)
 {
 	int planar_to_seperate = 0;
 	if((image->image_format == FORMAT_RGB_PLANAR || image->image_format == FORMAT_BGR_PLANAR))
 		planar_to_seperate = 1;
 
-	stVideoFrame->stVFrame.enCompressMode = COMPRESS_MODE_NONE;
-	stVideoFrame->stVFrame.enPixelFormat = enPixelFormat;
-	stVideoFrame->stVFrame.enVideoFormat = VIDEO_FORMAT_LINEAR;
-	stVideoFrame->stVFrame.u32Width = image->width;
-	stVideoFrame->stVFrame.u32Height = image->height;
+	stVideoFrame->video_frame.compress_mode = COMPRESS_MODE_NONE;
+	stVideoFrame->video_frame.pixel_format = enPixelFormat;
+	stVideoFrame->video_frame.video_format = VIDEO_FORMAT_LINEAR;
+	stVideoFrame->video_frame.width = image->width;
+	stVideoFrame->video_frame.height = image->height;
 	if((!is_full_image(image->image_format)) || image->image_format == FORMAT_COMPRESSED)
-		stVideoFrame->stVFrame.u32Width = stVideoFrame->stVFrame.u32Width & (~0x1);
+		stVideoFrame->video_frame.width = stVideoFrame->video_frame.width & (~0x1);
 	if(is_yuv420_image(image->image_format) || image->image_format == FORMAT_COMPRESSED)
-		stVideoFrame->stVFrame.u32Height = stVideoFrame->stVFrame.u32Height & (~0x1);
+		stVideoFrame->video_frame.height = stVideoFrame->video_frame.height & (~0x1);
 	for (int i = 0; i < image->image_private->plane_num; ++i) {
 		if((i == 3) && (image->image_format == FORMAT_COMPRESSED)){
-			stVideoFrame->stVFrame.u64ExtPhyAddr = image->image_private->data[i].u.device.device_addr;
-			stVideoFrame->stVFrame.u32ExtLength = image->image_private->memory_layout[i].size;
-			stVideoFrame->stVFrame.pu8ExtVirtAddr = (unsigned char*)image->image_private->data[i].u.system.system_addr;
-			stVideoFrame->stVFrame.enCompressMode = COMPRESS_MODE_FRAME;
+			stVideoFrame->video_frame.ext_phy_addr = image->image_private->data[i].u.device.device_addr;
+			stVideoFrame->video_frame.ext_length = image->image_private->memory_layout[i].size;
+			stVideoFrame->video_frame.ext_virt_addr = (unsigned char*)image->image_private->data[i].u.system.system_addr;
+			stVideoFrame->video_frame.compress_mode = COMPRESS_MODE_FRAME;
 		} else if((i > 0) && (image->image_format == FORMAT_COMPRESSED)){
 			continue;
 		} else {
-			stVideoFrame->stVFrame.u32Stride[i] = image->image_private->memory_layout[i].pitch_stride;
-			stVideoFrame->stVFrame.u32Length[i] = image->image_private->memory_layout[i].size;
-			stVideoFrame->stVFrame.u64PhyAddr[i] = image->image_private->data[i].u.device.device_addr;
-			stVideoFrame->stVFrame.pu8VirAddr[i] = (unsigned char*)image->image_private->data[i].u.system.system_addr;
+			stVideoFrame->video_frame.stride[i] = image->image_private->memory_layout[i].pitch_stride;
+			stVideoFrame->video_frame.length[i] = image->image_private->memory_layout[i].size;
+			stVideoFrame->video_frame.phyaddr[i] = image->image_private->data[i].u.device.device_addr;
+			stVideoFrame->video_frame.viraddr[i] = (unsigned char*)image->image_private->data[i].u.system.system_addr;
 		}
 	}
 
 	if(planar_to_seperate){
 		for (int i = 1; i < 3; ++i) {
-			stVideoFrame->stVFrame.u32Stride[i] = image->image_private->memory_layout[0].pitch_stride;
-			stVideoFrame->stVFrame.u32Length[i] = image->image_private->memory_layout[0].pitch_stride * image->height;
-			stVideoFrame->stVFrame.u64PhyAddr[i] = image->image_private->data[0].u.device.device_addr + image->image_private->memory_layout[0].pitch_stride * image->height * i;
+			stVideoFrame->video_frame.stride[i] = image->image_private->memory_layout[0].pitch_stride;
+			stVideoFrame->video_frame.length[i] = image->image_private->memory_layout[0].pitch_stride * image->height;
+			stVideoFrame->video_frame.phyaddr[i] = image->image_private->data[0].u.device.device_addr + image->image_private->memory_layout[0].pitch_stride * image->height * i;
 		}
 	}
 
 	if(image->image_format == FORMAT_COMPRESSED){
 		for (int i = 1, j = 2; i < 3; ++i, --j) {
-			stVideoFrame->stVFrame.u32Stride[i] = image->image_private->memory_layout[j].pitch_stride;
-			stVideoFrame->stVFrame.u32Length[i] = image->image_private->memory_layout[j].size;
-			stVideoFrame->stVFrame.u64PhyAddr[i] = image->image_private->data[j].u.device.device_addr;
-			stVideoFrame->stVFrame.pu8VirAddr[i] = (unsigned char*)image->image_private->data[j].u.system.system_addr;
+			stVideoFrame->video_frame.stride[i] = image->image_private->memory_layout[j].pitch_stride;
+			stVideoFrame->video_frame.length[i] = image->image_private->memory_layout[j].size;
+			stVideoFrame->video_frame.phyaddr[i] = image->image_private->data[j].u.device.device_addr;
+			stVideoFrame->video_frame.viraddr[i] = (unsigned char*)image->image_private->data[j].u.system.system_addr;
 		}
 	}
 
 	if((enPixelFormat == PIXEL_FORMAT_UINT8_C3_PLANAR || enPixelFormat == PIXEL_FORMAT_INT8_C3_PLANAR ||
 		enPixelFormat == PIXEL_FORMAT_BF16_C3_PLANAR || enPixelFormat == PIXEL_FORMAT_FP16_C3_PLANAR || enPixelFormat == PIXEL_FORMAT_FP32_C3_PLANAR) &&
 		(image->image_format == FORMAT_BGR_PLANAR || image->image_format == FORMAT_BGRP_SEPARATE)){
-		stVideoFrame->stVFrame.u32Stride[0] = stVideoFrame->stVFrame.u32Stride[2];
-		stVideoFrame->stVFrame.u32Length[0] = stVideoFrame->stVFrame.u32Length[2];
-		stVideoFrame->stVFrame.u64PhyAddr[0] = stVideoFrame->stVFrame.u64PhyAddr[2];
-		stVideoFrame->stVFrame.u32Stride[2] = image->image_private->memory_layout[0].pitch_stride;
-		stVideoFrame->stVFrame.u32Length[2] = image->image_private->memory_layout[0].pitch_stride * image->height;
-		stVideoFrame->stVFrame.u64PhyAddr[2] = image->image_private->data[0].u.device.device_addr;
+		stVideoFrame->video_frame.stride[0] = stVideoFrame->video_frame.stride[2];
+		stVideoFrame->video_frame.length[0] = stVideoFrame->video_frame.length[2];
+		stVideoFrame->video_frame.phyaddr[0] = stVideoFrame->video_frame.phyaddr[2];
+		stVideoFrame->video_frame.stride[2] = image->image_private->memory_layout[0].pitch_stride;
+		stVideoFrame->video_frame.length[2] = image->image_private->memory_layout[0].pitch_stride * image->height;
+		stVideoFrame->video_frame.phyaddr[2] = image->image_private->data[0].u.device.device_addr;
 	}
 
-	stVideoFrame->stVFrame.u32Align = 1;
-	stVideoFrame->stVFrame.u32TimeRef = 0;
-	stVideoFrame->stVFrame.u64PTS = 0;
-	stVideoFrame->stVFrame.enDynamicRange = DYNAMIC_RANGE_SDR8;
-	stVideoFrame->u32PoolId = 0xffff;
+	stVideoFrame->video_frame.align = 1;
+	stVideoFrame->video_frame.time_ref = 0;
+	stVideoFrame->video_frame.pts = 0;
+	stVideoFrame->video_frame.dynamic_range = DYNAMIC_RANGE_SDR8;
+	stVideoFrame->pool_id = 0xffff;
 }
 
-static void dwa_mesh_gen_get_size(SIZE_S in_size, SIZE_S out_size, u32 *mesh_id_size, u32 *mesh_tbl_size)
+static void dwa_mesh_gen_get_size(size_s in_size, size_s out_size, u32 *mesh_id_size, u32 *mesh_tbl_size)
 {
     if (!mesh_id_size || !mesh_tbl_size)
         return;
@@ -692,9 +692,9 @@ static void dwa_mesh_gen_get_size(SIZE_S in_size, SIZE_S out_size, u32 *mesh_id_
     *mesh_id_size = 0x50000;
 }
 
-static CVI_U8 get_idle_tsk_mesh(bm_handle_t handle)
+static unsigned char get_idle_tsk_mesh(bm_handle_t handle)
 {
-    CVI_U8 i = DWA_MAX_TSK_MESH;
+    unsigned char i = DWA_MAX_TSK_MESH;
 
     for (i = 0; i < DWA_MAX_TSK_MESH; i++) {
         if (strcmp(dwa_tskMesh[i].Name, "") == 0 && !dwa_tskMesh[i].mem.u.device.device_addr && !dwa_tskMesh[i].mem.u.system.system_addr)
@@ -713,16 +713,16 @@ static CVI_U8 get_idle_tsk_mesh(bm_handle_t handle)
     return i;
 }
 
-static void bm_ldc_attr_map(const LDC_ATTR_S *pstLDCAttr,
-                            SIZE_S out_size,
+static void bm_ldc_attr_map(const ldc_attr_s *pstLDCAttr,
+                            size_s out_size,
                             bm_fisheye_attr *fisheye_config,
                             bm_fisheye_region_attr *fisheye_region)
 {
     fisheye_config->MntMode = 0;
-    fisheye_config->OutW_disp = out_size.u32Width;
-    fisheye_config->OutH_disp = out_size.u32Height;
-    fisheye_config->InCenterX = out_size.u32Width >> 1;
-    fisheye_config->InCenterY = out_size.u32Height >> 1;
+    fisheye_config->OutW_disp = out_size.width;
+    fisheye_config->OutH_disp = out_size.height;
+    fisheye_config->InCenterX = out_size.width >> 1;
+    fisheye_config->InCenterY = out_size.height >> 1;
     // TODO: how to handl radius
     fisheye_config->InRadius = MIN(fisheye_config->InCenterX, fisheye_config->InCenterY);
     fisheye_config->FStrength = 0;
@@ -740,29 +740,29 @@ static void bm_ldc_attr_map(const LDC_ATTR_S *pstLDCAttr,
         fisheye_region[i].RegionValid = 1;
 
         //fisheye_region[i].ZoomH = pstLDCAttr->bAspect;
-        fisheye_region[i].ZoomV = pstLDCAttr->bAspect;
-        fisheye_region[i].Pan = pstLDCAttr->s32XYRatio;
-        fisheye_region[i].PanEnd = pstLDCAttr->s32DistortionRatio;
+        fisheye_region[i].ZoomV = pstLDCAttr->aspect;
+        fisheye_region[i].Pan = pstLDCAttr->xy_ratio;
+        fisheye_region[i].PanEnd = pstLDCAttr->distortion_ratio;
         fisheye_region[i].Tilt = 180;
         fisheye_region[i].OutW = fisheye_config->OutW_disp;
         fisheye_region[i].OutH = fisheye_config->OutH_disp;
         fisheye_region[i].OutX = 0;
         fisheye_region[i].OutY = 0;
-        fisheye_region[i].InRadius = pstLDCAttr->s32CenterXOffset;
-        fisheye_region[i].OutRadius = pstLDCAttr->s32CenterYOffset;
+        fisheye_region[i].InRadius = pstLDCAttr->center_x_offset;
+        fisheye_region[i].OutRadius = pstLDCAttr->center_y_offset;
         fisheye_region[i].MeshVer = 16;
         fisheye_region[i].MeshHor = 16;
-        if (pstLDCAttr->stGridInfoAttr.Enable) //use new ldc c models
+        if (pstLDCAttr->grid_info_attr.enable) //use new ldc c models
             fisheye_region[i].ViewMode = PROJECTION_STEREO_FIT;
         else
             fisheye_region[i].ViewMode = PROJECTION_LDC;
-        fisheye_region[i].ThetaX = pstLDCAttr->s32XRatio;
-        fisheye_region[i].ThetaZ = pstLDCAttr->s32YRatio;
+        fisheye_region[i].ThetaX = pstLDCAttr->x_ratio;
+        fisheye_region[i].ThetaZ = pstLDCAttr->y_ratio;
         fisheye_region[i].ThetaY = 0;
 
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "Region(%d) ViewMode(%d) MeshVer(%d) MeshHor(%d)\n"
             , i, fisheye_region[i].ViewMode, fisheye_region[i].MeshVer, fisheye_region[i].MeshHor);
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "bAspect(%d) XYRatio(%d) DistortionRatio(%d)\n"
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "aspect(%d) XYRatio(%d) DistortionRatio(%d)\n"
             , (bool)fisheye_region[i].ZoomV, fisheye_region[i].Pan, fisheye_region[i].PanEnd);
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "XRatio(%d) XYRatio(%d)\n"
             , (int)fisheye_region[i].ThetaX, (int)fisheye_region[i].ThetaZ);
@@ -1256,7 +1256,7 @@ static void _ldc_view(bm_fisheye_region_attr* fisheye_region, int rgn_idx, doubl
 
 
     // register:
-    bool bAspect    = (bool)fisheye_region[0].ZoomV;
+    bool aspect    = (bool)fisheye_region[0].ZoomV;
     int XYRatio     = minmax(fisheye_region[0].Pan, 0, 100);
     int XRatio      = minmax(fisheye_region[0].ThetaX, 0, 100);
     int YRatio      = minmax(fisheye_region[0].ThetaZ, 0, 100);
@@ -1308,7 +1308,7 @@ static void _ldc_view(bm_fisheye_region_attr* fisheye_region, int rgn_idx, doubl
             x = x / Aspect_gainX;
             y = y / Aspect_gainY;
 
-            if (bAspect == true) {
+            if (aspect == true) {
                 x = x * (1 - 0.333 * (100 - XYRatio)/100);
                 y = y * (1 - 0.333 * (100 - XYRatio)/100);
             } else {
@@ -1449,7 +1449,7 @@ static void Rotate3D(bm_vector3d* v3d, bm_rotMatrix3d* mat)
     v3d->z = v1.z;
 }
 
-static void _Panorama180View2(bm_fisheye_region_attr* fisheye_region, int rgn_idx, FISHEYE_MOUNT_MODE_E MOUNT, double x0, double y0, double r)
+static void _Panorama180View2(bm_fisheye_region_attr* fisheye_region, int rgn_idx, fisheye_mount_mode_e MOUNT, double x0, double y0, double r)
 {
     if (fisheye_region[rgn_idx].ViewMode != PROJECTION_PANORAMA_180)
         return;
@@ -1617,7 +1617,7 @@ static void equidistant_panorama(bm_vector3d* v3d, bm_vector2d* v2d, double f)
 #endif
 }
 
-static void _panorama360View2(bm_fisheye_region_attr* fisheye_region, int rgn_idx, FISHEYE_MOUNT_MODE_E MOUNT, double x0, double y0, double r)
+static void _panorama360View2(bm_fisheye_region_attr* fisheye_region, int rgn_idx, fisheye_mount_mode_e MOUNT, double x0, double y0, double r)
 {
     if (fisheye_region[rgn_idx].ViewMode != PROJECTION_PANORAMA_360)
         return;
@@ -1731,7 +1731,7 @@ static void _panorama360View2(bm_fisheye_region_attr* fisheye_region, int rgn_id
 
 }
 
-static void _regionView2(bm_fisheye_region_attr* fisheye_region, int rgn_idx, FISHEYE_MOUNT_MODE_E MOUNT, double x0, double y0, double r)
+static void _regionView2(bm_fisheye_region_attr* fisheye_region, int rgn_idx, fisheye_mount_mode_e MOUNT, double x0, double y0, double r)
 {
     if (fisheye_region[rgn_idx].ViewMode != PROJECTION_REGION)
         return;
@@ -1813,7 +1813,8 @@ int dwa_load_meshdata(char *grid, bm_mesh_data_all_s *pmeshdata, const char *bin
     pmeshdata->unit_ry = info[8];  // unit: mesh_h
     pmeshdata->_nbr_mesh_x = info[9];   // total meshes in horizontal
     pmeshdata->_nbr_mesh_y = info[10];  // total meshes in vertical
-    memcpy(pmeshdata->corners, info + 11, sizeof(int) * 8);
+    memcpy(pmeshdata->corners, info + 11, sizeof(int) * 10);
+    pmeshdata->grid_mode = (enum grid_info_mode)info[21]; //grid_info_mode
 
     int _nbr_mesh_y = pmeshdata->mesh_vercnt; // for roi, not for whole image
     int _nbr_mesh_x = pmeshdata->mesh_horcnt;
@@ -1834,14 +1835,19 @@ int dwa_load_meshdata(char *grid, bm_mesh_data_all_s *pmeshdata, const char *bin
 
     bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "imgw, imgh, mesh_w, mesh_h ,unit_rx,unit_ry: %d %d %d %d %d %d \n",
               pmeshdata->imgw, pmeshdata->imgh, pmeshdata->mesh_w, pmeshdata->mesh_h, pmeshdata->unit_rx, pmeshdata->unit_ry);
+    if (count_grid > 0)
+    {
+        memcpy(pmeshdata->pgrid_src, grid + 100 * sizeof(int), count_grid * 2 * sizeof(int));
+        memcpy(pmeshdata->pgrid_dst, grid + 100 * sizeof(int) + count_grid * 2 * sizeof(int), count_grid * 2 * sizeof(int));
+        memcpy(pmeshdata->pmesh_src, grid + 100 * sizeof(int) + count_grid * 2 * sizeof(int) * 2, count_grid * 2 * 4 * sizeof(int));
+        memcpy(pmeshdata->pmesh_dst, grid + 100 * sizeof(int) + count_grid * 2 * sizeof(int) * 2 + count_grid * 2 * 4 * sizeof(int), count_grid * 2 * 4 * sizeof(int));
+    }
 
-    memcpy(pmeshdata->pgrid_src, grid + 100 * sizeof(int), count_grid * 2 * sizeof(int));
-    memcpy(pmeshdata->pgrid_dst, grid + 100 * sizeof(int) + count_grid * 2 * sizeof(int), count_grid * 2 * sizeof(int));
-    memcpy(pmeshdata->pmesh_src, grid + 100 * sizeof(int) + count_grid * 2 * sizeof(int) * 2, count_grid * 2 * 4 * sizeof(int));
-    memcpy(pmeshdata->pmesh_dst, grid + 100 * sizeof(int) + count_grid * 2 * sizeof(int) * 2 + count_grid * 2 * 4 * sizeof(int), count_grid * 2 * 4 * sizeof(int));
-    memcpy(pmeshdata->pnode_src, grid + 100 * sizeof(int) + count_grid * 2 * sizeof(int) * 2 + count_grid * 2 * 4 * sizeof(int) * 2, pmeshdata->node_index * 2 * sizeof(int));
-    memcpy(pmeshdata->pnode_dst, grid + 100 * sizeof(int) + count_grid * 2 * sizeof(int) * 2 + count_grid * 2 * 4 * sizeof(int) * 2 + pmeshdata->node_index * 2 * sizeof(int), pmeshdata->node_index * 2 * sizeof(int));
-
+    if (pmeshdata->node_index > 0)
+    {
+        memcpy(pmeshdata->pnode_src, grid + 100 * sizeof(int) + count_grid * 2 * sizeof(int) * 2 + count_grid * 2 * 4 * sizeof(int) * 2, pmeshdata->node_index * 2 * sizeof(int));
+        memcpy(pmeshdata->pnode_dst, grid + 100 * sizeof(int) + count_grid * 2 * sizeof(int) * 2 + count_grid * 2 * 4 * sizeof(int) * 2 + pmeshdata->node_index * 2 * sizeof(int), pmeshdata->node_index * 2 * sizeof(int));
+    }
     pmeshdata->balloc = true;
     bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "read success!\n");
 
@@ -2111,7 +2117,7 @@ int bm_get_region_mesh_list(bm_fisheye_region_attr *fisheye_region, int rgn_idx,
     return 0;
 }
 
-void bm_get_region_src_mesh_list(FISHEYE_MOUNT_MODE_E MOUNT, bm_fisheye_region_attr* fisheye_region, int rgn_idx, double x0, double y0, double r)
+void bm_get_region_src_mesh_list(fisheye_mount_mode_e MOUNT, bm_fisheye_region_attr* fisheye_region, int rgn_idx, double x0, double y0, double r)
 {
     // ViewModeType to decide mapping & UI contrl parameters.
     bm_projection_mode ViewModeType = fisheye_region[rgn_idx].ViewMode;
@@ -2222,7 +2228,24 @@ void bm_get_region_dst_mesh_list(bm_fisheye_region_attr* fisheye_region, int rgn
     free(meshknot_hit_buf);
 }
 
-static int generate_mesh_on_fisheye(const GRID_INFO_ATTR_S* pstGridInfoAttr,
+int get_free_meshdata(const char *bindName, bm_mesh_data_all_s *g_MeshData)
+{
+    if (!bindName) {
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "bindName is NULL.\n");
+        return -1;
+    }
+
+    for (int i = 0; i < MESH_DATA_MAX_NUM; i++) {
+        if (!strlen(g_MeshData[i].grid_name)) {
+            strcpy(g_MeshData[i].grid_name, bindName);
+            return i;
+        }
+    }
+
+    return -1;
+}
+
+static int generate_mesh_on_fisheye(const grid_info_attr_s* pstGridInfoAttr,
                                     bm_fisheye_attr* fisheye_config,
                                     bm_fisheye_region_attr* fisheye_region,
                                     int X_TILE_NUMBER,
@@ -2234,7 +2257,7 @@ static int generate_mesh_on_fisheye(const GRID_INFO_ATTR_S* pstGridInfoAttr,
 {
     int mesh_tbl_num;   // get number of meshes
     double x0, y0, r;   // infos of src_img, (x0,y0) = center of image,  r = radius of image.
-
+    int grid_idx = -1;
     struct timespec start, end;
     bm_mesh_data_all_s g_mesh_data[MESH_DATA_MAX_NUM];
 
@@ -2243,6 +2266,11 @@ static int generate_mesh_on_fisheye(const GRID_INFO_ATTR_S* pstGridInfoAttr,
     x0 = fisheye_config->InCenterX;
     y0 = fisheye_config->InCenterY;
     r = fisheye_config->InRadius;
+    // initialize
+    for (int i = 0; i < MESH_DATA_MAX_NUM; i++)
+        g_mesh_data[i].grid_mode = GRID_MODE_REGION_BASE;
+
+    // grid_idx = -1;
     // In Each Mode, for Every Region:
     for (int rgn_idx = 0; rgn_idx < fisheye_config->RgnNum; rgn_idx++) {
         // check region valid first
@@ -2251,24 +2279,21 @@ static int generate_mesh_on_fisheye(const GRID_INFO_ATTR_S* pstGridInfoAttr,
             return -1;
         }
         if (fisheye_region[rgn_idx].ViewMode == PROJECTION_STEREO_FIT) {
+            grid_idx = get_free_meshdata(pstGridInfoAttr->grid_bind_name, g_mesh_data);
+            if (grid_idx < 0 || grid_idx >= MESH_DATA_MAX_NUM) {
+                bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "meshData buf full.\n");
+                return -1;
+            }
+
             char *grid = (char *)ptr;
-            if (dwa_load_meshdata(grid, &g_mesh_data[rgn_idx], pstGridInfoAttr->gridBindName)) {
+            if (dwa_load_meshdata(grid, &g_mesh_data[grid_idx], pstGridInfoAttr->grid_bind_name)) {
                 bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "dwa_load_meshdata failed.\n");
                 return -1;
             }
-            if (bm_get_region_mesh_list(fisheye_region, rgn_idx, &g_mesh_data[rgn_idx])) {
+            if (bm_get_region_mesh_list(fisheye_region, rgn_idx, &g_mesh_data[grid_idx])) {
                 bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "invalid param, fisheye_region is NULL.\n");
                 return -1;
             }
-            SAFE_FREE_POINTER(g_mesh_data[rgn_idx].pgrid_src);
-            SAFE_FREE_POINTER(g_mesh_data[rgn_idx].pgrid_dst);
-            SAFE_FREE_POINTER(g_mesh_data[rgn_idx].pmesh_src);
-            SAFE_FREE_POINTER(g_mesh_data[rgn_idx].pmesh_dst);
-            SAFE_FREE_POINTER(g_mesh_data[rgn_idx].pnode_src);
-            SAFE_FREE_POINTER(g_mesh_data[rgn_idx].pnode_dst);
-            //SAFE_FREE_POINTER(pMeshData->_pmapx);
-            //SAFE_FREE_POINTER(pMeshData->_pmapy);
-            g_mesh_data[rgn_idx].balloc = false;
         } else {
             UNUSED(pstGridInfoAttr);
             // get & store region mesh info.
@@ -2286,13 +2311,35 @@ static int generate_mesh_on_fisheye(const GRID_INFO_ATTR_S* pstGridInfoAttr,
     float src_y_mesh_tbl[mesh_tbl_num][4];
     float dst_x_mesh_tbl[mesh_tbl_num][4];
     float dst_y_mesh_tbl[mesh_tbl_num][4];
-    for (int mesh_idx = 0; mesh_idx < fisheye_config->TotalMeshNum; mesh_idx++) {
-        for (int knotidx = 0; knotidx < 4; knotidx++) {
-            src_x_mesh_tbl[mesh_idx][knotidx] = fisheye_config->SrcRgnMeshInfo[mesh_idx].knot[knotidx].xcor;
-            src_y_mesh_tbl[mesh_idx][knotidx] = fisheye_config->SrcRgnMeshInfo[mesh_idx].knot[knotidx].ycor;
-            dst_x_mesh_tbl[mesh_idx][knotidx] = fisheye_config->DstRgnMeshInfo[mesh_idx].knot[knotidx].xcor;
-            dst_y_mesh_tbl[mesh_idx][knotidx] = fisheye_config->DstRgnMeshInfo[mesh_idx].knot[knotidx].ycor;
+
+    if (ptr == NULL) grid_idx = 0;
+
+    switch (g_mesh_data[grid_idx].grid_mode) {
+    case GRID_MODE_REGION_BASE:
+        for (int mesh_idx = 0; mesh_idx < fisheye_config->TotalMeshNum; mesh_idx++) {
+            for (int knotidx = 0; knotidx < 4; knotidx++) {
+                src_x_mesh_tbl[mesh_idx][knotidx] = fisheye_config->SrcRgnMeshInfo[mesh_idx].knot[knotidx].xcor;
+                src_y_mesh_tbl[mesh_idx][knotidx] = fisheye_config->SrcRgnMeshInfo[mesh_idx].knot[knotidx].ycor;
+                dst_x_mesh_tbl[mesh_idx][knotidx] = fisheye_config->DstRgnMeshInfo[mesh_idx].knot[knotidx].xcor;
+                dst_y_mesh_tbl[mesh_idx][knotidx] = fisheye_config->DstRgnMeshInfo[mesh_idx].knot[knotidx].ycor;
+            }
         }
+        break;
+    case GRID_MODE_MESH_BASE:
+        fisheye_config->TotalMeshNum = g_mesh_data[grid_idx].num_pairs;
+        mesh_tbl_num = fisheye_config->TotalMeshNum;
+        for (int mesh_idx = 0; mesh_idx < fisheye_config->TotalMeshNum; mesh_idx++) {
+            for (int knotidx = 0; knotidx < 4; knotidx++) {
+                dst_x_mesh_tbl[mesh_idx][knotidx] = (float)g_mesh_data[grid_idx].pmesh_dst[8 * mesh_idx + 2 * knotidx + 0];
+                dst_y_mesh_tbl[mesh_idx][knotidx] = (float)g_mesh_data[grid_idx].pmesh_dst[8 * mesh_idx + 2 * knotidx + 1];
+                src_x_mesh_tbl[mesh_idx][knotidx] = (float)g_mesh_data[grid_idx].pmesh_src[8 * mesh_idx + 2 * knotidx + 0];
+                src_y_mesh_tbl[mesh_idx][knotidx] = (float)g_mesh_data[grid_idx].pmesh_src[8 * mesh_idx + 2 * knotidx + 1];
+            }
+        }
+        break;
+    default:
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "not supported\n");
+        return BM_NOT_SUPPORTED;
     }
 
     int dst_height, dst_width;
@@ -2344,7 +2391,7 @@ static int generate_mesh_on_fisheye(const GRID_INFO_ATTR_S* pstGridInfoAttr,
     return 0;
 }
 
-static bm_status_t bm_dwa_rotation_check_size(ROTATION_E enRotation, const GDC_TASK_ATTR_S *pstTask)
+static bm_status_t bm_dwa_rotation_check_size(rotation_e enRotation, const gdc_task_attr_s *pstTask)
 {
     if (enRotation >= ROTATION_MAX) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "invalid rotation(%d).\n", enRotation);
@@ -2352,29 +2399,29 @@ static bm_status_t bm_dwa_rotation_check_size(ROTATION_E enRotation, const GDC_T
     }
 
     if (enRotation == ROTATION_90 || enRotation == ROTATION_270 || enRotation == ROTATION_XY_FLIP) {
-        if (pstTask->stImgOut.stVFrame.u32Width < pstTask->stImgIn.stVFrame.u32Height) {
+        if (pstTask->img_in.video_frame.width < pstTask->img_in.video_frame.height) {
             bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "rotation(%d) invalid: 'output width(%d) < input height(%d)'\n",
-                        enRotation, pstTask->stImgOut.stVFrame.u32Width,
-                        pstTask->stImgIn.stVFrame.u32Height);
+                        enRotation, pstTask->img_out.video_frame.width,
+                        pstTask->img_in.video_frame.height);
             return BM_ERR_FAILURE;
         }
-        if (pstTask->stImgOut.stVFrame.u32Height < pstTask->stImgIn.stVFrame.u32Width) {
+        if (pstTask->img_out.video_frame.height < pstTask->img_in.video_frame.width) {
             bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "rotation(%d) invalid: 'output height(%d) < input width(%d)'\n",
-                        enRotation, pstTask->stImgOut.stVFrame.u32Height,
-                        pstTask->stImgIn.stVFrame.u32Width);
+                        enRotation, pstTask->img_out.video_frame.height,
+                        pstTask->img_in.video_frame.width);
             return BM_ERR_FAILURE;
         }
     } else {
-        if (pstTask->stImgOut.stVFrame.u32Width < pstTask->stImgIn.stVFrame.u32Width) {
+        if (pstTask->img_out.video_frame.width < pstTask->img_in.video_frame.width) {
             bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "rotation(%d) invalid: 'output width(%d) < input width(%d)'\n",
-                        enRotation, pstTask->stImgOut.stVFrame.u32Width,
-                        pstTask->stImgIn.stVFrame.u32Width);
+                        enRotation, pstTask->img_out.video_frame.width,
+                        pstTask->img_in.video_frame.width);
             return BM_ERR_FAILURE;
         }
-        if (pstTask->stImgOut.stVFrame.u32Height < pstTask->stImgIn.stVFrame.u32Height) {
+        if (pstTask->img_out.video_frame.height < pstTask->img_in.video_frame.height) {
             bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "rotation(%d) invalid: 'output height(%d) < input height(%d)'\n",
-                        enRotation, pstTask->stImgOut.stVFrame.u32Height,
-                        pstTask->stImgIn.stVFrame.u32Height);
+                        enRotation, pstTask->img_out.video_frame.height,
+                        pstTask->img_in.video_frame.height);
             return BM_ERR_FAILURE;
         }
     }
@@ -2411,15 +2458,15 @@ static bm_status_t bm_get_valid_tsk_mesh_by_name(bm_handle_t handle, const char 
     }
 }
 
-static void bm_dwa_mesh_gen_rotation(SIZE_S in_size,
-                                     SIZE_S out_size,
-                                     ROTATION_E rot,
+static void bm_dwa_mesh_gen_rotation(size_s in_size,
+                                     size_s out_size,
+                                     rotation_e rot,
                                      uint64_t mesh_phy_addr,
                                      void *mesh_vir_addr)
 {
     bm_fisheye_attr *fisheye_config;
-    LDC_ATTR_S stLDCAttr = { .bAspect = true, .s32XYRatio = 100,
-        .s32CenterXOffset = 0, .s32CenterYOffset = 0, .s32DistortionRatio = 0 };
+    ldc_attr_s stLDCAttr = { .aspect = true, .xy_ratio = 100,
+        .center_x_offset = 0, .center_y_offset = 0, .distortion_ratio = 0 };
     bm_fisheye_region_attr *fisheye_region;
     int nMeshhor, nMeshVer;
 
@@ -2438,8 +2485,8 @@ static void bm_dwa_mesh_gen_rotation(SIZE_S in_size,
     }
 
     bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "in_size(%d %d) out_size(%d %d)\n"
-        , in_size.u32Width, in_size.u32Height
-        , out_size.u32Width, out_size.u32Height);
+        , in_size.width, in_size.height
+        , out_size.width, out_size.height);
 
     bm_ldc_attr_map(&stLDCAttr, in_size, fisheye_config, fisheye_region);
     dwa_get_mesh_size(&nMeshhor, &nMeshVer);
@@ -2452,8 +2499,8 @@ static void bm_dwa_mesh_gen_rotation(SIZE_S in_size,
     u32 mesh_id_size, mesh_tbl_size;
     u64 mesh_id_phy_addr, mesh_tbl_phy_addr;
 
-    X_TILE_NUMBER = DIV_UP(in_size.u32Width, DWA_MESH_SLICE_BASE_W);
-    Y_TILE_NUMBER = DIV_UP(in_size.u32Height, DWA_MESH_SLICE_BASE_H);
+    X_TILE_NUMBER = DIV_UP(in_size.width, DWA_MESH_SLICE_BASE_W);
+    Y_TILE_NUMBER = DIV_UP(in_size.height, DWA_MESH_SLICE_BASE_H);
 
     // calculate mesh_id/mesh_tbl's size in bytes.
     mesh_tbl_size = 0x20000;
@@ -2478,22 +2525,22 @@ static void bm_dwa_mesh_gen_rotation(SIZE_S in_size,
     free(fisheye_region);
 }
 
-static void bm_fisheye_attr_map(const FISHEYE_ATTR_S *pstFisheyeAttr,
-                                SIZE_S out_size,
+static void bm_fisheye_attr_map(const fisheye_attr_s *pstFisheyeAttr,
+                                size_s out_size,
                                 bm_fisheye_attr *fisheye_config,
                                 bm_fisheye_region_attr *fisheye_region)
 {
-    fisheye_config->MntMode = pstFisheyeAttr->enMountMode;
-    fisheye_config->OutW_disp = out_size.u32Width;
-    fisheye_config->OutH_disp = out_size.u32Height;
-    fisheye_config->InCenterX = pstFisheyeAttr->s32HorOffset;
-    fisheye_config->InCenterY = pstFisheyeAttr->s32VerOffset;
+    fisheye_config->MntMode = pstFisheyeAttr->mount_mode;
+    fisheye_config->OutW_disp = out_size.width;
+    fisheye_config->OutH_disp = out_size.height;
+    fisheye_config->InCenterX = pstFisheyeAttr->hor_offset;
+    fisheye_config->InCenterY = pstFisheyeAttr->ver_offset;
     // TODO: how to handl radius
     fisheye_config->InRadius = MIN(fisheye_config->InCenterX, fisheye_config->InCenterY);
-    fisheye_config->FStrength = pstFisheyeAttr->s32FanStrength;
-    fisheye_config->TCoef  = pstFisheyeAttr->u32TrapezoidCoef;
+    fisheye_config->FStrength = pstFisheyeAttr->fan_strength;
+    fisheye_config->TCoef  = pstFisheyeAttr->trapezoid_coef;
 
-    fisheye_config->RgnNum = pstFisheyeAttr->u32RegionNum;
+    fisheye_config->RgnNum = pstFisheyeAttr->region_num;
 
     bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "OutW_disp(%d) OutH_disp(%d)\n", fisheye_config->OutW_disp, fisheye_config->OutH_disp);
     bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "InCenterX(%d) InCenterY(%d)\n", fisheye_config->InCenterX, fisheye_config->InCenterY);
@@ -2505,28 +2552,28 @@ static void bm_fisheye_attr_map(const FISHEYE_ATTR_S *pstFisheyeAttr,
     for (int i = 0; i < fisheye_config->RgnNum; ++i) {
         fisheye_region[i].RegionValid = 1;
 
-        fisheye_region[i].ZoomH = pstFisheyeAttr->astFishEyeRegionAttr[i].u32HorZoom;
-        fisheye_region[i].ZoomV = pstFisheyeAttr->astFishEyeRegionAttr[i].u32VerZoom;
-        fisheye_region[i].Pan = pstFisheyeAttr->astFishEyeRegionAttr[i].u32Pan;
-        fisheye_region[i].Tilt = pstFisheyeAttr->astFishEyeRegionAttr[i].u32Tilt;
-        fisheye_region[i].OutW = pstFisheyeAttr->astFishEyeRegionAttr[i].stOutRect.u32Width;
-        fisheye_region[i].OutH = pstFisheyeAttr->astFishEyeRegionAttr[i].stOutRect.u32Height;
-        fisheye_region[i].OutX = pstFisheyeAttr->astFishEyeRegionAttr[i].stOutRect.s32X;
-        fisheye_region[i].OutY = pstFisheyeAttr->astFishEyeRegionAttr[i].stOutRect.s32Y;
-        fisheye_region[i].InRadius = pstFisheyeAttr->astFishEyeRegionAttr[i].u32InRadius;
-        fisheye_region[i].OutRadius = pstFisheyeAttr->astFishEyeRegionAttr[i].u32OutRadius;
-        if (pstFisheyeAttr->astFishEyeRegionAttr[i].enViewMode == FISHEYE_VIEW_NORMAL) {
+        fisheye_region[i].ZoomH = pstFisheyeAttr->fisheye_region_attr[i].hor_zoom;
+        fisheye_region[i].ZoomV = pstFisheyeAttr->fisheye_region_attr[i].ver_zoom;
+        fisheye_region[i].Pan = pstFisheyeAttr->fisheye_region_attr[i].pan;
+        fisheye_region[i].Tilt = pstFisheyeAttr->fisheye_region_attr[i].tilt;
+        fisheye_region[i].OutW = pstFisheyeAttr->fisheye_region_attr[i].stoutrect.width;
+        fisheye_region[i].OutH = pstFisheyeAttr->fisheye_region_attr[i].stoutrect.height;
+        fisheye_region[i].OutX = pstFisheyeAttr->fisheye_region_attr[i].stoutrect.x;
+        fisheye_region[i].OutY = pstFisheyeAttr->fisheye_region_attr[i].stoutrect.y;
+        fisheye_region[i].InRadius = pstFisheyeAttr->fisheye_region_attr[i].in_radius;
+        fisheye_region[i].OutRadius = pstFisheyeAttr->fisheye_region_attr[i].out_radius;
+        if (pstFisheyeAttr->fisheye_region_attr[i].view_mode == FISHEYE_VIEW_NORMAL) {
             fisheye_region[i].MeshVer = 16;
             fisheye_region[i].MeshHor = 16;
             fisheye_region[i].ViewMode = PROJECTION_REGION;
             fisheye_region[i].ThetaX = 0.4*M_PI;
             fisheye_region[i].ThetaZ = 0;
             fisheye_region[i].ThetaY = 0;
-        } else if (pstFisheyeAttr->astFishEyeRegionAttr[i].enViewMode == FISHEYE_VIEW_180_PANORAMA) {
+        } else if (pstFisheyeAttr->fisheye_region_attr[i].view_mode == FISHEYE_VIEW_180_PANORAMA) {
             fisheye_region[i].MeshVer = 32;
             fisheye_region[i].MeshHor = 32;
             fisheye_region[i].ViewMode = PROJECTION_PANORAMA_180;
-        } else if (pstFisheyeAttr->astFishEyeRegionAttr[i].enViewMode == FISHEYE_VIEW_360_PANORAMA) {
+        } else if (pstFisheyeAttr->fisheye_region_attr[i].view_mode == FISHEYE_VIEW_360_PANORAMA) {
             fisheye_region[i].MeshVer = (fisheye_config->RgnNum == 1) ? 64 : 32;
             fisheye_region[i].MeshHor = (fisheye_config->RgnNum == 1) ? 64 : 32;
             fisheye_region[i].ViewMode = PROJECTION_PANORAMA_360;
@@ -2534,7 +2581,7 @@ static void bm_fisheye_attr_map(const FISHEYE_ATTR_S *pstFisheyeAttr,
             fisheye_region[i].ThetaZ = 0;
             fisheye_region[i].ThetaY = 0;
             fisheye_region[i].PanEnd = fisheye_region[i].Pan
-                + 360 * pstFisheyeAttr->astFishEyeRegionAttr[i].u32HorZoom / 4096;
+                + 360 * pstFisheyeAttr->fisheye_region_attr[i].hor_zoom / 4096;
         }
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "Region(%d) ViewMode(%d) MeshVer(%d) MeshHor(%d)\n"
             , i, fisheye_region[i].ViewMode, fisheye_region[i].MeshVer, fisheye_region[i].MeshHor);
@@ -2548,8 +2595,8 @@ static void bm_fisheye_attr_map(const FISHEYE_ATTR_S *pstFisheyeAttr,
     }
 }
 
-static bm_status_t dwa_mesh_gen_fisheye(SIZE_S in_size, SIZE_S out_size, const FISHEYE_ATTR_S *pstFisheyeAttr,
-                                        uint64_t mesh_phy_addr, void *mesh_vir_addr, ROTATION_E rot, char *grid)
+static bm_status_t dwa_mesh_gen_fisheye(size_s in_size, size_s out_size, const fisheye_attr_s *pstFisheyeAttr,
+                                        uint64_t mesh_phy_addr, void *mesh_vir_addr, rotation_e rot, char *grid)
 {
     bm_fisheye_attr *fisheye_config;
     bm_fisheye_region_attr *fisheye_region;
@@ -2570,35 +2617,35 @@ static bm_status_t dwa_mesh_gen_fisheye(SIZE_S in_size, SIZE_S out_size, const F
     }
 
     bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "in_size(%d %d) out_size(%d %d)\n"
-        , in_size.u32Width, in_size.u32Height
-        , out_size.u32Width, out_size.u32Height);
+        , in_size.width, in_size.height
+        , out_size.width, out_size.height);
 
-    if (pstFisheyeAttr->stGridInfoAttr.Enable)
+    if (pstFisheyeAttr->grid_info_attr.enable)
     {
         UseMode = MODE_STEREO_FIT;
     } else {
-        UseMode = pstFisheyeAttr->enUseMode;
+        UseMode = pstFisheyeAttr->use_mode;
     }
 
     if (UseMode > 0) {
         double x0, y0, r;   // infos of src_img, (x0,y0) = center of image,  r = radius of image.
-        x0 = pstFisheyeAttr->s32HorOffset;
-        y0 = pstFisheyeAttr->s32VerOffset;
+        x0 = pstFisheyeAttr->hor_offset;
+        y0 = pstFisheyeAttr->ver_offset;
         r = MIN(x0, y0);
 
         fisheye_config->Enable = true;
         fisheye_config->BgEnable = true;
-        fisheye_config->MntMode = pstFisheyeAttr->enMountMode;
+        fisheye_config->MntMode = pstFisheyeAttr->mount_mode;
         fisheye_config->UsageMode = UseMode;
-        fisheye_config->OutW_disp = out_size.u32Width;
-        fisheye_config->OutH_disp = out_size.u32Height;
+        fisheye_config->OutW_disp = out_size.width;
+        fisheye_config->OutH_disp = out_size.height;
         fisheye_config->BgColor.R = 0;
         fisheye_config->BgColor.G = 0;
         fisheye_config->BgColor.B = 0;
         fisheye_config->InCenterX = x0; // front-end set.
         fisheye_config->InCenterY = y0; // front-end set.
         fisheye_config->InRadius = r;   // front-end set.
-        fisheye_config->FStrength = pstFisheyeAttr->s32FanStrength;
+        fisheye_config->FStrength = pstFisheyeAttr->fan_strength;
 
         bm_load_frame_config(fisheye_config);
         bm_load_region_config(fisheye_config, fisheye_region);
@@ -2607,12 +2654,16 @@ static bm_status_t dwa_mesh_gen_fisheye(SIZE_S in_size, SIZE_S out_size, const F
 
     fisheye_config->rotate_index = rot;
 
-    int X_TILE_NUMBER, Y_TILE_NUMBER;
-    CVI_U32 mesh_id_size, mesh_tbl_size;
-    CVI_U64 mesh_id_phy_addr, mesh_tbl_phy_addr;
+    int X_TILE_NUMBER, Y_TILE_NUMBER, TMP_X_TILE_NUMBER, TMP_Y_TILE_NUMBER;
+    unsigned int  mesh_id_size, mesh_tbl_size;
+    unsigned long long mesh_id_phy_addr, mesh_tbl_phy_addr;
 
-    X_TILE_NUMBER = DIV_UP(in_size.u32Width, DWA_MESH_SLICE_BASE_W);
-    Y_TILE_NUMBER = DIV_UP(in_size.u32Height, DWA_MESH_SLICE_BASE_H);
+    X_TILE_NUMBER = DIV_UP(in_size.width, DWA_MESH_SLICE_BASE_W);
+    Y_TILE_NUMBER = DIV_UP(in_size.height, DWA_MESH_SLICE_BASE_H);
+    TMP_X_TILE_NUMBER = DIV_UP(out_size.width, DWA_MESH_SLICE_BASE_W);
+    TMP_Y_TILE_NUMBER = DIV_UP(out_size.height, DWA_MESH_SLICE_BASE_H);
+    X_TILE_NUMBER = MAX(X_TILE_NUMBER, TMP_X_TILE_NUMBER);
+    Y_TILE_NUMBER = MAX(Y_TILE_NUMBER, TMP_Y_TILE_NUMBER);
 
     // calculate mesh_id/mesh_tbl's size in bytes.
     mesh_tbl_size = 0x60000;
@@ -2629,8 +2680,8 @@ static bm_status_t dwa_mesh_gen_fisheye(SIZE_S in_size, SIZE_S out_size, const F
 
     // Provide virtual address to write mesh.
     reorder_mesh_tbl[0] = mesh_vir_addr + (mesh_tbl_phy_addr - mesh_id_phy_addr);
-    if (pstFisheyeAttr->stGridInfoAttr.Enable == true)
-        generate_mesh_on_fisheye(&(pstFisheyeAttr->stGridInfoAttr), fisheye_config, fisheye_region, X_TILE_NUMBER, Y_TILE_NUMBER
+    if (pstFisheyeAttr->grid_info_attr.enable == true)
+        generate_mesh_on_fisheye(&(pstFisheyeAttr->grid_info_attr), fisheye_config, fisheye_region, X_TILE_NUMBER, Y_TILE_NUMBER
         , (uint16_t *)mesh_vir_addr
         , reorder_mesh_tbl, mesh_tbl_phy_addr, grid);
     else
@@ -2643,46 +2694,46 @@ static bm_status_t dwa_mesh_gen_fisheye(SIZE_S in_size, SIZE_S out_size, const F
     return BM_SUCCESS;
 }
 
-static void generate_mesh_on_faces(bm_mesh_param *param, const AFFINE_ATTR_S *pstAttr)
+static void generate_mesh_on_faces(bm_mesh_param *param, const affine_attr_s *pstAttr)
 {
-    const u8 w_knot_num = param->width/pstAttr->stDestSize.u32Width + 1;
-    const u8 h_knot_num = param->height/pstAttr->stDestSize.u32Height + 1;
+    const u8 w_knot_num = param->width/pstAttr->dest_size.width + 1;
+    const u8 h_knot_num = param->height/pstAttr->dest_size.height + 1;
     // Limit slice's width/height to avoid unnecessary DRAM write(by bg-color)
     u16 width_slice = 0, height_slice = 0;
     u16 i, j, x, y, knot_idx;
-    POINT_S dst_knot_tbl[w_knot_num * h_knot_num];
-    POINT_S dst_mesh_tbl[param->mesh_num][4];
+    point_s dst_knot_tbl[w_knot_num * h_knot_num];
+    point_s dst_mesh_tbl[param->mesh_num][4];
     u16 tbl_idx = 0;
     u32 *mesh_tbl = param->mesh_tbl_addr;
 
     // generate node
     for (j = 0; j < h_knot_num; ++j) {
-        y = j * pstAttr->stDestSize.u32Height;
+        y = j * pstAttr->dest_size.height;
         for (i = 0; i < w_knot_num; ++i) {
             knot_idx = j * w_knot_num + i;
-            x = i * pstAttr->stDestSize.u32Width;
-            dst_knot_tbl[knot_idx].s32X = x;
-            dst_knot_tbl[knot_idx].s32Y = y;
+            x = i * pstAttr->dest_size.width;
+            dst_knot_tbl[knot_idx].x = x;
+            dst_knot_tbl[knot_idx].y = y;
         }
     }
 
     // map node to each mesh
     for (i = 0; i < param->mesh_num; ++i) {
-        knot_idx = i + (i / (param->width/pstAttr->stDestSize.u32Width));    // there is 1 more node than mesh each row
+        knot_idx = i + (i / (param->width/pstAttr->dest_size.width));    // there is 1 more node than mesh each row
 
         dst_mesh_tbl[i][0] =  dst_knot_tbl[knot_idx];
         dst_mesh_tbl[i][1] =  dst_knot_tbl[knot_idx + 1];
         dst_mesh_tbl[i][2] =  dst_knot_tbl[knot_idx + w_knot_num];
         dst_mesh_tbl[i][3] =  dst_knot_tbl[knot_idx + w_knot_num + 1];
 
-        if (dst_mesh_tbl[i][1].s32X > width_slice) width_slice = dst_mesh_tbl[i][1].s32X;
-        if (dst_mesh_tbl[i][2].s32Y > height_slice) height_slice = dst_mesh_tbl[i][2].s32Y;
+        if (dst_mesh_tbl[i][1].x > width_slice) width_slice = dst_mesh_tbl[i][1].x;
+        if (dst_mesh_tbl[i][2].y > height_slice) height_slice = dst_mesh_tbl[i][2].y;
 
         for (j = 0; j < 4; ++j) {
-            mesh_tbl[tbl_idx++] = pstAttr->astRegionAttr[i][j].x * (double)(1 << DEWARP_COORD_NBITS);
-            mesh_tbl[tbl_idx++] = pstAttr->astRegionAttr[i][j].y * (double)(1 << DEWARP_COORD_NBITS);
-            mesh_tbl[tbl_idx++] = dst_mesh_tbl[i][j].s32X * (double)(1 << DEWARP_COORD_NBITS);
-            mesh_tbl[tbl_idx++] = dst_mesh_tbl[i][j].s32Y * (double)(1 << DEWARP_COORD_NBITS);
+            mesh_tbl[tbl_idx++] = pstAttr->region_attr[i][j].x * (double)(1 << DEWARP_COORD_NBITS);
+            mesh_tbl[tbl_idx++] = pstAttr->region_attr[i][j].y * (double)(1 << DEWARP_COORD_NBITS);
+            mesh_tbl[tbl_idx++] = dst_mesh_tbl[i][j].x * (double)(1 << DEWARP_COORD_NBITS);
+            mesh_tbl[tbl_idx++] = dst_mesh_tbl[i][j].y * (double)(1 << DEWARP_COORD_NBITS);
         }
     }
 
@@ -2691,7 +2742,7 @@ static void generate_mesh_on_faces(bm_mesh_param *param, const AFFINE_ATTR_S *ps
     bm_generate_mesh_id(param, dst_mesh_tbl);
 }
 
-static void dwa_mesh_gen_affine(SIZE_S in_size, SIZE_S out_size, const AFFINE_ATTR_S *pstAffineAttr
+static void dwa_mesh_gen_affine(size_s in_size, size_s out_size, const affine_attr_s *pstAffineAttr
     , uint64_t mesh_phy_addr, void *mesh_vir_addr)
 {
     const int MAX_MESH_NUM_A_TILE = 4;
@@ -2701,15 +2752,15 @@ static void dwa_mesh_gen_affine(SIZE_S in_size, SIZE_S out_size, const AFFINE_AT
     u32 mesh_id_size, mesh_tbl_size;
     u64 mesh_id_phy_addr, mesh_tbl_phy_addr;
 
-    owidth = out_size.u32Width;
-    oheight = out_size.u32Height;
-    X_TILE_NUMBER = (DIV_UP(in_size.u32Width, 1024) > 1) ? DIV_UP(in_size.u32Width, 1024) << 1
+    owidth = out_size.width;
+    oheight = out_size.height;
+    X_TILE_NUMBER = (DIV_UP(in_size.width, 1024) > 1) ? DIV_UP(in_size.width, 1024) << 1
         : 2;
-    Y_TILE_NUMBER = (DIV_UP(in_size.u32Height, 1024) > 1) ? DIV_UP(in_size.u32Height, 1024) << 1
+    Y_TILE_NUMBER = (DIV_UP(in_size.height, 1024) > 1) ? DIV_UP(in_size.height, 1024) << 1
         : 2;
 
     // calculate mesh_id/mesh_tbl's size in bytes.
-    Y_SUBTILE_NUMBER = ceil((float)out_size.u32Height / (float)NUMBER_Y_LINE_A_SUBTILE);
+    Y_SUBTILE_NUMBER = ceil((float)out_size.height / (float)NUMBER_Y_LINE_A_SUBTILE);
     mesh_tbl_size = X_TILE_NUMBER * Y_TILE_NUMBER * 16 * sizeof(u32);
     mesh_id_size = MAX_MESH_NUM_A_TILE * Y_SUBTILE_NUMBER * X_TILE_NUMBER * sizeof(u16);
 
@@ -2729,12 +2780,12 @@ static void dwa_mesh_gen_affine(SIZE_S in_size, SIZE_S out_size, const AFFINE_AT
     param.mesh_tbl_phy_addr = mesh_tbl_phy_addr;
     param.slice_num_w = 1;
     param.slice_num_h = 1;
-    param.mesh_num = pstAffineAttr->u32RegionNum;
+    param.mesh_num = pstAffineAttr->region_num;
     generate_mesh_on_faces(&param, pstAffineAttr);
 }
 
-static bm_status_t dwa_mesh_gen_ldc(SIZE_S in_size, SIZE_S out_size, const LDC_ATTR_S *pstLDCAttr,
-                                    uint64_t mesh_phy_addr, void *mesh_vir_addr, ROTATION_E rot, char *grid)
+static bm_status_t dwa_mesh_gen_ldc(size_s in_size, size_s out_size, const ldc_attr_s *pstLDCAttr,
+                                    uint64_t mesh_phy_addr, void *mesh_vir_addr, rotation_e rot, char *grid)
 {
     bm_fisheye_attr *fisheye_config;
     bm_fisheye_region_attr *fisheye_region;
@@ -2754,8 +2805,8 @@ static bm_status_t dwa_mesh_gen_ldc(SIZE_S in_size, SIZE_S out_size, const LDC_A
     }
 
     bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "in_size(%d %d) out_size(%d %d)\n"
-        , in_size.u32Width, in_size.u32Height
-        , out_size.u32Width, out_size.u32Height);
+        , in_size.width, in_size.height
+        , out_size.width, out_size.height);
 
     bm_ldc_attr_map(pstLDCAttr, out_size, fisheye_config, fisheye_region);
     fisheye_config->rotate_index = rot;
@@ -2765,8 +2816,8 @@ static bm_status_t dwa_mesh_gen_ldc(SIZE_S in_size, SIZE_S out_size, const LDC_A
     u32 mesh_tbl_size;
     u64 mesh_id_phy_addr, mesh_tbl_phy_addr;
 
-    X_TILE_NUMBER = DIV_UP(in_size.u32Width, DWA_MESH_SLICE_BASE_W);
-    Y_TILE_NUMBER = DIV_UP(in_size.u32Height, DWA_MESH_SLICE_BASE_H);
+    X_TILE_NUMBER = DIV_UP(in_size.width, DWA_MESH_SLICE_BASE_W);
+    Y_TILE_NUMBER = DIV_UP(in_size.height, DWA_MESH_SLICE_BASE_H);
 
     // calculate mesh_id/mesh_tbl's size in bytes.
     mesh_tbl_size = 0x60000;
@@ -2783,11 +2834,11 @@ static bm_status_t dwa_mesh_gen_ldc(SIZE_S in_size, SIZE_S out_size, const LDC_A
 
     // Provide virtual address to write mesh.
     reorder_mesh_tbl[0] = mesh_vir_addr + (mesh_tbl_phy_addr - mesh_id_phy_addr);
-    if (pstLDCAttr->stGridInfoAttr.Enable == true)
-        generate_mesh_on_fisheye(&(pstLDCAttr->stGridInfoAttr), fisheye_config, fisheye_region, X_TILE_NUMBER, Y_TILE_NUMBER
+    if (pstLDCAttr->grid_info_attr.enable == true)
+        generate_mesh_on_fisheye(&(pstLDCAttr->grid_info_attr), fisheye_config, fisheye_region, X_TILE_NUMBER, Y_TILE_NUMBER
             , (uint16_t *)mesh_vir_addr, reorder_mesh_tbl, mesh_tbl_phy_addr, grid);
     else
-        generate_mesh_on_fisheye(&(pstLDCAttr->stGridInfoAttr), fisheye_config, fisheye_region, X_TILE_NUMBER, Y_TILE_NUMBER
+        generate_mesh_on_fisheye(&(pstLDCAttr->grid_info_attr), fisheye_config, fisheye_region, X_TILE_NUMBER, Y_TILE_NUMBER
             , (uint16_t *)mesh_vir_addr, reorder_mesh_tbl, mesh_tbl_phy_addr, (void *)NULL);
 
     free(fisheye_config);
@@ -2796,7 +2847,7 @@ static bm_status_t dwa_mesh_gen_ldc(SIZE_S in_size, SIZE_S out_size, const LDC_A
     return BM_SUCCESS;
 }
 
-static bm_status_t dwa_mesh_gen_warp(SIZE_S in_size, SIZE_S out_size, const WARP_ATTR_S *pstWarpAttr,
+static bm_status_t dwa_mesh_gen_warp(size_s in_size, size_s out_size, const warp_attr_s *pstWarpAttr,
                                      uint64_t mesh_phy_addr, void *mesh_vir_addr, char *grid)
 {
     bm_fisheye_attr *fisheye_config;
@@ -2817,12 +2868,12 @@ static bm_status_t dwa_mesh_gen_warp(SIZE_S in_size, SIZE_S out_size, const WARP
     }
 
     bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "in_size(%d %d) out_size(%d %d)\n"
-        , in_size.u32Width, in_size.u32Height
-        , out_size.u32Width, out_size.u32Height);
+        , in_size.width, in_size.height
+        , out_size.width, out_size.height);
 
     fisheye_config->MntMode = 0;
-    fisheye_config->OutW_disp = out_size.u32Width;
-    fisheye_config->OutH_disp = out_size.u32Height;
+    fisheye_config->OutW_disp = out_size.width;
+    fisheye_config->OutH_disp = out_size.height;
     fisheye_config->FStrength = 0;
     fisheye_config->TCoef = 0;
 
@@ -2838,8 +2889,8 @@ static bm_status_t dwa_mesh_gen_warp(SIZE_S in_size, SIZE_S out_size, const WARP
     u32 mesh_tbl_size;
     u64 mesh_id_phy_addr, mesh_tbl_phy_addr;
 
-    X_TILE_NUMBER = DIV_UP(in_size.u32Width, DWA_MESH_SLICE_BASE_W);
-    Y_TILE_NUMBER = DIV_UP(in_size.u32Height, DWA_MESH_SLICE_BASE_H);
+    X_TILE_NUMBER = DIV_UP(in_size.width, DWA_MESH_SLICE_BASE_W);
+    Y_TILE_NUMBER = DIV_UP(in_size.height, DWA_MESH_SLICE_BASE_H);
 
     // calculate mesh_id/mesh_tbl's size in bytes.
     mesh_tbl_size = 0x60000;
@@ -2856,7 +2907,7 @@ static bm_status_t dwa_mesh_gen_warp(SIZE_S in_size, SIZE_S out_size, const WARP
 
     // Provide virtual address to write mesh.
     reorder_mesh_tbl[0] = mesh_vir_addr + (mesh_tbl_phy_addr - mesh_id_phy_addr);
-    generate_mesh_on_fisheye(&(pstWarpAttr->stGridInfoAttr), fisheye_config, fisheye_region, X_TILE_NUMBER, Y_TILE_NUMBER
+    generate_mesh_on_fisheye(&(pstWarpAttr->grid_info_attr), fisheye_config, fisheye_region, X_TILE_NUMBER, Y_TILE_NUMBER
         , (uint16_t *)mesh_vir_addr, reorder_mesh_tbl, mesh_tbl_phy_addr, grid);
     free(fisheye_config);
     free(fisheye_region);
@@ -2864,13 +2915,13 @@ static bm_status_t dwa_mesh_gen_warp(SIZE_S in_size, SIZE_S out_size, const WARP
     return BM_SUCCESS;
 }
 
-static bm_status_t bm_dwa_add_ldc_task(bm_handle_t handle, int fd, GDC_HANDLE hHandle, GDC_TASK_ATTR_S *pstTask
-    , const LDC_ATTR_S *pstLDCAttr, ROTATION_E enRotation, char *grid)
+static bm_status_t bm_dwa_add_ldc_task(bm_handle_t handle, int fd, GDC_HANDLE hHandle, gdc_task_attr_s *pstTask
+    , const ldc_attr_s *pstLDCAttr, rotation_e enRotation, char *grid)
 {
     bm_status_t ret = BM_SUCCESS;
-    MOD_CHECK_NULL_PTR(CVI_ID_DWA, pstTask);
-    MOD_CHECK_NULL_PTR(CVI_ID_DWA, pstLDCAttr);
-    CHECK_DWA_FORMAT(pstTask->stImgIn, pstTask->stImgOut);
+    MOD_CHECK_NULL_PTR(ID_DWA, pstTask);
+    MOD_CHECK_NULL_PTR(ID_DWA, pstLDCAttr);
+    CHECK_DWA_FORMAT(pstTask->img_in, pstTask->img_out);
 
     if (!hHandle) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "null hHandle");
@@ -2890,15 +2941,15 @@ static bm_status_t bm_dwa_add_ldc_task(bm_handle_t handle, int fd, GDC_HANDLE hH
     ret = bm_get_valid_tsk_mesh_by_name(handle, pstTask->name, &idx);
 
     if (ret != BM_SUCCESS) {
-        SIZE_S in_size, out_size;
+        size_s in_size, out_size;
         u32 mesh_1st_size, mesh_2nd_size;
         u64 paddr;
         bm_device_mem_t pmem;
 
-        in_size.u32Width = pstTask->stImgIn.stVFrame.u32Width;
-        in_size.u32Height = pstTask->stImgIn.stVFrame.u32Height;
-        out_size.u32Width = pstTask->stImgOut.stVFrame.u32Width;
-        out_size.u32Height = pstTask->stImgOut.stVFrame.u32Height;
+        in_size.width = pstTask->img_in.video_frame.width;
+        in_size.height = pstTask->img_in.video_frame.height;
+        out_size.width = pstTask->img_out.video_frame.width;
+        out_size.height = pstTask->img_out.video_frame.height;
         dwa_mesh_gen_get_size(in_size, out_size, &mesh_1st_size, &mesh_2nd_size);
 
         bm_malloc_device_byte(handle, &pmem, mesh_1st_size + mesh_2nd_size);
@@ -2927,23 +2978,23 @@ static bm_status_t bm_dwa_add_ldc_task(bm_handle_t handle, int fd, GDC_HANDLE hH
 
     memset(&attr, 0, sizeof(attr));
     attr.handle = hHandle;
-    memcpy(&attr.stImgIn, &pstTask->stImgIn, sizeof(attr.stImgIn));
-    memcpy(&attr.stImgOut, &pstTask->stImgOut, sizeof(attr.stImgOut));
-    //memcpy(attr.au64privateData, pstTask->au64privateData, sizeof(attr.au64privateData));
+    memcpy(&attr.img_in, &pstTask->img_in, sizeof(attr.img_in));
+    memcpy(&attr.img_out, &pstTask->img_out, sizeof(attr.img_out));
+    //memcpy(attr.private_data, pstTask->private_data, sizeof(attr.private_data));
     memcpy(&attr.stLdcAttr, pstLDCAttr, sizeof(*pstLDCAttr));
     attr.reserved = pstTask->reserved;
-    attr.au64privateData[0] = dwa_tskMesh[idx].mem.u.device.device_addr;
+    attr.private_data[0] = dwa_tskMesh[idx].mem.u.device.device_addr;
 
-    pstTask->au64privateData[0] = dwa_tskMesh[idx].mem.u.device.device_addr;
-    pstTask->au64privateData[1] = (u64)((uintptr_t)dwa_tskMesh[idx].mem.u.system.system_addr);
+    pstTask->privatedata[0] = dwa_tskMesh[idx].mem.u.device.device_addr;
+    pstTask->privatedata[1] = (u64)((uintptr_t)dwa_tskMesh[idx].mem.u.system.system_addr);
     return dwa_add_ldc_task(fd, &attr);
 }
 
-static bm_status_t bm_dwa_add_rotation_task(bm_handle_t handle, int fd, DWA_HANDLE hHandle, GDC_TASK_ATTR_S *pstTask, ROTATION_E enRotation)
+static bm_status_t bm_dwa_add_rotation_task(bm_handle_t handle, int fd, DWA_HANDLE hHandle, gdc_task_attr_s *pstTask, rotation_e enRotation)
 {
     bm_status_t ret = BM_SUCCESS;
-    MOD_CHECK_NULL_PTR(CVI_ID_DWA, pstTask);
-    CHECK_DWA_FORMAT(pstTask->stImgIn, pstTask->stImgOut);
+    MOD_CHECK_NULL_PTR(ID_DWA, pstTask);
+    CHECK_DWA_FORMAT(pstTask->img_in, pstTask->img_out);
 
     if (!hHandle){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "null hHandle");
@@ -2963,12 +3014,12 @@ static bm_status_t bm_dwa_add_rotation_task(bm_handle_t handle, int fd, DWA_HAND
     struct dwa_task_attr attr;
     u64 paddr;
     bm_device_mem_t pmem;
-    SIZE_S in_size, out_size;
+    size_s in_size, out_size;
 
-    in_size.u32Width = pstTask->stImgIn.stVFrame.u32Width;
-    in_size.u32Height = pstTask->stImgIn.stVFrame.u32Height;
-    out_size.u32Width = pstTask->stImgOut.stVFrame.u32Width;
-    out_size.u32Height = pstTask->stImgOut.stVFrame.u32Height;
+    in_size.width = pstTask->img_in.video_frame.width;
+    in_size.height = pstTask->img_in.video_frame.height;
+    out_size.width = pstTask->img_out.video_frame.width;
+    out_size.height = pstTask->img_out.video_frame.height;
 
     u8 idx;
     pthread_mutex_lock(&mutex);
@@ -2999,61 +3050,61 @@ static bm_status_t bm_dwa_add_rotation_task(bm_handle_t handle, int fd, DWA_HAND
     pthread_mutex_unlock(&mutex);
     memset(&attr, 0, sizeof(attr));
     attr.handle = hHandle;
-    memcpy(&attr.stImgIn, &pstTask->stImgIn, sizeof(attr.stImgIn));
-    memcpy(&attr.stImgOut, &pstTask->stImgOut, sizeof(attr.stImgOut));
-    //memcpy(attr.au64privateData, pstTask->au64privateData, sizeof(attr.au64privateData));
+    memcpy(&attr.img_in, &pstTask->img_in, sizeof(attr.img_in));
+    memcpy(&attr.img_out, &pstTask->img_out, sizeof(attr.img_out));
+    //memcpy(attr.private_data, pstTask->private_data, sizeof(attr.private_data));
     attr.reserved = pstTask->reserved;
-    attr.enRotation = enRotation;
-    attr.au64privateData[0] = dwa_tskMesh[idx].mem.u.device.device_addr;
+    attr.rotation = enRotation;
+    attr.private_data[0] = dwa_tskMesh[idx].mem.u.device.device_addr;
 
-    pstTask->au64privateData[0] = dwa_tskMesh[idx].mem.u.device.device_addr;
-    pstTask->au64privateData[1] = (u64)((uintptr_t)dwa_tskMesh[idx].mem.u.system.system_addr);
+    pstTask->privatedata[0] = dwa_tskMesh[idx].mem.u.device.device_addr;
+    pstTask->privatedata[1] = (u64)((uintptr_t)dwa_tskMesh[idx].mem.u.system.system_addr);
     return dwa_add_rotation_task(fd, &attr);
 }
 
-static bm_status_t bm_dwa_add_correction_task(bm_handle_t handle, int fd, GDC_HANDLE hHandle, GDC_TASK_ATTR_S *pstTask,
-                const FISHEYE_ATTR_S *pstFishEyeAttr, char *grid){
+static bm_status_t bm_dwa_add_correction_task(bm_handle_t handle, int fd, GDC_HANDLE hHandle, gdc_task_attr_s *pstTask,
+                const fisheye_attr_s *pstFishEyeAttr, char *grid){
     bm_status_t ret = BM_SUCCESS;
-    MOD_CHECK_NULL_PTR(CVI_ID_DWA, pstTask);
-    MOD_CHECK_NULL_PTR(CVI_ID_DWA, pstFishEyeAttr);
-    CHECK_DWA_FORMAT(pstTask->stImgIn, pstTask->stImgOut);
+    MOD_CHECK_NULL_PTR(ID_DWA, pstTask);
+    MOD_CHECK_NULL_PTR(ID_DWA, pstFishEyeAttr);
+    CHECK_DWA_FORMAT(pstTask->img_in, pstTask->img_out);
 
     if (!hHandle) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "null hHandle");
         return BM_ERR_FAILURE;
     }
 
-    if (pstFishEyeAttr->bEnable) {
-        if(!pstFishEyeAttr->stGridInfoAttr.Enable) {
-            if (pstFishEyeAttr->u32RegionNum == 0) {
+    if (pstFishEyeAttr->enable) {
+        if(!pstFishEyeAttr->grid_info_attr.enable) {
+            if (pstFishEyeAttr->region_num == 0) {
                 bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "RegionNum(%d) can't be 0 if enable fisheye.\n",
-                            pstFishEyeAttr->u32RegionNum);
+                            pstFishEyeAttr->region_num);
                 return BM_ERR_FAILURE;
             }
-            if (pstFishEyeAttr->enUseMode == MODE_01_1O || pstFishEyeAttr->enUseMode == MODE_STEREO_FIT) {
+            if (pstFishEyeAttr->use_mode == MODE_01_1O || pstFishEyeAttr->use_mode == MODE_STEREO_FIT) {
                 bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "FISHEYE not support MODE_01_1O and MODE_STEREO_FIT.\n");
                 return BM_ERR_PARAM;
             }
-            if (((u32)pstFishEyeAttr->s32HorOffset > pstTask->stImgIn.stVFrame.u32Width) ||
-                ((u32)pstFishEyeAttr->s32VerOffset > pstTask->stImgIn.stVFrame.u32Height)) {
+            if (((u32)pstFishEyeAttr->hor_offset > pstTask->img_in.video_frame.width) ||
+                ((u32)pstFishEyeAttr->ver_offset > pstTask->img_in.video_frame.height)) {
                 bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "center pos(%d %d) out of frame size(%d %d).\n",
-                            pstFishEyeAttr->s32HorOffset, pstFishEyeAttr->s32VerOffset,
-                            pstTask->stImgIn.stVFrame.u32Width, pstTask->stImgIn.stVFrame.u32Height);
+                            pstFishEyeAttr->hor_offset, pstFishEyeAttr->ver_offset,
+                            pstTask->img_in.video_frame.width, pstTask->img_in.video_frame.height);
                 return BM_ERR_PARAM;
             }
-            for (u32 i = 0; i < pstFishEyeAttr->u32RegionNum; ++i) {
-                if ((pstFishEyeAttr->enMountMode == FISHEYE_WALL_MOUNT) &&
-                    (pstFishEyeAttr->astFishEyeRegionAttr[i].enViewMode == FISHEYE_VIEW_360_PANORAMA)) {
+            for (u32 i = 0; i < pstFishEyeAttr->region_num; ++i) {
+                if ((pstFishEyeAttr->mount_mode == FISHEYE_WALL_MOUNT) &&
+                    (pstFishEyeAttr->fisheye_region_attr[i].view_mode == FISHEYE_VIEW_360_PANORAMA)) {
                     bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "Rgn(%d): WALL_MOUNT not support Panorama_360.\n", i);
                     return BM_ERR_PARAM;
                 }
-                if ((pstFishEyeAttr->enMountMode == FISHEYE_CEILING_MOUNT) &&
-                    (pstFishEyeAttr->astFishEyeRegionAttr[i].enViewMode == FISHEYE_VIEW_180_PANORAMA)) {
+                if ((pstFishEyeAttr->mount_mode == FISHEYE_CEILING_MOUNT) &&
+                    (pstFishEyeAttr->fisheye_region_attr[i].view_mode == FISHEYE_VIEW_180_PANORAMA)) {
                     bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "Rgn(%d): CEILING_MOUNT not support Panorama_180.\n", i);
                     return BM_ERR_PARAM;
                 }
-                if ((pstFishEyeAttr->enMountMode == FISHEYE_DESKTOP_MOUNT) &&
-                    (pstFishEyeAttr->astFishEyeRegionAttr[i].enViewMode == FISHEYE_VIEW_180_PANORAMA)) {
+                if ((pstFishEyeAttr->mount_mode == FISHEYE_DESKTOP_MOUNT) &&
+                    (pstFishEyeAttr->fisheye_region_attr[i].view_mode == FISHEYE_VIEW_180_PANORAMA)) {
                     bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "Rgn(%d): DESKTOP_MOUNT not support Panorama_180.\n", i);
                     return BM_ERR_PARAM;
                 }
@@ -3070,14 +3121,14 @@ static bm_status_t bm_dwa_add_correction_task(bm_handle_t handle, int fd, GDC_HA
     pthread_mutex_lock(&mutex);
     ret = bm_get_valid_tsk_mesh_by_name(handle, pstTask->name, &idx);
     if (ret != BM_SUCCESS) {
-        SIZE_S in_size, out_size;
+        size_s in_size, out_size;
         u64 paddr;
         bm_device_mem_t pmem;
 
-        in_size.u32Width = pstTask->stImgIn.stVFrame.u32Width;
-        in_size.u32Height = pstTask->stImgIn.stVFrame.u32Height;
-        out_size.u32Width = pstTask->stImgOut.stVFrame.u32Width;
-        out_size.u32Height = pstTask->stImgOut.stVFrame.u32Height;
+        in_size.width = pstTask->img_in.video_frame.width;
+        in_size.height = pstTask->img_in.video_frame.height;
+        out_size.width = pstTask->img_out.video_frame.width;
+        out_size.height = pstTask->img_out.video_frame.height;
 
         bm_malloc_device_byte(handle, &pmem, DWA_MESH_SIZE_FISHEYE);
         paddr = pmem.u.device.device_addr;
@@ -3105,62 +3156,62 @@ static bm_status_t bm_dwa_add_correction_task(bm_handle_t handle, int fd, GDC_HA
 
     memset(&attr, 0, sizeof(attr));
     attr.handle = hHandle;
-    memcpy(&attr.stImgIn, &pstTask->stImgIn, sizeof(attr.stImgIn));
-    memcpy(&attr.stImgOut, &pstTask->stImgOut, sizeof(attr.stImgOut));
-    //memcpy(attr.au64privateData, pstTask->au64privateData, sizeof(attr.au64privateData));
-    memcpy(&attr.stFishEyeAttr, pstFishEyeAttr, sizeof(*pstFishEyeAttr));
+    memcpy(&attr.img_in, &pstTask->img_in, sizeof(attr.img_in));
+    memcpy(&attr.img_out, &pstTask->img_out, sizeof(attr.img_out));
+    //memcpy(attr.private_data, pstTask->private_data, sizeof(attr.private_data));
+    memcpy(&attr.fisheye_attr, pstFishEyeAttr, sizeof(*pstFishEyeAttr));
     attr.reserved = pstTask->reserved;
-    attr.au64privateData[0] = dwa_tskMesh[idx].mem.u.device.device_addr;
+    attr.private_data[0] = dwa_tskMesh[idx].mem.u.device.device_addr;
 
-    pstTask->au64privateData[0] = dwa_tskMesh[idx].mem.u.device.device_addr;
-    pstTask->au64privateData[1] = (u64)((uintptr_t)dwa_tskMesh[idx].mem.u.system.system_addr);
+    pstTask->privatedata[0] = dwa_tskMesh[idx].mem.u.device.device_addr;
+    pstTask->privatedata[1] = (u64)((uintptr_t)dwa_tskMesh[idx].mem.u.system.system_addr);
     return dwa_add_correction_task(fd, &attr);
 
 }
 
-static bm_status_t bm_dwa_add_affine_task(bm_handle_t handle, int fd, GDC_HANDLE hHandle, GDC_TASK_ATTR_S *pstTask, const AFFINE_ATTR_S *pstAffineAttr)
+static bm_status_t bm_dwa_add_affine_task(bm_handle_t handle, int fd, GDC_HANDLE hHandle, gdc_task_attr_s *pstTask, const affine_attr_s *pstAffineAttr)
 {
     bm_status_t ret = BM_SUCCESS;
-    MOD_CHECK_NULL_PTR(CVI_ID_DWA, pstTask);
-    MOD_CHECK_NULL_PTR(CVI_ID_DWA, pstAffineAttr);
-    CHECK_DWA_FORMAT(pstTask->stImgIn, pstTask->stImgOut);
+    MOD_CHECK_NULL_PTR(ID_DWA, pstTask);
+    MOD_CHECK_NULL_PTR(ID_DWA, pstAffineAttr);
+    CHECK_DWA_FORMAT(pstTask->img_in, pstTask->img_out);
 
     if (!hHandle) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "null hHandle");
         return BM_ERR_FAILURE;
     }
 
-    if (pstAffineAttr->u32RegionNum == 0) {
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "u32RegionNum(%d) can't be zero.\n", pstAffineAttr->u32RegionNum);
+    if (pstAffineAttr->region_num == 0) {
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "u32RegionNum(%d) can't be zero.\n", pstAffineAttr->region_num);
         return BM_ERR_FAILURE;
     }
 
-    if (pstAffineAttr->stDestSize.u32Width > pstTask->stImgOut.stVFrame.u32Width) {
+    if (pstAffineAttr->dest_size.width > pstTask->img_out.video_frame.width) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "dest's width(%d) can't be larger than frame's width(%d)\n",
-                    pstAffineAttr->stDestSize.u32Width, pstTask->stImgOut.stVFrame.u32Width);
+                    pstAffineAttr->dest_size.width, pstTask->img_out.video_frame.width);
         return BM_ERR_FAILURE;
     }
-    for (u32 i = 0; i < pstAffineAttr->u32RegionNum; ++i) {
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_INFO, "u32RegionNum(%d) (%f, %f) (%f, %f) (%f, %f) (%f, %f)\n", i,
-                    pstAffineAttr->astRegionAttr[i][0].x, pstAffineAttr->astRegionAttr[i][0].y,
-                    pstAffineAttr->astRegionAttr[i][1].x, pstAffineAttr->astRegionAttr[i][1].y,
-                    pstAffineAttr->astRegionAttr[i][2].x, pstAffineAttr->astRegionAttr[i][2].y,
-                    pstAffineAttr->astRegionAttr[i][3].x, pstAffineAttr->astRegionAttr[i][3].y);
-        if ((pstAffineAttr->astRegionAttr[i][0].x < 0) || (pstAffineAttr->astRegionAttr[i][0].y < 0) ||
-            (pstAffineAttr->astRegionAttr[i][1].x < 0) || (pstAffineAttr->astRegionAttr[i][1].y < 0) ||
-            (pstAffineAttr->astRegionAttr[i][2].x < 0) || (pstAffineAttr->astRegionAttr[i][2].y < 0) ||
-            (pstAffineAttr->astRegionAttr[i][3].x < 0) || (pstAffineAttr->astRegionAttr[i][3].y < 0)) {
-            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "u32RegionNum(%d) affine point can't be negative\n", i);
+    for (u32 i = 0; i < pstAffineAttr->region_num; ++i) {
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_INFO, "region_num(%d) (%f, %f) (%f, %f) (%f, %f) (%f, %f)\n", i,
+                    pstAffineAttr->region_attr[i][0].x, pstAffineAttr->region_attr[i][0].y,
+                    pstAffineAttr->region_attr[i][1].x, pstAffineAttr->region_attr[i][1].y,
+                    pstAffineAttr->region_attr[i][2].x, pstAffineAttr->region_attr[i][2].y,
+                    pstAffineAttr->region_attr[i][3].x, pstAffineAttr->region_attr[i][3].y);
+        if ((pstAffineAttr->region_attr[i][0].x < 0) || (pstAffineAttr->region_attr[i][0].y < 0) ||
+            (pstAffineAttr->region_attr[i][1].x < 0) || (pstAffineAttr->region_attr[i][1].y < 0) ||
+            (pstAffineAttr->region_attr[i][2].x < 0) || (pstAffineAttr->region_attr[i][2].y < 0) ||
+            (pstAffineAttr->region_attr[i][3].x < 0) || (pstAffineAttr->region_attr[i][3].y < 0)) {
+            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "region_num(%d) affine point can't be negative\n", i);
             return BM_ERR_FAILURE;
         }
-        if ((pstAffineAttr->astRegionAttr[i][1].x < pstAffineAttr->astRegionAttr[i][0].x) ||
-            (pstAffineAttr->astRegionAttr[i][3].x < pstAffineAttr->astRegionAttr[i][2].x)) {
-            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "u32RegionNum(%d) point1/3's x should be bigger than 0/2's\n", i);
+        if ((pstAffineAttr->region_attr[i][1].x < pstAffineAttr->region_attr[i][0].x) ||
+            (pstAffineAttr->region_attr[i][3].x < pstAffineAttr->region_attr[i][2].x)) {
+            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "region_num(%d) point1/3's x should be bigger than 0/2's\n", i);
             return BM_ERR_FAILURE;
         }
-        if ((pstAffineAttr->astRegionAttr[i][2].y < pstAffineAttr->astRegionAttr[i][0].y) ||
-            (pstAffineAttr->astRegionAttr[i][3].y < pstAffineAttr->astRegionAttr[i][1].y)) {
-            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "u32RegionNum(%d) point2/3's y should be bigger than 0/1's\n", i);
+        if ((pstAffineAttr->region_attr[i][2].y < pstAffineAttr->region_attr[i][0].y) ||
+            (pstAffineAttr->region_attr[i][3].y < pstAffineAttr->region_attr[i][1].y)) {
+            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "region_num(%d) point2/3's y should be bigger than 0/1's\n", i);
             return BM_ERR_FAILURE;
         }
     }
@@ -3171,14 +3222,14 @@ static bm_status_t bm_dwa_add_affine_task(bm_handle_t handle, int fd, GDC_HANDLE
     pthread_mutex_lock(&mutex);
     ret = bm_get_valid_tsk_mesh_by_name(handle, pstTask->name, &idx);
     if (ret != BM_SUCCESS) {
-        SIZE_S in_size, out_size;
+        size_s in_size, out_size;
         u64 paddr;
         bm_device_mem_t pmem;
 
-        in_size.u32Width = pstTask->stImgIn.stVFrame.u32Width;
-        in_size.u32Height = pstTask->stImgIn.stVFrame.u32Height;
-        out_size.u32Width = pstTask->stImgOut.stVFrame.u32Width;
-        out_size.u32Height = pstTask->stImgOut.stVFrame.u32Height;
+        in_size.width = pstTask->img_in.video_frame.width;
+        in_size.height = pstTask->img_in.video_frame.height;
+        out_size.width = pstTask->img_out.video_frame.width;
+        out_size.height = pstTask->img_out.video_frame.height;
 
         bm_malloc_device_byte(handle, &pmem, DWA_MESH_SIZE_AFFINE);
         paddr = pmem.u.device.device_addr;
@@ -3206,38 +3257,38 @@ static bm_status_t bm_dwa_add_affine_task(bm_handle_t handle, int fd, GDC_HANDLE
 
     memset(&attr, 0, sizeof(attr));
     attr.handle = hHandle;
-    memcpy(&attr.stImgIn, &pstTask->stImgIn, sizeof(attr.stImgIn));
-    memcpy(&attr.stImgOut, &pstTask->stImgOut, sizeof(attr.stImgOut));
-    //memcpy(attr.au64privateData, pstTask->au64privateData, sizeof(attr.au64privateData));
-    memcpy(&attr.stAffineAttr, pstAffineAttr, sizeof(*pstAffineAttr));
+    memcpy(&attr.img_in, &pstTask->img_in, sizeof(attr.img_in));
+    memcpy(&attr.img_out, &pstTask->img_out, sizeof(attr.img_out));
+    //memcpy(attr.private_data, pstTask->private_data, sizeof(attr.private_data));
+    memcpy(&attr.affine_attr, pstAffineAttr, sizeof(*pstAffineAttr));
     attr.reserved = pstTask->reserved;
-    attr.au64privateData[0] = dwa_tskMesh[idx].mem.u.device.device_addr;
+    attr.private_data[0] = dwa_tskMesh[idx].mem.u.device.device_addr;
 
-    pstTask->au64privateData[0] = dwa_tskMesh[idx].mem.u.device.device_addr;
-    pstTask->au64privateData[1] = (u64)((uintptr_t)dwa_tskMesh[idx].mem.u.system.system_addr);
+    pstTask->privatedata[0] = dwa_tskMesh[idx].mem.u.device.device_addr;
+    pstTask->privatedata[1] = (u64)((uintptr_t)dwa_tskMesh[idx].mem.u.system.system_addr);
     return dwa_add_affine_task(fd, &attr);
 }
 
-static bm_status_t bm_dwa_add_dewarp_task(bm_handle_t handle, int fd, GDC_HANDLE hHandle, GDC_TASK_ATTR_S *pstTask
-    , const WARP_ATTR_S *pstWarpAttr, char *grid)
+static bm_status_t bm_dwa_add_dewarp_task(bm_handle_t handle, int fd, GDC_HANDLE hHandle, gdc_task_attr_s *pstTask
+    , const warp_attr_s *pstWarpAttr, char *grid)
 {
     bm_status_t ret = BM_SUCCESS;
-    MOD_CHECK_NULL_PTR(CVI_ID_DWA, pstTask);
-    MOD_CHECK_NULL_PTR(CVI_ID_DWA, pstWarpAttr);
-    CHECK_DWA_FORMAT(pstTask->stImgIn, pstTask->stImgOut);
+    MOD_CHECK_NULL_PTR(ID_DWA, pstTask);
+    MOD_CHECK_NULL_PTR(ID_DWA, pstWarpAttr);
+    CHECK_DWA_FORMAT(pstTask->img_in, pstTask->img_out);
 
     if (!hHandle) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "null hHandle.\n");
         return BM_ERR_FAILURE;
     }
 
-    if (!pstWarpAttr->bEnable)
+    if (!pstWarpAttr->enable)
     {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "WarpAttr is not be enabled.\n");
         return BM_ERR_FAILURE;
     }
 
-    if (!pstWarpAttr->stGridInfoAttr.Enable)
+    if (!pstWarpAttr->grid_info_attr.enable)
     {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "GridInfoAttr is not be enabled.\n");
         return BM_ERR_FAILURE;
@@ -3249,14 +3300,14 @@ static bm_status_t bm_dwa_add_dewarp_task(bm_handle_t handle, int fd, GDC_HANDLE
     pthread_mutex_lock(&mutex);
     ret = bm_get_valid_tsk_mesh_by_name(handle, pstTask->name, &idx);
     if (ret != BM_SUCCESS) {
-        SIZE_S in_size, out_size;
+        size_s in_size, out_size;
         u64 paddr;
         bm_device_mem_t pmem;
 
-        in_size.u32Width = pstTask->stImgIn.stVFrame.u32Width;
-        in_size.u32Height = pstTask->stImgIn.stVFrame.u32Height;
-        out_size.u32Width = pstTask->stImgOut.stVFrame.u32Width;
-        out_size.u32Height = pstTask->stImgOut.stVFrame.u32Height;
+        in_size.width = pstTask->img_in.video_frame.width;
+        in_size.height = pstTask->img_in.video_frame.height;
+        out_size.width = pstTask->img_out.video_frame.width;
+        out_size.height = pstTask->img_out.video_frame.height;
 
         bm_malloc_device_byte(handle, &pmem, DWA_MESH_SIZE_FISHEYE);
         paddr = pmem.u.device.device_addr;
@@ -3284,22 +3335,22 @@ static bm_status_t bm_dwa_add_dewarp_task(bm_handle_t handle, int fd, GDC_HANDLE
 
     memset(&attr, 0, sizeof(attr));
     attr.handle = hHandle;
-    memcpy(&attr.stImgIn, &pstTask->stImgIn, sizeof(attr.stImgIn));
-    memcpy(&attr.stImgOut, &pstTask->stImgOut, sizeof(attr.stImgOut));
-    //memcpy(attr.au64privateData, pstTask->au64privateData, sizeof(attr.au64privateData));
+    memcpy(&attr.img_in, &pstTask->img_in, sizeof(attr.img_in));
+    memcpy(&attr.img_out, &pstTask->img_out, sizeof(attr.img_out));
+    //memcpy(attr.private_data, pstTask->private_data, sizeof(attr.private_data));
     memcpy(&attr.stWarpAttr, pstWarpAttr, sizeof(*pstWarpAttr));
     attr.reserved = pstTask->reserved;
-    attr.au64privateData[0] = dwa_tskMesh[idx].mem.u.device.device_addr;
+    attr.private_data[0] = dwa_tskMesh[idx].mem.u.device.device_addr;
 
-    pstTask->au64privateData[0] = dwa_tskMesh[idx].mem.u.device.device_addr;
-    pstTask->au64privateData[1] = (u64)((uintptr_t)dwa_tskMesh[idx].mem.u.system.system_addr);
+    pstTask->privatedata[0] = dwa_tskMesh[idx].mem.u.device.device_addr;
+    pstTask->privatedata[1] = (u64)((uintptr_t)dwa_tskMesh[idx].mem.u.system.system_addr);
     return dwa_add_warp_task(fd, &attr);
 }
 
 static bm_status_t bm_dwa_add_task(bm_handle_t handle, int fd, bm_dwa_basic_param *param, void *ptr)
 {
-    ROTATION_E enRotation;
-    AFFINE_ATTR_S *stAffineAttr;
+    rotation_e enRotation;
+    affine_attr_s *stAffineAttr;
     bm_dewarp_attr_and_grid *dewarp_attr_and_grid;
     bm_gdc_attr_and_grid *gdc_attr_and_grid;
     bm_fisheye_attr_and_grid *fisheye_attr_and_grid;
@@ -3321,7 +3372,7 @@ static bm_status_t bm_dwa_add_task(bm_handle_t handle, int fd, bm_dwa_basic_para
             }
             break;
         case DWA_TEST_ROT:
-            enRotation = *(ROTATION_E *)ptr;
+            enRotation = *(rotation_e *)ptr;
 
             ret = bm_dwa_add_rotation_task(handle, fd, param->hHandle, &param->stTask, enRotation);
             if(ret){
@@ -3329,7 +3380,7 @@ static bm_status_t bm_dwa_add_task(bm_handle_t handle, int fd, bm_dwa_basic_para
             }
             break;
         case DWA_TEST_LDC:
-            enRotation = (ROTATION_E)param->stTask.reserved;
+            enRotation = (rotation_e)param->stTask.reserved;
             gdc_attr_and_grid = (bm_gdc_attr_and_grid *)ptr;
 
             ret = bm_dwa_add_ldc_task(handle, fd, param->hHandle, &param->stTask, &(gdc_attr_and_grid->ldc_attr), enRotation, gdc_attr_and_grid->grid);
@@ -3338,7 +3389,7 @@ static bm_status_t bm_dwa_add_task(bm_handle_t handle, int fd, bm_dwa_basic_para
             }
             break;
         case DWA_TEST_AFFINE:
-            stAffineAttr = (AFFINE_ATTR_S *)ptr;
+            stAffineAttr = (affine_attr_s *)ptr;
 
             ret = bm_dwa_add_affine_task(handle, fd, param->hHandle, &param->stTask, stAffineAttr);
             if(ret){
@@ -3377,7 +3428,7 @@ static bm_status_t bm_dwa_init(int fd)
 
 static bm_status_t bm_dwa_begin_job(int fd, DWA_HANDLE *phHandle)
 {
-    MOD_CHECK_NULL_PTR(CVI_ID_DWA, phHandle);
+    MOD_CHECK_NULL_PTR(ID_DWA, phHandle);
 
     struct dwa_handle_data cfg;
 
@@ -3390,9 +3441,9 @@ static bm_status_t bm_dwa_begin_job(int fd, DWA_HANDLE *phHandle)
     return BM_SUCCESS;
 }
 
-static bm_status_t bm_dwa_set_job_identity(int fd, DWA_HANDLE hHandle, GDC_IDENTITY_ATTR_S *identity_attr)
+static bm_status_t bm_dwa_set_job_identity(int fd, DWA_HANDLE hHandle,gdc_identity_attr_s *identity_attr)
 {
-    MOD_CHECK_NULL_PTR(CVI_ID_DWA, identity_attr);
+    MOD_CHECK_NULL_PTR(ID_DWA, identity_attr);
 
     if(!hHandle){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "null hHandle");
@@ -3412,7 +3463,7 @@ static bm_status_t bm_dwa_send_frame(int fd,
                                      bm_dwa_basic_param *param)
 {
     bm_status_t ret = BM_SUCCESS;
-    PIXEL_FORMAT_E pixel_format = 0;
+    pixel_format_e pixel_format = 0;
 
     memset(&param->stVideoFrameIn,0,sizeof(param->stVideoFrameIn));
     memset(&param->stVideoFrameOut,0,sizeof(param->stVideoFrameOut));
@@ -3422,8 +3473,8 @@ static bm_status_t bm_dwa_send_frame(int fd,
     bm_image_to_cvi_frame(input_image, pixel_format, &param->stVideoFrameIn);
     bm_image_to_cvi_frame(output_image, pixel_format, &param->stVideoFrameOut);
 
-    memcpy(&param->stTask.stImgIn, &param->stVideoFrameIn, sizeof(param->stVideoFrameIn));
-    memcpy(&param->stTask.stImgOut, &param->stVideoFrameOut, sizeof(param->stVideoFrameOut));
+    memcpy(&param->stTask.img_in, &param->stVideoFrameIn, sizeof(param->stVideoFrameIn));
+    memcpy(&param->stTask.img_out, &param->stVideoFrameOut, sizeof(param->stVideoFrameOut));
 
     return ret;
 }
@@ -3447,39 +3498,39 @@ bm_status_t bm_dwa_get_frame(int fd,
                              bm_dwa_basic_param *param)
 {
     bm_status_t ret = BM_SUCCESS;
-    PIXEL_FORMAT_E pixel_format = 0;
+    pixel_format_e pixel_format = 0;
 
     bm_image_format_to_cvi(output_image->image_format, output_image->data_type, &pixel_format);
     bm_image_to_cvi_frame(output_image, pixel_format, &param->stVideoFrameOut);
 
     // memcpy(&param->stTask.stImgOut, &param->stVideoFrameOut, sizeof(param->stVideoFrameOut));
-    memcpy(&param->stVideoFrameOut, &param->stTask.stImgOut, sizeof(param->stTask.stImgOut));
+    memcpy(&param->stVideoFrameOut, &param->stTask.img_out, sizeof(param->stTask.img_out));
 
     for(int i = 0; i < output_image->image_private->plane_num; i++){
-        output_image->image_private->data[i].u.device.device_addr = param->stVideoFrameOut.stVFrame.u64PhyAddr[i];
+        output_image->image_private->data[i].u.device.device_addr = param->stVideoFrameOut.video_frame.phyaddr[i];
     }
 
     return ret;
 }
 
-bm_status_t bm_dwa_get_chn_frame(int fd, GDC_IDENTITY_ATTR_S *identity_attr, VIDEO_FRAME_INFO_S *pstFrameInfo, int s32MilliSec)
+bm_status_t bm_dwa_get_chn_frame(int fd, gdc_identity_attr_s *identity_attr, video_frame_info_s *pstFrameInfo, int s32MilliSec)
 {
     bm_status_t ret;
     struct dwa_chn_frm_cfg cfg;
 
-    MOD_CHECK_NULL_PTR(CVI_ID_DWA, identity_attr);
-    MOD_CHECK_NULL_PTR(CVI_ID_DWA, pstFrameInfo);
+    MOD_CHECK_NULL_PTR(ID_DWA, identity_attr);
+    MOD_CHECK_NULL_PTR(ID_DWA, pstFrameInfo);
 
     memset(&cfg, 0, sizeof(cfg));
     memcpy(&cfg.identity.attr, identity_attr, sizeof(*identity_attr));
-    cfg.MilliSec = s32MilliSec;
+    cfg.milli_sec = s32MilliSec;
 
     ret = dwa_get_chn_frm(fd, &cfg);
     if (ret != BM_SUCCESS) {
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "identity[%s-%d-%d] get chn frame fail, Ret[%d]\n", identity_attr->Name , identity_attr->enModId, identity_attr->u32ID, ret);
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "identity[%s-%d-%d] get chn frame fail, Ret[%d]\n", identity_attr->name , identity_attr->mod_id, identity_attr->id, ret);
         return BM_ERR_FAILURE;
     }
-    memcpy(pstFrameInfo, &cfg.VideoFrame, sizeof(*pstFrameInfo));
+    memcpy(pstFrameInfo, &cfg.video_frame, sizeof(*pstFrameInfo));
 
     return ret;
 }
@@ -3495,7 +3546,7 @@ bm_status_t bm_dwa_cancel_job(int fd, GDC_HANDLE hHandle)
     struct dwa_handle_data cfg;
     memset(&cfg, 0, sizeof(cfg));
     cfg.handle = hHandle;
-    ret = (bm_status_t)ioctl(fd, CVI_DWA_CANCEL_JOB, &cfg);
+    ret = (bm_status_t)ioctl(fd, DWA_CANCEL_JOB, &cfg);
     if (ret != BM_SUCCESS) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "dwa_cancel_job failed!\n");
         ret = BM_ERR_FAILURE;
@@ -3586,23 +3637,23 @@ bm_status_t bmcv_dwa_rot_internel(bm_handle_t          handle,
                                   bmcv_rot_mode        rot_mode){
     bm_status_t ret = BM_SUCCESS;
     bm_dwa_basic_param param;
-    ROTATION_E rotation_mode = (ROTATION_E)rot_mode;
+    rotation_e rotation_mode = (rotation_e)rot_mode;
     bm_rot_name rot_name;
     char md5_str[MD5_STRING_LENGTH + 1];
     memset(&rot_name, 0, sizeof(rot_name));
     memset(&param, 0, sizeof(param));
 
-    param.size_in.u32Width = input_image.width;
-    param.size_in.u32Height = input_image.height;
-    param.size_out.u32Width = output_image.width;
-    param.size_out.u32Height = output_image.height;
+    param.size_in.width = input_image.width;
+    param.size_in.height = input_image.height;
+    param.size_out.width = output_image.width;
+    param.size_out.height = output_image.height;
 
     bm_image_format_to_cvi(input_image.image_format, input_image.data_type, &param.enPixelFormat);
     bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "param.enPixelFormat = [%d]\n", param.enPixelFormat);
-    param.identity.enModId = CVI_ID_DWA;
-    param.identity.u32ID = 0;
+    param.identity.mod_id = ID_DWA;
+    param.identity.id = 0;
 
-    param.identity.syncIo = true;
+    param.identity.sync_io = true;
     param.op = DWA_TEST_ROT;
 
     rot_name.param = param;
@@ -3631,28 +3682,28 @@ bm_status_t bmcv_dwa_gdc_internel(bm_handle_t          handle,
     memset(&param, 0, sizeof(param));
     memset(&gdc_with_grid, 0, sizeof(gdc_with_grid));
 
-    param.size_in.u32Width = input_image.width;
-    param.size_in.u32Height = input_image.height;
-    param.size_out.u32Width = output_image.width;
-    param.size_out.u32Height = output_image.height;
+    param.size_in.width = input_image.width;
+    param.size_in.height = input_image.height;
+    param.size_out.width = output_image.width;
+    param.size_out.height = output_image.height;
 
     bm_image_format_to_cvi(input_image.image_format, input_image.data_type, &param.enPixelFormat);
     bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "param.enPixelFormat = [%d]\n", param.enPixelFormat);
-    param.identity.enModId = CVI_ID_DWA;
-    param.identity.u32ID = 0;
+    param.identity.mod_id = ID_DWA;
+    param.identity.id = 0;
 
-    param.identity.syncIo = true;
+    param.identity.sync_io = true;
     param.op = DWA_TEST_LDC;
 
     if (ldc_attr.grid_info.size == 0) {
-        gdc_with_grid.ldc_attr.bAspect = ldc_attr.bAspect;
-        gdc_with_grid.ldc_attr.s32CenterXOffset = ldc_attr.s32CenterXOffset;
-        gdc_with_grid.ldc_attr.s32CenterYOffset = ldc_attr.s32CenterYOffset;
-        gdc_with_grid.ldc_attr.s32DistortionRatio = ldc_attr.s32DistortionRatio;
-        gdc_with_grid.ldc_attr.s32XRatio = ldc_attr.s32XRatio;
-        gdc_with_grid.ldc_attr.s32XYRatio = ldc_attr.s32XYRatio;
-        gdc_with_grid.ldc_attr.s32YRatio = ldc_attr.s32YRatio;
-        gdc_with_grid.ldc_attr.stGridInfoAttr.Enable = false;
+        gdc_with_grid.ldc_attr.aspect = ldc_attr.bAspect;
+        gdc_with_grid.ldc_attr.center_x_offset = ldc_attr.s32CenterXOffset;
+        gdc_with_grid.ldc_attr.center_y_offset = ldc_attr.s32CenterYOffset;
+        gdc_with_grid.ldc_attr.distortion_ratio = ldc_attr.s32DistortionRatio;
+        gdc_with_grid.ldc_attr.x_ratio = ldc_attr.s32XRatio;
+        gdc_with_grid.ldc_attr.xy_ratio = ldc_attr.s32XYRatio;
+        gdc_with_grid.ldc_attr.y_ratio = ldc_attr.s32YRatio;
+        gdc_with_grid.ldc_attr.grid_info_attr.enable = false;
         gdc_with_grid.grid = NULL;
 
         gdc_name.param = param;
@@ -3662,7 +3713,7 @@ bm_status_t bmcv_dwa_gdc_internel(bm_handle_t          handle,
         snprintf(param.stTask.name, sizeof(param.stTask.name) + 1, md5_str);
         // snprintf(param.identity.Name, sizeof(param.identity.Name), "job_gdc");
     } else {
-        gdc_with_grid.ldc_attr.stGridInfoAttr.Enable = true;
+        gdc_with_grid.ldc_attr.grid_info_attr.enable = true;
         gdc_with_grid.grid = (char *)ldc_attr.grid_info.u.system.system_addr;
 
         gdc_name.param = param;
@@ -3678,12 +3729,12 @@ bm_status_t bmcv_dwa_gdc_internel(bm_handle_t          handle,
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "ldc_attr.grid_info[2] = [%d]\n", gdc_with_grid.grid[2]);
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "ldc_attr.grid_info[3] = [%d]\n", gdc_with_grid.grid[3]);
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "ldc_attr.grid_info[4] = [%d]\n", gdc_with_grid.grid[4]);
-        strcpy(gdc_with_grid.ldc_attr.stGridInfoAttr.gridBindName, md5_grid_info);
+        strcpy(gdc_with_grid.ldc_attr.grid_info_attr.grid_bind_name, md5_grid_info);
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "grid_info md5 = [%s]\n", md5_grid_info);
         strcpy(gdc_name.grid, md5_grid_info);
         md5_get((unsigned char *)&gdc_name, sizeof(gdc_name), md5_str, 0);
         snprintf(param.stTask.name, sizeof(param.stTask.name) + 1, md5_str);
-        strcpy(gdc_with_grid.ldc_attr.stGridInfoAttr.gridFileName, "grid_info_79_43_3397_80_45_1280x720.dat");
+        strcpy(gdc_with_grid.ldc_attr.grid_info_attr.grid_file_name, "grid_info_79_43_3397_80_45_1280x720.dat");
     }
 
     ret = bm_dwa_basic(handle, input_image, output_image, &param, (void *)&gdc_with_grid);
@@ -3699,7 +3750,7 @@ bm_status_t bmcv_dwa_fisheye_internel(bm_handle_t          handle,
                                       bmcv_fisheye_attr_s  fisheye_attr) {
     bm_status_t ret = BM_SUCCESS;
     bm_dwa_basic_param param;
-    FISHEYE_ATTR_S dwa_fisheye_attr;
+    fisheye_attr_s dwa_fisheye_attr;
     bm_fisheye_name fisheye_name;
     bm_fisheye_attr_and_grid fisheye_with_grid;
     char md5_str[MD5_STRING_LENGTH + 1];
@@ -3707,29 +3758,29 @@ bm_status_t bmcv_dwa_fisheye_internel(bm_handle_t          handle,
     memset(&dwa_fisheye_attr, 0, sizeof(dwa_fisheye_attr));
     memset(&fisheye_with_grid, 0, sizeof(fisheye_with_grid));
 
-    param.size_in.u32Width = input_image.width;
-    param.size_in.u32Height = input_image.height;
-    param.size_out.u32Width = output_image.width;
-    param.size_out.u32Height = output_image.height;
+    param.size_in.width = input_image.width;
+    param.size_in.height = input_image.height;
+    param.size_out.width = output_image.width;
+    param.size_out.height = output_image.height;
     bm_image_format_to_cvi(input_image.image_format, input_image.data_type, &param.enPixelFormat);
     bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "param.enPixelFormat = [%d]\n", param.enPixelFormat);
-    param.identity.enModId = CVI_ID_DWA;
-    param.identity.u32ID = 0;
-    param.identity.syncIo = true;
+    param.identity.mod_id = ID_DWA;
+    param.identity.id = 0;
+    param.identity.sync_io = true;
 
     param.op = DWA_TEST_FISHEYE;
 
     if (fisheye_attr.grid_info.size == 0) {
-        fisheye_with_grid.fisheye_attr.bEnable = fisheye_attr.bEnable;
-        fisheye_with_grid.fisheye_attr.bBgColor = fisheye_attr.bBgColor;
-        fisheye_with_grid.fisheye_attr.u32BgColor = fisheye_attr.u32BgColor;
-        fisheye_with_grid.fisheye_attr.s32HorOffset = fisheye_attr.s32HorOffset;
-        fisheye_with_grid.fisheye_attr.s32VerOffset = fisheye_attr.s32VerOffset;
-        fisheye_with_grid.fisheye_attr.enMountMode = (FISHEYE_MOUNT_MODE_E)fisheye_attr.enMountMode;
-        fisheye_with_grid.fisheye_attr.enUseMode = (USAGE_MODE)fisheye_attr.enUseMode;
-        fisheye_with_grid.fisheye_attr.astFishEyeRegionAttr[0].enViewMode = (FISHEYE_VIEW_MODE_E)(fisheye_attr.enViewMode);
-        fisheye_with_grid.fisheye_attr.u32RegionNum = fisheye_attr.u32RegionNum;
-        fisheye_with_grid.fisheye_attr.stGridInfoAttr.Enable = false;
+        fisheye_with_grid.fisheye_attr.enable = fisheye_attr.bEnable;
+        fisheye_with_grid.fisheye_attr.enable_bg_color = fisheye_attr.bBgColor;
+        fisheye_with_grid.fisheye_attr.bg_color = fisheye_attr.u32BgColor;
+        fisheye_with_grid.fisheye_attr.hor_offset = fisheye_attr.s32HorOffset;
+        fisheye_with_grid.fisheye_attr.ver_offset = fisheye_attr.s32VerOffset;
+        fisheye_with_grid.fisheye_attr.mount_mode = (fisheye_mount_mode_e)fisheye_attr.enMountMode;
+        fisheye_with_grid.fisheye_attr.use_mode = (usage_mode)fisheye_attr.enUseMode;
+        fisheye_with_grid.fisheye_attr.fisheye_region_attr[0].view_mode = (fisheye_view_mode_e)(fisheye_attr.enViewMode);
+        fisheye_with_grid.fisheye_attr.region_num = fisheye_attr.u32RegionNum;
+        fisheye_with_grid.fisheye_attr.grid_info_attr.enable = false;
         fisheye_with_grid.grid = NULL;
 
         fisheye_name.param = param;
@@ -3738,8 +3789,8 @@ bm_status_t bmcv_dwa_fisheye_internel(bm_handle_t          handle,
         snprintf(param.stTask.name, sizeof(param.stTask.name) + 1, md5_str);
         // snprintf(param.identity.Name, sizeof(param.identity.Name), "job_fisheye");
     } else {
-        fisheye_with_grid.fisheye_attr.bEnable = fisheye_attr.bEnable;
-        fisheye_with_grid.fisheye_attr.stGridInfoAttr.Enable = true;
+        fisheye_with_grid.fisheye_attr.enable = fisheye_attr.bEnable;
+        fisheye_with_grid.fisheye_attr.grid_info_attr.enable = true;
         fisheye_with_grid.grid = (char *)fisheye_attr.grid_info.u.system.system_addr;
 
         fisheye_name.param = param;
@@ -3748,11 +3799,11 @@ bm_status_t bmcv_dwa_fisheye_internel(bm_handle_t          handle,
         // for debug
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "fisheye_attr.grid_size = [%d]\n", fisheye_attr.grid_info.size);
         md5_get((unsigned char *)fisheye_with_grid.grid, fisheye_attr.grid_info.size, md5_grid_info, 0);
-        strcpy(fisheye_with_grid.fisheye_attr.stGridInfoAttr.gridBindName, md5_grid_info);
+        strcpy(fisheye_with_grid.fisheye_attr.grid_info_attr.grid_bind_name, md5_grid_info);
         strcpy(fisheye_name.grid, md5_grid_info);
         md5_get((unsigned char *)&fisheye_name, sizeof(fisheye_name), md5_str, 0);
         snprintf(param.stTask.name, sizeof(param.stTask.name) + 1, md5_str);
-        strcpy(fisheye_with_grid.fisheye_attr.stGridInfoAttr.gridFileName, "L_grid_info_68_68_4624_70_70_dst_2240x2240_src_2240x2240.dat");
+        strcpy(fisheye_with_grid.fisheye_attr.grid_info_attr.grid_file_name, "L_grid_info_68_68_4624_70_70_dst_2240x2240_src_2240x2240.dat");
     }
 
     ret = bm_dwa_basic(handle, input_image, output_image, &param, (void *)&fisheye_with_grid);
@@ -3768,22 +3819,22 @@ bm_status_t bmcv_dwa_affine_internel(bm_handle_t          handle,
                                      bmcv_affine_attr_s   affine_attr){
     bm_status_t ret = BM_SUCCESS;
     bm_dwa_basic_param param;
-    AFFINE_ATTR_S dwa_affine_attr;
+    affine_attr_s dwa_affine_attr;
     bm_affine_name affine_name;
     char md5_str[MD5_STRING_LENGTH + 1];
     memset(&param, 0, sizeof(param));
     memset(&dwa_affine_attr, 0, sizeof(dwa_affine_attr));
     memset(&affine_name, 0, sizeof(affine_name));
 
-    param.size_in.u32Width = input_image.width;
-    param.size_in.u32Height = input_image.height;
-    param.size_out.u32Width = output_image.width;
-    param.size_out.u32Height = output_image.height;
+    param.size_in.width = input_image.width;
+    param.size_in.height = input_image.height;
+    param.size_out.width = output_image.width;
+    param.size_out.height = output_image.height;
     bm_image_format_to_cvi(input_image.image_format, input_image.data_type, &param.enPixelFormat);
     bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "param.enPixelFormat = [%d]\n", param.enPixelFormat);
-    param.identity.enModId = CVI_ID_DWA;
-    param.identity.u32ID = 0;
-    param.identity.syncIo = true;
+    param.identity.mod_id = ID_DWA;
+    param.identity.id = 0;
+    param.identity.sync_io = true;
 
     param.op = DWA_TEST_AFFINE;
 
@@ -3793,10 +3844,10 @@ bm_status_t bmcv_dwa_affine_internel(bm_handle_t          handle,
     snprintf(param.stTask.name, sizeof(param.stTask.name) + 1, md5_str);
     // snprintf(param.identity.Name, sizeof(param.identity.Name), "job_affine");
 
-    dwa_affine_attr.u32RegionNum = affine_attr.u32RegionNum;
-    memcpy(dwa_affine_attr.astRegionAttr, affine_attr.astRegionAttr, sizeof(affine_attr.astRegionAttr));    // user input
-    dwa_affine_attr.stDestSize.u32Width = affine_attr.stDestSize.u32Width;
-    dwa_affine_attr.stDestSize.u32Height = affine_attr.stDestSize.u32Height;
+    dwa_affine_attr.region_num = affine_attr.u32RegionNum;
+    memcpy(dwa_affine_attr.region_attr, affine_attr.astRegionAttr, sizeof(affine_attr.astRegionAttr));    // user input
+    dwa_affine_attr.dest_size.width = affine_attr.stDestSize.u32Width;
+    dwa_affine_attr.dest_size.height = affine_attr.stDestSize.u32Height;
 
     ret = bm_dwa_basic(handle, input_image, output_image, &param, (void *)&dwa_affine_attr);
     if(ret != BM_SUCCESS){
@@ -3818,20 +3869,20 @@ bm_status_t bmcv_dwa_dewarp_internel(bm_handle_t          handle,
     memset(&dewarp_with_grid, 0, sizeof(dewarp_with_grid));
 
     char md5_str[MD5_STRING_LENGTH + 1];
-    param.size_in.u32Width = input_image.width;
-    param.size_in.u32Height = input_image.height;
-    param.size_out.u32Width = output_image.width;
-    param.size_out.u32Height = output_image.height;
+    param.size_in.width = input_image.width;
+    param.size_in.height = input_image.height;
+    param.size_out.width = output_image.width;
+    param.size_out.height = output_image.height;
     bm_image_format_to_cvi(input_image.image_format, input_image.data_type, &param.enPixelFormat);
     bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "param.enPixelFormat = [%d]\n", param.enPixelFormat);
-    param.identity.enModId = CVI_ID_DWA;
-    param.identity.u32ID = 0;
-    param.identity.syncIo = true;
+    param.identity.mod_id = ID_DWA;
+    param.identity.id = 0;
+    param.identity.sync_io = true;
 
     param.op = DWA_TEST_DEWARP;
 
-    dewarp_with_grid.dewarp_attr.bEnable = true;
-    dewarp_with_grid.dewarp_attr.stGridInfoAttr.Enable = true;
+    dewarp_with_grid.dewarp_attr.enable = true;
+    dewarp_with_grid.dewarp_attr.grid_info_attr.enable = true;
     dewarp_with_grid.grid = (char *)grid_info.u.system.system_addr;
     dewarp_name.param = param;
     dewarp_name.dewarp_attr = dewarp_with_grid.dewarp_attr;
@@ -3840,11 +3891,11 @@ bm_status_t bmcv_dwa_dewarp_internel(bm_handle_t          handle,
     // for debug
     bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "dewarp_attr.grid_size = [%d]\n", grid_info.size);
     md5_get((unsigned char *)dewarp_with_grid.grid, grid_info.size, md5_grid_info, 0);
-    strcpy(dewarp_with_grid.dewarp_attr.stGridInfoAttr.gridBindName, md5_grid_info);
+    strcpy(dewarp_with_grid.dewarp_attr.grid_info_attr.grid_bind_name, md5_grid_info);
     strcpy(dewarp_name.grid, md5_grid_info);
     md5_get((unsigned char *)&dewarp_name, sizeof(dewarp_name), md5_str, 0);
     snprintf(param.stTask.name, sizeof(param.stTask.name) + 1, md5_str);
-    strcpy(dewarp_with_grid.dewarp_attr.stGridInfoAttr.gridFileName, "grid_info_79_43_3397_80_45_1280x720.dat");
+    strcpy(dewarp_with_grid.dewarp_attr.grid_info_attr.grid_file_name, "grid_info_79_43_3397_80_45_1280x720.dat");
 
     ret = bm_dwa_basic(handle, input_image, output_image, &param, (void *)&dewarp_with_grid);
     if(ret != BM_SUCCESS){

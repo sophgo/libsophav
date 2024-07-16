@@ -99,7 +99,7 @@ typedef struct _TSK_MESH_ATTR_S {
     void *vaddr;
 } bm_tsk_mesh_attr_s;
 
-typedef struct _VB_CAL_CONFIG_S bm_vb_cal_config_s;
+typedef struct _vb_cal_config_s bm_vb_cal_config_s;
 
 typedef struct LDC_ATTR {
     int Enable; // dewarp engine on/off
@@ -212,25 +212,25 @@ typedef enum _BM_LDC_OP {
 } bm_ldc_op;
 
 typedef struct _BM_LDC_BASIC_PARAM {
-    SIZE_S size_in;
-    SIZE_S size_out;
+    size_s size_in;
+    size_s size_out;
     bmcv_rot_mode enRotation;
-    VIDEO_FRAME_INFO_S stVideoFrameIn;
-    VIDEO_FRAME_INFO_S stVideoFrameOut;
-    PIXEL_FORMAT_E enPixelFormat;
+    video_frame_info_s stVideoFrameIn;
+    video_frame_info_s stVideoFrameOut;
+    pixel_format_e enPixelFormat;
     GDC_HANDLE hHandle;
-    GDC_TASK_ATTR_S stTask;
-    GDC_IDENTITY_ATTR_S identity;        // Define the identity attribute of GDC (To support multi-path), each job has a unique id
+    gdc_task_attr_s stTask;
+    gdc_identity_attr_s identity;        // Define the identity attribute of GDC (To support multi-path), each job has a unique id
     bm_ldc_op op;
     bool needPef;
 } bm_ldc_basic_param;
 
 typedef struct _BM_GEN_MESH_PARAM {
-    LDC_ATTR_S           ldc_attr;
+    ldc_attr_s           ldc_attr;
     bm_device_mem_t      dmem;
 } bm_gen_mesh_param;
 
 typedef struct _BM_GDC_ATTR_AND_GRID_INFO {
-    LDC_ATTR_S ldc_attr;
+    ldc_attr_s ldc_attr;
     char *grid;
 } bm_gdc_attr_and_grid_info;

@@ -190,7 +190,6 @@ bm_status_t bm_ive_image_calc_stride(bm_handle_t handle, int img_h, int img_w,
             break;
         }
         case FORMAT_BAYER:
-        case FORMAT_BAYER_RG8:
         case FORMAT_YUV422_YUYV:
         case FORMAT_YUV422_YVYU:
         case FORMAT_YUV422_UYVY:
@@ -773,17 +772,17 @@ bm_status_t bmcv_ive_gmm2(
 
 void boundary_check(bm_ive_point_u16 *point, int width, int height)
 {
-    if ((short)point->u16X < 0) {
-        point->u16X = 0;
+    if ((short)point->u16_x < 0) {
+        point->u16_x = 0;
     }
-    if ((short)point->u16Y < 0) {
-        point->u16Y = 0;
+    if ((short)point->u16_y < 0) {
+        point->u16_y = 0;
     }
-    if (point->u16X >= width) {
-        point->u16X = width - 1;
+    if (point->u16_x >= width) {
+        point->u16_x = width - 1;
     }
-    if (point->u16Y >= height) {
-        point->u16Y = height - 1;
+    if (point->u16_y >= height) {
+        point->u16_y = height - 1;
     }
 }
 
@@ -826,50 +825,50 @@ bm_status_t bmcv_image_ive_canny_edge(bm_handle_t handle, bm_device_mem_t *hys_e
             if(p_edge_map[y * stride + x] != 2 ||
                visited[y * stride + x >0])
                continue;
-            p.u16X = x;
-            p.u16Y = y;
-            visited[p.u16Y * stride + p.u16X] = 255;
-            pdst[p.u16Y * stride + p.u16X] = 255;
+            p.u16_x = x;
+            p.u16_y = y;
+            visited[p.u16_y * stride + p.u16_x] = 255;
+            pdst[p.u16_y * stride + p.u16_x] = 255;
 
             for(unsigned char dir = 0; dir < 4; dir++){
                 if(dir == VERTICAL){
-                    p1.u16X = p.u16X + 1;
-                    p1.u16Y = p.u16Y;
-                    p2.u16X = p.u16X - 1;
-                    p2.u16Y = p.u16Y;
+                    p1.u16_x = p.u16_x + 1;
+                    p1.u16_y = p.u16_y;
+                    p2.u16_x = p.u16_x - 1;
+                    p2.u16_y = p.u16_y;
                 } else if(dir == HORIZON){
-                    p1.u16X = p.u16X;
-                    p1.u16Y = p.u16Y + 1;
-                    p2.u16X = p.u16X;
-                    p2.u16Y = p.u16Y - 1;
+                    p1.u16_x = p.u16_x;
+                    p1.u16_y = p.u16_y + 1;
+                    p2.u16_x = p.u16_x;
+                    p2.u16_y = p.u16_y - 1;
                 } else if (dir == SLASH){
-                    p1.u16X = p.u16X + 1;
-                    p1.u16Y = p.u16Y - 1;
-                    p2.u16X = p.u16X - 1;
-                    p2.u16Y = p.u16Y + 1;
+                    p1.u16_x = p.u16_x + 1;
+                    p1.u16_y = p.u16_y - 1;
+                    p2.u16_x = p.u16_x - 1;
+                    p2.u16_y = p.u16_y + 1;
                 } else if (dir == BACK_SLASH){
-                    p1.u16X = p.u16X + 1;
-                    p1.u16Y = p.u16Y + 1;
-                    p2.u16X = p.u16X - 1;
-                    p2.u16Y = p.u16Y - 1;
+                    p1.u16_x = p.u16_x + 1;
+                    p1.u16_y = p.u16_y + 1;
+                    p2.u16_x = p.u16_x - 1;
+                    p2.u16_y = p.u16_y - 1;
                 } else {
-                    p1.u16X = p.u16X;
-                    p1.u16Y = p.u16Y;
-                    p2.u16X = p.u16X;
-                    p2.u16Y = p.u16Y;
+                    p1.u16_x = p.u16_x;
+                    p1.u16_y = p.u16_y;
+                    p2.u16_x = p.u16_x;
+                    p2.u16_y = p.u16_y;
                 }
                 boundary_check(&p1, width, height);
                 boundary_check(&p2, width, height);
 
-                if (p_edge_map[p1.u16Y * stride + p1.u16X] == 0 &&
-                    visited[p1.u16Y * stride + p1.u16X] == 0) {
-                    visited[p1.u16Y * stride + p1.u16X] = 255;
-                    pdst[p1.u16Y * stride + p1.u16X] = 255;
+                if (p_edge_map[p1.u16_y * stride + p1.u16_x] == 0 &&
+                    visited[p1.u16_y * stride + p1.u16_x] == 0) {
+                    visited[p1.u16_y * stride + p1.u16_x] = 255;
+                    pdst[p1.u16_y * stride + p1.u16_x] = 255;
                 }
-                if (p_edge_map[p2.u16Y * stride + p2.u16X] == 0 &&
-                    visited[p2.u16Y * stride + p2.u16X] == 0) {
-                    visited[p2.u16Y * stride + p2.u16X] = 255;
-                    pdst[p2.u16Y * stride + p2.u16X] = 255;
+                if (p_edge_map[p2.u16_y * stride + p2.u16_x] == 0 &&
+                    visited[p2.u16_y * stride + p2.u16_x] == 0) {
+                    visited[p2.u16_y * stride + p2.u16_x] = 255;
+                    pdst[p2.u16_y * stride + p2.u16_x] = 255;
                 }
             }
         }

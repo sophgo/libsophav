@@ -13,8 +13,8 @@ endif()
 cmake_policy(SET CMP0046 NEW)
 
 # options
-#set(CHIP_LIST bm1686)
-#set(CHIP_NAME bm1686 CACHE STRING "chip: bm1686")
+#set(CHIP_LIST bm1688)
+#set(CHIP_NAME bm1688 CACHE STRING "chip: bm1688")
 #set_property(CACHE CHIP_NAME PROPERTY STRINGS ${CHIP_LIST})
 #
 #set(PLATFORM_LIST soc pcie pcie_arm64 pcie_loongarch64)
@@ -47,7 +47,7 @@ endif()
 
 set(LIBSOPHAV_OUT_PATH ${CMAKE_CURRENT_BINARY_DIR}/release CACHE STRING "bmvid compile output location")
 # set project name and version after setting cmake toolchains
-set(GIT_VERSION "1.6.0")
+set(GIT_VERSION "1.7.0")
 if(NOT "${GIT_VERSION}" STREQUAL "")
     STRING(REGEX REPLACE "[\n\t\r]" "" GIT_VERSION ${GIT_VERSION})
     STRING(REGEX REPLACE "([0-9][0-9]*)\\..*" "\\1" MAJOR_VERSION ${GIT_VERSION})

@@ -52,8 +52,8 @@ char* error_type[] =
 #define TDE_MIN(A,B) (A < B ? A : B)
 #define TDE_MAX(A,B) (A > B ? A : B)
 
-static vg_lite_buffer_format_t tde_format_to_vglite_format(cvi_tde_color_format format);
-static int tde_draw_single_line(vg_lite_buffer_t *fb, const cvi_tde_line *line);
+static vg_lite_buffer_format_t tde_format_to_vglite_format(tde_color_format format);
+static int tde_draw_single_line(vg_lite_buffer_t *fb, const tde_line *line);
 
 int tde_open(void)
 {
@@ -136,7 +136,7 @@ int tde_vglite_init_buf(vg_lite_buffer_t * vgbuf, uint32_t width, uint32_t heigh
     return VG_LITE_SUCCESS;
 }
 
-int tde_quick_fill(int handle, const cvi_tde_none_src *none_src, unsigned int fill_data)
+int tde_quick_fill(int handle, const tde_none_src *none_src, unsigned int fill_data)
 {
     unsigned int dest_width = 0;
     unsigned int dest_height = 0;
@@ -146,8 +146,8 @@ int tde_quick_fill(int handle, const cvi_tde_none_src *none_src, unsigned int fi
     vg_lite_rectangle_t rect;
     vg_lite_error_t err = VG_LITE_SUCCESS;
     vg_lite_buffer_format_t format = 0;
-    cvi_tde_rect *dst_rect = NULL;
-    cvi_tde_surface *dst_surface = NULL;
+    tde_rect *dst_rect = NULL;
+    tde_surface *dst_surface = NULL;
 
     if (handle < 0 || none_src == NULL) {
         return TDE_FAILURE;
@@ -165,7 +165,7 @@ int tde_quick_fill(int handle, const cvi_tde_none_src *none_src, unsigned int fi
     dest_buf = (unsigned char *)(uint64_t)dst_surface->phys_addr;
     format = tde_format_to_vglite_format(dst_surface->color_format);
 
-    if(tde_vglite_init_buf(&vgbuf, dest_width, dest_height, dest_stride, format, dest_buf, CVI_FALSE) != TDE_SUCCESS) {
+    if(tde_vglite_init_buf(&vgbuf, dest_width, dest_height, dest_stride, format, dest_buf, 0) != TDE_SUCCESS) {
         VG_LITE_RETURN_INV("Init buffer failed.");
     }
 
@@ -182,8 +182,8 @@ int tde_quick_fill(int handle, const cvi_tde_none_src *none_src, unsigned int fi
 }
 
 int tde_draw_corner_box(int handle,
-                                const cvi_tde_surface *dst_surface,
-                                const cvi_tde_corner_rect *corner_rect,
+                                const tde_surface *dst_surface,
+                                const tde_corner_rect *corner_rect,
                                 unsigned int num)
 {
     UNUSED(handle);
@@ -193,7 +193,7 @@ int tde_draw_corner_box(int handle,
     return 0;
 }
 
-int tde_draw_line(int handle, const cvi_tde_surface *dst_surface, const cvi_tde_line *line, unsigned int num)
+int tde_draw_line(int handle, const tde_surface *dst_surface, const tde_line *line, unsigned int num)
 {
     UNUSED(handle);
     UNUSED(dst_surface);
@@ -221,7 +221,7 @@ int tde_draw_line(int handle, const cvi_tde_surface *dst_surface, const cvi_tde_
     dest_buf = (unsigned char *)(uint64_t)dst_surface->phys_addr;
     format = tde_format_to_vglite_format(dst_surface->color_format);
 
-    if(tde_vglite_init_buf(&vgbuf, dest_width, dest_height, dest_stride, format, dest_buf, CVI_FALSE) != TDE_SUCCESS) {
+    if(tde_vglite_init_buf(&vgbuf, dest_width, dest_height, dest_stride, format, dest_buf, 0) != TDE_SUCCESS) {
         VG_LITE_RETURN_INV("Init buffer failed.");
     }
 
@@ -232,13 +232,13 @@ int tde_draw_line(int handle, const cvi_tde_surface *dst_surface, const cvi_tde_
     return 0;
 }
 
-int tde_quick_copy(int handle, const cvi_tde_single_src *single_src)
+int tde_quick_copy(int handle, const tde_single_src *single_src)
 {
 
-    cvi_tde_rect *src_rect = NULL;
-    cvi_tde_rect *dst_rect = NULL;
-    cvi_tde_surface *src_surface = NULL;
-    cvi_tde_surface *dst_surface = NULL;
+    tde_rect *src_rect = NULL;
+    tde_rect *dst_rect = NULL;
+    tde_surface *src_surface = NULL;
+    tde_surface *dst_surface = NULL;
 
     unsigned int vgbuf_width = 0;
     unsigned int vgbuf_height = 0;
@@ -277,7 +277,7 @@ int tde_quick_copy(int handle, const cvi_tde_single_src *single_src)
     vgbuf_address = (unsigned char *)(uint64_t)src_surface->phys_addr;
     format = tde_format_to_vglite_format(src_surface->color_format);
 
-    if(tde_vglite_init_buf(&src_buf, vgbuf_width, vgbuf_height, vgbuf_stride, format, vgbuf_address, CVI_FALSE) != TDE_SUCCESS) {
+    if(tde_vglite_init_buf(&src_buf, vgbuf_width, vgbuf_height, vgbuf_stride, format, vgbuf_address, 0) != TDE_SUCCESS) {
         VG_LITE_RETURN_INV("Init buffer failed.");
     }
 
@@ -287,7 +287,7 @@ int tde_quick_copy(int handle, const cvi_tde_single_src *single_src)
     vgbuf_address = (unsigned char *)(uint64_t)dst_surface->phys_addr;
     format = tde_format_to_vglite_format(dst_surface->color_format);
 
-    if(tde_vglite_init_buf(&dst_buf, vgbuf_width, vgbuf_height, vgbuf_stride, format, vgbuf_address, CVI_FALSE) != TDE_SUCCESS) {
+    if(tde_vglite_init_buf(&dst_buf, vgbuf_width, vgbuf_height, vgbuf_stride, format, vgbuf_address, 0) != TDE_SUCCESS) {
         VG_LITE_RETURN_INV("Init buffer failed.");
     }
 
@@ -317,12 +317,12 @@ int tde_quick_copy(int handle, const cvi_tde_single_src *single_src)
     return TDE_SUCCESS;
 }
 
-int tde_quick_resize(int handle, const cvi_tde_single_src *single_src)
+int tde_quick_resize(int handle, const tde_single_src *single_src)
 {
-    cvi_tde_rect *src_rect = NULL;
-    cvi_tde_rect *dst_rect = NULL;
-    cvi_tde_surface *src_surface = NULL;
-    cvi_tde_surface *dst_surface = NULL;
+    tde_rect *src_rect = NULL;
+    tde_rect *dst_rect = NULL;
+    tde_surface *src_surface = NULL;
+    tde_surface *dst_surface = NULL;
 
     unsigned int vgbuf_width = 0;
     unsigned int vgbuf_height = 0;
@@ -361,7 +361,7 @@ int tde_quick_resize(int handle, const cvi_tde_single_src *single_src)
     vgbuf_address = (unsigned char *)(uint64_t)src_surface->phys_addr;
     format = tde_format_to_vglite_format(src_surface->color_format);
 
-    if(tde_vglite_init_buf(&src_buf, vgbuf_width, vgbuf_height, vgbuf_stride, format, vgbuf_address, CVI_FALSE) != TDE_SUCCESS) {
+    if(tde_vglite_init_buf(&src_buf, vgbuf_width, vgbuf_height, vgbuf_stride, format, vgbuf_address, 0) != TDE_SUCCESS) {
         VG_LITE_RETURN_INV("Init buffer failed.");
     }
 
@@ -371,7 +371,7 @@ int tde_quick_resize(int handle, const cvi_tde_single_src *single_src)
     vgbuf_address = (unsigned char *)(uint64_t)dst_surface->phys_addr;
     format = tde_format_to_vglite_format(dst_surface->color_format);
 
-    if(tde_vglite_init_buf(&dst_buf, vgbuf_width, vgbuf_height, vgbuf_stride, format, vgbuf_address, CVI_FALSE) != TDE_SUCCESS) {
+    if(tde_vglite_init_buf(&dst_buf, vgbuf_width, vgbuf_height, vgbuf_stride, format, vgbuf_address, 0) != TDE_SUCCESS) {
         VG_LITE_RETURN_INV("Init buffer failed.");
     }
 
@@ -404,9 +404,9 @@ int tde_quick_resize(int handle, const cvi_tde_single_src *single_src)
 
 int tde_solid_draw(
     int handle,
-    const cvi_tde_single_src *single_src,
-    const cvi_tde_fill_color *fill_color,
-    const cvi_tde_opt *opt)
+    const tde_single_src *single_src,
+    const tde_fill_color *fill_color,
+    const tde_opt *opt)
 {
     UNUSED(handle);
     UNUSED(single_src);
@@ -415,7 +415,7 @@ int tde_solid_draw(
     return 0;
 }
 
-int tde_rotate(int handle, const cvi_tde_single_src *single_src, cvi_tde_rotate_angle rotate)
+int tde_rotate(int handle, const tde_single_src *single_src, tde_rotate_angle rotate)
 {
     UNUSED(handle);
     UNUSED(single_src);
@@ -423,7 +423,7 @@ int tde_rotate(int handle, const cvi_tde_single_src *single_src, cvi_tde_rotate_
     return 0;
 }
 
-int tde_bit_blit(int handle, const cvi_tde_double_src *double_src, const cvi_tde_opt *opt)
+int tde_bit_blit(int handle, const tde_double_src *double_src, const tde_opt *opt)
 {
     UNUSED(handle);
     UNUSED(double_src);
@@ -433,8 +433,8 @@ int tde_bit_blit(int handle, const cvi_tde_double_src *double_src, const cvi_tde
 
 int tde_pattern_fill(
     int handle,
-    const cvi_tde_double_src *double_src,
-    const cvi_tde_pattern_fill_opt *fill_opt)
+    const tde_double_src *double_src,
+    const tde_pattern_fill_opt *fill_opt)
 {
     UNUSED(handle);
     UNUSED(double_src);
@@ -442,7 +442,7 @@ int tde_pattern_fill(
     return 0;
 }
 
-int tde_mb_blit(int handle, const cvi_tde_mb_src *mb_src, const cvi_tde_mb_opt *opt)
+int tde_mb_blit(int handle, const tde_mb_src *mb_src, const tde_mb_opt *opt)
 {
     UNUSED(handle);
     UNUSED(mb_src);
@@ -523,18 +523,18 @@ void WriteBMPFile (const char * file_name, unsigned char * pbuf, unsigned int si
     }
 }
 
-vg_lite_buffer_format_t tde_format_to_vglite_format(cvi_tde_color_format format)
+vg_lite_buffer_format_t tde_format_to_vglite_format(tde_color_format format)
 {
     switch (format) {
-    case CVI_TDE_COLOR_FORMAT_ARGB1555:
+    case TDE_COLOR_FORMAT_ARGB1555:
         return VG_LITE_ARGB1555;
     default:
         return VG_LITE_ARGB8888;
     }
 }
 
-int save_bmp(const CVI_CHAR *image_name, unsigned char *p, unsigned int width, unsigned int height,
-            unsigned int stride, cvi_tde_color_format cvi_tde_format)
+int save_bmp(const char *image_name, unsigned char *p, unsigned int width, unsigned int height,
+            unsigned int stride, tde_color_format tde_format)
 {
     BITMAPINFOHEADER *infoHeader;
     BITMAPFILEHEADER *fileHeader;
@@ -547,7 +547,7 @@ int save_bmp(const CVI_CHAR *image_name, unsigned char *p, unsigned int width, u
     uint16_t color;
     vg_lite_buffer_format_t format;
 
-    format = tde_format_to_vglite_format(cvi_tde_format);
+    format = tde_format_to_vglite_format(tde_format);
     TDE_DBG("save bmp args: %s %d %d %d, fmt:%d\n", image_name, width, height, stride, format);
 
     l_image_data = image_data;
@@ -689,8 +689,8 @@ static int write_long(FILE *fp,int  l)
     return (putc(l >> 24, fp));
 }
 
-int save_raw(const CVI_CHAR *name, unsigned char* buffer, unsigned int width, unsigned int height,
-            unsigned int stride, cvi_tde_color_format cvi_tde_format)
+int save_raw(const char *name, unsigned char* buffer, unsigned int width, unsigned int height,
+            unsigned int stride, tde_color_format tde_format)
 {
     FILE * fp;
     int status = 1;
@@ -699,7 +699,7 @@ int save_raw(const CVI_CHAR *name, unsigned char* buffer, unsigned int width, un
 
     if (fp != NULL) {
         // Save width, height, stride and format info.
-        write_long(fp, cvi_tde_format);
+        write_long(fp, tde_format);
         write_long(fp, width);
         write_long(fp, height);
         write_long(fp, stride);
@@ -717,7 +717,7 @@ int save_raw(const CVI_CHAR *name, unsigned char* buffer, unsigned int width, un
     return status;
 }
 
-int tde_draw_single_line(vg_lite_buffer_t *fb, const cvi_tde_line *line)
+int tde_draw_single_line(vg_lite_buffer_t *fb, const tde_line *line)
 {
     vg_lite_matrix_t matrix;
     uint32_t data_size;

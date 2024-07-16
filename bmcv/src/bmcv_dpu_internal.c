@@ -92,7 +92,6 @@ bm_status_t bm_dpu_image_calc_stride(bm_handle_t handle, int img_h, int img_w,
             break;
         }
         case FORMAT_BAYER:
-        case FORMAT_BAYER_RG8:
         case FORMAT_YUV422_YUYV:
         case FORMAT_YUV422_YVYU:
         case FORMAT_YUV422_UYVY:

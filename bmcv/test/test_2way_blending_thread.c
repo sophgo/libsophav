@@ -5,6 +5,9 @@
 #include <unistd.h>
 #include "string.h"
 #include "getopt.h"
+#include "signal.h"
+#include <stdatomic.h>
+
 #ifdef __linux__
 #include <sys/time.h>
 #else
@@ -12,10 +15,13 @@
 #include "time.h"
 #endif
 
-pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 #define ALIGN(x, a)      (((x) + ((a)-1)) & ~((a)-1))
 extern void bm_read_bin(bm_image src, const char *input_name);
 extern void bm_write_bin(bm_image dst, const char *output_name);
+
+pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
+_Atomic int threads_running = 1;
+_Atomic int num_threads = 0;
 
 typedef struct {
     int src_h[2];
@@ -160,6 +166,31 @@ exit:
   return ret1;
 }
 
+void blend_HandleSig(int signum)
+{
+  int count=100;
+
+  signal(SIGINT, SIG_IGN);
+  signal(SIGTERM, SIG_IGN);
+
+  printf("signal happen  %d \n",signum);
+
+
+  atomic_store(&threads_running, 0);
+  pthread_cond_broadcast(&cond);
+
+
+  // Wait for all threads to stop
+  while ((atomic_load(&num_threads) > 0) && (count > 0)) {
+    usleep(10000); // Sleep for 10 ms
+    printf("wait thread stop, remaning num_threads %d\n",atomic_load(&num_threads));
+    count--;
+  }
+
+  exit(-1);
+}
+
+
 static int test_2way_blending(int* src_h, int* src_w, char** src_name, char** wgt_name,
                               int loop_time, int dst_w, int dst_h, char* dst_name, int wgt_len,
                               char* compare_name, int input_num, bm_image_format_ext src_fmt,
@@ -178,6 +209,8 @@ static int test_2way_blending(int* src_h, int* src_w, char** src_name, char** wg
   int wgtWidth = ALIGN(stitch_config.ovlap_attr.ovlp_rx[0] - stitch_config.ovlap_attr.ovlp_lx[0] + 1, 16);
   int wgtHeight = src_h[0];
 
+  atomic_fetch_add(&num_threads, 1);
+
   for(int i = 0;i < 2; i++)
   {
     bm_image_create(handle, src_h[i], src_w[i], src_fmt, DATA_TYPE_EXT_1N_BYTE, &src[i],NULL);
@@ -194,13 +227,24 @@ static int test_2way_blending(int* src_h, int* src_w, char** src_name, char** wg
   bm_image_alloc_dev_mem(dst, 1);
 
 
-  for(int i = 0;i < loop_time; i++){
+  for(int i = 0;i < loop_time; i++)
+  {
+
+    if (!atomic_load(&threads_running)) {
+      break;
+    }
+
 #ifdef __linux__
     gettimeofday(&tv_start, NULL);
 #endif
-    pthread_mutex_lock(&lock);
+
     ret = bmcv_blending(handle, input_num, src, dst, stitch_config);
-    pthread_mutex_unlock(&lock);
+    if(0 != ret)
+    {
+      printf("bmcv_blending failed,ret = %d\n", ret);
+      break;
+    }
+
 #ifdef __linux__
     gettimeofday(&tv_end, NULL);
     timediff.tv_sec  = tv_end.tv_sec - tv_start.tv_sec;
@@ -211,9 +255,10 @@ static int test_2way_blending(int* src_h, int* src_w, char** src_name, char** wg
     if(time_single>time_max){time_max = time_single;}
     if(time_single<time_min){time_min = time_single;}
     time_total = time_total + time_single;
+
   }
   time_avg = time_total / loop_time;
-  fps = 1000000 *2 / time_avg;
+  fps = 1000000 / time_avg;
   pixel_per_sec = src_w[0] * src_h[0] * fps/1024/1024;
 
   if(NULL != dst_name)
@@ -240,6 +285,8 @@ static int test_2way_blending(int* src_h, int* src_w, char** src_name, char** wg
   bm_image_destroy(&src[0]);
   bm_image_destroy(&src[1]);
   bm_image_destroy(&dst);
+
+  atomic_fetch_sub(&num_threads, 1);
 
   return ret;
 }
@@ -276,13 +323,11 @@ void* test_blending(void* args){
                              loop_time, dst_w, dst_h, dst_name, wgt_len, compare_name,
                              input_num, src_fmt, dst_fmt, stitch_config, handle)) {
     printf("---------Test 2way blending Failed!--------\n");
-    exit(-1);
   } else {
     printf("----------Test 2way blending success!----------\n");
   }
   return (void*)0;
 }
-
 
 int main(int argc, char *argv[])
 {
@@ -315,6 +360,9 @@ int main(int argc, char *argv[])
     return 0;
   }
 
+  atomic_init(&num_threads, 0);
+  atomic_init(&threads_running, 1);
+
   bm_handle_t handle = NULL;
 
   int src_h[2] = {0}, src_w[2] = {0}, dst_w = 6912, dst_h = 288;
@@ -327,6 +375,9 @@ int main(int argc, char *argv[])
   struct stitch_param stitch_config;
   memset(&stitch_config, 0, sizeof(stitch_config));
   stitch_config.wgt_mode = BM_STITCH_WGT_YUV_SHARE;
+
+  signal(SIGINT, blend_HandleSig);
+  signal(SIGTERM, blend_HandleSig);
 
   int ch = 0, opt_idx = 0;
   while ((ch = getopt_long(argc, argv, "n:a:b:c:d:e:f:g:h:i:j:k:l:m:r:s:x:y:z:W:H", long_options, &opt_idx)) != -1) {
@@ -437,11 +488,10 @@ int main(int argc, char *argv[])
       ret = pthread_join(pid[i], NULL);
       if (ret != 0) {
           printf("Thread join failed\n");
-          exit(-1);
       }
   }
 
-  pthread_mutex_destroy(&lock);
+
   bm_dev_free(handle);
 
   return ret;

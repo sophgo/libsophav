@@ -211,7 +211,9 @@ static bm_status_t per_image_deal_nearest(bm_handle_t handle,
     bm_device_mem_t tensor_input;
     bm_image_get_device_mem(input, &tensor_input);
     bm_image_get_device_mem(output, &tensor_output);
-    ret = bm_malloc_device_byte(handle, &tensor_S, image_dh * image_dw * image_c * 4);
+    int index_size_temp = image_dw > image_dh ? ALIGN(image_dw, 64) : ALIGN(image_dh, 64);
+    ret = bm_malloc_device_byte(handle, &tensor_S, index_size_temp * index_size_temp * image_c * 4);
+    // ret = bm_malloc_device_byte(handle, &tensor_S, image_dh * image_dw * image_c * 4);
     if(BM_SUCCESS != ret) {
         printf("Bm_malloc error\n");
         return ret;
@@ -277,7 +279,9 @@ static bm_status_t per_image_deal_bilinear(bm_handle_t handle,
     bm_device_mem_t tensor_input;
     bm_image_get_device_mem(input, &tensor_input);
     bm_image_get_device_mem(output, &tensor_output);
-    ret = bm_malloc_device_byte(handle, &tensor_S, image_dh * image_dw * image_c * 4);
+    int index_size_temp = image_dw > image_dh ? ALIGN(image_dw, 64) : ALIGN(image_dh, 64);
+    ret = bm_malloc_device_byte(handle, &tensor_S, index_size_temp * index_size_temp * image_c * 4);
+    // ret = bm_malloc_device_byte(handle, &tensor_S, image_dh * image_dw * image_c * 4);
     if (BM_SUCCESS != ret) return ret;
 
     sg_api_cv_warp_perspective_1684x_t param;
