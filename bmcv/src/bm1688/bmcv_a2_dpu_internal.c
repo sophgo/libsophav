@@ -239,7 +239,7 @@ bm_status_t bm_dpu_set_chn(int fd, int DpuGrp, int DpuChn, const dpu_chn_attr_s 
 
 bm_status_t bm_dpu_enable_chn(int fd, int DpuGrp, int DpuChn){
     bm_status_t ret = BM_SUCCESS;
-    struct dpu_chn_cfg chn_cfg = {.dpu_chn_id = DpuGrp, .dpu_chn_id = DpuChn};
+    struct dpu_chn_cfg chn_cfg = {.dpu_grp_id = DpuGrp, .dpu_chn_id = DpuChn};
     ret = (bm_status_t)ioctl(fd, DPU_ENABLE_CHN, &chn_cfg);
     if(ret != BM_SUCCESS){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "DpuGrp(%d) DpuChn(%d) enable fail, %s: %s: %d\n", DpuGrp, DpuChn, filename(__FILE__), __func__, __LINE__);
