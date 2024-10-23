@@ -235,14 +235,14 @@ static u8 ldc_get_valid_tsk_mesh_by_name(const char *name)
     for (i = 0; i < LDC_MAX_TSK_MESH; i++) {
         if (strcmp(tsk_mesh[i].Name, name) == 0 && tsk_mesh[i].paddr && tsk_mesh[i].vaddr) {
             // for debug
-            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "got remain tsk mesh[%d-%s-%llu]\n", i, tsk_mesh[i].Name, tsk_mesh[i].paddr);
+            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "got remain tsk mesh[%d-%s-%llu]\n", i, tsk_mesh[i].Name, tsk_mesh[i].paddr);
             break;
         }
     }
 
     if (i == LDC_MAX_TSK_MESH) {
         // for debug
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "start alloc new tsk mesh[%s]\n", name);
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "start alloc new tsk mesh[%s]\n", name);
     }
     return i;
 }
@@ -251,7 +251,7 @@ static u8 ldc_get_valid_tsk_mesh_by_name2(const char *name)
 {
     u8 i = LDC_MAX_TSK_MESH;
     if (!name) {
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "tsk mesh name is null.\n");
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "tsk mesh name is null.\n");
         return i;
     }
 
@@ -260,7 +260,7 @@ static u8 ldc_get_valid_tsk_mesh_by_name2(const char *name)
             break;
         }
     }
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "i in ldc_get_valid_tsk_mesh_by_name2 = %d\n", i);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "i in ldc_get_valid_tsk_mesh_by_name2 = %d\n", i);
 
     return i;
 }
@@ -379,16 +379,16 @@ static bm_status_t _get_region_dst_mesh_list(bm_ldc_rgn_attr *rgn_attr,
     // 1st loop: to find mesh infos. on source ( backward projection )
     // hit index for buffer
 
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "view_w = %d,\n", view_w);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "view_w = %d,\n", view_w);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "mesh_horcnt = %d,\n", mesh_horcnt);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "mesh_vercnt = %d,\n", mesh_vercnt);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "view_w = %d,\n", view_w);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "view_w = %d,\n", view_w);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "mesh_horcnt = %d,\n", mesh_horcnt);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "mesh_vercnt = %d,\n", mesh_vercnt);
 
     int mesh_xstep = ((1 << PHASEBIT) * (view_w) / mesh_horcnt); //.2
     int mesh_ystep = ((1 << PHASEBIT) * (view_h) / mesh_vercnt); //.2
 
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "mesh_xstep = %d,\n", mesh_xstep);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "mesh_ystep = %d,\n", mesh_ystep);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "mesh_xstep = %d,\n", mesh_xstep);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "mesh_ystep = %d,\n", mesh_ystep);
 
     // give 3 types
     // 1. normal grid mesh geeration.
@@ -471,7 +471,7 @@ static bm_status_t _get_region_dst_mesh_list(bm_ldc_rgn_attr *rgn_attr,
                 ori_idx].knot[knotidx].ycor + ext_idy * (view_h - 1);
         }
     }
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "PASS2!!!!!!\n\r");
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "PASS2!!!!!!\n\r");
     return BM_SUCCESS;
 }
 
@@ -929,7 +929,7 @@ static bm_status_t _offline_get_1st_src_mesh_table(int num_tiley_s1, int num_til
             if (ret != BM_SUCCESS)
                 return ret;
         }
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "OFFLINE tidy = %d\n", tidy);
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "OFFLINE tidy = %d\n", tidy);
     }
 
     return BM_SUCCESS;
@@ -1060,7 +1060,7 @@ static int _offline_get_2nd_src_mesh_table(int stage2_rotate_type, int num_tiley
             }
         }
     }
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "rotate mesh table by 90 degree done!!\n");
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "rotate mesh table by 90 degree done!!\n");
 
     // 1st stage buffer data.
     for (int tidy = 0; tidy < num_tiley_s2; tidy++) {
@@ -1102,7 +1102,7 @@ static int _offline_get_2nd_src_mesh_table(int stage2_rotate_type, int num_tiley
                 }
             }
         }
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "2nd Stage OFFLINE tidy = %d\n", tidy);
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "2nd Stage OFFLINE tidy = %d\n", tidy);
     }
 
 #ifdef SAVE_MESH_TBL_FILE
@@ -1199,7 +1199,7 @@ static int convert_1st_src_mesh_table(int num_tiley_s1, int num_tilex_s1,
         }
     }
 
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "offset=%d, mesh_1st_size=%d\n", offset, mesh_1st_size);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "offset=%d, mesh_1st_size=%d\n", offset, mesh_1st_size);
 
 #ifdef SAVE_MESH_TBL_FILE
     FILE *fp1x_bin = fopen("srcx_1st_mesh.bin", "wb");
@@ -1208,7 +1208,7 @@ static int convert_1st_src_mesh_table(int num_tiley_s1, int num_tilex_s1,
         size_t wr_size = fwrite(src_1st_list_1d, mesh_1st_size, 1, fp1x_bin);
 
         if (wr_size != mesh_1st_size)
-            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "1st src mesh, fwrite %d, only %d succeed\n", mesh_1st_size, wr_size);
+            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "1st src mesh, fwrite %d, only %d succeed\n", mesh_1st_size, wr_size);
         fclose(fp1x_bin);
     }
 #endif
@@ -1294,7 +1294,7 @@ static void convert_2nd_src_mesh_table(int num_tiley_s2, int num_tilex_s2,
     size_t wr_size = fwrite(src_2nd_list_1d, mesh_2nd_size, 1, fp2x_bin);
 
     if (wr_size != mesh_2nd_size)
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "2nd src mesh, fwrite %d, only %d succeed\n", mesh_2nd_size, wr_size);
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "2nd src mesh, fwrite %d, only %d succeed\n", mesh_2nd_size, wr_size);
     fclose(fp2x_bin);
 #endif
 }
@@ -1305,7 +1305,7 @@ int load_meshdata(char *grid, bm_mesh_data_all_s *pmeshdata, const char *bindNam
 
     memcpy(info, grid, 100 * sizeof(int));
 
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "head %d %d %d %d %d\n", info[0], info[1], info[2], info[3], info[4]);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "head %d %d %d %d %d\n", info[0], info[1], info[2], info[3], info[4]);
     pmeshdata->mesh_horcnt = info[0]; // num of mesh in roi
     pmeshdata->mesh_vercnt = info[1]; // num of mesh in roi
     pmeshdata->num_pairs = info[2];
@@ -1334,10 +1334,10 @@ int load_meshdata(char *grid, bm_mesh_data_all_s *pmeshdata, const char *bindNam
     pmeshdata->pnode_src = (int *)calloc(pmeshdata->node_index*2, sizeof(int));
     pmeshdata->pnode_dst = (int *)calloc(pmeshdata->node_index*2, sizeof(int));
 
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "mesh_horcnt,mesh_vercnt,_nbr_mesh_x, _nbr_mesh_y, count_grid, num_nodes: %d %d %d %d %d %d \n",
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "mesh_horcnt,mesh_vercnt,_nbr_mesh_x, _nbr_mesh_y, count_grid, num_nodes: %d %d %d %d %d %d \n",
               pmeshdata->mesh_horcnt, pmeshdata->mesh_vercnt, _nbr_mesh_x, _nbr_mesh_y, count_grid, pmeshdata->node_index);
 
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "imgw, imgh, mesh_w, mesh_h ,unit_rx,unit_ry: %d %d %d %d %d %d \n",
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "imgw, imgh, mesh_w, mesh_h ,unit_rx,unit_ry: %d %d %d %d %d %d \n",
               pmeshdata->imgw, pmeshdata->imgh, pmeshdata->mesh_w, pmeshdata->mesh_h, pmeshdata->unit_rx, pmeshdata->unit_ry);
 
     memcpy(pmeshdata->pgrid_src, grid + 100 * sizeof(int), count_grid * 2 * sizeof(int));
@@ -1348,7 +1348,7 @@ int load_meshdata(char *grid, bm_mesh_data_all_s *pmeshdata, const char *bindNam
     memcpy(pmeshdata->pnode_dst, grid + 100 * sizeof(int) + count_grid * 2 * sizeof(int) * 2 + count_grid * 2 * 4 * sizeof(int) * 2 + pmeshdata->node_index * 2 * sizeof(int), pmeshdata->node_index * 2 * sizeof(int));
 
     pmeshdata->balloc = true;
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "read success!\n");
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "read success!\n");
 
     return 0;
 }
@@ -1377,7 +1377,7 @@ bm_status_t mesh_gen_ldc(size_s in_size,
     src_1st_list_1d = (bm_coord2d_int_hw *)mesh_vir_addr;
     src_2nd_list_1d = (bm_coord2d_int_hw *)(mesh_vir_addr + mesh_1st_size);
 
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "1st src_1st_list=%p(%d), src_2nd_list=%p(%d)\n",src_1st_list_1d, mesh_1st_size, src_2nd_list_1d, mesh_2nd_size);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "1st src_1st_list=%p(%d), src_2nd_list=%p(%d)\n",src_1st_list_1d, mesh_1st_size, src_2nd_list_1d, mesh_2nd_size);
 
     src_1st_list = (bm_coord2d_int_hw *)malloc(mesh_1st_size);
     src_2nd_list = (bm_coord2d_int_hw *)malloc(mesh_2nd_size);
@@ -1388,7 +1388,7 @@ bm_status_t mesh_gen_ldc(size_s in_size,
         free(src_2nd_list);
         free(cfg);
         free(rgn_attr);
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "fail to alloc mesh\n");
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "fail to alloc mesh\n");
         return BM_ERR_NOMEM;
     }
 
@@ -1420,15 +1420,15 @@ bm_status_t mesh_gen_ldc(size_s in_size,
         ori_src_height = in_size.height;
     }
 
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "ori_src_width = %d,\n", ori_src_width);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "ori_src_height = %d,\n", ori_src_height);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "ori_src_width = %d,\n", ori_src_width);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "ori_src_height = %d,\n", ori_src_height);
 
     // In LDC Processing, width & height  aligned to TILESIZE **
     int src_width_s1 = ((ori_src_width + TILESIZE - 1) / TILESIZE) * TILESIZE;
     int src_height_s1 = ((ori_src_height + TILESIZE - 1) / TILESIZE) * TILESIZE;
 
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "src_width_s1 = %d,\n", src_width_s1);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "src_height_s1 = %d,\n", src_height_s1);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "src_width_s1 = %d,\n", src_width_s1);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "src_height_s1 = %d,\n", src_height_s1);
 
     // auto assign correct range:
     reg.src_xstr_s1 = 0;
@@ -1436,14 +1436,14 @@ bm_status_t mesh_gen_ldc(size_s in_size,
     reg.src_xstr_s2 = reg.stage2_rotate_type ? (src_height_s1 - ori_src_height) : 0;
     reg.src_xend_s2 = reg.stage2_rotate_type ? (src_height_s1 - 1) : (ori_src_height - 1);
 
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "reg.stage2_rotate_type = %d,\n", reg.stage2_rotate_type);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "reg.bg_color_y_r = %d,\n", reg.bg_color_y_r);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "reg.bg_color_u_g = %d,\n", reg.bg_color_u_g);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "reg.bg_color_v_b = %d,\n", reg.bg_color_v_b);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "reg.src_xstart_s1 = %d,\n", reg.src_xstr_s1);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "reg.src_xend_s1 = %d,\n", reg.src_xend_s1);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "reg.src_xstart_s2 = %d,\n", reg.src_xstr_s2);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "reg.src_xend_s2 = %d,\n", reg.src_xend_s2);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "reg.stage2_rotate_type = %d,\n", reg.stage2_rotate_type);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "reg.bg_color_y_r = %d,\n", reg.bg_color_y_r);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "reg.bg_color_u_g = %d,\n", reg.bg_color_u_g);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "reg.bg_color_v_b = %d,\n", reg.bg_color_v_b);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "reg.src_xstart_s1 = %d,\n", reg.src_xstr_s1);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "reg.src_xend_s1 = %d,\n", reg.src_xend_s1);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "reg.src_xstart_s2 = %d,\n", reg.src_xstr_s2);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "reg.src_xend_s2 = %d,\n", reg.src_xend_s2);
 
     int x0, y0, r;
 
@@ -1451,7 +1451,7 @@ bm_status_t mesh_gen_ldc(size_s in_size,
     y0 = ori_src_height / 2;
     r = MIN(x0, y0);
 
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "cfg size %d\n", (int)sizeof(bm_ldc_attr));
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "cfg size %d\n", (int)sizeof(bm_ldc_attr));
 
     // update parameters
     _ldc_attr_map_cv182x(pstLDCAttr, cfg, rgn_attr, x0, y0, r, mesh_horcnt, mesh_vercnt);
@@ -1475,7 +1475,7 @@ bm_status_t mesh_gen_ldc(size_s in_size,
         ldc_get_region_src_mesh_list(rgn_attr, rgn_idx, x0, y0, &ldc_meshdata, pstLDCAttr); //, mat0);
 
         // debug msg
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "REGION %d: done.\n", rgn_idx);
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "REGION %d: done.\n", rgn_idx);
     }
 
     //combine all region meshs - mesh projection done.
@@ -1489,19 +1489,19 @@ bm_status_t mesh_gen_ldc(size_s in_size,
     int dst_height_s2 = src_height_s2;
     int dst_width_s2  = src_width_s2;
 
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "dst_height_s1 = %d,\n", dst_height_s1);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "dst_width_s1 = %d,\n", dst_width_s1);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "src_height_s2 = %d,\n", src_height_s2);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "src_width_s2 = %d,\n", src_width_s2);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "dst_height_s2 = %d,\n", dst_height_s2);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "dst_width_s2 = %d,\n", dst_width_s2);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "dst_height_s1 = %d,\n", dst_height_s1);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "dst_width_s1 = %d,\n", dst_width_s1);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "src_height_s2 = %d,\n", src_height_s2);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "src_width_s2 = %d,\n", src_width_s2);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "dst_height_s2 = %d,\n", dst_height_s2);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "dst_width_s2 = %d,\n", dst_width_s2);
 
     // 1st-stage, in(1984, 1088 ) -> out(1984, 1088)
     // 2nd-stage, in(1088, 1984 ) -> out(1088, 1984)
 
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "1st-stage, in(%d, %d ) -> out(%d, %d)\n",
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "1st-stage, in(%d, %d ) -> out(%d, %d)\n",
                 src_width_s1, src_height_s1, dst_width_s1, dst_height_s1);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "2nd-stage, in(%d, %d ) -> out(%d, %d)\n",
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "2nd-stage, in(%d, %d ) -> out(%d, %d)\n",
                 src_width_s2, src_height_s2, dst_width_s2, dst_height_s2);
 
     // tileNum: 1st stage =( 31 X 17 )   2nd stage = ( 17 X 31 )
@@ -1511,7 +1511,7 @@ bm_status_t mesh_gen_ldc(size_s in_size,
     int num_tilex_s2 = dst_width_s2 / TILESIZE;
     int num_tiley_s2 = dst_height_s2 / TILESIZE;
 
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "tileNum: 1st stage =( %d X %d )   2nd stage = ( %d X %d )\n",
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "tileNum: 1st stage =( %d X %d )   2nd stage = ( %d X %d )\n",
                                                 num_tilex_s1, num_tiley_s1, num_tilex_s2, num_tiley_s2);
 
     // to calculate each stage source mesh x-data.
@@ -1550,7 +1550,8 @@ bm_status_t bm_ldc_gen_gdc_mesh(bm_handle_t handle,
                                 const char *name,
                                 uint64_t *pphyaddr,
                                 void **ppVirAddr,
-                                char *grid)
+                                char *grid,
+                                int heap_id)
 {
     bm_status_t ret = BM_SUCCESS;
     uint64_t paddr = 0;
@@ -1560,14 +1561,14 @@ bm_status_t bm_ldc_gen_gdc_mesh(bm_handle_t handle,
     bmcv_rot_mode enRotation = BMCV_ROTATION_0;
 
     in_size.width  = (width  + (LDC_ALIGN - 1)) & ~(LDC_ALIGN - 1);
-    in_size.height = (height  + (LDC_ALIGN - 1)) & ~(LDC_ALIGN - 1);
+    in_size.height = (height + (LDC_ALIGN - 1)) & ~(LDC_ALIGN - 1);
     out_size.width = in_size.width;
     out_size.height = in_size.height;
 
     u8 idx = ldc_get_valid_tsk_mesh_by_name(name);      // 32
     // for debug
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "idx in bm_ldc_gen_gdc_mesh = %d\n", idx);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "name in bm_ldc_gen_gdc_mesh = %s\n", name);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "idx in bm_ldc_gen_gdc_mesh = %d\n", idx);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "name in bm_ldc_gen_gdc_mesh = %s\n", name);
 
     bm_device_mem_t dmem;
     if (idx >= LDC_MAX_TSK_MESH)
@@ -1575,9 +1576,13 @@ bm_status_t bm_ldc_gen_gdc_mesh(bm_handle_t handle,
         mesh_gen_get_size(in_size, out_size, &mesh_1st_size, &mesh_2nd_size);
         mesh_size = mesh_1st_size + mesh_2nd_size;
 
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "W = %d, H = %d, mesh_size = %d\n", in_size.width, in_size.height, mesh_size);
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "W = %d, H = %d, mesh_size = %d\n", in_size.width, in_size.height, mesh_size);
 
-        ret = bm_malloc_device_byte(handle, &dmem, mesh_size);
+        if (heap_id == 1) {
+            ret = bm_malloc_device_byte_heap(handle, &dmem, BM_HEAP_1, mesh_size);
+        } else {
+            ret = bm_malloc_device_byte_heap(handle, &dmem, BM_HEAP_0, mesh_size);
+        }
         if (ret != BM_SUCCESS) {
             bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "bm_malloc_device_byte failed: %s\n", strerror(errno));
             return BM_ERR_FAILURE;
@@ -1632,17 +1637,17 @@ dump_fail:
         tsk_mesh[idx].vaddr = NULL;
 
         // for debug
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "idx in bm_ldc_gen_gdc_mesh for loop = %d\n", idx);
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "tsk_mesh[%d].Name in bm_ldc_gen_gdc_mesh for loop = %s\n", idx, tsk_mesh[idx].Name);
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "tsk_mesh[%d].paddr in bm_ldc_gen_gdc_mesh for loop = %#"PRIx64"\n", idx, (uint64_t)tsk_mesh[idx].paddr);
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "tsk_mesh[%d].vaddr in bm_ldc_gen_gdc_mesh for loop = %p\n", idx, tsk_mesh[idx].vaddr);
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "idx in bm_ldc_gen_gdc_mesh for loop = %d\n", idx);
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "tsk_mesh[%d].Name in bm_ldc_gen_gdc_mesh for loop = %s\n", idx, tsk_mesh[idx].Name);
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "tsk_mesh[%d].paddr in bm_ldc_gen_gdc_mesh for loop = %#"PRIx64"\n", idx, (uint64_t)tsk_mesh[idx].paddr);
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "tsk_mesh[%d].vaddr in bm_ldc_gen_gdc_mesh for loop = %p\n", idx, tsk_mesh[idx].vaddr);
 
     }
     *pphyaddr = (uint64_t)dmem.u.device.device_addr;
     *ppVirAddr = tsk_mesh[idx].vaddr;
     // for debug
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "In bm_ldc_gen_gdc_mesh, pphyaddr = %#"PRIx64", ppVirAddr = %p.\n", *pphyaddr, *ppVirAddr);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "tsk mesh(%#"PRIx64")\n", *pphyaddr);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "In bm_ldc_gen_gdc_mesh, pphyaddr = %#"PRIx64", ppVirAddr = %p.\n", *pphyaddr, *ppVirAddr);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "tsk mesh(%#"PRIx64")\n", *pphyaddr);
 
     return BM_SUCCESS;
 }
@@ -1707,17 +1712,17 @@ bm_status_t bm_ldc_save_gdc_mesh(bm_handle_t handle,
         tsk_mesh[idx].vaddr = NULL;
 
         // for debug
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "idx in bm_ldc_save_gdc_mesh = %d\n", idx);
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "tsk_mesh[%d].Name in bm_ldc_save_gdc_mesh for = %s\n", idx, tsk_mesh[idx].Name);
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "tsk_mesh[%d].paddr in bm_ldc_save_gdc_mesh for = %#"PRIx64"\n", idx, (uint64_t)tsk_mesh[idx].paddr);
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "tsk_mesh[%d].vaddr in bm_ldc_save_gdc_mesh for = %p\n", idx, tsk_mesh[idx].vaddr);
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "idx in bm_ldc_save_gdc_mesh = %d\n", idx);
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "tsk_mesh[%d].Name in bm_ldc_save_gdc_mesh for = %s\n", idx, tsk_mesh[idx].Name);
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "tsk_mesh[%d].paddr in bm_ldc_save_gdc_mesh for = %#"PRIx64"\n", idx, (uint64_t)tsk_mesh[idx].paddr);
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "tsk_mesh[%d].vaddr in bm_ldc_save_gdc_mesh for = %p\n", idx, tsk_mesh[idx].vaddr);
 
     }
     *pphyaddr = (uint64_t)(*dmem).u.device.device_addr;
     *ppVirAddr = tsk_mesh[idx].vaddr;
     // for debug
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "In bm_ldc_save_gdc_mesh, pphyaddr = %#"PRIx64", ppVirAddr = %p.\n", *pphyaddr, *ppVirAddr);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "tsk mesh(%#"PRIx64")\n", *pphyaddr);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "In bm_ldc_save_gdc_mesh, pphyaddr = %#"PRIx64", ppVirAddr = %p.\n", *pphyaddr, *ppVirAddr);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "tsk mesh(%#"PRIx64")\n", *pphyaddr);
 
     return BM_SUCCESS;
 }
@@ -1739,15 +1744,15 @@ bm_status_t bm_ldc_load_gdc_mesh(bm_handle_t handle,
 
     u8 idx = ldc_get_valid_tsk_mesh_by_name(tskName);      // 32
     // for debug
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "idx in bm_ldc_load_gdc_mesh = %d\n", idx);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "name in bm_ldc_load_gdc_mesh = %s\n", tskName);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "idx in bm_ldc_load_gdc_mesh = %d\n", idx);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "name in bm_ldc_load_gdc_mesh = %s\n", tskName);
 
     if (idx >= LDC_MAX_TSK_MESH) {
 
         idx = ldc_get_idle_tsk_mesh();      // 0
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "idx = %d \n", idx + 1);
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "idx = %d \n", idx + 1);
         if (idx >= LDC_MAX_TSK_MESH) {
-            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "tsk mesh count(%d) is out of range(%d)\n", idx + 1, LDC_MAX_TSK_MESH);
+            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "tsk mesh count(%d) is out of range(%d)\n", idx + 1, LDC_MAX_TSK_MESH);
             return BM_ERR_FAILURE;
         }
         strcpy(tsk_mesh[idx].Name, tskName);
@@ -1755,14 +1760,14 @@ bm_status_t bm_ldc_load_gdc_mesh(bm_handle_t handle,
         tsk_mesh[idx].vaddr = (void*)vaddr;
 
         // for debug
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "idx in bm_ldc_load_gdc_mesh for = %d\n", idx);
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "tsk_mesh[%d].Name in bm_ldc_load_gdc_mesh for = %s\n", idx, tsk_mesh[idx].Name);
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "tsk_mesh[%d].paddr in bm_ldc_load_gdc_mesh for = %#"PRIx64"\n", idx, (uint64_t)tsk_mesh[idx].paddr);
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "tsk_mesh[%d].paddr in bm_ldc_load_gdc_mesh for = %p\n", idx, tsk_mesh[idx].vaddr);
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "idx in bm_ldc_load_gdc_mesh for = %d\n", idx);
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "tsk_mesh[%d].Name in bm_ldc_load_gdc_mesh for = %s\n", idx, tsk_mesh[idx].Name);
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "tsk_mesh[%d].paddr in bm_ldc_load_gdc_mesh for = %#"PRIx64"\n", idx, (uint64_t)tsk_mesh[idx].paddr);
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "tsk_mesh[%d].paddr in bm_ldc_load_gdc_mesh for = %p\n", idx, tsk_mesh[idx].vaddr);
     }
     *pphyaddr = (uint64_t)(*dmem).u.device.device_addr;
     *ppVirAddr = tsk_mesh[idx].vaddr;
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "In bm_ldc_load_gdc_mesh, pphyaddr = %#"PRIx64", ppVirAddr = %p.\n", *pphyaddr, *ppVirAddr);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "In bm_ldc_load_gdc_mesh, pphyaddr = %#"PRIx64", ppVirAddr = %p.\n", *pphyaddr, *ppVirAddr);
 
     return BM_SUCCESS;
 }
@@ -1916,13 +1921,13 @@ static bm_status_t ldc_free_cur_tsk_mesh(char* meshName)
 
     i = ldc_get_valid_tsk_mesh_by_name2(meshName);
     // for debug
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "i in ldc_free_cur_tsk_mesh = %d\n", i);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "tsk_mesh[%d].paddr = %#"PRIx64"\n", i, (uint64_t)tsk_mesh[i].paddr);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "tsk_mesh[%d].vaddr = %p\n", i, tsk_mesh[i].vaddr);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "i in ldc_free_cur_tsk_mesh = %d\n", i);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "tsk_mesh[%d].paddr = %#"PRIx64"\n", i, (uint64_t)tsk_mesh[i].paddr);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "tsk_mesh[%d].vaddr = %p\n", i, tsk_mesh[i].vaddr);
 
     if (i < LDC_MAX_TSK_MESH && tsk_mesh[i].paddr /*&& tsk_mesh[i].vaddr*/)
     {
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "start free tsk mesh[%s]\n", meshName);
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "start free tsk mesh[%s]\n", meshName);
         tsk_mesh[i].paddr = 0;
         tsk_mesh[i].vaddr = 0;
         memset(tsk_mesh[i].Name, 0, sizeof(tsk_mesh[i].Name));
@@ -1942,12 +1947,12 @@ bm_status_t bm_ldc_free_all_tsk_mesh(void)
     {
         if (tsk_mesh[i].paddr && tsk_mesh[i].vaddr)
         {
-            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "start free tsk mesh[%s]\n", tsk_mesh[i].Name);
+            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "start free tsk mesh[%s]\n", tsk_mesh[i].Name);
             tsk_mesh[i].paddr = 0;
             tsk_mesh[i].vaddr = 0;
             memset(tsk_mesh[i].Name, 0, sizeof(tsk_mesh[i].Name));
         } else {
-            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "Failed to free %d-th tsk mesh[%s]\n", i, tsk_mesh[i].Name);
+            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "Failed to free %d-th tsk mesh[%s]\n", i, tsk_mesh[i].Name);
             ret = BM_ERR_PARAM;
         }
     }
@@ -2011,16 +2016,16 @@ bm_status_t bm_ldc_cancel_job(int fd, GDC_HANDLE hHandle)
     return ret;
 }
 
-bm_status_t bm_ldc_init(int fd)
-{
-    bm_status_t ret;
-    ret = (bm_status_t)ioctl(fd, LDC_INIT);
-    if (ret != BM_SUCCESS) {
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "Init LDC failed!\n");
-        return ret;
-    }
-    return BM_SUCCESS;
-}
+// bm_status_t bm_ldc_init(int fd)
+// {
+//     bm_status_t ret;
+//     ret = (bm_status_t)ioctl(fd, LDC_INIT);
+//     if (ret != BM_SUCCESS) {
+//         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "Init LDC failed!\n");
+//         return ret;
+//     }
+//     return BM_SUCCESS;
+// }
 
 bm_status_t bm_ldc_deinit(int fd)
 {
@@ -2164,7 +2169,7 @@ bm_status_t bm_ldc_add_gdc_task(bm_handle_t handle,
     attr.private_data[0] = pstTask->privatedata[0];
     attr.reserved = pstTask->reserved;
     attr.rotation = rot[0];
-    ret = (bm_status_t)ioctl(fd, LDC_ADD_LDC_TASK, &attr);
+    ret = (bm_status_t)ioctl(fd, LDC_ADD_LDC_LDC_TASK, &attr);
     if (ret != BM_SUCCESS) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "LDC ldc_add_gdc_task stage-1 failed!\n");
         return ret;
@@ -2175,7 +2180,7 @@ bm_status_t bm_ldc_add_gdc_task(bm_handle_t handle,
     memcpy(&attr.img_out, &pstTask->img_out, sizeof(attr.img_out));
     attr.private_data[0] = pstTask->privatedata[0] + mesh_1st_size;
     attr.rotation = rot[1];
-    ret = (bm_status_t)ioctl(fd, LDC_ADD_LDC_TASK, &attr);
+    ret = (bm_status_t)ioctl(fd, LDC_ADD_LDC_LDC_TASK, &attr);
     if (ret != BM_SUCCESS) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "LDC ldc_add_gdc_task stage-2 failed!\n");
         return ret;
@@ -2211,7 +2216,7 @@ static bm_status_t bm_ldc_basic_add_tsk(bm_handle_t handle, int fd, bm_ldc_basic
         case BM_LDC_GDC:
             gdc_attr_and_grid = (bm_gdc_attr_and_grid_info *)ptr;
             ret = bm_ldc_gen_gdc_mesh(handle, param->size_in.width, param->size_in.height,
-                                      &(gdc_attr_and_grid->ldc_attr), param->stTask.name, &phyaddr, &pVirAddr, gdc_attr_and_grid->grid);
+                                      &(gdc_attr_and_grid->ldc_attr), param->stTask.name, &phyaddr, &pVirAddr, gdc_attr_and_grid->grid, param->heap_num);
             if (ret != BM_SUCCESS) {
                 bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "bm_ldc_gen_gdc_mesh(%s) fail\n", param->stTask.name);
                 ret = BM_ERR_FAILURE;
@@ -2232,7 +2237,7 @@ static bm_status_t bm_ldc_basic_add_tsk(bm_handle_t handle, int fd, bm_ldc_basic
                 ret = BM_ERR_FAILURE;
             }
             param->stTask.privatedata[0] = phyaddr;
-            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "In bm_ldc_basic_add_tsk, param->stTask.au64privateData[0] = %#"PRIx64"\n", param->stTask.privatedata[0]);
+            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "In bm_ldc_basic_add_tsk, param->stTask.au64privateData[0] = %#"PRIx64"\n", param->stTask.privatedata[0]);
             break;
         case BM_LDC_GDC_LOAD_MESH:
             a2dem = (bm_device_mem_t *)ptr;
@@ -2279,9 +2284,9 @@ bm_status_t bm_ldc_basic(bm_handle_t handle,
        return ret;
 
     // Init LDC
-    ret = bm_ldc_init(fd);
-    if (ret != BM_SUCCESS)
-       return ret;
+    // ret = bm_ldc_init(fd);
+    // if (ret != BM_SUCCESS)
+    //    return ret;
 
     param->hHandle = 0;
 
@@ -2302,7 +2307,13 @@ bm_status_t bm_ldc_basic(bm_handle_t handle,
         } else {
             dem_size = param->size_out.width * param->size_out.height;
         }
-        ret = bm_malloc_device_byte(handle, &mid_mem, dem_size);
+
+        if (param->heap_num == 1) {
+            ret = bm_malloc_device_byte_heap(handle, &mid_mem, BM_HEAP_1, dem_size);
+        } else {
+            ret = bm_malloc_device_byte_heap(handle, &mid_mem, BM_HEAP_0, dem_size);
+        }
+
         if (ret != BM_SUCCESS) {
             bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "bm_malloc_device_byte failed: %s\n", strerror(errno));
             goto fail1;
@@ -2329,7 +2340,7 @@ bm_status_t bm_ldc_basic(bm_handle_t handle,
 
 fail2:
     ret = bm_ldc_free_cur_task_mesh(param->stTask.name);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "name in bm_ldc_free_cur_task_mesh = %s\n", param->stTask.name);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "name in bm_ldc_free_cur_task_mesh = %s\n", param->stTask.name);
     if (ret != BM_SUCCESS) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "bm_ldc_free_cur_task_mesh failed!\n");
     }
@@ -2476,6 +2487,12 @@ bm_status_t bm_ldc_gdc_internal(bm_handle_t          handle,
     param.identity.id = 0;
     param.identity.sync_io = true;
 
+    if (in_image.image_private->data[0].u.device.device_addr >= BMCV_HEAP_1_START) {
+        param.heap_num = 1;
+    } else {
+        param.heap_num = 0;
+    }
+
     bm_gdc_attr_and_grid_info gdc_with_grid;
     memset(&gdc_with_grid, 0, sizeof(gdc_with_grid));
 
@@ -2556,7 +2573,7 @@ bm_status_t bm_ldc_gdc_gen_mesh_internal(bm_handle_t          handle,
         return ret;
     }
     dmem.u.device.device_addr = param.stTask.privatedata[0];
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "In bm_ldc_gdc_gen_mesh_internal, dmem->u.device.device_addr = %#"PRIx64"\n", (uint64_t)dmem.u.device.device_addr);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "In bm_ldc_gdc_gen_mesh_internal, dmem->u.device.device_addr = %#"PRIx64"\n", (uint64_t)dmem.u.device.device_addr);
     return ret;
 }
 
@@ -2581,6 +2598,19 @@ bm_status_t bm_ldc_gdc_load_mesh_internal(bm_handle_t          handle,
     param.identity.sync_io = true;
 
     param.op = BM_LDC_GDC_LOAD_MESH;
+    if ((dmem.u.device.device_addr >= BMCV_HEAP_1_START && in_image.image_private->data[0].u.device.device_addr < BMCV_HEAP_1_START) ||
+       (dmem.u.device.device_addr < BMCV_HEAP_1_START && in_image.image_private->data[0].u.device.device_addr >= BMCV_HEAP_1_START))
+    {
+        ret = BM_ERR_PARAM;
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "Error! The input image and mesh should be in the same heap!\n");
+        return ret;
+    }
+
+    if (dmem.u.device.device_addr >= BMCV_HEAP_1_START) {
+        param.heap_num = 1;
+    } else {
+        param.heap_num = 0;
+    }
 
     ret = bm_ldc_basic(handle, in_image, out_image, &param, (void *)&dmem);
     if (ret != BM_SUCCESS) {

@@ -14,5 +14,3 @@
 
 #include "linux/comm_gdc.h"
 #include "linux/ldc_uapi.h"
-#include "linux/dwa_uapi.h"
-

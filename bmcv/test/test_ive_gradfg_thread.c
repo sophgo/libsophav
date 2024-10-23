@@ -117,7 +117,7 @@ static void * ive_gradfg(void* arg){
     bm_image_create(handle, height, width, fmt, DATA_TYPE_EXT_U16, &stBgGrad, u16Stride);
     bm_image_create(handle, height, width, fmt, DATA_TYPE_EXT_1N_BYTE, &stGragFg, u8Stride);
 
-    ret = bm_image_alloc_dev_mem(stBgdiffFg, BMCV_HEAP_ANY);
+    ret = bm_image_alloc_dev_mem(stBgdiffFg, BMCV_HEAP1_ID);
     if (ret != BM_SUCCESS) {
         printf("stBgdiffFg bm_image_alloc_dev_mem failed. ret = %d\n", ret);
         bm_image_destroy(&stBgdiffFg);
@@ -128,7 +128,7 @@ static void * ive_gradfg(void* arg){
     }
     bm_ive_read_bin(stBgdiffFg, src_name);
 
-    ret = bm_image_alloc_dev_mem(stCurGrad, BMCV_HEAP_ANY);
+    ret = bm_image_alloc_dev_mem(stCurGrad, BMCV_HEAP1_ID);
     if (ret != BM_SUCCESS) {
         printf("stCurGrad bm_image_alloc_dev_mem failed. ret = %d\n", ret);
         bm_image_destroy(&stBgdiffFg);
@@ -138,7 +138,7 @@ static void * ive_gradfg(void* arg){
         exit(-1);
     }
 
-    ret = bm_image_alloc_dev_mem(stBgGrad, BMCV_HEAP_ANY);
+    ret = bm_image_alloc_dev_mem(stBgGrad, BMCV_HEAP1_ID);
     if (ret != BM_SUCCESS) {
         printf("stBgGrad bm_image_alloc_dev_mem failed. ret = %d\n", ret);
         bm_image_destroy(&stBgdiffFg);
@@ -148,7 +148,7 @@ static void * ive_gradfg(void* arg){
         exit(-1);
     }
 
-    ret = bm_image_alloc_dev_mem(stGragFg, BMCV_HEAP_ANY);
+    ret = bm_image_alloc_dev_mem(stGragFg, BMCV_HEAP1_ID);
     if (ret != BM_SUCCESS) {
         printf("stGragFg bm_image_alloc_dev_mem failed. ret = %d\n", ret);
         bm_image_destroy(&stBgdiffFg);
@@ -285,10 +285,10 @@ int main(int argc, char **argv){
     else if (argc == 3){
         test_threads_num = atoi(argv[1]);
         test_loop_times  = atoi(argv[2]);
-    } else if (argc > 3 && argc < 5) {
-        printf("command input error, please follow this order:\n \
+    } else if ((argc > 3 && argc < 5) || (argc == 1)) {
+        printf("please follow this order to input command:\n \
         %s width height gradfg_mode src_name ref_name dev_id thread_num loop_num bWrite dst_name\n \
-        %s thread_num loop_num\n", argv[0], argv[0]);
+        %s 352 288 0 ive_data/00_352x288_y.yuv ive_data/result/sample_GradFg_USE_CUR_GRAD.yuv\n", argv[0], argv[0]);
         exit(-1);
     }
     if (test_loop_times > 15000 || test_loop_times < 1) {

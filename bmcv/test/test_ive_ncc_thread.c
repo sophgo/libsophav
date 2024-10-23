@@ -76,13 +76,13 @@ static void * ive_ncc(void* arg){
 
     bm_image_create(handle, height, width, src_fmt, DATA_TYPE_EXT_1N_BYTE, &src1, src_stride);
     bm_image_create(handle, height, width, src_fmt, DATA_TYPE_EXT_1N_BYTE, &src2, src_stride);
-    ret = bm_image_alloc_dev_mem(src1, BMCV_HEAP_ANY);
+    ret = bm_image_alloc_dev_mem(src1, BMCV_HEAP1_ID);
     if (ret != BM_SUCCESS) {
         printf("src1 bm_image_alloc_dev_mem_src. ret = %d\n", ret);
         exit(-1);
     }
 
-    ret = bm_image_alloc_dev_mem(src2, BMCV_HEAP_ANY);
+    ret = bm_image_alloc_dev_mem(src2, BMCV_HEAP1_ID);
     if (ret != BM_SUCCESS) {
         printf("src2 bm_image_alloc_dev_mem_src. ret = %d\n", ret);
         exit(-1);
@@ -189,10 +189,10 @@ int main(int argc, char **argv){
     else if (argc == 3){
         test_threads_num = atoi(argv[1]);
         test_loop_times  = atoi(argv[2]);
-    } else if (argc > 3 && argc < 7) {
-        printf("command input error, please follow this order:\n \
+    } else if ((argc > 3 && argc < 7) || (argc == 1)) {
+        printf("please follow this order to input command:\n \
         %s width height src1_name src2_name dst_name golden_sample_name dev_id thread_num loop_num\n \
-        %s thread_num loop_num\n", argv[0], argv[0]);
+        %s 352 288 ive_data/00_352x288_y.yuv ive_data/01_352x288_y.yuv dst_bin ive_data/result/sample_NCC_Mem.bin 0 1 5\n", argv[0], argv[0]);
         exit(-1);
     }
     if (test_loop_times > 15000 || test_loop_times < 1) {

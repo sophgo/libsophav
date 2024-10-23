@@ -129,8 +129,8 @@ bm_status_t vpss_convert_padding(unsigned char *src_data,
 
     bm_image_create(handle, in_height, in_width, src_format, DATA_TYPE_EXT_1N_BYTE, &src, NULL);
     bm_image_create(handle, out_height, out_width, dst_format, DATA_TYPE_EXT_1N_BYTE, &dst, NULL);
-    bm_image_alloc_dev_mem(src, BMCV_HEAP_ANY);
-    bm_image_alloc_dev_mem(dst, BMCV_HEAP_ANY);
+    bm_image_alloc_dev_mem(src, BMCV_HEAP1_ID);
+    bm_image_alloc_dev_mem(dst, BMCV_HEAP1_ID);
 
     int src_image_byte_size[4] = {0};
     bm_image_get_byte_size(src, src_image_byte_size);
@@ -432,7 +432,7 @@ int main(int argc, char **argv) {
     algorithm = atoi(argv[17]);
     use_real_img = atoi(argv[18]);
     if (argc == 20) {
-        strncpy(filename_src, argv[19], sizeof(filename_src));
+        memcpy(filename_src, argv[19], sizeof(filename_src));
     }
 
     dst_format = src_format;

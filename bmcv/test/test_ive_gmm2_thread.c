@@ -161,7 +161,7 @@ static void * ive_gmm2(void* arg){
     bm_ive_image_calc_stride(handle, height, width, src_fmt, DATA_TYPE_EXT_1N_BYTE, stride);
 
     bm_image_create(handle, height, width, src_fmt, DATA_TYPE_EXT_1N_BYTE, &src, stride);
-    ret = bm_image_alloc_dev_mem(src, BMCV_HEAP_ANY);
+    ret = bm_image_alloc_dev_mem(src, BMCV_HEAP1_ID);
     if (ret != BM_SUCCESS) {
         printf("bm_image_alloc_dev_mem_src. ret = %d\n", ret);
         goto fail;
@@ -169,7 +169,7 @@ static void * ive_gmm2(void* arg){
 
     bm_ive_image_calc_stride(handle, height, width, src_fmt, DATA_TYPE_EXT_U16, factorStride);
     bm_image_create(handle, height, width, FORMAT_GRAY, DATA_TYPE_EXT_U16, &src_factor, factorStride);
-    ret = bm_image_alloc_dev_mem(src_factor, BMCV_HEAP_ANY);
+    ret = bm_image_alloc_dev_mem(src_factor, BMCV_HEAP1_ID);
     if (ret != BM_SUCCESS) {
         printf("bm_image_alloc_dev_mem_src. ret = %d\n", ret);
         goto fail;
@@ -181,14 +181,14 @@ static void * ive_gmm2(void* arg){
     }
 
     bm_image_create(handle, height, width, FORMAT_GRAY, DATA_TYPE_EXT_1N_BYTE, &dst_fg, stride);
-    ret = bm_image_alloc_dev_mem(dst_fg, BMCV_HEAP_ANY);
+    ret = bm_image_alloc_dev_mem(dst_fg, BMCV_HEAP1_ID);
     if (ret != BM_SUCCESS) {
         printf("bm_image_alloc_dev_mem_src. ret = %d\n", ret);
         goto fail;
     }
 
     bm_image_create(handle, height, width, FORMAT_GRAY, DATA_TYPE_EXT_1N_BYTE, &dst_bg, stride);
-    ret = bm_image_alloc_dev_mem(dst_bg, BMCV_HEAP_ANY);
+    ret = bm_image_alloc_dev_mem(dst_bg, BMCV_HEAP1_ID);
     if (ret != BM_SUCCESS) {
         printf("bm_image_alloc_dev_mem_src. ret = %d\n", ret);
         goto fail;
@@ -196,7 +196,7 @@ static void * ive_gmm2(void* arg){
 
     bm_image_create(handle, height, width, FORMAT_GRAY,
                          DATA_TYPE_EXT_1N_BYTE, &dst_model_match_model_info, stride);
-    ret = bm_image_alloc_dev_mem(dst_model_match_model_info, BMCV_HEAP_ANY);
+    ret = bm_image_alloc_dev_mem(dst_model_match_model_info, BMCV_HEAP1_ID);
     if (ret != BM_SUCCESS) {
         printf("bm_image_alloc_dev_mem_src. ret = %d\n", ret);
         goto fail;
@@ -395,10 +395,10 @@ int main(int argc, char **argv){
     else if (argc == 3){
         test_threads_num = atoi(argv[1]);
         test_loop_times  = atoi(argv[2]);
-    } else if (argc > 3 && argc < 9) {
-        printf("command input error, please follow this order:\n \
+    } else if ((argc > 3 && argc < 9) || (argc == 1)) {
+        printf("please follow this order to input command:\n \
         %s width height src_fmt pixel_ctrl life_update_enMode src_name inputFactor_name goldenFg_name goldenBg_name goldenPcMatch_name dev_id thread_num loop_num bWrite dstFg_name dstFg_name\n \
-        %s thread_num loop_num\n", argv[0], argv[0]);
+        %s 352 288 14 0 0 ive_data/campus.u8c1.1_100.raw null ive_data/result/sample_GMM2_U8C1_fg_31.yuv ive_data/result/sample_GMM2_U8C1_bg_31.yuv\n", argv[0], argv[0]);
         exit(-1);
     }
     if (test_loop_times > 15000 || test_loop_times < 1) {

@@ -93,10 +93,10 @@ static int cpu_matrix_mul(bool trans_A, bool trans_B, int M, int N, int K, void*
 {
     int* pC;
     int i, j, k;
-    signed char* pA_signed;
-    unsigned char* pA_unsigned;
-    signed char* pB_signed;
-    unsigned char* pB_unsigned;
+    signed char* pA_signed = NULL;
+    unsigned char* pA_unsigned = NULL;
+    signed char* pB_signed = NULL;
+    unsigned char* pB_unsigned = NULL;
 
     if (src_A == NULL || src_B == NULL || src_C == NULL) {
         printf("the cpu_matrix_mul param error!\n");

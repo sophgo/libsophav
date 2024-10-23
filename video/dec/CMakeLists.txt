@@ -7,7 +7,12 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../3rdparty/osdrv)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../3rdparty/libbmcv/include)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/example)
 
-link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../3rdparty/libbmcv/lib/${PLATFORM})
+string(FIND "${CMAKE_C_COMPILER}" "aarch64-linux-gnu-gcc" COMPILER_FOUND)
+if (COMPILER_FOUND GREATER -1)
+    link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../3rdparty/libbmcv/lib/${PLATFORM})
+else ()
+    link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../3rdparty/libbmcv/lib930/${PLATFORM})
+endif ()
 link_directories(${CMAKE_CURRENT_SOURCE_DIR}/helper)
 
 set(VPU_DEC_LIB_NAME bmvd CACHE INTERNAL "vdec library name")

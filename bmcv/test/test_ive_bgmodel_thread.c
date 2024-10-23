@@ -91,25 +91,25 @@ bm_status_t init_match_bgmodel(bm_handle_t handle, bm_image* pstCurImg,
         return ret;
     }
 
-    ret = bm_image_alloc_dev_mem(*pstCurImg, BMCV_HEAP_ANY);
+    ret = bm_image_alloc_dev_mem(*pstCurImg, BMCV_HEAP1_ID);
     if (ret != BM_SUCCESS) {
         printf("pstCurImg bm_image_alloc_dev_mem_src. ret = %d\n", ret);
         return ret;
     }
 
-    ret = bm_image_alloc_dev_mem(*pstFgFlag, BMCV_HEAP_ANY);
+    ret = bm_image_alloc_dev_mem(*pstFgFlag, BMCV_HEAP1_ID);
     if (ret != BM_SUCCESS) {
         printf("pstFgFlag bm_image_alloc_dev_mem_src. ret = %d\n", ret);
         return ret;
     }
 
-    ret = bm_image_alloc_dev_mem(*pstDiffFg, BMCV_HEAP_ANY);
+    ret = bm_image_alloc_dev_mem(*pstDiffFg, BMCV_HEAP1_ID);
     if (ret != BM_SUCCESS) {
         printf("pstDiffFg bm_image_alloc_dev_mem_src. ret = %d\n", ret);
         return ret;
     }
 
-    ret = bm_image_alloc_dev_mem(*pstBgModel, BMCV_HEAP_ANY);
+    ret = bm_image_alloc_dev_mem(*pstBgModel, BMCV_HEAP1_ID);
     if(ret != BM_SUCCESS){
         printf("pstBgModel bm_malloc_device_byte. ret = %d\n", ret);
         return ret;
@@ -170,13 +170,13 @@ bm_status_t init_update_bgmodel(bm_handle_t handle, bm_image* pstBgImg, bm_image
         return ret;
     }
 
-    ret = bm_image_alloc_dev_mem(*pstBgImg, BMCV_HEAP_ANY);
+    ret = bm_image_alloc_dev_mem(*pstBgImg, BMCV_HEAP1_ID);
     if (ret != BM_SUCCESS) {
         printf("pstBgImg bm_image_alloc_dev_mem_src. ret = %d\n", ret);
         return ret;
     }
 
-    ret = bm_image_alloc_dev_mem(*pstChgSta, BMCV_HEAP_ANY);
+    ret = bm_image_alloc_dev_mem(*pstChgSta, BMCV_HEAP1_ID);
     if (ret != BM_SUCCESS) {
         printf("pstChgSta bm_image_alloc_dev_mem_src. ret = %d\n", ret);
         return ret;
@@ -488,10 +488,10 @@ int main(int argc, char **argv){
     else if (argc == 3){
         test_threads_num = atoi(argv[1]);
         test_loop_times  = atoi(argv[2]);
-    } else if (argc > 3 && argc < 5) {
-        printf("command input error, please follow this order:\n \
+    } else if ((argc > 3 && argc < 5) || (argc == 1)) {
+        printf("please follow this order to input command:\n \
         %s width height src_name ref_name dev_id thread_num loop_num bWrite bgModel_name\n \
-        %s thread_num loop_num\n", argv[0], argv[0]);
+        %s 352 288 ive_data/campus.u8c1.1_100.raw ive_data/result/sample_BgModelSample2_BgMdl_100.bin 0 1 1\n", argv[0], argv[0]);
         exit(-1);
     }
     if (test_loop_times > 15000 || test_loop_times < 1) {

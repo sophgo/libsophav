@@ -438,6 +438,7 @@ enum ENUM_CHIP_ID {
 /* For STITCH*/
 #define STITCH_MAX_SRC_NUM         4
 #define STITCH_ALIGN                   16
+#define STITCH_MAX_GRP_NUM             16
 
 #ifdef __cplusplus
 #if __cplusplus

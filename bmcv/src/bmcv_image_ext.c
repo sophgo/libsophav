@@ -10,6 +10,12 @@
 //     #define PAGE_SIZE ((u64)bm_getpagesize())
 // #endif
 #endif
+
+#ifdef __linux__
+#define __USE_GNU
+#include <dlfcn.h>
+#endif
+
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 #define STB_IMAGE_WRITE_IMPLEMENTATION
@@ -249,6 +255,7 @@ bm_status_t bm_image_create(bm_handle_t              handle,
     res->image_private->attached = false;
     res->image_private->data_owned = false;
     res->image_private->default_stride = false;
+    res->image_private->owned_mem = true;
 #ifndef USING_CMODEL
     res->image_private->decoder = NULL;
 #endif
@@ -279,6 +286,102 @@ bm_status_t bm_image_create(bm_handle_t              handle,
         free(res->image_private);
         res->image_private = NULL;
         return BM_ERR_DATA;
+    }
+    res->image_private->handle = handle;
+    return BM_SUCCESS;
+}
+
+bm_status_t bm_image_update(bm_handle_t              handle,
+                            int                      img_h,
+                            int                      img_w,
+                            bm_image_format_ext      image_format,
+                            bm_image_data_format_ext data_type,
+                            bm_image *               res,
+                            int *                    stride) {
+    res->width         = img_w;
+    res->height        = img_h;
+    res->image_format  = image_format;
+    res->data_type     = data_type;
+    if (!res->image_private) {
+        bmlib_log("BMCV",BMLIB_LOG_ERROR, "bm_image image_private is NULL %s: %s: %d\n",
+                  filename(__FILE__),__func__,__LINE__);
+        return BM_ERR_NOMEM;
+    }
+
+    if (bm_image_format_check(img_h, img_w, image_format, data_type) !=
+        BM_SUCCESS) {
+        bmlib_log("BMCV",
+                  BMLIB_LOG_ERROR,
+                  "illegal format or size %s: %s: %d\n",
+                  filename(__FILE__),
+                  __func__,
+                  __LINE__);
+        return BM_ERR_PARAM;
+    }
+    if (fill_image_private(res, stride) != BM_SUCCESS) {
+        bmlib_log("BMCV", BMLIB_LOG_ERROR, "illegal stride %s: %s: %d\n",
+                  filename(__FILE__),  __func__, __LINE__);
+        return BM_ERR_PARAM;
+    }
+    res->image_private->handle = handle;
+    return BM_SUCCESS;
+}
+
+size_t bmcv_get_private_size(void)
+{
+    return sizeof(struct bm_image_private);
+}
+
+bm_status_t bm_image_create_private(bm_handle_t              handle,
+                                    int                      img_h,
+                                    int                      img_w,
+                                    bm_image_format_ext      image_format,
+                                    bm_image_data_format_ext data_type,
+                                    bm_image *               res,
+                                    int *                    stride,
+                                    void*                    bm_private) {
+
+    if (NULL == bm_private) {
+        bmlib_log("BMCV",
+                  BMLIB_LOG_ERROR,
+                  "host memory alloc failed %s: %s: %d\n",
+                  filename(__FILE__),
+                  __func__,
+                  __LINE__);
+        return BM_ERR_NOMEM;
+    }
+
+    res->width         = img_w;
+    res->height        = img_h;
+    res->image_format  = image_format;
+    res->data_type     = data_type;
+    res->image_private = (struct bm_image_private*)bm_private;
+    res->image_private->owned_mem = false;
+
+    memset(res->image_private->data, 0,
+           sizeof(bm_device_mem_t) * MAX_bm_image_CHANNEL);
+    memset(res->image_private->memory_layout, 0,
+           sizeof(plane_layout) * MAX_bm_image_CHANNEL);
+    if (bm_image_format_check(img_h, img_w, image_format, data_type) !=
+        BM_SUCCESS) {
+        bmlib_log("BMCV",
+                  BMLIB_LOG_ERROR,
+                  "illegal format or size %s: %s: %d\n",
+                  filename(__FILE__),
+                  __func__,
+                  __LINE__);
+        res->image_private = NULL;
+        return BM_ERR_PARAM;
+    }
+    if (fill_image_private(res, stride) != BM_SUCCESS) {
+        bmlib_log("BMCV",
+                  BMLIB_LOG_ERROR,
+                  "illegal stride %s: %s: %d\n",
+                  filename(__FILE__),
+                  __func__,
+                  __LINE__);
+        res->image_private = NULL;
+        return BM_ERR_PARAM;
     }
     res->image_private->handle = handle;
     return BM_SUCCESS;
@@ -429,13 +532,12 @@ bm_status_t bm_image_destroy(bm_image *image){
     if(!image){
         return BM_ERR_PARAM;
     }
-    bm_image image_ = *image;
 
-    if(!image_.image_private){
+    if(!image->image_private){
         return BM_ERR_DATA;
     }
 
-    if (bm_image_detach(image_) != BM_SUCCESS) {
+    if (bm_image_detach(*image) != BM_SUCCESS) {
         bmlib_log(BMCV_LOG_TAG,
                   BMLIB_LOG_ERROR,
                   "detach dev mem failed %s %s %d\n",
@@ -445,14 +547,15 @@ bm_status_t bm_image_destroy(bm_image *image){
         return BM_ERR_DATA;
     }
 
-    if (image_.image_private->decoder != NULL) {
-        bm_jpu_jpeg_dec_close(image_.image_private->decoder);
+    if (image->image_private->decoder != NULL) {
+        bm_jpu_jpeg_dec_close(image->image_private->decoder);
     }
 
-    pthread_mutex_destroy(&image_.image_private->memory_lock);
-    free(image_.image_private);
-    image_.image_private = NULL;
-
+    pthread_mutex_destroy(&image->image_private->memory_lock);
+    if (true == image->image_private->owned_mem) {
+        free(image->image_private);
+    }
+    image->image_private = NULL;
     return BM_SUCCESS;
 }
 
@@ -720,7 +823,7 @@ bm_status_t bm_image_copy_host_to_device(bm_image image, void *buffers[]) {
     }
     // The image didn't attached to a buffer, malloc and own it.
     if (!image.image_private->attached) {
-        if (bm_image_alloc_dev_mem(image, BMCV_HEAP_ANY) != BM_SUCCESS) {
+        if (bm_image_alloc_dev_mem(image, BMCV_HEAP1_ID) != BM_SUCCESS) {
             bmlib_log(BMCV_LOG_TAG,
                       BMLIB_LOG_ERROR,
                       "alloc dst dev mem failed %s %s %d\n",
@@ -989,6 +1092,7 @@ bm_status_t bm_image_tensor_create(bm_handle_t              handle,
     res->image.image_private->data_owned = false;
     res->image.image_private->attached = false;
     res->image.image_private->decoder = NULL;
+    res->image.image_private->owned_mem = true;
     pthread_mutex_init(&res->image.image_private->memory_lock, NULL);
     if (!res->image.image_private)
         return BM_ERR_DATA;
@@ -1276,8 +1380,22 @@ bm_status_t bm_image_write_to_bmp(bm_image image, const char *filename) {
         }
     }
     int component = image.image_format == FORMAT_GRAY ? 1 : 3;
-    void *      buf = malloc(image_temp.width * image_temp.height * component);
-    bm_status_t ret = bm_image_copy_device_to_host(image_temp, &buf);
+    int stride[4] = {0};
+    bm_image_get_stride(image_temp, stride);
+    int line_size = image_temp.width * component;
+    void       *buf_tmp = malloc(stride[0] * image_temp.height);
+    void       *buf     = malloc(line_size * image_temp.height);
+    bm_status_t ret     = bm_image_copy_device_to_host(image_temp, &buf_tmp);
+
+    if (stride[0] > line_size) {
+        for (int i = 0; i < image_temp.height; i++) {
+            memcpy((unsigned char *)buf + i * line_size, (unsigned char *)buf_tmp + i * stride[0], line_size);
+        }
+    } else {
+        memcpy((unsigned char *)buf, (unsigned char *)buf_tmp, stride[0] * image_temp.height);
+    }
+    free(buf_tmp);
+
     if (ret != BM_SUCCESS) {
         free(buf);
         if (need_format_transform) {
@@ -1340,7 +1458,7 @@ bm_status_t bmcv_width_align(bm_handle_t handle,
         return BM_ERR_DATA;
     }
     if (!bm_image_is_attached(output)) {
-        if (BM_SUCCESS != bm_image_alloc_dev_mem(output, BMCV_HEAP_ANY)) {
+        if (BM_SUCCESS != bm_image_alloc_dev_mem(output, BMCV_HEAP1_ID)) {
             BMCV_ERR_LOG("bm_image_alloc_dev_mem error\r\n");
 
             return BM_ERR_NOMEM;
@@ -1391,4 +1509,65 @@ bm_status_t bmcv_image_yuv2bgr_ext(
     bm_image *  input,
     bm_image *  output){
     return bmcv_image_storage_convert(handle, image_num, input, output);
+}
+
+void bmcv_print_version() {
+    const char *env_val = getenv("BMCV_PRINT_VERSION");
+    if (env_val == NULL || strcmp(env_val, "1") != 0) {
+        return;
+    }
+    const char *fw_fname = "libbm1688_kernel_module.so";
+    static char fw_path[512] = {0};
+    static char bmcv_path[512] = {0};
+    char cmd[1024] = {0};
+    char *ptr;
+    int ret = 0;
+#ifdef __linux__
+    Dl_info dl_info;
+
+    ret = dladdr((void*)bmcv_print_version, &dl_info);
+    if (ret == 0){
+        printf("dladdr() failed: %s\n", dlerror());
+        return;
+    }
+    if (dl_info.dli_fname == NULL){
+        printf("%s is NOT a symbol\n", __FUNCTION__);
+        return;
+    }
+
+    ptr = (char*)strrchr(dl_info.dli_fname, '/');
+    if (!ptr){
+        printf("Invalid absolute path name of libbmcv.so\n");
+        return;
+    }
+
+    int dirname_len = ptr - dl_info.dli_fname + 1;
+    if (dirname_len <= 0){
+        printf("Invalid length of folder name\n");
+        return;
+    }
+
+    strncpy(bmcv_path, dl_info.dli_fname, dirname_len);
+    strcat(bmcv_path, ptr + 1);
+    printf("libbmcv_path:%s\n", bmcv_path);
+    sprintf(cmd, "strings %s | grep -E \"libbmcv_version:.*, branch:.*, minor version:.*, commit hash:.*\" | sed -n \'2p\'", bmcv_path);
+    ret = system(cmd);
+    if (ret != 0) {
+        printf("Error print tpu_firmware_version!\n");
+    }
+
+    if (0 != find_tpufirmaware_path(fw_path, fw_fname)) {
+        printf("libbm1684x_kernel_module.so does not exist\n");
+        return;
+    }
+
+    printf("tpu_firmware_path:%s\n", fw_path);
+    memset (cmd, 0, sizeof(cmd));
+    sprintf(cmd, "strings %s | grep -E \"tpu_firmware_version:.*, branch:.*, minor version:.*, commit:.*\"", fw_path);
+    ret = system(cmd);
+    if (ret != 0) {
+        printf("Error print tpu_firmware_version!\n");
+    }
+#endif
+    return;
 }

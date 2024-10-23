@@ -39,14 +39,14 @@ static  volatile long bmve_atomic_lock = 0;
 static  volatile long bmhandle_atomic_lock = 0;
 #endif
 static int bmlib_init_flag = 0;
-BmVpuLogLevel bm_vpu_log_level_threshold = BM_VPU_LOG_LEVEL_ERROR;
+BmVpuDecLogLevel bm_vpu_log_level_threshold = BM_VPU_LOG_LEVEL_ERROR;
 
-void bm_vpu_set_logging_threshold(BmVpuLogLevel threshold)
+void bm_vpu_set_logging_threshold(BmVpuDecLogLevel threshold)
 {
     bm_vpu_log_level_threshold = threshold;
 }
 
-void logging_fn(BmVpuLogLevel level, char const *file, int const line, char const *fn, const char *format, ...)
+void logging_fn(BmVpuDecLogLevel level, char const *file, int const line, char const *fn, const char *format, ...)
 {
     va_list args;
 
@@ -397,8 +397,12 @@ int bmdec_ioctl_stop_recv_stream(int chn_fd)
 int bmdec_ioctl_send_stream(int chn_fd, vdec_stream_ex_s* pstStreamEx)
 {
     int ret = 0;
+    int bm_ret;
+
     ret = ioctl(chn_fd, DRV_VC_VDEC_SEND_STREAM, pstStreamEx);
-    return bm_get_ret(ret);
+    bm_ret = bm_get_ret(ret);
+
+    return bm_ret;
 }
 
 int bmdec_ioctl_get_frame(int chn_fd, video_frame_info_ex_s* pstFrameInfoEx, vdec_chn_status_s* stChnStatus)
@@ -406,9 +410,11 @@ int bmdec_ioctl_get_frame(int chn_fd, video_frame_info_ex_s* pstFrameInfoEx, vde
     int ret = 0;
     int i = 0;
     int align_width, align_height, size = 0;
+    int bm_ret;
 
     ret = ioctl(chn_fd, DRV_VC_VDEC_GET_FRAME, pstFrameInfoEx);
     if (ret == 0) {
+        bm_ret = 0;
         if((ret = ioctl(chn_fd, DRV_VC_VDEC_QUERY_STATUS, stChnStatus)) != BM_SUCCESS) {
             BMVPU_DEC_ERROR("ioctl DRV_VC_VDEC_QUERY_STATUS error\n");
             return bm_get_ret(ret);
@@ -459,8 +465,16 @@ int bmdec_ioctl_get_frame(int chn_fd, video_frame_info_ex_s* pstFrameInfoEx, vde
             }
         }
     }
+    else{
+        bm_ret = bm_get_ret(ret);
+        if(bm_ret != BM_SUCCESS) {
+            ret = ioctl(chn_fd, DRV_VC_VDEC_QUERY_STATUS, stChnStatus);
+            if(stChnStatus->u8Status == SEQ_DECODE_WRONG_RESOLUTION)
+                bm_ret = BM_ERR_VDEC_ILLEGAL_PARAM;
+        }
+    }
 
-    return bm_get_ret(ret);
+    return bm_ret;
 }
 
 int bmdec_ioctl_release_frame(int chn_fd, const video_frame_info_s *pstFrameInfo, int size)
@@ -515,20 +529,20 @@ int bmdec_ioctl_set_chn_attr(int chn_fd, vdec_chn_attr_s *pstAttr)
 int bmdec_ioctl_query_chn_status(int chn_fd, vdec_chn_status_s *pstStatus)
 {
     int ret = 0;
-    ioctl(chn_fd, DRV_VC_VDEC_QUERY_STATUS, pstStatus);
+    ret = ioctl(chn_fd, DRV_VC_VDEC_QUERY_STATUS, pstStatus);
     return bm_get_ret(ret);
 }
 
 int bmdec_ioctl_set_chn_param(int chn_fd, const vdec_chn_param_s *pstParam)
 {
     int ret = 0;
-    ioctl(chn_fd, DRV_VC_VDEC_SET_CHN_PARAM, pstParam);
+    ret = ioctl(chn_fd, DRV_VC_VDEC_SET_CHN_PARAM, pstParam);
     return bm_get_ret(ret);
 }
 
 int bmdec_ioctl_get_chn_param(int chn_fd, vdec_chn_param_s *pstParam)
 {
     int ret = 0;
-    ioctl(chn_fd, DRV_VC_VDEC_GET_CHN_PARAM, pstParam);
+    ret = ioctl(chn_fd, DRV_VC_VDEC_GET_CHN_PARAM, pstParam);
     return bm_get_ret(ret);
 }

@@ -66,6 +66,7 @@ bm_status_t  bmcv_image_axpy(
 
     switch(chipid)
     {
+        case BM1688_PREV:
         case BM1688:
             ret = bm_tpu_kernel_launch(handle, "cv_axpy", (u8 *)&api, sizeof(api), core_id);
             if (BM_SUCCESS != ret) {

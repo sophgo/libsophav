@@ -1,5 +1,5 @@
-bmcv_image_warp_perspective & bmcv_image_warp_perspective_with_coordinate & bmcv_image_warp_perspective_similar_to_opencv
-===========================================================================================================================
+bmcv_image_warp_perspective
+============================
 
 该接口实现图像的透射变换，又称投影变换或透视变换。透射变换将图片投影到一个新的视平面，是一种二维坐标 (:math:`x_0` , :math:`y_0`) 到二维坐标(:math:`x` , :math:`y`)的非线性变换，该接口的实现是针对输出图像的每一个像素点坐标得到对应输入图像的坐标，然后构成一幅新的图像，其数学表达式形式如下：
 

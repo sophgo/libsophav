@@ -73,7 +73,7 @@ static void * ive_dma_set(void* arg) {
     bm_image_create(handle, height, width, src_fmt, DATA_TYPE_EXT_1N_BYTE, &src, NULL);
 
     // alloc bm image memory
-    ret = bm_image_alloc_dev_mem(src, BMCV_HEAP_ANY);
+    ret = bm_image_alloc_dev_mem(src, BMCV_HEAP1_ID);
     if (ret != BM_SUCCESS) {
         printf("bm_image_alloc_dev_mem_src. ret = %d\n", ret);
         exit(-1);
@@ -164,8 +164,8 @@ int main(int argc, char **argv) {
         test_threads_num = atoi(argv[1]);
         test_loop_times  = atoi(argv[2]);
     }
-    if (argc > 3 && argc < 7) {
-        printf("command input error, please follow this order:\n \
+    if ((argc > 3 && argc < 7) || (argc == 1)) {
+        printf("please follow this order to input command:\n \
         %s width height dma_set_mode val src_fmt src_name dev_id thread_num loop_num bWrite dst_name\n \
         %s thread_num loop_num\n", argv[0], argv[0]);
         exit(-1);

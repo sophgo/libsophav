@@ -64,7 +64,7 @@ static void * vpss_overlay(void* arg){
     // create bm image struct & alloc dev mem
     bm_image_create(handle, img_h, img_w, image_fmt, DATA_TYPE_EXT_1N_BYTE, &image, NULL);
 
-    ret = bm_image_alloc_dev_mem(image, BMCV_HEAP_ANY);
+    ret = bm_image_alloc_dev_mem(image, BMCV_HEAP1_ID);
     if (ret != BM_SUCCESS) {
         printf("image bm_image_alloc_dev_mem failed. ret = %d\n", ret);
         exit(-1);
@@ -76,7 +76,7 @@ static void * vpss_overlay(void* arg){
         bm_image_create(handle, overlay_h, overlay_w, overlay_fmt,
                                DATA_TYPE_EXT_1N_BYTE, &overlay_image[idx], NULL);
 
-        ret = bm_image_alloc_dev_mem(overlay_image[idx], BMCV_HEAP_ANY);
+        ret = bm_image_alloc_dev_mem(overlay_image[idx], BMCV_HEAP1_ID);
         if(ret != BM_SUCCESS){
             printf("image bm_image_alloc_dev_mem failed. ret = %d\n", ret);
             exit(-1);

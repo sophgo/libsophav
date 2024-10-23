@@ -104,13 +104,13 @@ static void * ive_bersen(void* arg) {
     bm_image_create(handle, height, width, fmt, DATA_TYPE_EXT_1N_BYTE, &src, stride);
     bm_image_create(handle, height, width, fmt, DATA_TYPE_EXT_1N_BYTE, &dst, stride);
 
-    ret = bm_image_alloc_dev_mem(src, BMCV_HEAP_ANY);
+    ret = bm_image_alloc_dev_mem(src, BMCV_HEAP1_ID);
     if (ret != BM_SUCCESS) {
         printf("src bm_image_alloc_dev_mem failed. ret = %d\n", ret);
         exit(-1);
     }
 
-    ret = bm_image_alloc_dev_mem(dst, BMCV_HEAP_ANY);
+    ret = bm_image_alloc_dev_mem(dst, BMCV_HEAP1_ID);
     if (ret != BM_SUCCESS) {
         printf("src bm_image_alloc_dev_mem failed. ret = %d\n", ret);
         exit(-1);
@@ -140,7 +140,7 @@ static void * ive_bersen(void* arg) {
         time_total = time_total + time_single;
 
         if(ret != BM_SUCCESS){
-            printf("bmcv_ive_bersen is failed \n");
+            printf("bmcv_ive_bernsen is failed \n");
             exit(-1);
         }
     }
@@ -161,11 +161,11 @@ static void * ive_bersen(void* arg) {
 
         int cmp = cmp_u8(ref_name, ive_add_res, width * height * sizeof(unsigned char));
         if(cmp != 0){
-            printf("[bmcv ive bersen] cmp failed, cmp = %d \n", cmp);
+            printf("[bmcv ive bernsen] cmp failed, cmp = %d \n", cmp);
             exit(-1);
         }
 
-        printf("[bmcv ive bersen] cmp successful, cmp = %d \n", cmp);
+        printf("[bmcv ive bernsen] cmp successful, cmp = %d \n", cmp);
 
         if(bWrite) bm_ive_write_bin(dst, "bernsen_res.bin");
     }
@@ -173,13 +173,13 @@ static void * ive_bersen(void* arg) {
     bm_image_destroy(&src);
     bm_image_destroy(&dst);
 
-    char algorithm_str[100] = "ive_bersen";
+    char algorithm_str[100] = "ive_bernsen";
     char fmt_str[100], mode_str[100];
     format_to_str(src.image_format, fmt_str);
     bernsenMode_to_str(attr.en_mode, mode_str);
 
     printf("idx:%d, %s, mode %s, fmt %s, size %d*%d\n",ctx.i, algorithm_str, mode_str, fmt_str, width, height);
-    printf("idx:%d, bm_ive_bersen: loop %d cycles, time_max = %llu, time_avg = %llu, fps %llu, %lluM pps\n",
+    printf("idx:%d, bmcv_ive_bernsen: loop %d cycles, time_max = %llu, time_avg = %llu, fps %llu, %lluM pps\n",
         ctx.i, loop_time, time_max, time_avg, fps_actual, pixel_per_sec);
 
     return 0;
@@ -203,18 +203,18 @@ int main(int argc, char **argv) {
         test_threads_num = atoi(argv[1]);
         test_loop_times  = atoi(argv[2]);
     }
-    if ((argc > 3 && argc < 6)) {
-        printf("command input error, please follow this order:\n \
+    if ((argc > 3 && argc < 6) || (argc == 1)) {
+        printf("please follow this order to input command:\n \
         %s width height mode winsize src_name ref_name dev_id thread_num loop_num bWrite\n \
-        %s thread_num loop_num\n", argv[0], argv[0]);
+        %s 352 288 0 5 ive_data/00_352x288_y.yuv ive_data/result/sample_Bernsen_5x5.yuv 0 1 1 0\n", argv[0], argv[0]);
         exit(-1);
     }
     if (test_loop_times > 15000 || test_loop_times < 1) {
-        printf("[TEST ive bersen] loop times should be 1~15000\n");
+        printf("[TEST ive bernsen] loop times should be 1~15000\n");
         exit(-1);
     }
     if (test_threads_num > MAX_THREAD_NUM || test_threads_num < 1) {
-        printf("[TEST ive bersen] thread nums should be 1~%d\n", MAX_THREAD_NUM);
+        printf("[TEST ive bernsen] thread nums should be 1~%d\n", MAX_THREAD_NUM);
         exit(-1);
     }
 

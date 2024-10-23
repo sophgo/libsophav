@@ -14,13 +14,41 @@
 
 #include "bmjpurun.h"
 #include "bm_jpeg_interface.h"
-#include "bm_jpeg_logging.h"
+#include "bm_jpeg_internal.h"
 
 extern int jpu_slt_en;
 extern int jpu_stress_test;
 extern int jpu_rand_sleep;
 extern int use_npu_ion_en;
 int compare_finish = 0;
+
+void ConvertToImageFormat(BmJpuImageFormat *image_format, BmJpuColorFormat color_format, BmJpuChromaFormat cbcr_interleave)
+{
+    // TODO: support packed format?
+    if (color_format == BM_JPU_COLOR_FORMAT_YUV420) {
+        if (cbcr_interleave == BM_JPU_CHROMA_FORMAT_CBCR_INTERLEAVE) {
+            *image_format = BM_JPU_IMAGE_FORMAT_NV12;
+        } else if (cbcr_interleave == BM_JPU_CHROMA_FORMAT_CRCB_INTERLEAVE) {
+            *image_format = BM_JPU_IMAGE_FORMAT_NV21;
+        } else {
+            *image_format = BM_JPU_IMAGE_FORMAT_YUV420P;
+        }
+    } else if (color_format == BM_JPU_COLOR_FORMAT_YUV422_HORIZONTAL) {
+        if (cbcr_interleave == BM_JPU_CHROMA_FORMAT_CBCR_INTERLEAVE) {
+            *image_format = BM_JPU_IMAGE_FORMAT_NV16;
+        } else if (cbcr_interleave == BM_JPU_CHROMA_FORMAT_CRCB_INTERLEAVE) {
+            *image_format = BM_JPU_IMAGE_FORMAT_NV61;
+        } else {
+            *image_format = BM_JPU_IMAGE_FORMAT_YUV422P;
+        }
+    } else if (color_format == BM_JPU_COLOR_FORMAT_YUV444) {
+        // only support planar type
+        *image_format = BM_JPU_IMAGE_FORMAT_YUV444P;
+    } else {
+        *image_format = BM_JPU_IMAGE_FORMAT_GRAY;
+    }
+}
+
 
 #ifdef _WIN32
 static int s_gettimeofday(struct timeval* tp, void* tzp)
@@ -153,13 +181,13 @@ static int getJpgEncOpenParam(EncConfigParam *pEncConfig, BmJpuEncOpenParams* pE
         pEncOP->packed_format = 0;
 
     if (pEncConfig->frameFormat == 0)
-        pEncOP->chroma_interleave= CBCR_SEPARATED;
+        pEncOP->chroma_interleave= BM_JPU_CHROMA_FORMAT_CBCR_SEPARATED;
     else if (pEncConfig->frameFormat == 1)
-        pEncOP->chroma_interleave = CBCR_INTERLEAVE;
+        pEncOP->chroma_interleave = BM_JPU_CHROMA_FORMAT_CBCR_INTERLEAVE;
     else if (pEncConfig->frameFormat == 2)
-        pEncOP->chroma_interleave = CRCB_INTERLEAVE;
+        pEncOP->chroma_interleave = BM_JPU_CHROMA_FORMAT_CRCB_INTERLEAVE;
     else
-        pEncOP->chroma_interleave = CBCR_SEPARATED;
+        pEncOP->chroma_interleave = BM_JPU_CHROMA_FORMAT_CBCR_SEPARATED;
 
     pEncOP->frame_width = pEncConfig->picWidth;
     pEncOP->frame_height = pEncConfig->picHeight;
@@ -201,14 +229,14 @@ int LoadYuvImage(const EncConfigParam* enc_config,
     {
     case FORMAT_420:
         cbcr_h = enc_config->picHeight >> 1;
-        if(enc_open_param->chroma_interleave == CBCR_SEPARATED)
+        if(enc_open_param->chroma_interleave == BM_JPU_CHROMA_FORMAT_CBCR_SEPARATED)
             cbcr_w = enc_config->picWidth >> 1;
         else
             cbcr_w = enc_config->picWidth;
         break;
     case FORMAT_422:
         cbcr_h = enc_config->picHeight;
-        if(enc_open_param->chroma_interleave == CBCR_SEPARATED)
+        if(enc_open_param->chroma_interleave == BM_JPU_CHROMA_FORMAT_CBCR_SEPARATED)
             cbcr_w = enc_config->picWidth >> 1;
         else
             cbcr_w = enc_config->picWidth;
@@ -236,7 +264,7 @@ int LoadYuvImage(const EncConfigParam* enc_config,
     {
         WritePlane(enc_config->picWidth, enc_config->picHeight, stride, dst_y,src);           // write Y
         WritePlane(cbcr_w, cbcr_h, cbcr_stride, dst_cb, src+lumaSize);   // write U or UV(interleave)
-        if(enc_open_param->chroma_interleave == CBCR_SEPARATED)
+        if(enc_open_param->chroma_interleave == BM_JPU_CHROMA_FORMAT_CBCR_SEPARATED)
             WritePlane(cbcr_w, cbcr_h, cbcr_stride, dst_cr, src+lumaSize + chromaSize);   // write V
     }
     else{   //packed mode
@@ -377,8 +405,6 @@ int DecodeTest(DecConfigParam *param)
     {
         /* Open the JPEG decoder */
         memset(&open_params, 0, sizeof(BmJpuDecOpenParams));
-        open_params.frame_width  = 0;
-        open_params.frame_height = 0;
         open_params.chroma_interleave = 0;
         open_params.bs_buffer_size = size;
         open_params.device_index = decConfig.device_index;
@@ -391,7 +417,7 @@ int DecodeTest(DecConfigParam *param)
         }
 
         /* Perform the actual JPEG decoding */
-        BmJpuDecReturnCodes dec_ret = bm_jpu_jpeg_dec_decode(jpeg_decoder, pBitStreamBuf, size);
+        BmJpuDecReturnCodes dec_ret = bm_jpu_jpeg_dec_decode(jpeg_decoder, pBitStreamBuf, size, 0, 0);
         if (dec_ret != BM_JPU_DEC_RETURN_CODE_OK)
         {
             fprintf(stderr, "could not decode this JPEG image : %s\n", bm_jpu_dec_error_string(dec_ret));
@@ -578,6 +604,7 @@ int EncodeTest(EncConfigParam *param)
     BmJpuJPEGEncoder *jpeg_encoder = NULL;
     EncConfigParam encConfig;
     BmJpuEncOpenParams open_params;
+    BmJpuImageFormat image_format;
     void *acquired_handle;
     size_t output_buffer_size;
     struct timeval start;
@@ -666,7 +693,7 @@ int EncodeTest(EncConfigParam *param)
             bs_buffer_size = 16*1023*1024;
 
         /* Open BM JPEG encoder */
-        ret = bm_jpu_jpeg_enc_open(&(jpeg_encoder), bs_buffer_size, encConfig.device_index);
+        ret = bm_jpu_jpeg_enc_open(&(jpeg_encoder), 0, bs_buffer_size, encConfig.device_index);
         if (ret != BM_JPU_ENC_RETURN_CODE_OK)
         {
             fprintf(stderr, "Error! Failed to open bm_jpu_jpeg_enc_open() :  %s\n",
@@ -676,11 +703,12 @@ int EncodeTest(EncConfigParam *param)
 
         /* Initialize the input framebuffer */
         int framebuffer_alignment = 16;
-        bm_jpu_calc_framebuffer_sizes(open_params.color_format,
-                                    open_params.frame_width,
+
+        ConvertToImageFormat(&image_format, open_params.color_format, open_params.chroma_interleave);
+        bm_jpu_calc_framebuffer_sizes(open_params.frame_width,
                                     open_params.frame_height,
                                     framebuffer_alignment,
-                                    open_params.chroma_interleave,
+                                    image_format,
                                     &calculated_sizes);
 
 
@@ -754,9 +782,8 @@ int EncodeTest(EncConfigParam *param)
         enc_params.frame_width    = open_params.frame_width;
         enc_params.frame_height   = open_params.frame_height;
         enc_params.quality_factor = 85;
-        enc_params.color_format   = open_params.color_format;
-        enc_params.packed_format   = open_params.packed_format;
-        enc_params.chroma_interleave = open_params.chroma_interleave;
+        enc_params.image_format   = image_format;
+        // enc_params.packed_format   = open_params.packed_format;
         enc_params.output_buffer_context = NULL;
         if( strlen(encConfig.bitStreamFileName) || fpRefStream != NULL )
         {

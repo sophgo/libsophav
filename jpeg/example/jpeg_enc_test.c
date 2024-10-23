@@ -4,8 +4,9 @@
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
+#include <getopt.h>
 #include "jpeg_enc_common.h"
-#include "bm_jpeg_logging.h"
+#include "bm_jpeg_internal.h"
 
 
 #define MIN_MJPG_PIC_WIDTH  16
@@ -29,6 +30,15 @@ static void usage(char *program)
         "\t-o output file\n"
         "\t-n loop num\n"
         "\t-g rotate (default 0) [rotate mode[1:0]  0:No rotate  1:90  2:180  3:270] [rotator mode[2]:vertical flip] [rotator mode[3]:horizontal flip]\n"
+        "\t--quality_factor, -q     encode quality factor (default 85), range is [1, 100]\n"
+        "\t--cbcr_interleave        Cb/Cr component is interleaved or not (default 0) [0: planared, 1: Cb/Cr interleaved, 2: Cr/Cb interleaved]\n"
+        "\t--external_memory        bitstream memory is allocated by user, set addr on enc_open\n"
+        "\t--bitstream_size         bitstream buffer size set by user\n"
+        "\t--bs_set_on_process      set bitstream buffer when invoking encode interface\n"
+        "\t--timeout                timeout set by user\n"
+        "\t--timeout_count          timeout count set by user\n"
+        "\t--bs_heap                sync with BM1684(X), invalid on BM1688\n"
+        "\t--fb_heap                sync with BM1684(X), invalid on BM1688\n"
         "For example,\n"
         "\tbmjpegenc -f 0 -w 100 -h 100 -y 128 -v 112 -i 100x100_yuv420.yuv -o 100x100_yuv420.jpg\n"
         "\tbmjpegenc -f 1 -w 100 -h 100 -y 128 -v 112 -i 100x100_yuv422.yuv -o 100x100_yuv422.jpg\n"
@@ -42,10 +52,34 @@ extern char *optarg;
 static int parse_args(int argc, char *argv[], EncInputParam *input_params)
 {
     int opt;
+    int option_index = 0;
+    static struct option long_options[] = {
+        {"help", no_argument, NULL, '0'},
+        {"input", required_argument, NULL, 'i'},
+        {"output", required_argument, NULL, 'o'},
+        {"loop_number", required_argument, NULL, 'n'},
+        {"format", required_argument, NULL, 'f'},
+        {"width", required_argument, NULL, 'w'},
+        {"height", required_argument, NULL, 'h'},
+        {"y_stride", required_argument, NULL, 'y'},
+        {"c_stride", required_argument, NULL, 'c'},
+        {"v_stride", required_argument, NULL, 'v'},
+        {"cbcr_interleave", required_argument, NULL, '0'},
+        {"rotate", required_argument, NULL, 'g'},
+        {"quality_factor", required_argument, NULL, 'q'},
+        {"external_memory", no_argument, NULL, '0'},
+        {"bitstream_size", required_argument, NULL, '0'},
+        {"bs_set_on_process", no_argument, NULL, '0'},
+        {"bs_heap", required_argument, NULL, '0'},
+        {"fb_heap", required_argument, NULL, '0'},
+        {"timeout", required_argument, NULL, '0'},
+        {"timeout_count", required_argument, NULL, '0'},
+        {NULL, 0, NULL, 0}
+    };
 
     memset(input_params, 0, sizeof(EncInputParam));
 
-    while ((opt = getopt(argc, argv, "i:o:n:d:w:h:v:f:y:c:g:")) != -1)
+    while ((opt = getopt_long(argc, argv, "i:o:n:d:w:h:v:f:y:c:g:q:",long_options, &option_index)) != -1)
     {
         switch (opt) {
             case 'i':
@@ -56,11 +90,6 @@ static int parse_args(int argc, char *argv[], EncInputParam *input_params)
                 break;
             case 'n':
                 input_params->loop_num = atoi(optarg);
-                break;
-            case 'd':
-            #ifdef BM_PCIE_MODE
-                input_params->device_index = atoi(optarg);
-            #endif
                 break;
             case 'w':
                 input_params->enc_params.width = atoi(optarg);
@@ -82,6 +111,33 @@ static int parse_args(int argc, char *argv[], EncInputParam *input_params)
                 break;
             case 'g':
                 input_params->enc_params.rotate = atoi(optarg);
+                break;
+            case 'q':
+                input_params->enc_params.quality_factor = atoi(optarg);
+                break;
+            case '0':
+                if (!strcmp(long_options[option_index].name, "cbcr_interleave")) {
+                    input_params->enc_params.cbcr_interleave = atoi(optarg);
+                } else if (!strcmp(long_options[option_index].name, "external_memory")) {
+                    input_params->enc_params.external_memory = 1;
+                } else if (!strcmp(long_options[option_index].name, "bitstream_size")) {
+                    input_params->enc_params.bitstream_size = atoi(optarg);
+                } else if (!strcmp(long_options[option_index].name, "bs_set_on_process")) {
+                    input_params->enc_params.bs_set_on_process = 1;
+                } else if (!strcmp(long_options[option_index].name, "quality_factor")) {
+                    input_params->enc_params.quality_factor = atoi(optarg);
+                } else if (!strcmp(long_options[option_index].name, "bs_heap")) {
+                    input_params->enc_params.bs_heap = atoi(optarg);
+                } else if (!strcmp(long_options[option_index].name, "fb_heap")) {
+                    input_params->enc_params.fb_heap = atoi(optarg);
+                } else if (!strcmp(long_options[option_index].name, "timeout")) {
+                    input_params->enc_params.timeout = atoi(optarg);
+                } else if (!strcmp(long_options[option_index].name, "timeout_count")) {
+                    input_params->enc_params.timeout_count = atoi(optarg);
+                } else {
+                    usage(argv[0]);
+                    return -1;
+                }
                 break;
             default:
                 usage(argv[0]);
@@ -154,18 +210,35 @@ static int parse_args(int argc, char *argv[], EncInputParam *input_params)
 
     if (input_params->enc_params.pix_fmt == 0) {
         input_params->enc_params.pix_fmt = BM_JPU_COLOR_FORMAT_YUV420;
-        input_params->enc_params.cbcr_interleave = 0;
     } else if (input_params->enc_params.pix_fmt == 1) {
         input_params->enc_params.pix_fmt = BM_JPU_COLOR_FORMAT_YUV422_HORIZONTAL;
-        input_params->enc_params.cbcr_interleave = 0;
     } else if (input_params->enc_params.pix_fmt == 2) {
         input_params->enc_params.pix_fmt = BM_JPU_COLOR_FORMAT_YUV444;
-        input_params->enc_params.cbcr_interleave = 0;
     } else {
         input_params->enc_params.pix_fmt = BM_JPU_COLOR_FORMAT_YUV400;
-        input_params->enc_params.cbcr_interleave = 0;
     }
 
+    if (input_params->enc_params.quality_factor == 0) {
+        input_params->enc_params.quality_factor = 85;
+    }
+
+    if (input_params->enc_params.quality_factor < 1 || input_params->enc_params.quality_factor > 100) {
+        fprintf(stderr, "Invalid params: quality should be in [1, 100]\n\n");
+        usage(argv[0]);
+        return -1;
+    }
+
+    if (input_params->enc_params.bitstream_size < 0) {
+        input_params->enc_params.bitstream_size = 0;
+    }
+
+    if ((input_params->enc_params.external_memory || input_params->enc_params.bs_set_on_process) && input_params->enc_params.bitstream_size == 0) {
+        fprintf(stderr, "Invalid params: bitstream buffer size should be larger than 0\n\n");
+        usage(argv[0]);
+        return -1;
+    }
+#define BS_SIZE_MASK (16 * 1024)
+    input_params->enc_params.bitstream_size = (input_params->enc_params.bitstream_size + BS_SIZE_MASK - 1) & ~(BS_SIZE_MASK - 1);
     return 0;
 }
 
@@ -174,6 +247,9 @@ int main(int argc, char *argv[])
     BmJpuEncReturnCodes ret = BM_JPU_ENC_RETURN_CODE_OK;
     EncInputParam input_params;
     BmJpuJPEGEncoder *jpeg_encoder = NULL;
+    bm_handle_t bm_handle;
+    bm_device_mem_t* bs_buffer = NULL;
+    bm_jpu_phys_addr_t bs_addr = 0;
     FILE *fp_in = NULL;
     FILE *fp_out = NULL;
     int i;
@@ -201,10 +277,28 @@ int main(int argc, char *argv[])
         goto cleanup;
     }
 
+    if (input_params.enc_params.external_memory) {
+        ret = bm_dev_request(&bm_handle, 0);
+        if (ret != BM_SUCCESS) {
+            fprintf(stderr, "failed to request device 0\n");
+            ret = -1;
+            goto cleanup;
+        }
+
+        bs_buffer = (bm_device_mem_t*)malloc(input_params.enc_params.bitstream_size);
+        ret = bm_malloc_device_byte_heap(bm_handle, bs_buffer, 1, input_params.enc_params.bitstream_size);
+        if (ret != BM_SUCCESS) {
+            fprintf(stderr, "failed to malloc bitstream buffer, size=%d\n", input_params.enc_params.bitstream_size);
+            ret = -1;
+            goto cleanup;
+        }
+        bs_addr = bs_buffer->u.device.device_addr;
+    }
+
     for (i = 0; i < input_params.loop_num; i++) {
         printf("loop %d begin\n", i);
         /* open jpeg encoder */
-        ret = bm_jpu_jpeg_enc_open(&jpeg_encoder, 0, 0);
+        ret = bm_jpu_jpeg_enc_open(&jpeg_encoder, bs_addr, input_params.enc_params.bitstream_size, 0);
         if (ret != BM_JPU_ENC_RETURN_CODE_OK) {
             fprintf(stderr, "open jpeg encoder failed!\n");
             goto cleanup;
@@ -231,6 +325,11 @@ cleanup:
     if (jpeg_encoder != NULL) {
         bm_jpu_jpeg_enc_close(jpeg_encoder);
         jpeg_encoder = NULL;
+    }
+
+    if(bs_buffer) {
+        bm_free_device(bm_handle, *bs_buffer);
+        bs_buffer = NULL;
     }
 
     if (fp_out != NULL) {

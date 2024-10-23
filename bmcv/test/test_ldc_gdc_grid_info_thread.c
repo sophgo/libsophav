@@ -99,14 +99,14 @@ static void * ldc_gdc_grid_info(void * arg)
     bm_image_create(handle, src_h, src_w, src_fmt, DATA_TYPE_EXT_1N_BYTE, &src, src_stride);
     bm_image_create(handle, dst_h, dst_w, dst_fmt, DATA_TYPE_EXT_1N_BYTE, &dst, dst_stride);
 
-    ret = bm_image_alloc_dev_mem(src, BMCV_HEAP_ANY);
+    ret = bm_image_alloc_dev_mem(src, BMCV_HEAP1_ID);
     if(ret != BM_SUCCESS){
         printf("bm_image_alloc_dev_mem_src failed \n");
         bm_image_destroy(&src);
         bm_image_destroy(&dst);
     }
 
-    ret = bm_image_alloc_dev_mem(dst, BMCV_HEAP_ANY);
+    ret = bm_image_alloc_dev_mem(dst, BMCV_HEAP1_ID);
     if(ret != BM_SUCCESS){
         printf("bm_image_alloc_dev_mem_dst failed \n");
         bm_image_destroy(&src);
@@ -175,7 +175,7 @@ static void * ldc_gdc_grid_info(void * arg)
     bm_image crop_dst;
     int new_w = 950, new_h = 550;
     bm_image_create(handle, new_h, new_w, dst_fmt, DATA_TYPE_EXT_1N_BYTE, &crop_dst, NULL);
-    ret = bm_image_alloc_dev_mem(crop_dst, BMCV_HEAP_ANY);
+    ret = bm_image_alloc_dev_mem(crop_dst, BMCV_HEAP1_ID);
     if (ret != BM_SUCCESS) {
         printf("bm_image_alloc_dev_mem_dst. ret = %d\n", ret);
         bm_image_destroy(&crop_dst);

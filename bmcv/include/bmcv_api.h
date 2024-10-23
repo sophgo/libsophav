@@ -12,6 +12,16 @@ static inline bm_status_t bm_image_destroy(bm_image &image){
     return bm_image_destroy(&image);
 }
 
+static inline bm_status_t bmcv_fft_1d_create_plan(bm_handle_t handle, int batch, int len,
+                                                bool forward, void *&plan) {
+    return bmcv_fft_1d_create_plan(handle, batch, len, forward, &plan);
+}
+
+static inline bm_status_t bmcv_fft_2d_create_plan(bm_handle_t handle, int M, int N,
+                                                bool forward, void *&plan) {
+    return bmcv_fft_2d_create_plan(handle, M, N, forward, &plan);
+}
+
 #if defined (__cplusplus)
 extern "C" {
 #endif

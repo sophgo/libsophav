@@ -224,6 +224,7 @@ bm_status_t bmcv_ive_and(
 #endif
     switch(chipid)
     {
+        case BM1688_PREV:
         case BM1688:
             ret = bm_ive_and(handle, input1, input2, output);
             break;
@@ -252,6 +253,7 @@ bm_status_t bmcv_ive_add(
 #endif
     switch(chipid)
     {
+        case BM1688_PREV:
         case BM1688:
             ret = bm_ive_add(handle, input1, input2, output, attr);
             break;
@@ -279,6 +281,7 @@ bm_status_t bmcv_ive_or(
 #endif
     switch(chipid)
     {
+        case BM1688_PREV:
         case BM1688:
             ret = bm_ive_or(handle, input1, input2, output);
             break;
@@ -306,6 +309,7 @@ bm_status_t bmcv_ive_xor(
 #endif
     switch(chipid)
     {
+        case BM1688_PREV:
         case BM1688:
             ret = bm_ive_xor(handle, input1, input2, output);
             break;
@@ -334,6 +338,7 @@ bm_status_t bmcv_ive_sub(
 #endif
     switch(chipid)
     {
+        case BM1688_PREV:
         case BM1688:
             ret = bm_ive_sub(handle, input1, input2, output, attr);
             break;
@@ -362,6 +367,7 @@ bm_status_t bmcv_ive_thresh(
 #endif
     switch(chipid)
     {
+        case BM1688_PREV:
         case BM1688:
             ret = bm_ive_thresh(handle, input, output, thresh_mode, attr);
             break;
@@ -388,6 +394,7 @@ bm_status_t bmcv_ive_dma_set(
 #endif
     switch(chipid)
     {
+        case BM1688_PREV:
         case BM1688:
             ret = bm_ive_dma_set(handle, image, dma_set_mode, val);
             break;
@@ -416,6 +423,7 @@ bm_status_t bmcv_ive_dma(
 #endif
     switch(chipid)
     {
+        case BM1688_PREV:
         case BM1688:
             ret = bm_ive_dma(handle, input, output, dma_mode, attr);
             break;
@@ -443,6 +451,7 @@ bm_status_t bmcv_ive_map(
 #endif
     switch(chipid)
     {
+        case BM1688_PREV:
         case BM1688:
             ret = bm_ive_map(handle, input, output, map_table);
             break;
@@ -474,6 +483,7 @@ bm_status_t bmcv_ive_hist(
 #endif
 
     switch(chipid){
+        case BM1688_PREV:
         case BM1688:
             ret = bm_ive_hist(handle, input, output);
             break;
@@ -499,6 +509,7 @@ bm_status_t bmcv_ive_integ(
 #endif
 
     switch(chipid){
+        case BM1688_PREV:
         case BM1688:
             ret = bm_ive_integ(handle, input, output, integ_attr);
             break;
@@ -524,6 +535,7 @@ bm_status_t bmcv_ive_ncc(
 #endif
 
     switch(chipid){
+        case BM1688_PREV:
         case BM1688:
             ret = bm_ive_ncc(handle, input1, input2, output);
             break;
@@ -549,6 +561,7 @@ bm_status_t bmcv_ive_ord_stat_filter(
 #endif
 
     switch(chipid){
+        case BM1688_PREV:
         case BM1688:
             ret = bm_ive_ord_stat_filter(handle, &input, &output, mode);
             break;
@@ -574,6 +587,7 @@ bm_status_t bmcv_ive_lbp(
 #endif
 
     switch(chipid){
+        case BM1688_PREV:
         case BM1688:
             ret = bm_ive_lbp(handle, &input, &output, &lbp_attr);
             break;
@@ -599,6 +613,7 @@ bm_status_t bmcv_ive_dilate(
 #endif
 
     switch(chipid){
+        case BM1688_PREV:
         case BM1688:
             ret = bm_ive_dilate(handle, &input, &output, dilate_mask);
             break;
@@ -624,6 +639,7 @@ bm_status_t bmcv_ive_erode(
 #endif
 
     switch(chipid){
+        case BM1688_PREV:
         case BM1688:
             ret = bm_ive_erode(handle, &input, &output, erode_mask);
             break;
@@ -650,6 +666,7 @@ bm_status_t bmcv_ive_mag_and_ang(
 #endif
 
     switch(chipid){
+        case BM1688_PREV:
         case BM1688:
             ret = bm_ive_mag_and_ang(handle, input, mag_output, ang_output, &attr);
             break;
@@ -676,6 +693,7 @@ bm_status_t bmcv_ive_sobel(
 #endif
 
     switch(chipid){
+        case BM1688_PREV:
         case BM1688:
             ret = bm_ive_sobel(handle, input, output_h, output_v, &sobel_attr);
             break;
@@ -703,6 +721,7 @@ bm_status_t bmcv_ive_norm_grad(
 #endif
 
     switch(chipid){
+        case BM1688_PREV:
         case BM1688:
             ret = bm_ive_normgrad(handle, input, output_h, output_v, output_hv, &normgrad_attr);
             break;
@@ -730,6 +749,7 @@ bm_status_t bmcv_ive_gmm(
 #endif
 
     switch(chipid){
+        case BM1688_PREV:
         case BM1688:
             ret = bm_ive_gmm(handle, &input, &output_fg, &output_bg, &output_model, &gmm_attr);
             break;
@@ -759,6 +779,7 @@ bm_status_t bmcv_ive_gmm2(
 #endif
 
     switch(chipid){
+        case BM1688_PREV:
         case BM1688:
             ret = bm_ive_gmm2(handle, input, input_factor, output_fg,
                             output_bg, output_match_model_info, &output_model, &gmm2_attr);
@@ -902,7 +923,7 @@ bm_status_t bmcv_ive_canny_internal(
     bm_image_create(handle, height, width, input->image_format,
                                    DATA_TYPE_EXT_1N_BYTE, &tmp_edge, stride);
 
-    bm_status_t ret = bm_image_alloc_dev_mem(tmp_edge, BMCV_HEAP_ANY);
+    bm_status_t ret = bm_image_alloc_dev_mem(tmp_edge, BMCV_HEAP1_ID);
     if (ret != BM_SUCCESS) {
         printf("tmp_edge bm_image_alloc_dev_mem failed. ret = %d\n", ret);
         return ret;
@@ -941,6 +962,7 @@ bm_status_t bmcv_ive_canny(
 #endif
 
     switch(chipid){
+        case BM1688_PREV:
         case BM1688:
             ret = bmcv_ive_canny_internal(handle, &input, output_edge, &canny_hys_edge_attr);
             break;
@@ -967,6 +989,7 @@ bm_status_t bmcv_ive_filter(
 #endif
 
     switch(chipid){
+        case BM1688_PREV:
         case BM1688:
             ret = bm_ive_filter(handle, input, output, filter_attr);
             break;
@@ -992,6 +1015,7 @@ bm_status_t bmcv_ive_csc(
 #endif
 
     switch(chipid){
+        case BM1688_PREV:
         case BM1688:
             ret = bm_ive_csc(handle, &input, &output, csc_type);
             break;
@@ -1016,6 +1040,7 @@ bm_status_t bmcv_ive_resize(
         return ret;
 #endif
     switch(chipid){
+        case BM1688_PREV:
         case BM1688:
             ret = bm_ive_resize(handle, &input, &output, resize_mode);
             break;
@@ -1041,6 +1066,7 @@ bm_status_t bmcv_ive_stcandicorner(
         return ret;
 #endif
     switch(chipid){
+        case BM1688_PREV:
         case BM1688:
             ret = bm_ive_stCandiCorner(handle, &input, &output, &stcandicorner_attr);
             break;
@@ -1068,6 +1094,7 @@ bm_status_t bmcv_ive_gradfg(
         return ret;
 #endif
     switch(chipid){
+        case BM1688_PREV:
         case BM1688:
             ret = bm_ive_gradFg(handle, &input_bgdiff_fg,
                     &input_fggrad, &input_bggrad, &output_gradfg, &gradfg_attr);
@@ -1092,7 +1119,7 @@ bm_status_t bmcv_image_ive_sad_u8(bm_handle_t handle, bm_image dst_){
 
     bm_image_create(handle, height, width, fmt, dtype, &dst_sad_u8, stride);
 
-    ret = bm_image_alloc_dev_mem(dst_sad_u8, BMCV_HEAP_ANY);
+    ret = bm_image_alloc_dev_mem(dst_sad_u8, BMCV_HEAP1_ID);
     if (ret != BM_SUCCESS) {
         printf("dst_sad_u8 bm_image_alloc_dev_mem failed. ret = %d\n", ret);
         return ret;
@@ -1133,6 +1160,7 @@ bm_status_t bmcv_ive_sad(
         return ret;
 #endif
     switch(chipid){
+        case BM1688_PREV:
         case BM1688:
             ret = bm_ive_sad(handle, input, output_sad, output_thr, sad_attr, thresh_attr);
             if(output_sad->data_type == DATA_TYPE_EXT_1N_BYTE)
@@ -1163,6 +1191,7 @@ bm_status_t bmcv_ive_match_bgmodel(
         return ret;
 #endif
     switch(chipid){
+        case BM1688_PREV:
         case BM1688:
             ret = bm_ive_match_bgmodel(handle, &cur_img, &bgmodel_img,
                     &fgflag_img, &diff_fg_img, &stat_data_mem, &attr);
@@ -1193,6 +1222,7 @@ bm_status_t bmcv_ive_update_bgmodel(
         return ret;
 #endif
     switch(chipid){
+        case BM1688_PREV:
         case BM1688:
             ret = bm_ive_update_bgmodel(handle, cur_img, bgmodel_img,
                            fgflag_img, bg_img, chgsta_img, &stat_data_mem, &attr);
@@ -1219,6 +1249,7 @@ bm_status_t bmcv_ive_ccl(
         return ret;
 #endif
     switch(chipid){
+        case BM1688_PREV:
         case BM1688:
             ret = bm_ive_ccl(handle, &src_dst_image, &ccblob_output, &ccl_attr);
             break;
@@ -1244,6 +1275,7 @@ bm_status_t bmcv_ive_bernsen(
         return ret;
 #endif
     switch(chipid){
+        case BM1688_PREV:
         case BM1688:
             ret = bm_ive_bernsen(handle, input, output, attr);
             break;
@@ -1270,6 +1302,7 @@ bm_status_t bmcv_ive_filter_and_csc(
         return ret;
 #endif
     switch(chipid){
+        case BM1688_PREV:
         case BM1688:
             ret = bm_ive_filterAndCsc(handle, input, output, filter_attr, csc_type);
             break;
@@ -1295,6 +1328,7 @@ bm_status_t bmcv_ive_16bit_to_8bit(
         return ret;
 #endif
     switch(chipid){
+        case BM1688_PREV:
         case BM1688:
             ret = bm_ive_16bit_to_8bit(handle, input, output, attr);
             break;
@@ -1321,6 +1355,7 @@ bm_status_t bmcv_ive_frame_diff_motion(
         return ret;
 #endif
     switch(chipid){
+        case BM1688_PREV:
         case BM1688:
             ret = bm_ive_frame_diff_motion(handle, input1, input2, output, attr);
             break;

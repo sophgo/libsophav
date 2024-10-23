@@ -93,19 +93,19 @@ static void * ive_frameDiffMotion(void* arg) {
     bm_image_create(handle, height, width, fmt, DATA_TYPE_EXT_1N_BYTE, &src2, stride);
     bm_image_create(handle, height, width, fmt, DATA_TYPE_EXT_1N_BYTE, &dst, stride);
 
-    ret = bm_image_alloc_dev_mem(src1, BMCV_HEAP_ANY);
+    ret = bm_image_alloc_dev_mem(src1, BMCV_HEAP1_ID);
     if (ret != BM_SUCCESS) {
         printf("src bm_image_alloc_dev_mem failed. ret = %d\n", ret);
         exit(-1);
     }
 
-    ret = bm_image_alloc_dev_mem(src2, BMCV_HEAP_ANY);
+    ret = bm_image_alloc_dev_mem(src2, BMCV_HEAP1_ID);
     if (ret != BM_SUCCESS) {
         printf("src bm_image_alloc_dev_mem failed. ret = %d\n", ret);
         exit(-1);
     }
 
-    ret = bm_image_alloc_dev_mem(dst, BMCV_HEAP_ANY);
+    ret = bm_image_alloc_dev_mem(dst, BMCV_HEAP1_ID);
     if (ret != BM_SUCCESS) {
         printf("src bm_image_alloc_dev_mem failed. ret = %d\n", ret);
         exit(-1);
@@ -196,10 +196,10 @@ int main(int argc, char **argv) {
         test_threads_num = atoi(argv[1]);
         test_loop_times  = atoi(argv[2]);
     }
-    if ((argc > 3 && argc < 6)) {
-        printf("command input error, please follow this order:\n \
+    if ((argc > 3 && argc < 6) || (argc == 1)) {
+        printf("please follow this order to input command:\n \
         %s width height thrSize(0:3x3; 1:5x5) u8Norm src_fmt dst_fmt ssrc_name ref_name dev_id thread_num loop_num bWrite\n \
-        %s thread_num loop_num\n", argv[0], argv[0]);
+        %s 480 480 ive_data/md1_480x480.yuv ive_data/md2_480x480.yuv ive_data/result/sample_FrameDiffMotion.yuv\n", argv[0], argv[0]);
         exit(-1);
     }
     if (test_loop_times > 15000 || test_loop_times < 1) {

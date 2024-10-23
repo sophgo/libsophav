@@ -53,6 +53,9 @@ int  bmenc_ioctl_release_stream(int chn_fd, venc_stream_s* pstStream);
 int  bmenc_ioctl_roi(int chn_fd, venc_custom_map_s* proiAttr);
 int  bmenc_ioctl_get_intinal_info(int chn_fd, venc_initial_info_s *pinfo);
 int  bmenc_ioctl_query_status(int chn_fd, venc_chn_status_s* pstatus);
+int  bmenc_ioctl_enc_set_extern_buf(int chn_fd, venc_extern_buf_s* extern_buf);
+int  bmenc_ioctl_enc_alloc_physical_memory(int chn_fd, venc_phys_buf_s* phys_buf);
+int  bmenc_ioctl_enc_free_physical_memory(int chn_fd, venc_phys_buf_s* phys_buf);
 
 
 #endif /*_BM_VPUENC_IOCTL_H_*/

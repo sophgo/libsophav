@@ -26,12 +26,14 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+#include <fcntl.h>
 #ifdef __linux__
 #include <stdatomic.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
+#include <sys/mman.h>
 #elif _WIN32
 #include <windows.h>
 #include  < MMSystem.h >
@@ -43,6 +45,7 @@
 #include "bm_vpuenc_interface.h"
 #include "bm_ioctl.h"
 #include "bm_vpu_logging.h"
+#include "bmlib_runtime.h"
 
 #define MAX_SOC_NUM 64
 typedef struct _BMLIB_HANDLE{
@@ -70,8 +73,22 @@ enum {
     BM_VPU_ENC_REC_IDX_CHANGE_PARAM  = -4
 };
 
+/* Frame types understood by the VPU. */
+typedef enum
+{
+    BM_VPU_FRAME_TYPE_UNKNOWN = 0,
+    BM_VPU_FRAME_TYPE_I,
+    BM_VPU_FRAME_TYPE_P,
+    BM_VPU_FRAME_TYPE_B,
+    BM_VPU_FRAME_TYPE_IDR
+} BmVpuFrameType;
+
 #define VPU_ENC_BITSTREAM_BUFFER_SIZE (1024*1024*1)
 int g_venc_mem_fd = -1;
+int g_venc_mem_fd_count = 0;
+int g_venc_vc_fd = -1;
+int g_venc_vc_fd_count = 0;
+static pthread_mutex_t g_enc_load_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t enc_chn_mutex  = PTHREAD_MUTEX_INITIALIZER;
 
 typedef struct _BM_AVPKT {
@@ -79,6 +96,17 @@ typedef struct _BM_AVPKT {
     int pkt_is_used;  // 0:idel  1:used(nal data)
     struct _BM_AVPKT *pnext;
 } BM_AVPKT;
+
+typedef struct
+{
+    BmVpuFramebuffer* rec_fb_list;
+    BmVpuEncDMABuffer** rec_fb_dmabuffers;
+    int num_rec_fb;
+
+    BmVpuEncBufferAllocFunc buffer_alloc_func;
+    BmVpuEncBufferFreeFunc buffer_free_func;
+    void *buffer_context;
+} BmVpuEncoderCtx;
 
 typedef struct _BM_VPUENC_CTX {
     int is_used;
@@ -93,19 +121,25 @@ typedef struct _BM_VPUENC_CTX {
 
     venc_stream_s stStream;
 
-    BmVpuColorFormat color_format;
+    BmVpuEncPixFormat pix_format;
 
 
     BM_AVPKT *p_pkt_list;  // fot pkt data
     BM_AVPKT  p_pkt_header;  // fot pkt (nal pps sps)
+    BmVpuEncoderCtx *video_enc_ctx;
 } BM_VPUENC_CTX;
 
 BM_VPUENC_CTX g_enc_chn[VENC_MAX_SOC_NUM] = {0};  // 0: no use  1: is using
 unsigned int g_vpu_ext_addr = 0x0;
 
+bm_handle_t bmvpu_enc_get_bmlib_handle(int soc_idx);
+int bmvpu_enc_get_initial_info(BmVpuEncoder *encoder, BmVpuEncInitialInfo *info, unsigned int *min_bs_buf_size);
+int bmvpu_enc_encode_header(BmVpuEncoder *encoder);
+
 static inline void get_pic_buffer_config_internal(unsigned int width, unsigned int height,
         pixel_format_e enPixelFormat, data_bitwidth_e enBitWidth,
         compress_mode_e enCmpMode, unsigned int u32Align, vb_cal_config_s *pstCalConfig)
+
 {
     unsigned char  u8BitWidth = 0;
     unsigned int u32VBSize = 0;
@@ -328,9 +362,40 @@ static void bm_handle_unlock()
 #endif
 }
 
+static int bmvpu_enc_alloc_proc(void *enc_ctx,
+                                int vpu_core_idx, BmVpuEncDMABuffer *buf, unsigned int size)
+{
+    BmVpuEncoderCtx *video_enc_ctx = enc_ctx;
+    int ret = 0;
+
+    if (video_enc_ctx->buffer_alloc_func) {
+        ret = video_enc_ctx->buffer_alloc_func(video_enc_ctx->buffer_context
+                                            , vpu_core_idx, buf, size);
+    } else {
+        ret = bmvpu_enc_dma_buffer_allocate(vpu_core_idx, buf, size);
+    }
+
+    return ret;
+}
+
+static int bmvpu_enc_free_proc(void *enc_ctx,
+                                int vpu_core_idx, BmVpuEncDMABuffer *buf)
+{
+    BmVpuEncoderCtx *video_enc_ctx = enc_ctx;
+    int ret = 0;
+
+    if (video_enc_ctx->buffer_free_func) {
+        ret = video_enc_ctx->buffer_free_func(video_enc_ctx->buffer_context
+                                            , vpu_core_idx, buf);
+    } else {
+        ret = bmvpu_enc_dma_buffer_deallocate(vpu_core_idx, buf);
+    }
+
+    return ret;
+}
+
 
 static void bmvpu_enc_load_bmlib_handle(int soc_idx){
-
     if (soc_idx > MAX_SOC_NUM)
     {
         BMVPU_ENC_ERROR("soc_idx excess MAX_SOC_NUM!\n");
@@ -347,7 +412,6 @@ static void bmvpu_enc_load_bmlib_handle(int soc_idx){
 
     bm_handle_t handle;
     bm_status_t ret = bm_dev_request(&handle, soc_idx);
-
     if (ret != BM_SUCCESS) {
       BMVPU_ENC_ERROR("Create Bm Handle Failed\n");
       bm_handle_unlock();
@@ -413,8 +477,7 @@ bm_handle_t bmvpu_enc_get_bmlib_handle(int soc_idx)
     return BM_VPU_ENC_RETURN_CODE_OK;
 }
 
-
-int bmvpu_malloc_device_byte_heap(bm_handle_t bm_handle,
+static int bmvpu_malloc_device_byte_heap(bm_handle_t bm_handle,
                       bm_device_mem_t *pmem, unsigned int size,
                       int heap_id_mask, int high_bit_first)
 {
@@ -481,10 +544,10 @@ static void* bmvpu_enc_bmlib_mmap(int soc_idx, uint64_t phy_addr, size_t len)
     wrapped_dmem.u.device.device_addr = (unsigned long)(phy_addr);
     wrapped_dmem.flags.u.mem_type = BM_MEM_TYPE_DEVICE;
     wrapped_dmem.size = len;
-
     int ret = bm_mem_mmap_device_mem_no_cache(bmvpu_enc_get_bmlib_handle(soc_idx), &wrapped_dmem, &vmem);
     if (ret != BM_SUCCESS) {
         BMVPU_ENC_ERROR("bm_mem_mmap_device_mem_no_cache failed: 0x%x\n", ret);
+        return NULL;
     }
     return vmem;
 }
@@ -495,18 +558,90 @@ static void bmvpu_enc_bmlib_munmap(int soc_idx, uint64_t vir_addr, size_t len)
     return;
 }
 
+int bmvpu_enc_load_mem(int soc_idx)
+{
+    if (g_venc_mem_fd > 0) {
+        g_venc_mem_fd_count++;
+        return BM_VPU_ENC_RETURN_CODE_OK;
+    }
+    int fd;
+
+    fd = open("/dev/mem", O_RDWR | O_SYNC);
+    if (fd == -1) {
+        printf("cannot open '/dev/mem'\n");
+        goto open_err;
+    }
+    g_venc_mem_fd = fd;
+
+    return g_venc_mem_fd;
+
+open_err:
+    return -1;
+}
+
+int bmvpu_enc_unload_mem(int soc_idx)
+{
+    if (g_venc_mem_fd < 0) {
+        return BM_VPU_ENC_RETURN_CODE_OK;
+    }
+    if (g_venc_mem_fd_count > 0) {
+        g_venc_mem_fd_count--;
+        return BM_VPU_ENC_RETURN_CODE_OK;
+    }
+    close(g_venc_mem_fd);
+    g_venc_mem_fd = -1;
+    return BM_VPU_ENC_RETURN_CODE_OK;
+}
+
 int bmvpu_enc_load(int soc_idx)
 {
     bmvpu_enc_load_bmlib_handle(soc_idx);
+    pthread_mutex_lock(&g_enc_load_mutex);
+    // bmvpu_enc_load_bmlib_handle(soc_idx);
 
+    if (g_venc_vc_fd <= 0) {
+        // 1. chose an useable channel
+        char devName[255];
+        sprintf(devName, "/dev/%s", DRV_ENCODER_DEV_NAME);
+        int chn_fd = bmenc_chn_open(devName);
+        if (chn_fd <= 0) {
+            pthread_mutex_unlock(&g_enc_load_mutex);
+            return BM_VPU_ENC_RETURN_CODE_INVALID_HANDLE;
+        }
+        g_venc_vc_fd = chn_fd;
+    } else {
+        g_venc_vc_fd_count++;
+    }
+
+    // bmvpu_enc_load_mem(soc_idx);
+    pthread_mutex_unlock(&g_enc_load_mutex);
     return BM_VPU_ENC_RETURN_CODE_OK;
 }
 
 int bmvpu_enc_unload(int soc_idx)
 {
     bmvpu_enc_unload_bmlib_handle(soc_idx);
+    pthread_mutex_lock(&g_enc_load_mutex);
+    // bmvpu_enc_unload_mem(soc_idx);
+    if (g_venc_vc_fd > 0) {
+        if (g_venc_vc_fd_count > 0) {
+            g_venc_vc_fd_count--;
+            pthread_mutex_unlock(&g_enc_load_mutex);
+            return BM_VPU_ENC_RETURN_CODE_OK;
+        }
 
+        close(g_venc_vc_fd);
+        g_venc_vc_fd = -1;
+    }
+
+    pthread_mutex_unlock(&g_enc_load_mutex);
     return BM_VPU_ENC_RETURN_CODE_OK;
+}
+
+void bmvpu_enc_get_bitstream_buffer_info(size_t *size, uint32_t *alignment)
+{
+    *size = VPU_ENC_BITSTREAM_BUFFER_SIZE;
+    *alignment = VPU_MEMORY_ALIGNMENT;
 }
 
 // 需要用到的接口
@@ -522,7 +657,7 @@ void bmvpu_enc_set_default_open_params(BmVpuEncOpenParams *open_params,
     memset(open_params, 0, sizeof(BmVpuEncOpenParams));
 
     open_params->codec_format = codec_format;
-    open_params->color_format = BM_VPU_COLOR_FORMAT_YUV420;
+    open_params->pix_format = BM_VPU_ENC_PIX_FORMAT_YUV420P;
     open_params->frame_width = 0;
     open_params->frame_height = 0;
     open_params->fps_num = 1;
@@ -539,8 +674,6 @@ void bmvpu_enc_set_default_open_params(BmVpuEncOpenParams *open_params,
     open_params->delta_qp        = 5;
     open_params->min_qp          = 8;
     open_params->max_qp          = 51;
-
-    open_params->chroma_interleave = 0;
 
     open_params->soc_idx = 0;
 
@@ -746,13 +879,34 @@ int bmvpu_get_ext_addr()
     return g_vpu_ext_addr;
 }
 
-int bmvpu_enc_open(BmVpuEncoder **encoder, BmVpuEncOpenParams *open_params)
+int bmvpu_enc_open(BmVpuEncoder **encoder,
+                   BmVpuEncOpenParams *open_params,
+                   BmVpuEncDMABuffer *bs_dmabuffer,
+                   BmVpuEncInitialInfo *initial_info)
 {
     int ret = 0;
     int i = 0;
     venc_chn VeChn = 0;
     venc_chn_attr_s stAttr = {0};
     venc_recv_pic_param_s stRecvParam = {0};
+    BmVpuEncoderCtx *video_enc_ctx = NULL;
+
+    if((encoder == NULL) || (open_params == NULL) || (initial_info == NULL)) {
+        BMVPU_ENC_ERROR("bmvpu_enc_open params err: encoder(0X%x), open_params(0X%x), initial_info(0X%x).", encoder, open_params, initial_info);
+        return BM_VPU_ENC_RETURN_CODE_INVALID_PARAMS;
+    }
+
+    if ((open_params->buffer_alloc_func && !open_params->buffer_free_func)
+        || (!open_params->buffer_alloc_func && open_params->buffer_free_func)) {
+        BMVPU_ENC_ERROR("bmvpu_enc_open params err: alloc_func(0X%x), free_func(0X%x)"
+                    , open_params->buffer_alloc_func, open_params->buffer_free_func);
+        return BM_VPU_ENC_RETURN_CODE_INVALID_PARAMS;
+    }
+
+    if ((open_params->gop_preset <= 0) || (open_params->gop_preset > 9)) {
+        BMVPU_ENC_ERROR("bmvpu_enc_open params err: top_prest(%d)", open_params->gop_preset);
+        return BM_VPU_ENC_RETURN_CODE_INVALID_PARAMS;
+    }
 
     pthread_mutex_lock(&enc_chn_mutex);
     // 1. chose an useable channel
@@ -761,6 +915,7 @@ int bmvpu_enc_open(BmVpuEncoder **encoder, BmVpuEncOpenParams *open_params)
     int chn_fd = bmenc_chn_open(devName);
     if (chn_fd <= 0) {
         pthread_mutex_unlock(&enc_chn_mutex);
+        BMVPU_ENC_ERROR("bmvpu_enc_open open dev(%s) failed.", devName);
         return BM_VPU_ENC_RETURN_CODE_INVALID_HANDLE;
     }
     // 1.1 get chn by ioctl
@@ -797,7 +952,30 @@ int bmvpu_enc_open(BmVpuEncoder **encoder, BmVpuEncOpenParams *open_params)
     // 1.3 save chn_id in g_enc_chn
     g_enc_chn[VeChn].is_used = 1;
     g_enc_chn[VeChn].chn_fd = chn_fd;
-    *encoder = (void*)VeChn;
+    /* Allocate encoder instance */
+    *encoder = malloc(sizeof(BmVpuEncoder));
+    if ((*encoder) == NULL) {
+        BMVPU_ENC_ERROR("allocating memory for encoder object failed");
+        bmenc_chn_close(chn_fd);
+        pthread_mutex_unlock(&enc_chn_mutex);
+        return BM_VPU_ENC_RETURN_CODE_ERROR;
+    }
+
+    /* Set default encoder values */
+    memset(*encoder, 0, sizeof(BmVpuEncoder));
+    (*encoder)->handle = (void*)VeChn;
+
+
+    // 1.4 alloc video enc ctx
+    video_enc_ctx = (BmVpuEncoderCtx *)calloc(1, sizeof(BmVpuEncoderCtx));
+    if (video_enc_ctx == NULL) {
+        BMVPU_ENC_ERROR("malloc video_enc_ctx failed\n");
+        return BM_VPU_ENC_RETURN_CODE_ERROR;
+    }
+    g_enc_chn[VeChn].video_enc_ctx = video_enc_ctx;
+    video_enc_ctx->buffer_alloc_func = open_params->buffer_alloc_func;;
+    video_enc_ctx->buffer_free_func = open_params->buffer_free_func;
+    video_enc_ctx->buffer_context = open_params->buffer_context;
 
     // 2. set enc params (stVencAttr)
     if (open_params->codec_format == BM_VPU_CODEC_FORMAT_H264) {
@@ -811,13 +989,13 @@ int bmvpu_enc_open(BmVpuEncoder **encoder, BmVpuEncOpenParams *open_params)
     }
     stAttr.stVencAttr.u32MaxPicWidth     = open_params->frame_width;
     stAttr.stVencAttr.u32MaxPicHeight    = open_params->frame_height;
-    stAttr.stVencAttr.u32BufSize         = VPU_ENC_BITSTREAM_BUFFER_SIZE;
     stAttr.stVencAttr.u32PicWidth        = open_params->frame_width;
     stAttr.stVencAttr.u32PicHeight       = open_params->frame_height;
     stAttr.stVencAttr.u32CmdQueueDepth   = open_params->cmd_queue_depth;
     stAttr.stVencAttr.enEncMode          = open_params->enc_mode;
 
     stAttr.stGopExAttr.u32GopPreset      = open_params->gop_preset;
+    stAttr.stVencAttr.u32BufSize         = VPU_ENC_BITSTREAM_BUFFER_SIZE;
 
     // 3. set enc params (stRcAttr)
     if (open_params->cqp >= 0) {
@@ -870,6 +1048,7 @@ int bmvpu_enc_open(BmVpuEncoder **encoder, BmVpuEncOpenParams *open_params)
     if (ret != 0) {
         BMVPU_ENC_ERROR("bmenc create chn failed %d\n", ret);
         ret = -1;
+        bmenc_chn_close(g_enc_chn[VeChn].chn_fd);
         g_enc_chn[VeChn].is_used = 0;
         pthread_mutex_unlock(&enc_chn_mutex);
         return ret;
@@ -949,23 +1128,55 @@ int bmvpu_enc_open(BmVpuEncoder **encoder, BmVpuEncOpenParams *open_params)
     ret = bmenc_ioctl_start_recv_frame(g_enc_chn[VeChn].chn_fd, &stRecvParam);
     if (ret != 0) {
         pthread_mutex_unlock(&enc_chn_mutex);
+        BMVPU_ENC_ERROR("bmvpu_enc_open start recv frame failed.");
         return BM_VPU_ENC_RETURN_CODE_ERROR;
     }
-
 
     if (g_vpu_ext_addr == 0) {
         bmenc_ioctl_get_ext_addr(g_enc_chn[VeChn].chn_fd, &g_vpu_ext_addr);
     }
-    g_enc_chn[VeChn].color_format = open_params->color_format;
+    g_enc_chn[VeChn].pix_format = open_params->pix_format;
 
     pthread_mutex_unlock(&enc_chn_mutex);
+    unsigned int min_bs_buf_size = 0;
+    ret =  bmvpu_enc_get_initial_info(*encoder, initial_info, &min_bs_buf_size);
+    if (ret != BM_VPU_ENC_RETURN_CODE_OK) {
+        bmvpu_enc_close(*encoder);
+        g_enc_chn[VeChn].is_used = 0;
+        BMVPU_ENC_ERROR("bmvpu_enc_open get  initial info failed.");
+        return BM_VPU_ENC_RETURN_CODE_ERROR;
+    }
+
+    // input bs_buf size must > initial bs size
+    if (bs_dmabuffer != NULL) {
+        if (min_bs_buf_size > bs_dmabuffer->size) {
+            bmvpu_enc_close(*encoder);
+            g_enc_chn[VeChn].is_used = 0;
+            BMVPU_ENC_ERROR("bmenc open input bs_dma_buf size(%d) is small than min_bs_buf_size(%d). \n", bs_dmabuffer->size, min_bs_buf_size);
+            return BM_VPU_ENC_RETURN_CODE_ERROR;
+        }
+    
+        venc_extern_buf_s extern_buf;
+        extern_buf.bs_phys_addr  = bs_dmabuffer->phys_addr;
+        extern_buf.bs_buf_size   = bs_dmabuffer->size;
+        ret = bmenc_ioctl_enc_set_extern_buf(g_enc_chn[VeChn].chn_fd, &extern_buf);
+        if (ret != BM_VPU_ENC_RETURN_CODE_OK) {
+            bmvpu_enc_close(*encoder);
+            g_enc_chn[VeChn].is_used = 0;
+            BMVPU_ENC_ERROR("bmenc open set bs buff addr faile.\n");
+            return BM_VPU_ENC_RETURN_CODE_ERROR;
+        }
+    }
+
+    bmvpu_enc_encode_header(*encoder);
+
     return BM_VPU_ENC_RETURN_CODE_OK;
 }
 
 int bmvpu_enc_close(BmVpuEncoder *encoder)
 {
     int ret = 0;
-    HANDLE VeChn = (HANDLE)encoder;
+    HANDLE VeChn = (HANDLE)encoder->handle;
     pthread_mutex_lock(&enc_chn_mutex);
     if (g_enc_chn[VeChn].is_used == 0) {
         pthread_mutex_unlock(&enc_chn_mutex);
@@ -980,19 +1191,19 @@ int bmvpu_enc_close(BmVpuEncoder *encoder)
     }
 
     BM_AVPKT * pPktHeader            = &(g_enc_chn[VeChn].p_pkt_header);
-    if (pPktHeader->pkt_data.data_len > 0) {
+    if (pPktHeader->pkt_data.data_size > 0) {
         free(pPktHeader->pkt_data.data);
     }
     pPktHeader->pkt_data.data = NULL;
-    pPktHeader->pkt_data.data_len = 0;
+    pPktHeader->pkt_data.data_size = 0;
 
     BM_AVPKT * pPkt = g_enc_chn[VeChn].p_pkt_list;
     while(pPkt != NULL) {
         BM_AVPKT * pPkt_next = pPkt->pnext;
-        if (pPkt->pkt_data.data_len > 0) {
+        if (pPkt->pkt_data.data_size > 0) {
             free(pPkt->pkt_data.data);
             pPkt->pkt_data.data = NULL;
-            pPkt->pkt_data.data_len = 0;
+            pPkt->pkt_data.data_size = 0;
         }
         free(pPkt);
         pPkt = pPkt_next;
@@ -1003,21 +1214,29 @@ int bmvpu_enc_close(BmVpuEncoder *encoder)
     bmenc_chn_close(g_enc_chn[VeChn].chn_fd);
     g_enc_chn[VeChn].is_used = 0;
     pthread_mutex_unlock(&enc_chn_mutex);
+    if (encoder != NULL) {
+        free(encoder);
+    }
+
+    if (g_enc_chn[VeChn].video_enc_ctx != NULL) {
+        free(g_enc_chn[VeChn].video_enc_ctx);
+        g_enc_chn[VeChn].video_enc_ctx = NULL;
+    }
+
     return BM_VPU_ENC_RETURN_CODE_OK;
 }
 
-int bmvpu_enc_get_initial_info(BmVpuEncoder *encoder, BmVpuEncInitialInfo *info)
+int bmvpu_enc_get_initial_info(BmVpuEncoder *encoder, BmVpuEncInitialInfo *info, unsigned int *min_bs_buf_size)
 {
     venc_chn_attr_s stAttr;
     HANDLE VeChn = -1;
-    VeChn = (HANDLE)encoder;
+    VeChn = (HANDLE)encoder->handle;
     if (g_enc_chn[VeChn].is_used == 0) {
         return BM_VPU_ENC_RETURN_CODE_INVALID_HANDLE;
     }
 
     venc_initial_info_s pinfo;
     bmenc_ioctl_get_intinal_info(g_enc_chn[VeChn].chn_fd, &pinfo);
-
     bmenc_ioctl_get_chn_attr(g_enc_chn[VeChn].chn_fd, &stAttr);
     // info->min_num_rec_fb = 2;
     info->min_num_src_fb  = pinfo.min_num_src_fb + 1;
@@ -1026,7 +1245,7 @@ int bmvpu_enc_get_initial_info(BmVpuEncoder *encoder, BmVpuEncInitialInfo *info)
     unsigned int u32AlignHeight = ALIGN(stAttr.stVencAttr.u32PicHeight, VENC_ALIGN_H);
     unsigned int u32Align       = VENC_ALIGN_W;
 
-    if (g_enc_chn[VeChn].color_format == BM_VPU_COLOR_FORMAT_YUV420) {
+    if (g_enc_chn[VeChn].pix_format == BM_VPU_ENC_PIX_FORMAT_YUV420P) {
         get_pic_buffer_config_internal(u32AlignWidth, u32AlignHeight, PIXEL_FORMAT_YUV_PLANAR_420,
                                       DATA_BITWIDTH_8, COMPRESS_MODE_NONE, u32Align, &stCalConfig);
     } else {
@@ -1037,12 +1256,12 @@ int bmvpu_enc_get_initial_info(BmVpuEncoder *encoder, BmVpuEncInitialInfo *info)
     info->src_fb.height   = stAttr.stVencAttr.u32PicHeight;
     info->src_fb.y_stride = stCalConfig.main_stride; // 1920
     info->src_fb.c_stride = stCalConfig.c_stride;    // 1920/2
-    info->src_fb.h_stride = u32AlignHeight;    // 1920/2
 
     info->src_fb.y_size   = stCalConfig.main_y_size;
     info->src_fb.c_size   = stCalConfig.main_c_size;
     info->src_fb.size     = stCalConfig.main_size;
 
+    *min_bs_buf_size = pinfo.min_bs_buf_size;
 
 
     return BM_VPU_ENC_RETURN_CODE_OK;
@@ -1051,7 +1270,7 @@ int bmvpu_enc_get_initial_info(BmVpuEncoder *encoder, BmVpuEncInitialInfo *info)
 
 int bmvpu_fill_framebuffer_params(BmVpuFramebuffer *fb,
                                    BmVpuFbInfo *info,
-                                   bm_device_mem_t *fb_dma_buffer,
+                                   BmVpuEncDMABuffer *fb_dma_buffer,
                                    int fb_id, void* context)
 {
     if((fb == NULL) || (info == NULL)){
@@ -1079,19 +1298,18 @@ int bmvpu_fill_framebuffer_params(BmVpuFramebuffer *fb,
 }
 
 
-int bmvpu_enc_encode_header(BmVpuEncoder *encoder, uint8_t* header_buf, int* header_len)
+int bmvpu_enc_encode_header(BmVpuEncoder *encoder)
 {
     int ret = 0;
     HANDLE VeChn = -1;
     venc_encode_header_s stEncodeHeader;
-
-    VeChn = (HANDLE)encoder;
-    if (g_enc_chn[VeChn].is_used == 0) {
-        BMVPU_ENC_ERROR("bmvpu_enc_encode_header chn is not ready.\n");
+    if (encoder == NULL) {
         return BM_VPU_ENC_RETURN_CODE_INVALID_PARAMS;
     }
-    if ((header_buf == NULL)  || (header_len == NULL)){
-        BMVPU_ENC_ERROR("bmvpu_enc_encode_header header_buf or header_len is null.\n");
+
+    VeChn = (HANDLE)encoder->handle;
+    if (g_enc_chn[VeChn].is_used == 0) {
+        BMVPU_ENC_ERROR("bmvpu_enc_encode_header chn is not ready.\n");
         return BM_VPU_ENC_RETURN_CODE_INVALID_PARAMS;
     }
 
@@ -1103,34 +1321,36 @@ int bmvpu_enc_encode_header(BmVpuEncoder *encoder, uint8_t* header_buf, int* hea
 
 
     BM_AVPKT * pPktHeader            = &(g_enc_chn[VeChn].p_pkt_header);
-    if (stEncodeHeader.u32Len > pPktHeader->pkt_data.data_len) {
-        if (pPktHeader->pkt_data.data_len > 0) {
+    if (stEncodeHeader.u32Len > pPktHeader->pkt_data.data_size) {
+        if (pPktHeader->pkt_data.data_size > 0) {
             free(pPktHeader->pkt_data.data);
         }
         pPktHeader->pkt_data.data = NULL;
-        pPktHeader->pkt_data.data        = (uint8_t*)malloc(stEncodeHeader.u32Len + 1);
-        pPktHeader->pkt_data.data_len    = stEncodeHeader.u32Len + 1;
+        pPktHeader->pkt_data.data        = (uint8_t*)malloc(stEncodeHeader.u32Len);
+        pPktHeader->pkt_data.data_size   = stEncodeHeader.u32Len;
     }
 
     memcpy(pPktHeader->pkt_data.data, stEncodeHeader.headerRbsp, stEncodeHeader.u32Len);
     pPktHeader->pkt_data.data_size   = stEncodeHeader.u32Len;
-    memcpy(header_buf, stEncodeHeader.headerRbsp, pPktHeader->pkt_data.data_size);
-    *header_len = pPktHeader->pkt_data.data_size;
+
+    encoder->headers_rbsp = pPktHeader->pkt_data.data;
+    encoder->headers_rbsp_size  = pPktHeader->pkt_data.data_size;
     return 0;
 }
 
 int bmvpu_enc_send_frame(BmVpuEncoder *encoder,
                      BmVpuRawFrame const *raw_frame,
-                     bool isframe_end)
+                     BmVpuEncParams *encoding_params)
 {
     int ret = 0;
+    bool isframe_end = false;
     HANDLE VeChn = -1;
     int s32MilliSec = 0;
     video_frame_info_s stFrame = {0};
     venc_chn_attr_s stAttr;
     venc_stream_s stStream = {0};
 
-    VeChn = (HANDLE)encoder;
+    VeChn = (HANDLE)encoder->handle;
     if (g_enc_chn[VeChn].is_used == 0) {
         BMVPU_ENC_ERROR("bmvpu_enc_send_frame line=%d \n", __LINE__);
         return BM_VPU_ENC_RETURN_CODE_INVALID_PARAMS;   // 0 or -1
@@ -1149,13 +1369,13 @@ int bmvpu_enc_send_frame(BmVpuEncoder *encoder,
 
     stFrame.video_frame.width      = stAttr.stVencAttr.u32PicWidth;
     stFrame.video_frame.height     = stAttr.stVencAttr.u32PicHeight;
-    if (g_enc_chn[VeChn].color_format == BM_VPU_COLOR_FORMAT_YUV420) {
+    if (g_enc_chn[VeChn].pix_format == BM_VPU_ENC_PIX_FORMAT_YUV420P) {
         stFrame.video_frame.pixel_format = PIXEL_FORMAT_YUV_PLANAR_420;
-    } else if (g_enc_chn[VeChn].color_format == BM_VPU_COLOR_FORMAT_NV12) {
+    } else if (g_enc_chn[VeChn].pix_format == BM_VPU_ENC_PIX_FORMAT_NV12) {
         stFrame.video_frame.pixel_format = PIXEL_FORMAT_NV12;
-    } else if (g_enc_chn[VeChn].color_format == BM_VPU_COLOR_FORMAT_NV21) {
+    } else if (g_enc_chn[VeChn].pix_format == BM_VPU_ENC_PIX_FORMAT_NV21) {
         stFrame.video_frame.pixel_format = PIXEL_FORMAT_NV21;
-    } else if (g_enc_chn[VeChn].color_format == BM_VPU_COLOR_FORMAT_YUV422) {
+    } else if (g_enc_chn[VeChn].pix_format == BM_VPU_ENC_PIX_FORMAT_YUV422P) {
         stFrame.video_frame.pixel_format = PIXEL_FORMAT_YUV_PLANAR_422;
     }
     if (isframe_end == false) {
@@ -1163,7 +1383,7 @@ int bmvpu_enc_send_frame(BmVpuEncoder *encoder,
         unsigned int c_stride  = raw_frame->framebuffer->cbcr_stride;
         unsigned int h_stride  = stFrame.video_frame.height;
 
-        if (g_enc_chn[VeChn].color_format == BM_VPU_COLOR_FORMAT_YUV420) {
+        if (g_enc_chn[VeChn].pix_format == BM_VPU_ENC_PIX_FORMAT_YUV420P) {
             stFrame.video_frame.stride[0]  = y_stride;
             stFrame.video_frame.stride[1]  = c_stride;
             stFrame.video_frame.stride[2]  = c_stride;
@@ -1171,21 +1391,21 @@ int bmvpu_enc_send_frame(BmVpuEncoder *encoder,
             stFrame.video_frame.length[1]  = c_stride * (h_stride/2);
             stFrame.video_frame.length[2]  = c_stride * (h_stride/2);
 
-            stFrame.video_frame.phyaddr[0] = raw_frame->framebuffer->dma_buffer->u.device.device_addr;
-            stFrame.video_frame.phyaddr[1] = raw_frame->framebuffer->dma_buffer->u.device.device_addr + \
+            stFrame.video_frame.phyaddr[0] = raw_frame->framebuffer->dma_buffer->phys_addr;
+            stFrame.video_frame.phyaddr[1] = raw_frame->framebuffer->dma_buffer->phys_addr + \
                                              raw_frame->framebuffer->cb_offset;
-            stFrame.video_frame.phyaddr[2] = raw_frame->framebuffer->dma_buffer->u.device.device_addr + \
+            stFrame.video_frame.phyaddr[2] = raw_frame->framebuffer->dma_buffer->phys_addr + \
                                              raw_frame->framebuffer->cr_offset;
             stFrame.video_frame.frame_idx   = raw_frame->framebuffer->myIndex;
-        } else if (g_enc_chn[VeChn].color_format == BM_VPU_COLOR_FORMAT_NV12 \
-                || g_enc_chn[VeChn].color_format == BM_VPU_COLOR_FORMAT_NV21) {
+        } else if (g_enc_chn[VeChn].pix_format == BM_VPU_ENC_PIX_FORMAT_NV12 \
+                || g_enc_chn[VeChn].pix_format == BM_VPU_ENC_PIX_FORMAT_NV21) {
             stFrame.video_frame.stride[0]  = y_stride;
             stFrame.video_frame.stride[1]  = c_stride;
             stFrame.video_frame.length[0]  = y_stride * h_stride;
             stFrame.video_frame.length[1]  = c_stride * h_stride;
 
-            stFrame.video_frame.phyaddr[0] = raw_frame->framebuffer->dma_buffer->u.device.device_addr;
-            stFrame.video_frame.phyaddr[1] = raw_frame->framebuffer->dma_buffer->u.device.device_addr + \
+            stFrame.video_frame.phyaddr[0] = raw_frame->framebuffer->dma_buffer->phys_addr;
+            stFrame.video_frame.phyaddr[1] = raw_frame->framebuffer->dma_buffer->phys_addr + \
                                              raw_frame->framebuffer->cb_offset;
             stFrame.video_frame.frame_idx   = raw_frame->framebuffer->myIndex;
         }
@@ -1198,29 +1418,29 @@ int bmvpu_enc_send_frame(BmVpuEncoder *encoder,
     stFrameEx.s32MilliSec = s32MilliSec;
 
 #if 0
-    unsigned char * va;
-    va = devm_map(stFrame.stVFrame.u64PhyAddr[0], 1920*1080*3/2);
-    // bmvpu_enc_ioctl_mmap(encoder, stFrame.stVFrame.u64PhyAddr[0], 1920*1080*3/2, &va);
-    printf("pa 0X%lx \n", stFrame.stVFrame.u64PhyAddr[0]);
-    printf("va 0X%x %x %x %x \n", ((uint8_t*)va)[0], ((uint8_t*)va)[1], ((uint8_t*)va)[2], ((uint8_t*)va)[3]);
-    static unsigned int temp = 0;
+    BmVpuEncDMABuffer dma_buf;
+    dma_buf.phys_addr = stFrame.video_frame.phyaddr[0];
+    dma_buf.size = raw_frame->framebuffer->dma_buffer->size;
+    // printf("dma_buf.phys_addr=0X%lx bufsize=%d  \n", dma_buf.phys_addr, dma_buf.size);
+    bmvpu_dma_buffer_map(0, &dma_buf, BM_VPU_ENC_MAPPING_FLAG_READ|BM_VPU_ENC_MAPPING_FLAG_WRITE);
+    // printf("pa 0X%lx \n", stFrame.video_frame.phyaddr[0]);
+    static unsigned int temp_yuv = 0;
     char filename[256] = {0};
-    sprintf(filename, "mapyuv_%d.yuv", temp++);
+    sprintf(filename, "mapyuv_%d.yuv", temp_yuv++);
     FILE  *fp = fopen(filename, "wb+");
-    fwrite((uint8_t*)va, 1920*1080*3/2, 1, fp);
+    fwrite((uint8_t*)dma_buf.virt_addr, dma_buf.size, 1, fp);
     fclose(fp);
-    devm_unmap(va, 1920*1080*3/2);
-    // bmvpu_enc_ioctl_unmmap(va, 1920*1080*3/2);
+    bmvpu_dma_buffer_unmap(0, &dma_buf);
 #endif
 
-    if (raw_frame->customMapOpt != NULL) {
+    if (encoding_params->customMapOpt != NULL) {
         venc_custom_map_s  roiAttr;
-        roiAttr.roiAvgQp              = raw_frame->customMapOpt->roiAvgQp;
-        roiAttr.customRoiMapEnable    = raw_frame->customMapOpt->customRoiMapEnable;
-        roiAttr.customLambdaMapEnable = raw_frame->customMapOpt->customLambdaMapEnable;
-        roiAttr.customModeMapEnable   = raw_frame->customMapOpt->customModeMapEnable;
-        roiAttr.customCoefDropEnable  = raw_frame->customMapOpt->customCoefDropEnable;
-        roiAttr.addrCustomMap         = raw_frame->customMapOpt->addrCustomMap;
+        roiAttr.roiAvgQp              = encoding_params->customMapOpt->roiAvgQp;
+        roiAttr.customRoiMapEnable    = encoding_params->customMapOpt->customRoiMapEnable;
+        roiAttr.customLambdaMapEnable = encoding_params->customMapOpt->customLambdaMapEnable;
+        roiAttr.customModeMapEnable   = encoding_params->customMapOpt->customModeMapEnable;
+        roiAttr.customCoefDropEnable  = encoding_params->customMapOpt->customCoefDropEnable;
+        roiAttr.addrCustomMap         = encoding_params->customMapOpt->addrCustomMap;
 
         ret = bmenc_ioctl_roi(g_enc_chn[VeChn].chn_fd, &roiAttr);
     }
@@ -1235,95 +1455,43 @@ int bmvpu_enc_send_frame(BmVpuEncoder *encoder,
 
 
 int bmvpu_enc_get_stream(BmVpuEncoder *encoder,
-                         BmVpuEncodedFrame *encoded_frame)
+                         BmVpuEncodedFrame *encoded_frame,
+                         BmVpuEncParams *encoding_params)
 {
     int ret = 0;
     HANDLE VeChn = -1;
     int s32MilliSec = 0;
 
-    VeChn = (HANDLE)encoder;
+    VeChn = (HANDLE)encoder->handle;
     if (g_enc_chn[VeChn].is_used == 0) {
         BMVPU_ENC_ERROR("cur channel is using. \n");
-        return -1;
+        return BM_VPU_ENC_RETURN_CODE_ERROR;
     }
 
-    if (g_enc_chn[VeChn].stStream.pstPack == NULL) {
-        int pkt_nums = 0;
-        venc_chn_status_s status;
-        ret = bmenc_ioctl_query_status(g_enc_chn[VeChn].chn_fd, &status);
-        if (ret != 0) {
-            pkt_nums = 32;
-        } else {
-            pkt_nums = status.u32CurPacks + 1;
-        }
-
-        g_enc_chn[VeChn].stStream.pstPack = malloc(pkt_nums * sizeof(venc_pack_s));
-        if (g_enc_chn[VeChn].stStream.pstPack == NULL) {
-            BMVPU_ENC_ERROR("bmenc create chn failed : 0x%x\n", ret);
-            return -1;
-        }
+    if((encoding_params->acquire_output_buffer == NULL) ||
+       (encoding_params->finish_output_buffer == NULL)) {
+        BMVPU_ENC_ERROR("bmvpu_enc_get_stream params err: encoding_params->acquire_output_buffer(0X%x), encoding_params->finish_output_buffer(0X%x).", \
+                     encoding_params->acquire_output_buffer, encoding_params->finish_output_buffer);
+        return BM_VPU_ENC_RETURN_CODE_INVALID_PARAMS;
     }
+
     encoded_frame->data_size = 0;
     encoded_frame->src_idx   = 0;
     encoded_frame->pts       = 0;
     encoded_frame->pts       = 0;
     encoded_frame->u64CustomMapPhyAddr = 0;
 
-    // 1. already have pkt
-    BM_AVPKT * pPkt = g_enc_chn[VeChn].p_pkt_list;
-    while (pPkt != NULL) {
-        if (pPkt->pkt_is_used == 0) {
-            pPkt = pPkt->pnext;
-        } else {
-            if (pPkt->pkt_data.frame_type == BM_VPU_FRAME_TYPE_I) {
-                // 1.1 is I frame  copy header
-                BM_AVPKT * pPktHeader = &(g_enc_chn[VeChn].p_pkt_header);
-                if (encoded_frame->data_len < (pPkt->pkt_data.data_size + pPktHeader->pkt_data.data_size)) {
-                    if (pPkt->pkt_data.data_size > 0)
-                        free(encoded_frame->data);
-                    encoded_frame->data = NULL;
-                    encoded_frame->data = (uint8_t*)malloc(pPkt->pkt_data.data_size + pPktHeader->pkt_data.data_size + 1);
-                    encoded_frame->data_len = pPkt->pkt_data.data_size + pPktHeader->pkt_data.data_size + 1;
-                }
-                memcpy(encoded_frame->data, pPktHeader->pkt_data.data, pPktHeader->pkt_data.data_size);
-                memcpy(encoded_frame->data+pPktHeader->pkt_data.data_size, pPkt->pkt_data.data, pPkt->pkt_data.data_size);
-                encoded_frame->data_size   = pPktHeader->pkt_data.data_size + pPkt->pkt_data.data_size;
-                encoded_frame->frame_type = pPkt->pkt_data.frame_type;
-                encoded_frame->pts        = pPkt->pkt_data.pts;
-                encoded_frame->dts        = pPkt->pkt_data.dts;
-                encoded_frame->src_idx    = pPkt->pkt_data.src_idx;
-                encoded_frame->u64CustomMapPhyAddr    = pPkt->pkt_data.u64CustomMapPhyAddr;
-                encoded_frame->avg_ctu_qp = pPkt->pkt_data.avg_ctu_qp;
-
-                pPkt->pkt_is_used = 0;
-            } else {
-
-                // 1.2 is P/B frame  copy P/B frame data
-                if (encoded_frame->data_len < pPkt->pkt_data.data_size) {
-                    if (pPkt->pkt_data.data_size > 0)
-                        free(encoded_frame->data);
-                    encoded_frame->data = NULL;
-                    encoded_frame->data = (uint8_t*)malloc(pPkt->pkt_data.data_size + 1);
-                    encoded_frame->data_len = pPkt->pkt_data.data_size + 1;
-                }
-                memcpy(encoded_frame->data, pPkt->pkt_data.data, pPkt->pkt_data.data_size);
-                encoded_frame->data_size  = pPkt->pkt_data.data_size;
-                encoded_frame->frame_type = pPkt->pkt_data.frame_type;
-                encoded_frame->pts        = pPkt->pkt_data.pts;
-                encoded_frame->dts        = pPkt->pkt_data.dts;
-                encoded_frame->src_idx    = pPkt->pkt_data.src_idx;
-                encoded_frame->u64CustomMapPhyAddr    = pPkt->pkt_data.u64CustomMapPhyAddr;
-                encoded_frame->avg_ctu_qp = pPkt->pkt_data.avg_ctu_qp;
-
-                pPkt->pkt_is_used = 0;
-            }
-            return 0;
+    // 1. call ioctl get pkt
+    venc_stream_ex_s stStreamEx;
+    if (g_enc_chn[VeChn].stStream.pstPack == NULL) {
+        g_enc_chn[VeChn].stStream.pstPack = malloc(3 * sizeof(venc_pack_s));
+        if (g_enc_chn[VeChn].stStream.pstPack == NULL) {
+            BMVPU_ENC_ERROR("bmenc create chn failed : 0x%x\n", ret);
+            return BM_VPU_ENC_RETURN_CODE_ERROR;
         }
     }
 
 
-    // 2. get pkt by drv
-    venc_stream_ex_s stStreamEx;
     stStreamEx.pstStream   = &g_enc_chn[VeChn].stStream;
     stStreamEx.s32MilliSec = s32MilliSec;
     ret = bmenc_ioctl_get_stream(g_enc_chn[VeChn].chn_fd, &stStreamEx);
@@ -1332,31 +1500,38 @@ int bmvpu_enc_get_stream(BmVpuEncoder *encoder,
     }
     if (ret != 0) {
         BMVPU_ENC_DEBUG("bmenc get stream FAIL: 0x%x\n", ret);
-        return -1;
+        return BM_VPU_ENC_RETURN_CODE_ERROR;
     }
 
-    // 3. return the first pkt, and then reserver othre pkt
-    uint8_t *data_dst = encoded_frame->data;
-    int first_pkt_data = 0;
-    for (int i=0; i < g_enc_chn[VeChn].stStream.u32PackCount; i++) {
+    for (int i=0; i < g_enc_chn[VeChn].stStream.u32PackCount; i++)
+    {
         venc_pack_s *pkt_drv;
         pkt_drv = &g_enc_chn[VeChn].stStream.pstPack[i];
-        pkt_drv->pu8Addr = bmvpu_enc_bmlib_mmap(0, pkt_drv->u64PhyAddr, pkt_drv->u32Len);
-        if (pkt_drv->pu8Addr == NULL) {
+        // 2. map bs data
+        BmVpuEncDMABuffer dma_buf;
+        dma_buf.phys_addr = pkt_drv->u64PhyAddr;
+        dma_buf.size = pkt_drv->u32Len;
+        ret = bmvpu_dma_buffer_map(0, &dma_buf, BM_VPU_ENC_MAPPING_FLAG_READ|BM_VPU_ENC_MAPPING_FLAG_WRITE);
+        if (ret != BM_VPU_ENC_RETURN_CODE_OK) {
             continue;
         }
-        // 3.1  sps pps -> copy to p_pkt_header
+        pkt_drv->pu8Addr = dma_buf.virt_addr;
+        if (pkt_drv->pu8Addr == NULL) {
+            BMVPU_ENC_DEBUG("bmenc get stream map fiaile.\n");
+            continue;
+        }
+        // 3. sps  pps sei save local
         if ((pkt_drv->DataType.enH264EType == H264E_NALU_SEI) || (pkt_drv->DataType.enH264EType == H264E_NALU_SPS) || \
             (pkt_drv->DataType.enH264EType == H264E_NALU_PPS) || \
             (pkt_drv->DataType.enH265EType == H265E_NALU_SEI) || (pkt_drv->DataType.enH265EType == H265E_NALU_SPS) || \
             (pkt_drv->DataType.enH265EType == H265E_NALU_PPS) || (pkt_drv->DataType.enH265EType == H265E_NALU_VPS)) {
             BM_AVPKT * pPkt = &(g_enc_chn[VeChn].p_pkt_header);
-            if (pkt_drv->u32Len > pPkt->pkt_data.data_len) {
-                if (pPkt->pkt_data.data_len > 0)
+            if (pkt_drv->u32Len > pPkt->pkt_data.data_size) {
+                if (pPkt->pkt_data.data_size > 0)
                     free(pPkt->pkt_data.data);
                 pPkt->pkt_data.data = NULL;
-                pPkt->pkt_data.data = (uint8_t*)malloc(pkt_drv->u32Len  + 1);
-                pPkt->pkt_data.data_len = pkt_drv->u32Len  + 1;
+                pPkt->pkt_data.data = (uint8_t*)malloc(pkt_drv->u32Len);
+                pPkt->pkt_data.data_size = pkt_drv->u32Len;
             }
 
             memcpy(pPkt->pkt_data.data, pkt_drv->pu8Addr, pkt_drv->u32Len);
@@ -1368,23 +1543,19 @@ int bmvpu_enc_get_stream(BmVpuEncoder *encoder,
             pPkt->pkt_data.src_idx    = pkt_drv->releasFrameIdx;
             pPkt->pkt_data.u64CustomMapPhyAddr    = pkt_drv->u64CustomMapPhyAddr;
             pPkt->pkt_data.avg_ctu_qp = pkt_drv->u32AvgCtuQp;
-        } else if (first_pkt_data == 0) {
-        // 3.2  first data pkt  out put
+        } else {
+        // 4. copy bs data
 
             // 3.2.1 I frame -> out put sps and I frame
             if ((pkt_drv->DataType.enH264EType == H264E_NALU_ISLICE) || (pkt_drv->DataType.enH264EType == H264E_NALU_IDRSLICE) || \
                 (pkt_drv->DataType.enH265EType == H265E_NALU_ISLICE) || (pkt_drv->DataType.enH265EType == H265E_NALU_IDRSLICE)) {
                 // 1.1 is I frame  copy header
                 BM_AVPKT * pPktHeader = &(g_enc_chn[VeChn].p_pkt_header);
-
-                if (encoded_frame->data_len < (pkt_drv->u32Len + pPktHeader->pkt_data.data_size)) {
-                    if (encoded_frame->data_len > 0)
-                        free(encoded_frame->data);
-                    encoded_frame->data = NULL;
-                    encoded_frame->data = (uint8_t*)malloc(pkt_drv->u32Len + pPktHeader->pkt_data.data_size + 1);
-                    encoded_frame->data_len = pkt_drv->u32Len + pPktHeader->pkt_data.data_size + 1;
-                }
+                encoded_frame->data = encoding_params->acquire_output_buffer(encoding_params->output_buffer_context,
+                                                          pkt_drv->u32Len + pPktHeader->pkt_data.data_size,
+                                                          &(encoded_frame->acquired_handle));
                 memcpy(encoded_frame->data, pPktHeader->pkt_data.data, pPktHeader->pkt_data.data_size);
+
                 memcpy(encoded_frame->data+pPktHeader->pkt_data.data_size, pkt_drv->pu8Addr, pkt_drv->u32Len);
                 encoded_frame->data_size   = pPktHeader->pkt_data.data_size + pkt_drv->u32Len;
                 encoded_frame->frame_type = BM_VPU_FRAME_TYPE_I;
@@ -1395,13 +1566,9 @@ int bmvpu_enc_get_stream(BmVpuEncoder *encoder,
                 encoded_frame->avg_ctu_qp = pkt_drv->u32AvgCtuQp;
             } else {
                 // 3.2.2 P Frame & B Frame
-                if (encoded_frame->data_len < pkt_drv->u32Len) {
-                    if (encoded_frame->data_len > 0)
-                        free(encoded_frame->data);
-                    encoded_frame->data = NULL;
-                    encoded_frame->data = (uint8_t*)malloc(pkt_drv->u32Len + 1);
-                    encoded_frame->data_len = pkt_drv->u32Len + 1;
-                }
+                encoded_frame->data = encoding_params->acquire_output_buffer(encoding_params->output_buffer_context,
+                                                          pkt_drv->u32Len,
+                                                          &(encoded_frame->acquired_handle));
                 memcpy(encoded_frame->data, pkt_drv->pu8Addr, pkt_drv->u32Len);
                 encoded_frame->data_size   = pkt_drv->u32Len;
                 if ((pkt_drv->DataType.enH265EType == H265E_NALU_PSLICE) || (pkt_drv->DataType.enH264EType == H264E_NALU_PSLICE)) {
@@ -1416,142 +1583,33 @@ int bmvpu_enc_get_stream(BmVpuEncoder *encoder,
                 encoded_frame->avg_ctu_qp = pkt_drv->u32AvgCtuQp;
 
             }
-            first_pkt_data = 1;
-        } else {
-        // 3.3 find usable node
-            BM_AVPKT * pPkt = g_enc_chn[VeChn].p_pkt_list;
-            bool isAddNode = true;
-            // 3.3.1  find an available node and copy nal data
-            while (pPkt != NULL) {
-                if (pPkt->pkt_is_used == 1) {
-                    // 3.3.1.1 using
-                    pPkt = pPkt->pnext;
-                } else if (pPkt->pkt_is_used == 0) {
-                    // 3.3.1.2 idles
-                    if (pkt_drv->u32Len > pPkt->pkt_data.data_len) {
-                        if (pPkt->pkt_data.data_len > 0)
-                            free(pPkt->pkt_data.data);
-                        pPkt->pkt_data.data = NULL;
-                        pPkt->pkt_data.data = (uint8_t*)malloc(pkt_drv->u32Len  + 1);
-                        pPkt->pkt_data.data_len = pkt_drv->u32Len  + 1;
-                    }
-
-                    memcpy(pPkt->pkt_data.data, pkt_drv->pu8Addr, pkt_drv->u32Len);
-                    pPkt->pkt_data.data_size   = pkt_drv->u32Len;
-                    if ((pkt_drv->DataType.enH264EType == H264E_NALU_SEI) || (pkt_drv->DataType.enH264EType == H264E_NALU_SPS) || \
-                        (pkt_drv->DataType.enH264EType == H264E_NALU_PPS) || \
-                        (pkt_drv->DataType.enH265EType == H265E_NALU_SEI) || (pkt_drv->DataType.enH265EType == H265E_NALU_SPS) || \
-                        (pkt_drv->DataType.enH265EType == H265E_NALU_PPS) || (pkt_drv->DataType.enH265EType == H265E_NALU_VPS)) {
-                        pPkt->pkt_data.frame_type = BM_VPU_FRAME_TYPE_UNKNOWN;
-                    } else if ((pkt_drv->DataType.enH264EType == H264E_NALU_ISLICE) || (pkt_drv->DataType.enH264EType == H264E_NALU_IDRSLICE) || \
-                               (pkt_drv->DataType.enH265EType == H265E_NALU_ISLICE) || (pkt_drv->DataType.enH265EType == H265E_NALU_IDRSLICE)) {
-                        pPkt->pkt_data.frame_type = BM_VPU_FRAME_TYPE_I;
-                    } else if ((pkt_drv->DataType.enH264EType == H264E_NALU_PSLICE) || (pkt_drv->DataType.enH264EType == H264E_NALU_PSLICE) || \
-                               (pkt_drv->DataType.enH265EType == H265E_NALU_PSLICE) || (pkt_drv->DataType.enH265EType == H265E_NALU_PSLICE)) {
-                        pPkt->pkt_data.frame_type = BM_VPU_FRAME_TYPE_P;
-                    } else if ((pkt_drv->DataType.enH264EType == H264E_NALU_BSLICE) || (pkt_drv->DataType.enH264EType == H264E_NALU_BSLICE) || \
-                               (pkt_drv->DataType.enH265EType == H265E_NALU_BSLICE) || (pkt_drv->DataType.enH265EType == H265E_NALU_BSLICE)) {
-                        pPkt->pkt_data.frame_type = BM_VPU_FRAME_TYPE_B;
-                    }
-                    pPkt->pkt_data.pts        = pkt_drv->u64PTS;
-                    pPkt->pkt_data.dts        = pkt_drv->u64DTS;
-                    pPkt->pkt_data.src_idx    = pkt_drv->releasFrameIdx;
-                    pPkt->pkt_data.u64CustomMapPhyAddr    = pkt_drv->u64CustomMapPhyAddr;
-                    pPkt->pkt_data.avg_ctu_qp = pkt_drv->u32AvgCtuQp;
-
-                    pPkt->pkt_is_used = 1;
-                    isAddNode = false;
-                    break;
-                }
-            }
-
-            // 3.3.2 allocate new nodes to copy data
-            if (isAddNode) {
-                // 3.3.2.1 new node
-                BM_AVPKT *pNodeNew = malloc(sizeof(BM_AVPKT));
-                memset(pNodeNew, 0, sizeof(BM_AVPKT));
-                pNodeNew->pkt_data.data_len = 0;
-                pNodeNew->pkt_is_used = 0;
-                pNodeNew->pnext = NULL;
-
-                // 3.3.2.2 add new node to list
-                if (g_enc_chn[VeChn].p_pkt_list == NULL) {
-                    g_enc_chn[VeChn].p_pkt_list = pNodeNew;
-                } else {
-                    BM_AVPKT * pPkt = g_enc_chn[VeChn].p_pkt_list;
-                    while (pPkt != NULL) {
-                        if (pPkt->pnext == NULL) {
-                            pPkt->pnext = pNodeNew;
-                            break;
-                        } else {
-                            pPkt = pPkt->pnext;
-                        }
-                    }
-                }
-
-                // 3.3.2.3 copy data
-                if (pkt_drv->u32Len > pNodeNew->pkt_data.data_len) {
-                    if (pNodeNew->pkt_data.data_len > 0)
-                        free(pNodeNew->pkt_data.data);
-                    pNodeNew->pkt_data.data = NULL;
-                    pNodeNew->pkt_data.data = (uint8_t*)malloc(pkt_drv->u32Len  + 1);
-                    pNodeNew->pkt_data.data_len = pkt_drv->u32Len  + 1;
-                }
-
-                memcpy(pNodeNew->pkt_data.data, pkt_drv->pu8Addr, pkt_drv->u32Len);
-                pNodeNew->pkt_data.data_size   = pkt_drv->u32Len;
-                if ((pkt_drv->DataType.enH264EType == H264E_NALU_SEI) || (pkt_drv->DataType.enH264EType == H264E_NALU_SPS) || \
-                    (pkt_drv->DataType.enH264EType == H264E_NALU_PPS) || \
-                    (pkt_drv->DataType.enH265EType == H265E_NALU_SEI) || (pkt_drv->DataType.enH265EType == H265E_NALU_SPS) || \
-                    (pkt_drv->DataType.enH265EType == H265E_NALU_PPS) || (pkt_drv->DataType.enH265EType == H265E_NALU_VPS)) {
-                    pNodeNew->pkt_data.frame_type = BM_VPU_FRAME_TYPE_UNKNOWN;
-                } else if ((pkt_drv->DataType.enH264EType == H264E_NALU_ISLICE) || (pkt_drv->DataType.enH264EType == H264E_NALU_IDRSLICE) || \
-                           (pkt_drv->DataType.enH265EType == H265E_NALU_ISLICE) || (pkt_drv->DataType.enH265EType == H265E_NALU_IDRSLICE)) {
-                    pNodeNew->pkt_data.frame_type = BM_VPU_FRAME_TYPE_I;
-                } else if ((pkt_drv->DataType.enH264EType == H264E_NALU_PSLICE) || \
-                           (pkt_drv->DataType.enH265EType == H265E_NALU_PSLICE) ) {
-                    pNodeNew->pkt_data.frame_type = BM_VPU_FRAME_TYPE_P;
-                } else if ((pkt_drv->DataType.enH264EType == H264E_NALU_BSLICE) || \
-                           (pkt_drv->DataType.enH265EType == H265E_NALU_BSLICE) ) {
-                    pNodeNew->pkt_data.frame_type = BM_VPU_FRAME_TYPE_B;
-                }
-                pNodeNew->pkt_data.pts        = pkt_drv->u64PTS;
-                pNodeNew->pkt_data.dts        = pkt_drv->u64DTS;
-                pNodeNew->pkt_data.src_idx    = pkt_drv->releasFrameIdx;
-                pNodeNew->pkt_data.u64CustomMapPhyAddr    = pkt_drv->u64CustomMapPhyAddr;
-                pNodeNew->pkt_data.avg_ctu_qp = pkt_drv->u32AvgCtuQp;
-
-                pNodeNew->pkt_is_used = 1;
-            }
         }
-    }
-    // 4. release resource and unmap
-    for (int i = 0; i < g_enc_chn[VeChn].stStream.u32PackCount; i++) {
-        venc_pack_s *ppack;
-        ppack = &g_enc_chn[VeChn].stStream.pstPack[i];
-        if (ppack->u64PhyAddr && ppack->u32Len) {
-            bmvpu_enc_bmlib_munmap(0, ppack->pu8Addr, ppack->u32Len);
-        }
+
+        // 5. unmap
+        bmvpu_dma_buffer_unmap(0, &dma_buf);
     }
 
-    // encoded_frame->src_idx   = g_enc_chn[VeChn].stStream.pstPack->releasFrameIdx;
-    ret = bmenc_ioctl_release_stream(g_enc_chn[VeChn].chn_fd, &(g_enc_chn[VeChn].stStream));
+    // 4. call ioctl release stream
+    ret = bmenc_ioctl_release_stream(g_enc_chn[VeChn].chn_fd, &g_enc_chn[VeChn].stStream);
     if (ret != 0) {
         BMVPU_ENC_ERROR("bmenc release stream FAIL: 0x%x\n", ret);
-        return -1;
+        return BM_VPU_ENC_RETURN_CODE_ERROR;
     }
 
-    if (g_enc_chn[VeChn].stStream.u32PackCount > 0)
-        return 0;
-    return -1;
+    if (g_enc_chn[VeChn].stStream.u32PackCount > 0) {
+        return BM_VPU_ENC_RETURN_CODE_OK;
+    }
+    return BM_VPU_ENC_RETURN_CODE_ERROR;
 }
 
 
 int bmvpu_enc_encode(BmVpuEncoder *encoder,
                      BmVpuRawFrame const *raw_frame,
                      BmVpuEncodedFrame *encoded_frame,
-                     bool isframe_end)
+                     BmVpuEncParams *encoding_params,
+                     uint32_t *output_code)
 {
+
     return 0;
 }
 
@@ -1572,4 +1630,194 @@ int bmvpu_enc_set_roiinfo(BmVpuEncoder *encoder)
     ret = bmenc_ioctl_roi(g_enc_chn[VeChn].chn_fd, &roiAttr);
     return ret;
 }
+
+char const *bmvpu_frame_type_string(BmVpuEncFrameType frame_type)
+{
+    switch (frame_type)
+    {
+    case BM_VPU_ENC_FRAME_TYPE_I: return "I";
+    case BM_VPU_ENC_FRAME_TYPE_P: return "P";
+    case BM_VPU_ENC_FRAME_TYPE_B: return "B";
+    case BM_VPU_ENC_FRAME_TYPE_IDR: return "IDR";
+    default: return "<unknown>";
+    }
+}
+
+
+
+int bmvpu_enc_upload_data(int vpu_core_idx,
+                      const uint8_t* host_va, int host_stride,
+                      uint64_t vpu_pa, int vpu_stride,
+                      int width, int height)
+{
+    return 0;
+}
+
+int bmvpu_enc_download_data(int vpu_core_idx,
+                        uint8_t* host_va, int host_stride,
+                        uint64_t vpu_pa, int vpu_stride,
+                        int width, int height)
+{
+    return 0;
+}
+
+#if 0
+int bmvpu_enc_dma_buffer_allocate(int vpu_core_idx, BmVpuEncDMABuffer *pmem, unsigned int size)
+{
+    if (pmem == NULL) return -1;
+    int ret = 0;
+    int VeChn = 0;
+    pthread_mutex_lock(&g_enc_load_mutex);
+    if (g_venc_vc_fd <= 0) {
+        BMVPU_ENC_ERROR("bmenc alloc need call bmvpu_enc_load first.\n");
+        pthread_mutex_unlock(&g_enc_load_mutex);
+        return BM_VPU_ENC_RETURN_CODE_ERROR;
+    }
+
+    venc_phys_buf_s phy_addr;
+    phy_addr.size = size;
+    ret = bmenc_ioctl_enc_alloc_physical_memory(g_venc_vc_fd, &phy_addr);
+    if (ret != 0) {
+        BMVPU_ENC_ERROR("bmenc alloc physical failed, ret: 0x%x\n", ret);
+        pthread_mutex_unlock(&g_enc_load_mutex);
+        return -1;
+    }
+
+    pmem->size         = size;
+    pmem->phys_addr    = phy_addr.phys_addr;
+    // pmem->virt_addr    = size;
+    // pmem->enable_cache = size;
+
+
+    pthread_mutex_unlock(&g_enc_load_mutex);
+    return BM_VPU_ENC_RETURN_CODE_OK;
+}
+
+
+
+int bmvpu_enc_dma_buffer_deallocate(int vpu_core_idx, BmVpuEncDMABuffer *buf)
+{
+    if (buf == NULL) return -1;
+
+    int ret = 0;
+    int VeChn = 0;
+    pthread_mutex_lock(&g_enc_load_mutex);
+    if (g_venc_vc_fd <= 0) {
+        BMVPU_ENC_ERROR("bmenc alloc need call bmvpu_enc_load first.\n");
+        pthread_mutex_unlock(&g_enc_load_mutex);
+        return BM_VPU_ENC_RETURN_CODE_ERROR;
+    }
+
+    venc_phys_buf_s extern_buf;
+    extern_buf.phys_addr = buf->phys_addr;
+    extern_buf.size = buf->size;
+    ret = bmenc_ioctl_enc_free_physical_memory(g_venc_vc_fd, &extern_buf);
+    if (ret != 0) {
+        BMVPU_ENC_ERROR("bmenc free physical failed, ret: 0x%x\n", ret);
+        pthread_mutex_unlock(&g_enc_load_mutex);
+        return -1;
+    }
+
+    pthread_mutex_unlock(&g_enc_load_mutex);
+    return BM_VPU_ENC_RETURN_CODE_OK;
+}
+
+int bmvpu_dma_buffer_map(int vpu_core_idx, BmVpuEncDMABuffer* buf, int port_flag)
+{
+    if (g_venc_mem_fd < 0) {
+        BMVPU_ENC_ERROR("bmvpu_dma_buffer_map g_venc_mem_fd=%d  \n", g_venc_mem_fd);
+        return BM_VPU_ENC_RETURN_CODE_INVALID_HANDLE;
+    }
+    buf->virt_addr = (uint64_t)mmap(NULL, buf->size, PROT_READ | PROT_WRITE,
+                    MAP_SHARED, g_venc_mem_fd, buf->phys_addr);
+    return 0;
+}
+
+int bmvpu_dma_buffer_unmap(int vpu_core_idx, BmVpuEncDMABuffer* buf)
+{
+    if (buf == NULL) return -1;
+    if (buf->virt_addr == NULL) return -1;
+
+    munmap((void *)(uintptr_t)buf->virt_addr, buf->size);
+    return 0;
+}
+
+#else
+int bmvpu_enc_dma_buffer_allocate(int vpu_core_idx, BmVpuEncDMABuffer *pmem, unsigned int size)
+{
+    bm_device_mem_t dev_buffer;
+    bmvpu_malloc_device_byte_heap(g_bm_handle[0].bm_handle, &dev_buffer, size, 0x06, 1);
+    pmem->size         = size;
+    pmem->phys_addr    = dev_buffer.u.device.device_addr;
+    pmem->dmabuf_fd    = dev_buffer.u.device.dmabuf_fd;
+    return BM_VPU_ENC_RETURN_CODE_OK;
+}
+
+int bmvpu_enc_dma_buffer_deallocate(int vpu_core_idx, BmVpuEncDMABuffer *buf)
+{
+    bm_device_mem_t dev_buffer;
+    bm_set_device_mem(&dev_buffer, buf->size, buf->phys_addr);
+    // dev_buffer.u.device.device_addr = buf->phys_addr;
+    // dev_buffer.size                 = buf->size;
+    dev_buffer.u.device.dmabuf_fd = buf->dmabuf_fd;
+    bm_free_device(g_bm_handle[0].bm_handle, dev_buffer);
+    return BM_VPU_ENC_RETURN_CODE_OK;
+}
+
+int bmvpu_dma_buffer_map(int vpu_core_idx, BmVpuEncDMABuffer* buf, int port_flag)
+{
+    if (buf == NULL) {
+        BMVPU_ENC_ERROR("bmvpu_dma_buffer_map params err. buf=0X%lx . \n", buf);
+        return BM_VPU_ENC_RETURN_CODE_INVALID_HANDLE;
+    }
+    buf->virt_addr = bmvpu_enc_bmlib_mmap(vpu_core_idx, buf->phys_addr, buf->size);
+    if (buf->virt_addr == NULL) {
+        return BM_VPU_ENC_RETURN_CODE_ERROR;
+    }
+    return BM_VPU_ENC_RETURN_CODE_OK;
+}
+
+int bmvpu_dma_buffer_unmap(int vpu_core_idx, BmVpuEncDMABuffer* buf)
+{
+    if (buf == NULL) return -1;
+    if (buf->virt_addr == NULL) return -1;
+    bmvpu_enc_bmlib_munmap(vpu_core_idx, buf->virt_addr, buf->size);
+
+    // munmap((void *)(uintptr_t)buf->virt_addr, buf->size);
+    return BM_VPU_ENC_RETURN_CODE_OK;
+}
+#endif
+int bmvpu_enc_dma_buffer_attach(int vpu_core_idx, uint64_t paddr, unsigned int size)
+{
+    BMVPU_ENC_ERROR("bmvpu_enc_dma_buffer_attach not support\n");
+    return 0;
+}
+
+int bmvpu_enc_dma_buffer_deattach(int vpu_core_idx, uint64_t paddr, unsigned int size)
+{
+    BMVPU_ENC_ERROR("bmvpu_enc_dma_buffer_deattach not support\n");
+    return 0;
+}
+
+int bmvpu_enc_dma_buffer_flush(int vpu_core_idx, BmVpuEncDMABuffer* buf)
+{
+    return 0;
+}
+
+int bmvpu_enc_dma_buffer_invalidate(int vpu_core_idx, BmVpuEncDMABuffer* buf)
+{
+    return 0;
+}
+
+uint64_t bmvpu_enc_dma_buffer_get_physical_address(BmVpuEncDMABuffer* buf)
+{
+    return buf->phys_addr;
+}
+
+unsigned int bmvpu_enc_dma_buffer_get_size(BmVpuEncDMABuffer* buf)
+{
+    return 0;
+}
+
+
 

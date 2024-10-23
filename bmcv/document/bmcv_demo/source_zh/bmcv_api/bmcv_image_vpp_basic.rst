@@ -260,7 +260,7 @@ start_x、start_y、crop_w、crop_h分别表示每个输出 bm_image 对象所�
 
 1. 图片缩放倍数（（crop.width / output.width) 以及 (crop.height / output.height））限制在 1/128 ～ 128 之间。
 
-#. 输入输出的宽高（src.width, src.height, dst.widht, dst.height）限制在 8 ～ 8192 之间。
+#. 输入输出的宽高（src.width, src.height, dst.widht, dst.height）限制在 16 ～ 8192 之间。
 
 #. 输入必须关联 device memory，否则返回失败。
 

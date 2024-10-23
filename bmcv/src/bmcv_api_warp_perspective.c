@@ -219,7 +219,7 @@ static bm_status_t per_image_deal_nearest(bm_handle_t handle,
         return ret;
     }
 
-    sg_api_cv_warp_perspective_1684x_t param;
+    sg_api_cv_warp_perspective_t param;
     param.image_n  = NO_USE;
     param.image_sh = input.height;
     param.image_sw = input.width;
@@ -245,8 +245,13 @@ static bm_status_t per_image_deal_nearest(bm_handle_t handle,
     param.index_image_addr = bm_mem_get_device_addr(tensor_S);
     param.input_image_addr_align = bm_mem_get_device_addr(tensor_temp);
     param.out_image_addr_align = bm_mem_get_device_addr(tensor_out_align);
-    bm_image_get_stride(input, &(param.src_w_stride));
-    bm_image_get_stride(output, &(param.dst_w_stride));
+
+    int tmp_stride;
+    bm_image_get_stride(input, &(tmp_stride));
+    param.src_w_stride = tmp_stride;
+    bm_image_get_stride(output, &(tmp_stride));
+    param.dst_w_stride = tmp_stride;
+
     for (int i = 0;i < 9;i++){
         param.m.m[i] = matrix.matrix->m[i];
     }
@@ -273,18 +278,23 @@ static bm_status_t per_image_deal_bilinear(bm_handle_t handle,
                         bmcv_perspective_image_matrix matrix){
     int image_c = 3;
     bm_status_t ret = BM_SUCCESS;
-    bm_device_mem_t tensor_S;
+    bm_device_mem_t tensor_S_lu;
+    bm_device_mem_t tensor_S_ld;
+    bm_device_mem_t tensor_S_ru;
+    bm_device_mem_t tensor_S_rd;
     bm_device_mem_t tensor_temp;
     bm_device_mem_t tensor_out_align;
     bm_device_mem_t tensor_input;
     bm_image_get_device_mem(input, &tensor_input);
     bm_image_get_device_mem(output, &tensor_output);
     int index_size_temp = image_dw > image_dh ? ALIGN(image_dw, 64) : ALIGN(image_dh, 64);
-    ret = bm_malloc_device_byte(handle, &tensor_S, index_size_temp * index_size_temp * image_c * 4);
-    // ret = bm_malloc_device_byte(handle, &tensor_S, image_dh * image_dw * image_c * 4);
+    ret = bm_malloc_device_byte(handle, &tensor_S_lu, index_size_temp * index_size_temp * image_c * 4);
+    ret = bm_malloc_device_byte(handle, &tensor_S_ld, index_size_temp * index_size_temp * image_c * 4);
+    ret = bm_malloc_device_byte(handle, &tensor_S_ru, index_size_temp * index_size_temp * image_c * 4);
+    ret = bm_malloc_device_byte(handle, &tensor_S_rd, index_size_temp * index_size_temp * image_c * 4);
     if (BM_SUCCESS != ret) return ret;
 
-    sg_api_cv_warp_perspective_1684x_t param;
+    sg_api_cv_warp_perspective_bilinear_t param;
     param.image_n  = image_c;
     param.image_sh = input.height;
     param.image_sw = input.width;
@@ -295,34 +305,53 @@ static bm_status_t per_image_deal_bilinear(bm_handle_t handle,
     param.input_image_addr = bm_mem_get_device_addr(tensor_input);
     ret = bm_malloc_device_byte(handle, &tensor_temp, input.height * input.width * 2);
     if (BM_SUCCESS != ret) {
-        bm_free_device(handle, tensor_S);
+        bm_free_device(handle, tensor_S_lu);
+        bm_free_device(handle, tensor_S_ld);
+        bm_free_device(handle, tensor_S_ru);
+        bm_free_device(handle, tensor_S_rd);
         return ret;
     }
     ret = bm_malloc_device_byte(handle, &tensor_out_align, output.height * output.width * 2);
     if (BM_SUCCESS != ret) {
-        bm_free_device(handle, tensor_S);
+        bm_free_device(handle, tensor_S_lu);
+        bm_free_device(handle, tensor_S_ld);
+        bm_free_device(handle, tensor_S_ru);
+        bm_free_device(handle, tensor_S_rd);
         bm_free_device(handle, tensor_temp);
         return ret;
     }
     param.output_image_addr = bm_mem_get_device_addr(tensor_output);
-    param.index_image_addr = bm_mem_get_device_addr(tensor_S);
+    param.index_image_addr_lu = bm_mem_get_device_addr(tensor_S_lu);
+    param.index_image_addr_ld = bm_mem_get_device_addr(tensor_S_ld);
+    param.index_image_addr_ru = bm_mem_get_device_addr(tensor_S_ru);
+    param.index_image_addr_rd = bm_mem_get_device_addr(tensor_S_rd);
     param.input_image_addr_align = bm_mem_get_device_addr(tensor_temp);
     param.out_image_addr_align = bm_mem_get_device_addr(tensor_out_align);
-    bm_image_get_stride(input, &(param.src_w_stride));
-    bm_image_get_stride(output, &(param.dst_w_stride));
+
+    int tmp_stride;
+    bm_image_get_stride(input, &(tmp_stride));
+    param.src_w_stride = tmp_stride;
+    bm_image_get_stride(output, &(tmp_stride));
+    param.dst_w_stride = tmp_stride;
 
     for (int i = 0;i < 9;i++){
         param.m.m[i] = matrix.matrix->m[i];
     }
     int core_id = 0;
-    ret = bm_tpu_kernel_launch(handle, "sg_cv_warp_perspective_1684x", (u8 *)&param, sizeof(param), core_id);
+    ret = bm_tpu_kernel_launch(handle, "cv_api_warp_perspective_bilinear_1688", (u8 *)&param, sizeof(param), core_id);
     if (BM_SUCCESS != ret) {
-        bm_free_device(handle, tensor_S);
+        bm_free_device(handle, tensor_S_lu);
+        bm_free_device(handle, tensor_S_ld);
+        bm_free_device(handle, tensor_S_ru);
+        bm_free_device(handle, tensor_S_rd);
         bm_free_device(handle, tensor_temp);
 	bm_free_device(handle, tensor_out_align);
         return ret;
     }
-    bm_free_device(handle, tensor_S);
+    bm_free_device(handle, tensor_S_lu);
+    bm_free_device(handle, tensor_S_ld);
+    bm_free_device(handle, tensor_S_ru);
+    bm_free_device(handle, tensor_S_rd);
     bm_free_device(handle, tensor_temp);
     bm_free_device(handle, tensor_out_align);
     return BM_SUCCESS;
@@ -351,7 +380,7 @@ bm_status_t bmcv_image_warp_perspective_1684X(
     for (int num = 0;num < image_num;num++) {
         output_alloc_flag[num] = false;
         if(!bm_image_is_attached(output[num])) {
-            if(BM_SUCCESS !=bm_image_alloc_dev_mem(output[num], BMCV_HEAP_ANY)) {
+            if(BM_SUCCESS !=bm_image_alloc_dev_mem(output[num], BMCV_HEAP1_ID)) {
                 printf("bm_image_alloc_dev_mem error\r\n");
                 for (int free_idx = 0; free_idx < num; free_idx ++) {
                     if (output_alloc_flag[free_idx]) {
@@ -393,7 +422,7 @@ bm_status_t bmcv_image_warp_perspective(
 {
     unsigned int chipid;
     bm_get_chipid(handle, &chipid);
-    if (chipid == BM1688){
+    if (chipid == BM1688 || chipid == BM1688_PREV){
         return bmcv_image_warp_perspective_1684X(
                 handle,
                 image_num,

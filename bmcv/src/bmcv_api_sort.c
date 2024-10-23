@@ -82,6 +82,7 @@ bm_status_t bmcv_sort(bm_handle_t handle, bm_device_mem_t src_index_addr, bm_dev
     }
 
     switch (chipid) {
+        case BM1688_PREV:
         case BM1688:
             ret = bm_tpu_kernel_launch(handle, "cv_sort", (u8 *)&api, sizeof(api), core_id);
             break;

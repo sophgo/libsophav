@@ -72,7 +72,7 @@ start_x、start_y、crop_w、crop_h分别表示每个输出 bm_image 对象所�
 
 1. 该 API 所需要满足的格式以及部分要求与 bmcv_image_vpp_basic 中的表格相同。
 
-2. 输入输出的宽高（src.width, src.height, dst.widht, dst.height）限制在 8 ～ 8192 之间，缩放128倍。
+2. 输入输出的宽高（src.width, src.height, dst.widht, dst.height）限制在 16 ～ 8192 之间，缩放128倍。
 
 3. 输入必须关联 device memory，否则返回失败。
 

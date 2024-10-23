@@ -152,17 +152,17 @@ bm_status_t init_dpu(bm_handle_t handle, bm_image *left,
         return BM_ERR_FAILURE;
     }
 
-    if(bm_image_alloc_dev_mem(*left, BMCV_HEAP_ANY) != BM_SUCCESS){
+    if(bm_image_alloc_dev_mem(*left, BMCV_HEAP1_ID) != BM_SUCCESS){
         printf("bm_image_alloc_dev_mem_leftImg failed \n");
         return BM_ERR_FAILURE;
     }
 
-    if(bm_image_alloc_dev_mem(*right, BMCV_HEAP_ANY) != BM_SUCCESS){
+    if(bm_image_alloc_dev_mem(*right, BMCV_HEAP1_ID) != BM_SUCCESS){
         printf("bm_image_alloc_dev_mem_rightImg failed \n");
         return BM_ERR_FAILURE;
     }
 
-    if(bm_image_alloc_dev_mem(*output, BMCV_HEAP_ANY) != BM_SUCCESS){
+    if(bm_image_alloc_dev_mem(*output, BMCV_HEAP1_ID) != BM_SUCCESS){
         printf("bm_image_alloc_dev_mem_dispImg failed \n");
         return BM_ERR_FAILURE;
     }

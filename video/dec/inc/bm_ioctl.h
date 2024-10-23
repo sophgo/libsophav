@@ -27,6 +27,8 @@ typedef unsigned int VB_POOL;
 #include <linux/comm_video.h>
 #include <linux/comm_vdec.h>
 #include <linux/vc_uapi.h>
+#include "bm_vpudec_interface.h"
+
 
 #ifndef BM_UNUSED_PARAMS
 #define BM_UNUSED_PARAMS(x) ((void)(x))
@@ -42,50 +44,12 @@ typedef struct _vdec_stream_ex_s  {
 	int s32MilliSec;
 } vdec_stream_ex_s;
 
-typedef enum
-{
-    BM_ERR_VDEC_INVALID_CHNID = -27,
-	BM_ERR_VDEC_ILLEGAL_PARAM,
-	BM_ERR_VDEC_EXIST,
-	BM_ERR_VDEC_UNEXIST,
-	BM_ERR_VDEC_NULL_PTR,
-	BM_ERR_VDEC_NOT_CONFIG,
-	BM_ERR_VDEC_NOT_SUPPORT,
-	BM_ERR_VDEC_NOT_PERM,
-	BM_ERR_VDEC_INVALID_PIPEID,
-	BM_ERR_VDEC_INVALID_GRPID,
-	BM_ERR_VDEC_NOMEM,
-	BM_ERR_VDEC_NOBUF,
-	BM_ERR_VDEC_BUF_EMPTY,
-	BM_ERR_VDEC_BUF_FULL,
-	BM_ERR_VDEC_SYS_NOTREADY,
-	BM_ERR_VDEC_BADADDR,
-	BM_ERR_VDEC_BUSY,
-	BM_ERR_VDEC_SIZE_NOT_ENOUGH,
-	BM_ERR_VDEC_INVALID_VB,
-	BM_ERR_VDEC_ERR_INIT,
-	BM_ERR_VDEC_ERR_INVALID_RET,
-	BM_ERR_VDEC_ERR_SEQ_OPER,
-	BM_ERR_VDEC_ERR_VDEC_MUTEX,
-	BM_ERR_VDEC_ERR_SEND_FAILED,
-	BM_ERR_VDEC_ERR_GET_FAILED,
-	BM_ERR_VDEC_BUTT,
-    BM_ERR_VDEC_FAILURE
-}BMVidDecRetStatus;
+extern BmVpuDecLogLevel bm_vpu_log_level_threshold;
 
-typedef enum
-{
-    BM_VPU_LOG_LEVEL_ERROR   = 0,
-    BM_VPU_LOG_LEVEL_WARNING = 1,
-    BM_VPU_LOG_LEVEL_INFO    = 2,
-    BM_VPU_LOG_LEVEL_DEBUG   = 3,
-    BM_VPU_LOG_LEVEL_LOG     = 4,
-    BM_VPU_LOG_LEVEL_TRACE   = 5
-} BmVpuLogLevel;
-extern BmVpuLogLevel bm_vpu_log_level_threshold;
+void bm_vpu_set_logging_threshold(BmVpuDecLogLevel threshold);
+void logging_fn(BmVpuDecLogLevel level, char const *file, int const line, char const *fn, const char *format, ...);
 
-void bm_vpu_set_logging_threshold(BmVpuLogLevel threshold);
-void logging_fn(BmVpuLogLevel level, char const *file, int const line, char const *fn, const char *format, ...);
+#define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 
 #define BM_VPU_ERROR_FULL(FILE_, LINE_, FUNCTION_, ...)   do { if (bm_vpu_log_level_threshold >= BM_VPU_LOG_LEVEL_ERROR)   { logging_fn(BM_VPU_LOG_LEVEL_ERROR,   FILE_, LINE_, FUNCTION_, __VA_ARGS__); } } while(0)
 #define BM_VPU_WARNING_FULL(FILE_, LINE_, FUNCTION_, ...) do { if (bm_vpu_log_level_threshold >= BM_VPU_LOG_LEVEL_WARNING) { logging_fn(BM_VPU_LOG_LEVEL_WARNING, FILE_, LINE_, FUNCTION_, __VA_ARGS__); } } while(0)
@@ -94,12 +58,12 @@ void logging_fn(BmVpuLogLevel level, char const *file, int const line, char cons
 #define BM_VPU_LOG_FULL(FILE_, LINE_, FUNCTION_, ...)     do { if (bm_vpu_log_level_threshold >= BM_VPU_LOG_LEVEL_LOG)     { logging_fn(BM_VPU_LOG_LEVEL_LOG,     FILE_, LINE_, FUNCTION_, __VA_ARGS__); } } while(0)
 #define BM_VPU_TRACE_FULL(FILE_, LINE_, FUNCTION_, ...)   do { if (bm_vpu_log_level_threshold >= BM_VPU_LOG_LEVEL_TRACE)   { logging_fn(BM_VPU_LOG_LEVEL_TRACE,   FILE_, LINE_, FUNCTION_, __VA_ARGS__); } } while(0)
 
-#define BMVPU_DEC_ERROR(...)    BM_VPU_ERROR_FULL  (__FILE__, __LINE__, __func__, __VA_ARGS__)
-#define BMVPU_DEC_WARNING(...)  BM_VPU_WARNING_FULL(__FILE__, __LINE__, __func__, __VA_ARGS__)
-#define BMVPU_DEC_INFO(...)     BM_VPU_INFO_FULL   (__FILE__, __LINE__, __func__, __VA_ARGS__)
-#define BMVPU_DEC_DEBUG(...)    BM_VPU_DEBUG_FULL  (__FILE__, __LINE__, __func__, __VA_ARGS__)
-#define BMVPU_DEC_LOG(...)      BM_VPU_LOG_FULL    (__FILE__, __LINE__, __func__, __VA_ARGS__)
-#define BMVPU_DEC_TRACE(...)    BM_VPU_TRACE_FULL  (__FILE__, __LINE__, __func__, __VA_ARGS__)
+#define BMVPU_DEC_ERROR(...)    BM_VPU_ERROR_FULL  (FILENAME, __LINE__, __func__, __VA_ARGS__)
+#define BMVPU_DEC_WARNING(...)  BM_VPU_WARNING_FULL(FILENAME, __LINE__, __func__, __VA_ARGS__)
+#define BMVPU_DEC_INFO(...)     BM_VPU_INFO_FULL   (FILENAME, __LINE__, __func__, __VA_ARGS__)
+#define BMVPU_DEC_DEBUG(...)    BM_VPU_DEBUG_FULL  (FILENAME, __LINE__, __func__, __VA_ARGS__)
+#define BMVPU_DEC_LOG(...)      BM_VPU_LOG_FULL    (FILENAME, __LINE__, __func__, __VA_ARGS__)
+#define BMVPU_DEC_TRACE(...)    BM_VPU_TRACE_FULL  (FILENAME, __LINE__, __func__, __VA_ARGS__)
 
 int bmdec_chn_open(char* dev_name, int soc_idx);
 int bmdec_chn_close(int soc_idx);

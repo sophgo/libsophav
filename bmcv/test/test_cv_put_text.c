@@ -246,7 +246,7 @@ static bm_status_t put_text_tpu(unsigned char* input,  int height, int width, co
         goto exit0;
     }
 
-    ret = bm_image_alloc_dev_mem(input_img, BMCV_HEAP_ANY);
+    ret = bm_image_alloc_dev_mem(input_img, BMCV_HEAP1_ID);
     if (ret != BM_SUCCESS) {
         printf("bm_image_alloc_dev_mem failed!\n");
         goto exit1;

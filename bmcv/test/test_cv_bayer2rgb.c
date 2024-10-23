@@ -381,8 +381,8 @@ static int bayer2rgb_tpu(bm_handle_t handle, unsigned char* input, unsigned char
         return -1;
     }
     bm_image_create(handle, height, width, FORMAT_RGB_PLANAR, DATA_TYPE_EXT_1N_BYTE, &output_img, NULL);
-    bm_image_alloc_dev_mem(input_img, BMCV_HEAP_ANY);
-    bm_image_alloc_dev_mem(output_img, BMCV_HEAP_ANY);
+    bm_image_alloc_dev_mem(input_img, BMCV_HEAP1_ID);
+    bm_image_alloc_dev_mem(output_img, BMCV_HEAP1_ID);
     bm_image_copy_host_to_device(input_img, (void **)(&input));
     gettimeofday(&t1,NULL);
     bmcv_image_bayer2rgb(handle, convd_kernel, input_img, output_img);

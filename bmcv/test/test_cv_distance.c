@@ -65,8 +65,8 @@ static int cpu_distance_fp32(float* XHost, float* cpu_out, int L, int dim, float
     return 0;
 }
 
-static int cpu_distance_fp16(struct fp16* XHost16, struct fp16* cpu_out_fp16, int L,
-                            int dim, struct fp16 pnt16[])
+static int cpu_distance_fp16(fp16* XHost16, fp16* cpu_out_fp16, int L,
+                            int dim, fp16 pnt16[])
 {
     int i, j;
     float pnt32[DIM_MAX] = {0};
@@ -142,8 +142,8 @@ static int tpu_distance_fp32(float* XHost, float* YHost, int L,int dim, float pn
     return 0;
 }
 
-static int tpu_distance_fp16(struct fp16* XHost16, struct fp16* YHost16, int L,
-                            int dim, struct fp16 pnt16[], bm_handle_t handle)
+static int tpu_distance_fp16(fp16* XHost16, fp16* YHost16, int L,
+                            int dim, fp16 pnt16[], bm_handle_t handle)
 {
     enum bm_data_type_t dtype = DT_FP16;
     bm_status_t ret = BM_SUCCESS;
@@ -212,10 +212,10 @@ static int test_distance(int dim, int L, int op, bm_handle_t handle)
     float* XHost = (float*)malloc(L * dim * sizeof(float));
     float* tpu_out = (float*)malloc(L * sizeof(float));
     float* cpu_out = (float*)malloc(L * sizeof(float));
-    struct fp16* XHost16 = (struct fp16*)malloc(L * dim * sizeof(struct fp16));
-    struct fp16* tpu_out_fp16 = (struct fp16*)malloc(L * sizeof(struct fp16));
-    struct fp16* cpu_out_fp16 = (struct fp16*)malloc(L * sizeof(struct fp16));
-    struct fp16 pnt16[DIM_MAX] = {0};
+    fp16* XHost16 = (fp16*)malloc(L * dim * sizeof(fp16));
+    fp16* tpu_out_fp16 = (fp16*)malloc(L * sizeof(fp16));
+    fp16* cpu_out_fp16 = (fp16*)malloc(L * sizeof(fp16));
+    fp16 pnt16[DIM_MAX] = {0};
     int round = 1;
     int ret = 0;
     int i;

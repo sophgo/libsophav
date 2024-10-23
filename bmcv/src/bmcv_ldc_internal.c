@@ -192,6 +192,7 @@ bm_status_t bmcv_ldc_rot(bm_handle_t          handle,
     }
 
     switch(chipid) {
+        case BM1688_PREV:
         case BM1688:
             ret = bm_ldc_rot_internal(handle, in_image, out_image, rot_mode);
             if(ret != BM_SUCCESS){
@@ -222,6 +223,7 @@ bm_status_t bmcv_ldc_gdc(bm_handle_t          handle,
     }
 
     switch(chipid) {
+        case BM1688_PREV:
         case BM1688:
             ret = bm_ldc_gdc_internal(handle, in_image, out_image, ldc_attr);
             if(ret != BM_SUCCESS){
@@ -253,6 +255,7 @@ bm_status_t bmcv_ldc_gdc_gen_mesh(bm_handle_t          handle,
     }
 
     switch(chipid) {
+        case BM1688_PREV:
         case BM1688:
             ret = bm_ldc_gdc_gen_mesh_internal(handle, in_image, out_image, ldc_attr, dmem);
             if(ret != BM_SUCCESS){
@@ -283,6 +286,7 @@ bm_status_t bmcv_ldc_gdc_load_mesh(bm_handle_t          handle,
     }
 
     switch(chipid) {
+        case BM1688_PREV:
         case BM1688:
             ret = bm_ldc_gdc_load_mesh_internal(handle, in_image, out_image, dmem);
             if(ret != BM_SUCCESS){

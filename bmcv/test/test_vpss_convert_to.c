@@ -127,8 +127,8 @@ bm_status_t vpss_convert_to(unsigned char *src_data,
 
     bm_image_create(handle, in_height, in_width, src_format, DATA_TYPE_EXT_1N_BYTE, &src, NULL);
     bm_image_create(handle, out_height, out_width, dst_format, DATA_TYPE_EXT_1N_BYTE, &dst, NULL);
-    bm_image_alloc_dev_mem(src, BMCV_HEAP_ANY);
-    bm_image_alloc_dev_mem(dst, BMCV_HEAP_ANY);
+    bm_image_alloc_dev_mem(src, BMCV_HEAP1_ID);
+    bm_image_alloc_dev_mem(dst, BMCV_HEAP1_ID);
 
     int src_image_byte_size[4] = {0};
     bm_image_get_byte_size(src, src_image_byte_size);
@@ -395,14 +395,14 @@ int main(int argc, char **argv) {
     convert_to_attr.alpha_2 = atof(argv[5]);
     convert_to_attr.beta_0 = atof(argv[6]);
     convert_to_attr.beta_1 = atof(argv[7]);
-    convert_to_attr.beta_2 = atof(argv[7]);
+    convert_to_attr.beta_2 = atof(argv[8]);
     src_format = atoi(argv[9]);
     use_real_img = atoi(argv[10]);
     out_width = in_width;
     out_height = in_height;
     dst_format = src_format;
     if (argc == 12) {
-        strncpy(filename_src, argv[11], sizeof(filename_src));
+        memcpy(filename_src, argv[11], sizeof(filename_src));
     }
 
     bm_status_t ret = vpss_convert_to_cmp(use_real_img, filename_src, filename_dst, in_width, in_height, out_width, out_height, src_format, dst_format, convert_to_attr);

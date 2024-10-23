@@ -87,7 +87,7 @@ bm_status_t bmcv_image_transpose(bm_handle_t handle, bm_image input, bm_image ou
     }
 
     if (in_need_convert) {
-        ret = bm_image_alloc_dev_mem(input_->inner[0], BMCV_HEAP_ANY);
+        ret = bm_image_alloc_dev_mem(input_->inner[0], BMCV_HEAP1_ID);
         if (ret != BM_SUCCESS) {
             bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "alloc intermediate memory failed\n",
                     filename(__FILE__), __func__, __LINE__);
@@ -127,6 +127,7 @@ bm_status_t bmcv_image_transpose(bm_handle_t handle, bm_image input, bm_image ou
     }
 
     switch(chipid) {
+        case BM1688_PREV:
         case BM1688:
             ret = bm_tpu_kernel_launch(handle, "cv_transpose", (u8*)&api,
                                                 sizeof(api), core_id);

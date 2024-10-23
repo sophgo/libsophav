@@ -89,7 +89,7 @@ static void * ive_ccl(void* arg){
     bm_ive_image_calc_stride(handle, height, width, fmt, DATA_TYPE_EXT_1N_BYTE, stride);
     bm_image_create(handle, height, width, fmt, DATA_TYPE_EXT_1N_BYTE, &src_dst_img, stride);
 
-    ret = bm_image_alloc_dev_mem(src_dst_img, BMCV_HEAP_ANY);
+    ret = bm_image_alloc_dev_mem(src_dst_img, BMCV_HEAP1_ID);
     if (ret != BM_SUCCESS) {
         printf("src bm_image_alloc_dev_mem failed. ret = %d\n", ret);
         free(ccblob);
@@ -208,10 +208,10 @@ int main(int argc, char **argv){
     else if (argc == 3){
         test_threads_num = atoi(argv[1]);
         test_loop_times  = atoi(argv[2]);
-    } else if (argc > 3 && argc < 7) {
-        printf("command input error, please follow this order:\n \
-        %s width height enMode u16InitAreaThr u16Step src_name ref_name dev_id thread_num loop_num bWrite ive_res_name \
-        %s thread_num loop_num\n", argv[0], argv[0]);
+    } else if ((argc > 3 && argc < 7) || (argc == 1)) {
+        printf("please follow this order to input command:\n \
+        %s width height enMode u16InitAreaThr u16Step src_name ref_name dev_id thread_num loop_num bWrite ive_res_name\n \
+        %s 720 576 1 4 2 ive_data/ccl_raw_1.raw ive_data/result/sample_CCL_1.bin 0 1 1 0\n", argv[0], argv[0]);
         exit(-1);
     }
     if (test_loop_times > 15000 || test_loop_times < 1) {

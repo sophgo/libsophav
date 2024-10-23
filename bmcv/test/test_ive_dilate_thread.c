@@ -84,13 +84,13 @@ static void * ive_dilate(void* arg){
     bm_image_create(handle, height, width, fmt, DATA_TYPE_EXT_1N_BYTE, &src, stride);
     bm_image_create(handle, height, width, fmt, DATA_TYPE_EXT_1N_BYTE, &dst, stride);
 
-    ret = bm_image_alloc_dev_mem(src, BMCV_HEAP_ANY);
+    ret = bm_image_alloc_dev_mem(src, BMCV_HEAP1_ID);
     if (ret != BM_SUCCESS) {
         printf("src bm_image_alloc_dev_mem_src. ret = %d\n", ret);
         exit(-1);
     }
 
-    ret = bm_image_alloc_dev_mem(dst, BMCV_HEAP_ANY);
+    ret = bm_image_alloc_dev_mem(dst, BMCV_HEAP1_ID);
     if (ret != BM_SUCCESS) {
         printf("dst bm_image_alloc_dev_mem_src. ret = %d\n", ret);
         exit(-1);
@@ -194,10 +194,10 @@ int main(int argc, char **argv){
     else if (argc == 3){
         test_threads_num = atoi(argv[1]);
         test_loop_times  = atoi(argv[2]);
-    } else if (argc > 3 && argc < 9) {
-        printf("command input error, please follow this order:\n \
+    } else if ((argc > 3 && argc < 9) || (argc == 1)) {
+        printf("please follow this order to input command:\n \
         %s width height dilateSize(0:3x3 1:5x5) src_name golden_sample_name dev_id thread_num loop_num bWrite dst_name\n \
-        %s thread_num loop_num\n", argv[0], argv[0]);
+        %s 352 288 0 ive_data/bin_352x288_y.yuv ive_data/result/sample_Dilate_3x3_dilate_only.bin 0 1 1 0\n", argv[0], argv[0]);
         exit(-1);
     }
     if (test_loop_times > 15000 || test_loop_times < 1) {

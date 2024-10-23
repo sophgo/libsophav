@@ -221,7 +221,7 @@ static int copy_to_test_rand_fp32(bm_handle_t handle,
                     (bm_image_format_ext)image_format,
                     (bm_image_data_format_ext)data_type,
                     &input, NULL);
-    bm_image_alloc_dev_mem(input, BMCV_HEAP_ANY);
+    bm_image_alloc_dev_mem(input, BMCV_HEAP1_ID);
     bm_image_copy_host_to_device(input, (void **)&src_data);
     bm_image_create(handle,
                     out_h,
@@ -229,7 +229,7 @@ static int copy_to_test_rand_fp32(bm_handle_t handle,
                     (bm_image_format_ext)image_format,
                     (bm_image_data_format_ext)data_type,
                     &output, NULL);
-    bm_image_alloc_dev_mem(output, BMCV_HEAP_ANY);
+    bm_image_alloc_dev_mem(output, BMCV_HEAP1_ID);
     bm_status_t ret = BM_SUCCESS;
     struct timeval t1, t2;
     gettimeofday(&t1, NULL);

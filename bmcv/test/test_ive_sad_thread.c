@@ -191,25 +191,25 @@ static void * ive_sad(void* arg){
             break;
     }
 
-    ret = bm_image_alloc_dev_mem(src[0], BMCV_HEAP_ANY);
+    ret = bm_image_alloc_dev_mem(src[0], BMCV_HEAP1_ID);
     if (ret != BM_SUCCESS) {
         printf("src1 bm_image_alloc_dev_mem failed. ret = %d\n", ret);
         exit(-1);
     }
 
-    ret = bm_image_alloc_dev_mem(src[1], BMCV_HEAP_ANY);
+    ret = bm_image_alloc_dev_mem(src[1], BMCV_HEAP1_ID);
     if (ret != BM_SUCCESS) {
         printf("src2 bm_image_alloc_dev_mem failed. ret = %d\n", ret);
         exit(-1);
     }
 
-    ret = bm_image_alloc_dev_mem(dstSad, BMCV_HEAP_ANY);
+    ret = bm_image_alloc_dev_mem(dstSad, BMCV_HEAP1_ID);
     if (ret != BM_SUCCESS) {
         printf("dstSad bm_image_alloc_dev_mem failed. ret = %d\n", ret);
         exit(-1);
     }
 
-    ret = bm_image_alloc_dev_mem(dstSadThr, BMCV_HEAP_ANY);
+    ret = bm_image_alloc_dev_mem(dstSadThr, BMCV_HEAP1_ID);
     if (ret != BM_SUCCESS) {
         printf("dstSadThr bm_image_alloc_dev_mem failed. ret = %d\n", ret);
         exit(-1);
@@ -334,10 +334,10 @@ int main(int argc, char **argv){
     else if (argc == 3){
         test_threads_num = atoi(argv[1]);
         test_loop_times  = atoi(argv[2]);
-    } else if (argc > 3 && argc < 11) {
-        printf("command input error, please follow this order:\n \
+    } else if ((argc > 3 && argc < 11) || (argc == 1)) {
+        printf("please follow this order to input command:\n \
         %s width height sad_mode sad_outCtrl_mode sadThr sadMinValue sadMaxValue src1_name src2_name refSad_name refThr_name dev_id thread_num loop_num bWrite dstSad_name dstSadThr_name\n \
-        %s thread_num loop_num\n", argv[0], argv[0]);
+        %s 352 288 1 0 0 2048 2 30 ive_data/00_352x288_y.yuv ive_data/bin_352x288_y.yuv ive_data/result/sample_Sad_sad_mode1_out0.bin ive_data/result/sample_Sad_thr_mode1_out0.bin 0 1 1 0\n", argv[0], argv[0]);
         exit(-1);
     }
     if (test_loop_times > 15000 || test_loop_times < 1) {

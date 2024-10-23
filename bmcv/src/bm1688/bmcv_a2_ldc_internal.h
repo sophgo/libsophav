@@ -37,6 +37,11 @@
 #define TILESIZE 64 // HW: data Tile Size
 #define HW_MESH_SIZE 8
 
+#define BM_HEAP_0 0
+#define BM_HEAP_1 1
+#define BMCV_HEAP_1_START 8589934592 // heap 1 start address
+
+
 #define MESH_NUM_ATILE (TILESIZE / HW_MESH_SIZE) // how many mesh in A TILE
 
 #define BM_LDC_PRT(fmt...)                                \
@@ -223,6 +228,7 @@ typedef struct _BM_LDC_BASIC_PARAM {
     gdc_identity_attr_s identity;        // Define the identity attribute of GDC (To support multi-path), each job has a unique id
     bm_ldc_op op;
     bool needPef;
+    int heap_num;
 } bm_ldc_basic_param;
 
 typedef struct _BM_GEN_MESH_PARAM {

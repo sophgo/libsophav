@@ -118,13 +118,13 @@ static void * ldc_gdc_load_mesh(void * arg)
     bm_image_create(handle, height, width, src_fmt, DATA_TYPE_EXT_1N_BYTE, &src, src_stride);
     bm_image_create(handle, align_height, align_width, dst_fmt, DATA_TYPE_EXT_1N_BYTE, &dst, dst_stride);
 
-    ret = bm_image_alloc_dev_mem(src, BMCV_HEAP_ANY);
+    ret = bm_image_alloc_dev_mem(src, BMCV_HEAP1_ID);
     if(ret != BM_SUCCESS){
         printf("bm_image_alloc_dev_mem_src failed \n");
         goto fail;
     }
 
-    ret = bm_image_alloc_dev_mem(dst, BMCV_HEAP_ANY);
+    ret = bm_image_alloc_dev_mem(dst, BMCV_HEAP1_ID);
     if(ret != BM_SUCCESS){
         printf("bm_image_alloc_dev_mem_dst failed \n");
         goto fail;
@@ -161,7 +161,7 @@ static void * ldc_gdc_load_mesh(void * arg)
     u32 mesh_1st_size = 0, mesh_2nd_size = 0;
     test_mesh_gen_get_size(width, height, &mesh_1st_size, &mesh_2nd_size);
     u32 mesh_size = mesh_1st_size + mesh_2nd_size;
-    ret = bm_malloc_device_byte(handle, &dmem, mesh_size);
+    ret = bm_malloc_device_byte_heap(handle, &dmem, BMCV_HEAP1_ID, mesh_size);
     if (ret != BM_SUCCESS) {
         printf("bm_malloc_device_byte failed: %s\n", strerror(errno));
         goto fail;

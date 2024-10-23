@@ -40,10 +40,10 @@ bmcv_image_gaussian_blur
       - 输出图像的bm_image，bm_image需要外部调用bmcv_image_create创建。image内存可以通过bm_image_alloc_dev_mem来开辟新的内存，或者使用bmcv_image_attach来attach已有的内存。如果不主动分配将在api内部进行自行分配。
     * - kw
       - 输入
-      - kernel宽的大小，目前支持数值为3。
+      - kernel宽的大小。
     * - kh
       - 输入
-      - kernel高的大小，目前支持数值为3。
+      - kernel高的大小。
     * - sigmaX
       - 输入
       - X方向上的高斯核标准差，取值范围为0-4.0。
@@ -62,25 +62,21 @@ bmcv_image_gaussian_blur
 +-----+------------------------+
 | num | image_format           |
 +=====+========================+
-| 1   | FORMAT_BGR_PACKED      |
+| 1   | FORMAT_BGR_PLANAR      |
 +-----+------------------------+
-| 2   | FORMAT_BGR_PLANAR      |
+| 2   | FORMAT_RGB_PLANAR      |
 +-----+------------------------+
-| 3   | FORMAT_RGB_PACKED      |
+| 3   | FORMAT_RGBP_SEPARATE   |
 +-----+------------------------+
-| 4   | FORMAT_RGB_PLANAR      |
+| 4   | FORMAT_BGRP_SEPARATE   |
 +-----+------------------------+
-| 5   | FORMAT_RGBP_SEPARATE   |
+| 5   | FORMAT_GRAY            |
 +-----+------------------------+
-| 6   | FORMAT_BGRP_SEPARATE   |
+| 6   | FORMAT_YUV420P         |
 +-----+------------------------+
-| 7   | FORMAT_GRAY            |
+| 7   | FORMAT_YUV422P         |
 +-----+------------------------+
-| 8   | FORMAT_YUV420P         |
-+-----+------------------------+
-| 9   | FORMAT_YUV422P         |
-+-----+------------------------+
-| 10  | FORMAT_YUV444P         |
+| 8   | FORMAT_YUV444P         |
 +-----+------------------------+
 
 该接口目前支持的数据格式：
@@ -98,6 +94,8 @@ bmcv_image_gaussian_blur
 2. 输入输出图像的数据格式，图像格式必须相同。
 
 3. 目前支持图像的最大宽为4096，最大高为8192。
+
+4. 目前卷积核支持的大小有3*3, 5*5， 7*7,当卷积核大小为3时，支持的宽高范围为8*8～4096*8192，核大小为5时支持的宽高范围为8*8～2048*8192，核大小为7时支持的宽高范围为8*8～1500*8192。
 
 **代码示例：**
 

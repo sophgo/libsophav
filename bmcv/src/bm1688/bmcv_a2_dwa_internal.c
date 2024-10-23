@@ -29,69 +29,69 @@ static int MESH_EDGE[4][2] = {
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 bm_tsk_mesh_attr_s dwa_tskMesh[DWA_MAX_TSK_MESH];
 
-static s32 dwa_init(s32 fd)
-{
-    return ioctl(fd, DWA_INIT);
-}
+// static s32 dwa_init(s32 fd)
+// {
+//     return ioctl(fd, LDC_INIT);
+// }
 
 s32 dwa_deinit(s32 fd)
 {
-    return ioctl(fd, DWA_DEINIT);
+    return ioctl(fd, LDC_DEINIT);
 }
 
-static s32 dwa_begin_job(s32 fd, struct dwa_handle_data *cfg)
+static s32 dwa_begin_job(s32 fd, struct gdc_handle_data *cfg)
 {
-    return ioctl(fd, DWA_BEGIN_JOB, cfg);
+    return ioctl(fd, LDC_BEGIN_JOB, cfg);
 }
 
-static s32 dwa_end_job(s32 fd, struct dwa_handle_data *cfg)
+static s32 dwa_end_job(s32 fd, struct gdc_handle_data *cfg)
 {
-    return ioctl(fd, DWA_END_JOB, cfg);
+    return ioctl(fd, LDC_END_JOB, cfg);
 }
 
-s32 dwa_cancel_job(s32 fd, struct dwa_handle_data *cfg)
+s32 dwa_cancel_job(s32 fd, struct gdc_handle_data *cfg)
 {
-    return ioctl(fd, DWA_CANCEL_JOB, cfg);
+    return ioctl(fd, LDC_CANCEL_JOB, cfg);
 }
 
-static s32 dwa_add_rotation_task(s32 fd, struct dwa_task_attr *attr)
+static s32 dwa_add_rotation_task(s32 fd, struct gdc_task_attr *attr)
 {
-    return ioctl(fd, DWA_ADD_ROT_TASK, attr);
+    return ioctl(fd, LDC_ADD_DWA_ROT_TASK, attr);
 }
 
-static s32 dwa_add_ldc_task(s32 fd, struct dwa_task_attr *attr)
+static s32 dwa_add_ldc_task(s32 fd, struct gdc_task_attr *attr)
 {
-    return ioctl(fd, DWA_ADD_LDC_TASK, attr);
+    return ioctl(fd, LDC_ADD_LDC_TASK, attr);
 }
 
-static s32 dwa_add_warp_task(s32 fd, struct dwa_task_attr *attr)
+static s32 dwa_add_warp_task(s32 fd, struct gdc_task_attr *attr)
 {
-    return ioctl(fd, DWA_ADD_WAR_TASK, attr);
+    return ioctl(fd, LDC_ADD_WAR_TASK, attr);
 }
 
-static s32 dwa_add_correction_task(s32 fd, struct dwa_task_attr *attr)
+static s32 dwa_add_correction_task(s32 fd, struct gdc_task_attr *attr)
 {
-    return ioctl(fd, DWA_ADD_COR_TASK, attr);
+    return ioctl(fd, LDC_ADD_COR_TASK, attr);
 }
 
-static s32 dwa_add_affine_task(s32 fd, struct dwa_task_attr *attr)
+static s32 dwa_add_affine_task(s32 fd, struct gdc_task_attr *attr)
 {
-    return ioctl(fd, DWA_ADD_AFF_TASK, attr);
+    return ioctl(fd, LDC_ADD_AFF_TASK, attr);
 }
 
-static s32 dwa_set_job_identity(s32 fd, struct dwa_identity_attr *indentity)
+static s32 dwa_set_job_identity(s32 fd, struct gdc_identity_attr *indentity)
 {
-    return ioctl(fd, DWA_SET_JOB_IDENTITY, indentity);
+    return ioctl(fd, LDC_SET_JOB_IDENTITY, indentity);
 }
 
-s32 dwa_get_work_job(s32 fd, struct dwa_handle_data *cfg)
+s32 dwa_get_work_job(s32 fd, struct gdc_handle_data *cfg)
 {
-    return ioctl(fd, DWA_GET_WORK_JOB, cfg);
+    return ioctl(fd, LDC_GET_WORK_JOB, cfg);
 }
 
-s32 dwa_get_chn_frm(s32 fd, struct dwa_chn_frm_cfg *cfg)
+s32 dwa_get_chn_frm(s32 fd, struct gdc_chn_frm_cfg *cfg)
 {
-    return ioctl(fd, DWA_GET_CHN_FRM, cfg);
+    return ioctl(fd, LDC_GET_CHN_FRM, cfg);
 }
 
 static bool is_rect_overlap(point_s l1, point_s r1, point_s l2, point_s r2)
@@ -706,7 +706,7 @@ static unsigned char get_idle_tsk_mesh(bm_handle_t handle)
         uncommonly_used_idx++;
         uncommonly_used_idx = uncommonly_used_idx % DWA_MAX_TSK_MESH;
         mem = dwa_tskMesh[uncommonly_used_idx].mem;
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "device_addr = %lx, dmabuf_fd = %d, size = %d\n", mem.u.device.device_addr, mem.u.device.dmabuf_fd, mem.size);
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "device_addr = %lx, dmabuf_fd = %d, size = %d\n", mem.u.device.device_addr, mem.u.device.dmabuf_fd, mem.size);
         bm_free_device(handle, mem);
         return uncommonly_used_idx;
     }
@@ -730,7 +730,7 @@ static void bm_ldc_attr_map(const ldc_attr_s *pstLDCAttr,
 
     fisheye_config->RgnNum = 1;
 
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "OutW_disp(%d) OutH_disp(%d)\n"
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "OutW_disp(%d) OutH_disp(%d)\n"
         , fisheye_config->OutW_disp, fisheye_config->OutH_disp);
 
     for (int i = 0; i < MAX_REGION_NUM; ++i)
@@ -760,13 +760,13 @@ static void bm_ldc_attr_map(const ldc_attr_s *pstLDCAttr,
         fisheye_region[i].ThetaZ = pstLDCAttr->y_ratio;
         fisheye_region[i].ThetaY = 0;
 
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "Region(%d) ViewMode(%d) MeshVer(%d) MeshHor(%d)\n"
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "Region(%d) ViewMode(%d) MeshVer(%d) MeshHor(%d)\n"
             , i, fisheye_region[i].ViewMode, fisheye_region[i].MeshVer, fisheye_region[i].MeshHor);
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "aspect(%d) XYRatio(%d) DistortionRatio(%d)\n"
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "aspect(%d) XYRatio(%d) DistortionRatio(%d)\n"
             , (bool)fisheye_region[i].ZoomV, fisheye_region[i].Pan, fisheye_region[i].PanEnd);
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "XRatio(%d) XYRatio(%d)\n"
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "XRatio(%d) XYRatio(%d)\n"
             , (int)fisheye_region[i].ThetaX, (int)fisheye_region[i].ThetaZ);
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "CenterXOffset(%lf) CenterYOffset(%lf) Rect(%d %d %d %d)\n"
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "CenterXOffset(%lf) CenterYOffset(%lf) Rect(%d %d %d %d)\n"
             , fisheye_region[i].InRadius, fisheye_region[i].OutRadius
             , fisheye_region[i].OutX, fisheye_region[i].OutY
             , fisheye_region[i].OutW, fisheye_region[i].OutH);
@@ -914,7 +914,7 @@ int mesh_tbl_reorder_and_parse_3(uint16_t *mesh_scan_tile_mesh_id_list, int mesh
     for (k = 0xe0; k <= 0xff; k++) {
         //CVI_TRACE_DWA(CVI_DBG_DEBUG, "mesh_id_pos_lines:%#x, %#x, k:%#x\n" , mesh_id_pos_lines, mesh_id_pos_lines & 0xff, k);
         if ((mesh_id_pos_lines & 0xff) == k) {
-            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "frm_end_tag in [%#x] pos, will put to next 2 lines(32byte)\n", mesh_id_pos_lines);
+            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "frm_end_tag in [%#x] pos, will put to next 2 lines(32byte)\n", mesh_id_pos_lines);
             for (int h = 0; h < 16; h++) {
                 reorder_mesh_id_list[mesh_id_idx1++] = 0x0000;
             }
@@ -989,9 +989,9 @@ int mesh_scan_preproc_3(int dst_width, int dst_height
     mesh_scan_id_order[id_idx++] = MESH_ID_FST;
 
     // for debug
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "X_TILE_NUMBER(%d) Y_TILE_NUMBER(%d)\n", X_TILE_NUMBER, Y_TILE_NUMBER);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "NUM_X_LINE_A_TILE(%d) NUM_Y_LINE_A_TILE(%d)\n", NUM_X_LINE_A_TILE, NUM_Y_LINE_A_TILE);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "NUM_Y_LINE_A_SUBTILE(%d)\n", NUM_Y_LINE_A_SUBTILE);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "X_TILE_NUMBER(%d) Y_TILE_NUMBER(%d)\n", X_TILE_NUMBER, Y_TILE_NUMBER);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "NUM_X_LINE_A_TILE(%d) NUM_Y_LINE_A_TILE(%d)\n", NUM_X_LINE_A_TILE, NUM_Y_LINE_A_TILE);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "NUM_Y_LINE_A_SUBTILE(%d)\n", NUM_Y_LINE_A_SUBTILE);
 
     for (tile_idx_y = 0; tile_idx_y < Y_TILE_NUMBER; tile_idx_y++) {
         // src_y = (1st line of this tile )
@@ -1172,19 +1172,19 @@ void _do_mesh_rotate(int rotate_index, int view_h, int view_w, double xin, doubl
 
 
 #if 0
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "view_h = %d\n", view_h);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "view_w = %d\n", view_w);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "view_h = %d\n", view_h);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "view_w = %d\n", view_w);
 
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, " RMATRIX[0][0] = %f\n", RMATRIX[0][0]);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, " RMATRIX[0][1] = %f\n", RMATRIX[0][1]);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, " RMATRIX[1][0] = %f\n", RMATRIX[1][0]);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, " RMATRIX[1][1] = %f\n", RMATRIX[1][1]);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, " RMATRIX[0][0] = %f\n", RMATRIX[0][0]);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, " RMATRIX[0][1] = %f\n", RMATRIX[0][1]);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, " RMATRIX[1][0] = %f\n", RMATRIX[1][0]);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, " RMATRIX[1][1] = %f\n", RMATRIX[1][1]);
 
 
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "xin = %f\n", xin);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "yin = %f\n", yin);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "xout = %f\n", xout);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "yout = %f\n", yout);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "xin = %f\n", xin);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "yin = %f\n", yin);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "xout = %f\n", xout);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "yout = %f\n", yout);
     system("pause");
 #endif
 
@@ -1462,9 +1462,9 @@ static void _Panorama180View2(bm_fisheye_region_attr* fisheye_region, int rgn_id
     int view_h = fisheye_region[rgn_idx].OutH;
     int tot_mesh_cnt = fisheye_region[rgn_idx].MeshHor * fisheye_region[rgn_idx].MeshVer;
 
-    // bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "view_w = %d, view_h = %d, \n", view_w, view_h);
-    // bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "mesh_horcnt = %d,\n", mesh_horcnt);
-    // bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "mesh_vercnt = %d,\n", mesh_vercnt);
+    // bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "view_w = %d, view_h = %d, \n", view_w, view_h);
+    // bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "mesh_horcnt = %d,\n", mesh_horcnt);
+    // bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "mesh_vercnt = %d,\n", mesh_vercnt);
 
     // UI PARAMETERS
     int _UI_horViewOffset = fisheye_region[rgn_idx].Pan;        // value range = 0 ~ 360, => -180 ~ 0 ~ +180
@@ -1475,10 +1475,10 @@ static void _Panorama180View2(bm_fisheye_region_attr* fisheye_region, int rgn_id
     _UI_verViewRange = (_UI_verViewRange == 4095) ? 4096 : _UI_verViewRange;
     _UI_horViewRange = (_UI_horViewRange == 4095) ? 4096 : _UI_horViewRange;
 
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "_UI_horViewOffset = %d,\n", _UI_horViewOffset);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "_UI_verViewOffset = %d,\n", _UI_verViewOffset);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "_UI_horViewRange = %d,\n", _UI_horViewRange);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "_UI_verViewRange = %d,\n", _UI_verViewRange);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "_UI_horViewOffset = %d,\n", _UI_horViewOffset);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "_UI_verViewOffset = %d,\n", _UI_verViewOffset);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "_UI_horViewRange = %d,\n", _UI_horViewRange);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "_UI_verViewRange = %d,\n", _UI_verViewRange);
 
     // calculate default view range:
     double view_range_ver_degs = (double)_UI_verViewRange * 90 / 4096;
@@ -1490,8 +1490,8 @@ static void _Panorama180View2(bm_fisheye_region_attr* fisheye_region, int rgn_id
     double va_hor_offset = ((double)_UI_horViewOffset - 180) * 90 / 360;
     double va_ver_offset = ((double)_UI_verViewOffset - 180) * 90 / 360;
 
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "va_hor_offset = %f,\n", va_hor_offset);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "va_ver_offset = %f,\n", va_ver_offset);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "va_hor_offset = %f,\n", va_hor_offset);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "va_ver_offset = %f,\n", va_ver_offset);
 
     // Offset to shift view angle
     double va_ver_start = minmax(90 - va_ver_degs + va_ver_offset,  0,  90);
@@ -1499,10 +1499,10 @@ static void _Panorama180View2(bm_fisheye_region_attr* fisheye_region, int rgn_id
     double va_hor_start = minmax(90 - va_hor_degs + va_hor_offset,  0,  90);
     double va_hor_end   = minmax(90 + va_hor_degs + va_hor_offset, 90, 180);
 
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "va_ver_start = %f,\n", va_ver_start);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "va_ver_end = %f,\n", va_ver_end);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "va_hor_start = %f,\n", va_hor_start);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "va_hor_end = %f,\n", va_hor_end);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "va_ver_start = %f,\n", va_ver_start);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "va_ver_end = %f,\n", va_ver_end);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "va_hor_start = %f,\n", va_hor_start);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "va_hor_end = %f,\n", va_hor_end);
 
     //system("pause");
 
@@ -1515,7 +1515,7 @@ static void _Panorama180View2(bm_fisheye_region_attr* fisheye_region, int rgn_id
 
     for (int i = 0; i < tot_mesh_cnt; i++)
     {
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "i = %d,", i);
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "i = %d,", i);
         // each mesh has 4 knots
         for (int knotidx = 0; knotidx < 4; knotidx++)
         {
@@ -1533,9 +1533,9 @@ static void _Panorama180View2(bm_fisheye_region_attr* fisheye_region, int rgn_id
 
             // if (knotidx == 0)
             // {
-            //     bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "(x,y)=(%f,%f) fisheye_region[rgn_idx].DstRgnMeshInfo[i].knot[knotidx].xcor = %f, ", x, y, fisheye_region[rgn_idx].DstRgnMeshInfo[i].knot[knotidx].xcor);
-            //     bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "hor_deg = %f, ver_deg = %f,\n\r",theta_hor_cur, theta_ver_cur);
-            //     bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "hor_rad = %f,  ver_rad = %f, \n\r", theta_hor_cur_rad, theta_ver_cur_rad);
+            //     bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "(x,y)=(%f,%f) fisheye_region[rgn_idx].DstRgnMeshInfo[i].knot[knotidx].xcor = %f, ", x, y, fisheye_region[rgn_idx].DstRgnMeshInfo[i].knot[knotidx].xcor);
+            //     bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "hor_deg = %f, ver_deg = %f,\n\r",theta_hor_cur, theta_ver_cur);
+            //     bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "hor_rad = %f,  ver_rad = %f, \n\r", theta_hor_cur_rad, theta_ver_cur_rad);
             // }
 
             double theta_x = theta_hor_cur_rad;
@@ -1565,7 +1565,7 @@ static void _Panorama180View2(bm_fisheye_region_attr* fisheye_region, int rgn_id
             fisheye_region[rgn_idx].SrcRgnMeshInfo[i].knot[knotidx].xcor = dist2d.x + x0;
             fisheye_region[rgn_idx].SrcRgnMeshInfo[i].knot[knotidx].ycor = dist2d.y + y0;
 
-            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "(x2d)(%f,%f),\n\r",dist2d.x + x0, dist2d.y + y0);
+            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "(x2d)(%f,%f),\n\r",dist2d.x + x0, dist2d.y + y0);
 
         }
     }
@@ -1659,25 +1659,25 @@ static void _panorama360View2(bm_fisheye_region_attr* fisheye_region, int rgn_id
     float inradius_pxl_final  = MIN(r, MAX(0, raw_inradius_pxl + radiusOffset));
     float outradius_pxl_final = MIN(r, MAX(inradius_pxl_final, raw_inradius_pxl + (MAX(0, (raw_outradius_pxl - raw_inradius_pxl)) * _UI_zoom_outradius) / 4096 + radiusOffset));
 
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "r = %f,\n", r);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "r = %f,\n", r);
 
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "raw_outradius_pxl = %f,\n", raw_outradius_pxl);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "raw_inradius_pxl = %f,\n", raw_inradius_pxl);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "radiusOffset = %f,\n", radiusOffset);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "inradius_pxl_final = %f,\n", inradius_pxl_final);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "outradius_pxl_final = %f,\n", outradius_pxl_final);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "raw_outradius_pxl = %f,\n", raw_outradius_pxl);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "raw_inradius_pxl = %f,\n", raw_inradius_pxl);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "radiusOffset = %f,\n", radiusOffset);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "inradius_pxl_final = %f,\n", inradius_pxl_final);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "outradius_pxl_final = %f,\n", outradius_pxl_final);
 
 
     float va_ver_end_rads   = inradius_pxl_final * M_PI / (2 * r);//_UI_inradius * M_PI / 1024;     // for Equidistant =>rd = f*theta, rd_max = f*PI/2 = r ( in code), f = 2r/PI. => theta = rd/f = rd*PI/2r
     float va_ver_start_rads = outradius_pxl_final * M_PI / (2 * r);//_UI_outradius * M_PI / 1024;
     float va_ver_rads = MIN( M_PI/2, va_ver_start_rads - va_ver_end_rads);
 
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "va_ver_end_rads = %f,\n", va_ver_end_rads);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "va_ver_start_rads = %f,\n", va_ver_start_rads);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "va_ver_rads = %f,\n", va_ver_rads);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "va_ver_end_rads = %f,\n", va_ver_end_rads);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "va_ver_start_rads = %f,\n", va_ver_start_rads);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "va_ver_rads = %f,\n", va_ver_rads);
 
-    // bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "( %d, %d, %d, %f, %f, %d,) \n", rgn_idx, _UI_start_angle, _UI_view_offset, _UI_inradius, _UI_outradius, _UI_zoom_outradius);
-    // bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "start_angle_degrees = %d, end_angle__degrees = %d, va_ver_degs = %f, va_ver_start_degs = %f, \n\r", start_angle_degrees, end_angle__degrees, va_ver_rads, va_ver_start_rads);
+    // bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "( %d, %d, %d, %f, %f, %d,) \n", rgn_idx, _UI_start_angle, _UI_view_offset, _UI_inradius, _UI_outradius, _UI_zoom_outradius);
+    // bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "start_angle_degrees = %d, end_angle__degrees = %d, va_ver_degs = %f, va_ver_start_degs = %f, \n\r", start_angle_degrees, end_angle__degrees, va_ver_rads, va_ver_start_rads);
     // system("pause");
 
     int total_angle = (360 + (end_angle__degrees - start_angle_degrees)) % 360;
@@ -1776,7 +1776,7 @@ static void _regionView2(bm_fisheye_region_attr* fisheye_region, int rgn_idx, fi
             x = x *(1 + w_ratio);
             y = y *(1 + h_ratio);
 
-            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "(x,y)=(%f,%f)\n\r", x, y);
+            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "(x,y)=(%f,%f)\n\r", x, y);
 
             pix3d.x = x;
             pix3d.y = y;
@@ -1789,7 +1789,7 @@ static void _regionView2(bm_fisheye_region_attr* fisheye_region, int rgn_idx, fi
             // update source mesh-info here
             fisheye_region[rgn_idx].SrcRgnMeshInfo[i].knot[knotidx].xcor = dist2d.x + x0;
             fisheye_region[rgn_idx].SrcRgnMeshInfo[i].knot[knotidx].ycor = dist2d.y + y0;
-            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "rgn(%d) mesh(%d) node(%d) (%lf %lf)\n", rgn_idx, i, knotidx, fisheye_region[rgn_idx].SrcRgnMeshInfo[i].knot[knotidx].xcor, fisheye_region[rgn_idx].SrcRgnMeshInfo[i].knot[knotidx].ycor);
+            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "rgn(%d) mesh(%d) node(%d) (%lf %lf)\n", rgn_idx, i, knotidx, fisheye_region[rgn_idx].SrcRgnMeshInfo[i].knot[knotidx].xcor, fisheye_region[rgn_idx].SrcRgnMeshInfo[i].knot[knotidx].ycor);
         }
     }
 }
@@ -1800,7 +1800,7 @@ int dwa_load_meshdata(char *grid, bm_mesh_data_all_s *pmeshdata, const char *bin
 
     memcpy(info, grid, 100 * sizeof(int));
 
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "head %d %d %d %d %d\n", info[0], info[1], info[2], info[3], info[4]);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "head %d %d %d %d %d\n", info[0], info[1], info[2], info[3], info[4]);
     pmeshdata->mesh_horcnt = info[0]; // num of mesh in roi
     pmeshdata->mesh_vercnt = info[1]; // num of mesh in roi
     pmeshdata->num_pairs = info[2];
@@ -1830,10 +1830,10 @@ int dwa_load_meshdata(char *grid, bm_mesh_data_all_s *pmeshdata, const char *bin
     pmeshdata->pnode_src = (int *)calloc(pmeshdata->node_index*2, sizeof(int));
     pmeshdata->pnode_dst = (int *)calloc(pmeshdata->node_index*2, sizeof(int));
 
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "mesh_horcnt,mesh_vercnt,_nbr_mesh_x, _nbr_mesh_y, count_grid, num_nodes: %d %d %d %d %d %d \n",
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "mesh_horcnt,mesh_vercnt,_nbr_mesh_x, _nbr_mesh_y, count_grid, num_nodes: %d %d %d %d %d %d \n",
               pmeshdata->mesh_horcnt, pmeshdata->mesh_vercnt, _nbr_mesh_x, _nbr_mesh_y, count_grid, pmeshdata->node_index);
 
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "imgw, imgh, mesh_w, mesh_h ,unit_rx,unit_ry: %d %d %d %d %d %d \n",
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "imgw, imgh, mesh_w, mesh_h ,unit_rx,unit_ry: %d %d %d %d %d %d \n",
               pmeshdata->imgw, pmeshdata->imgh, pmeshdata->mesh_w, pmeshdata->mesh_h, pmeshdata->unit_rx, pmeshdata->unit_ry);
     if (count_grid > 0)
     {
@@ -1849,7 +1849,7 @@ int dwa_load_meshdata(char *grid, bm_mesh_data_all_s *pmeshdata, const char *bin
         memcpy(pmeshdata->pnode_dst, grid + 100 * sizeof(int) + count_grid * 2 * sizeof(int) * 2 + count_grid * 2 * 4 * sizeof(int) * 2 + pmeshdata->node_index * 2 * sizeof(int), pmeshdata->node_index * 2 * sizeof(int));
     }
     pmeshdata->balloc = true;
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "read success!\n");
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "read success!\n");
 
     return 0;
 }
@@ -1871,7 +1871,7 @@ int _bm_load_region_config(bm_fisheye_region_attr *fisheye_region, int rgn, bm_m
     int rx = meshd->unit_rx;
     int ry = meshd->unit_ry;
 
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "horcnt, vercnt, meshw, meshh, rx, ry: %d %d %d %d %d %d\n"
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "horcnt, vercnt, meshw, meshh, rx, ry: %d %d %d %d %d %d\n"
         , horcnt, vercnt, meshw, meshh, rx, ry);
     fisheye_region[rgn].MeshVer = vercnt;
     fisheye_region[rgn].MeshHor = horcnt;
@@ -1886,8 +1886,8 @@ int _bm_load_region_config(bm_fisheye_region_attr *fisheye_region, int rgn, bm_m
 void bm_dwa_node_to_mesh(bm_fisheye_region_attr *fisheye_region, int rgn)
 {
     // for debug
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "node_to_mesh\n");
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "rgn(%d)(%d)(%d)\n",rgn,fisheye_region[0].MeshHor,fisheye_region[0].MeshVer);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "node_to_mesh\n");
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "rgn(%d)(%d)(%d)\n",rgn,fisheye_region[0].MeshHor,fisheye_region[0].MeshVer);
     int maxWMeshNum  = fisheye_region[0].MeshHor;
     int maxHMeshNum = fisheye_region[0].MeshVer;
     //Node done, load to Mesh
@@ -1946,7 +1946,7 @@ int bm_get_region_all_mesh_data_memory(bm_fisheye_region_attr *fisheye_region, i
     }
     // int mesh_horcnt, mesh_vercnt;
 
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "points to grids, hw mesh\n");
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "points to grids, hw mesh\n");
     fisheye_region[rgn].MeshHor = pmeshinfo->mesh_horcnt;// grid_info[0];//mesh_horcnt;
     fisheye_region[rgn].MeshVer = pmeshinfo->mesh_vercnt;//mesh_vercnt;
 
@@ -1984,10 +1984,10 @@ int bm_get_region_all_mesh_data_memory(bm_fisheye_region_attr *fisheye_region, i
     // hit index for buffer
 
     // for debug
-    // bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "view_h = %d src,\n", view_h);
-    // bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "view_w = %d,\n", view_w);
-    // bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "mesh_horcnt = %d,\n", mesh_horcnt);
-    // bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "mesh_vercnt = %d,\n", mesh_vercnt);
+    // bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "view_h = %d src,\n", view_h);
+    // bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "view_w = %d,\n", view_w);
+    // bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "mesh_horcnt = %d,\n", mesh_horcnt);
+    // bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "mesh_vercnt = %d,\n", mesh_vercnt);
     int meshidx = pmeshinfo->num_pairs;
     //int offsetX = 50 * 2;
     //float scale_value = 1.0;
@@ -2074,7 +2074,7 @@ int bm_get_region_all_mesh_data_memory(bm_fisheye_region_attr *fisheye_region, i
     //update node structure to mesh => all meshes are surrounded by points
     bm_dwa_node_to_mesh(fisheye_region, rgn);
 
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "PASS load mesh!!!!\n\r");    // for debug
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "PASS load mesh!!!!\n\r");    // for debug
 
     return 0;
 }
@@ -2145,7 +2145,7 @@ void bm_get_region_dst_mesh_list(bm_fisheye_region_attr* fisheye_region, int rgn
     int mesh_horcnt = fisheye_region[rgn_idx].MeshHor;
     int mesh_vercnt = fisheye_region[rgn_idx].MeshVer;
 
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "view_w(%d) view_h(%d) mesh_horcnt(%d) mesh_vercnt(%d)\n", view_w, view_h, mesh_horcnt, mesh_vercnt);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "view_w(%d) view_h(%d) mesh_horcnt(%d) mesh_vercnt(%d)\n", view_w, view_h, mesh_horcnt, mesh_vercnt);
     int knot_horcnt = mesh_horcnt + 1;
     int knot_vercnt = mesh_vercnt + 1;
     // tmp internal buffer
@@ -2159,7 +2159,7 @@ void bm_get_region_dst_mesh_list(bm_fisheye_region_attr* fisheye_region, int rgn
     int mesh_h = (view_h / mesh_vercnt);
     int half_w = view_w / 2;
     int half_h = view_h / 2;
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "mesh_w(%d) mesh_h(%d)\n", mesh_w, mesh_h);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "mesh_w(%d) mesh_h(%d)\n", mesh_w, mesh_h);
 #if 0
     for (int y = -half_h; y < half_h; ++y) {
         bool yknot_hit = ((y + half_h) % mesh_h) == 0;
@@ -2180,7 +2180,7 @@ void bm_get_region_dst_mesh_list(bm_fisheye_region_attr* fisheye_region, int rgn
             if (hitknot) {
                 meshknot_hit_buf[knotcnt].xcor = fisheye_region[rgn_idx].OutX + (x + half_w);
                 meshknot_hit_buf[knotcnt].ycor = fisheye_region[rgn_idx].OutY + (y + half_h);
-                bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "%d(%lf %lf)\n", knotcnt, meshknot_hit_buf[knotcnt].xcor, meshknot_hit_buf[knotcnt].ycor);
+                bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "%d(%lf %lf)\n", knotcnt, meshknot_hit_buf[knotcnt].xcor, meshknot_hit_buf[knotcnt].ycor);
                 knotcnt += 1;
             }
         }
@@ -2192,7 +2192,7 @@ void bm_get_region_dst_mesh_list(bm_fisheye_region_attr* fisheye_region, int rgn
         for (int i = knot_horcnt; i > 0; --i) {
             meshknot_hit_buf[knotcnt].xcor = fisheye_region[rgn_idx].OutX + (x + half_w);
             meshknot_hit_buf[knotcnt].ycor = fisheye_region[rgn_idx].OutY + (y + half_h);
-            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "%d(%lf %lf)\n", knotcnt, meshknot_hit_buf[knotcnt].xcor, meshknot_hit_buf[knotcnt].ycor);
+            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "%d(%lf %lf)\n", knotcnt, meshknot_hit_buf[knotcnt].xcor, meshknot_hit_buf[knotcnt].ycor);
             knotcnt += 1;
             x += mesh_w;
             if (i == 2)
@@ -2206,7 +2206,7 @@ void bm_get_region_dst_mesh_list(bm_fisheye_region_attr* fisheye_region, int rgn
 
     meshknot_hit_buf[knotcnt].xcor = 0xFFFFFFFF;    //End of Knot List.
     meshknot_hit_buf[knotcnt].ycor = 0xFFFFFFFF;    //End of Knot List
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "knotcnt(%d)\n", knotcnt);       // for debug
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "knotcnt(%d)\n", knotcnt);       // for debug
     // tmp for debug
 
     for (int j = 0; j < mesh_vercnt; j++) {
@@ -2351,7 +2351,7 @@ static int generate_mesh_on_fisheye(const grid_info_attr_s* pstGridInfoAttr,
         dst_width  = fisheye_config->OutW_disp;
     }
 
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "mesh_tbl_num = %d\n", mesh_tbl_num);      // for debug
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "mesh_tbl_num = %d\n", mesh_tbl_num);      // for debug
 
     /////////////////////////////////////////////////////////////////////////////////////
     // mesh scan order preprocessing
@@ -2365,7 +2365,7 @@ static int generate_mesh_on_fisheye(const grid_info_attr_s* pstGridInfoAttr,
                     dst_x_mesh_tbl, dst_y_mesh_tbl, mesh_tbl_num, mesh_scan_tile_mesh_id_list,
                     X_TILE_NUMBER, NUMBER_Y_LINE_A_SUBTILE,
                     Y_TILE_NUMBER, MAX_MESH_NUM_A_TILE);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "mesh_id_list_entry_num = %d\n", mesh_id_list_entry_num);      // for debug
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "mesh_id_list_entry_num = %d\n", mesh_id_list_entry_num);      // for debug
 
     int isrc_x_mesh_tbl[mesh_tbl_num][4];
     int isrc_y_mesh_tbl[mesh_tbl_num][4];
@@ -2383,11 +2383,11 @@ static int generate_mesh_on_fisheye(const grid_info_attr_s* pstGridInfoAttr,
                         &reorder_mesh_tbl_entry_num, reorder_mesh_id_list,
                         &reorder_mesh_id_list_entry_num, mesh_tbl_phy_addr, dst_width, dst_height);
     // for debug
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "mesh table size (bytes) = %d\n", (reorder_mesh_tbl_entry_num * 4));
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "mesh id list size (bytes) = %d\n", (reorder_mesh_id_list_entry_num * 2));
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "mesh table size (bytes) = %d\n", (reorder_mesh_tbl_entry_num * 4));
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "mesh id list size (bytes) = %d\n", (reorder_mesh_id_list_entry_num * 2));
 
     clock_gettime(CLOCK_MONOTONIC, &end);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "time consumed: %fms\n",(float)get_diff_in_us(start, end) / 1000);     // for debug
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "time consumed: %fms\n",(float)get_diff_in_us(start, end) / 1000);     // for debug
     return 0;
 }
 
@@ -2440,19 +2440,19 @@ static bm_status_t bm_get_valid_tsk_mesh_by_name(bm_handle_t handle, const char 
     }
     for (i = 0; i < DWA_MAX_TSK_MESH; i++) {
         if (strcmp(dwa_tskMesh[i].Name, name) == 0 /*&& dwa_tskMesh[i].paddr*/) {
-            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "got remain tsk mesh[%d-%s-%llx]\n", i, dwa_tskMesh[i].Name, dwa_tskMesh[i].mem.u.device.device_addr);       // for debug
+            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "got remain tsk mesh[%d-%s-%llx]\n", i, dwa_tskMesh[i].Name, dwa_tskMesh[i].mem.u.device.device_addr);       // for debug
             *idx = i;
-            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "idx = (%d)\n", *idx);       // for debug
+            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "idx = (%d)\n", *idx);       // for debug
             return BM_SUCCESS;
         }
     }
     *idx = get_idle_tsk_mesh(handle);
     if (*idx >= DWA_MAX_TSK_MESH) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "tsk mesh count(%d) is out of range(%d)\n", *idx + 1, DWA_MAX_TSK_MESH);
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "idx = (%d)\n", *idx);
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "idx = (%d)\n", *idx);
         return BM_ERR_FAILURE;
     } else {
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "start alloc new tsk mesh-[%d]-[%s]\n", *idx, name);       // for debug
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "start alloc new tsk mesh-[%d]-[%s]\n", *idx, name);       // for debug
         strcpy(dwa_tskMesh[*idx].Name, name);
         return BM_ERR_FAILURE;
     }
@@ -2484,7 +2484,7 @@ static void bm_dwa_mesh_gen_rotation(size_s in_size,
         return;
     }
 
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "in_size(%d %d) out_size(%d %d)\n"
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "in_size(%d %d) out_size(%d %d)\n"
         , in_size.width, in_size.height
         , out_size.width, out_size.height);
 
@@ -2509,9 +2509,9 @@ static void bm_dwa_mesh_gen_rotation(size_s in_size,
     // Decide the position of mesh in memory.
     mesh_id_phy_addr = mesh_phy_addr;
     mesh_tbl_phy_addr = ALIGN(mesh_phy_addr + mesh_id_size, 0x1000);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "phy-addr of mesh id(%#"PRIx64") mesh_tbl(%#"PRIx64")\n"
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "phy-addr of mesh id(%#"PRIx64") mesh_tbl(%#"PRIx64")\n"
                 , mesh_id_phy_addr, mesh_tbl_phy_addr);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "mesh_id_size(%d) mesh_tbl_size(%d)\n", mesh_id_size, mesh_tbl_size);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "mesh_id_size(%d) mesh_tbl_size(%d)\n", mesh_id_size, mesh_tbl_size);
 
     int *reorder_mesh_tbl[X_TILE_NUMBER * Y_TILE_NUMBER];
 
@@ -2542,9 +2542,9 @@ static void bm_fisheye_attr_map(const fisheye_attr_s *pstFisheyeAttr,
 
     fisheye_config->RgnNum = pstFisheyeAttr->region_num;
 
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "OutW_disp(%d) OutH_disp(%d)\n", fisheye_config->OutW_disp, fisheye_config->OutH_disp);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "InCenterX(%d) InCenterY(%d)\n", fisheye_config->InCenterX, fisheye_config->InCenterY);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "FStrength(%lf) TCoef(%lf) RgnNum(%d)\n", fisheye_config->FStrength, fisheye_config->TCoef, fisheye_config->RgnNum);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "OutW_disp(%d) OutH_disp(%d)\n", fisheye_config->OutW_disp, fisheye_config->OutH_disp);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "InCenterX(%d) InCenterY(%d)\n", fisheye_config->InCenterX, fisheye_config->InCenterY);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "FStrength(%lf) TCoef(%lf) RgnNum(%d)\n", fisheye_config->FStrength, fisheye_config->TCoef, fisheye_config->RgnNum);
 
     for (int i = 0; i < MAX_REGION_NUM; ++i)
         fisheye_region[i].RegionValid = 0;
@@ -2583,12 +2583,12 @@ static void bm_fisheye_attr_map(const fisheye_attr_s *pstFisheyeAttr,
             fisheye_region[i].PanEnd = fisheye_region[i].Pan
                 + 360 * pstFisheyeAttr->fisheye_region_attr[i].hor_zoom / 4096;
         }
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "Region(%d) ViewMode(%d) MeshVer(%d) MeshHor(%d)\n"
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "Region(%d) ViewMode(%d) MeshVer(%d) MeshHor(%d)\n"
             , i, fisheye_region[i].ViewMode, fisheye_region[i].MeshVer, fisheye_region[i].MeshHor);
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "ZoomH(%lf) ZoomV(%lf) Pan(%d) Tilt(%d) PanEnd(%d)\n"
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "ZoomH(%lf) ZoomV(%lf) Pan(%d) Tilt(%d) PanEnd(%d)\n"
             , fisheye_region[i].ZoomH, fisheye_region[i].ZoomV
             , fisheye_region[i].Pan, fisheye_region[i].Tilt, fisheye_region[i].PanEnd);
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "InRadius(%lf) OutRadius(%lf) Rect(%d %d %d %d)\n"
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "InRadius(%lf) OutRadius(%lf) Rect(%d %d %d %d)\n"
             , fisheye_region[i].InRadius, fisheye_region[i].OutRadius
             , fisheye_region[i].OutX, fisheye_region[i].OutY
             , fisheye_region[i].OutW, fisheye_region[i].OutH);
@@ -2616,7 +2616,7 @@ static bm_status_t dwa_mesh_gen_fisheye(size_s in_size, size_s out_size, const f
         return BM_ERR_NOMEM;
     }
 
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "in_size(%d %d) out_size(%d %d)\n"
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "in_size(%d %d) out_size(%d %d)\n"
         , in_size.width, in_size.height
         , out_size.width, out_size.height);
 
@@ -2672,9 +2672,9 @@ static bm_status_t dwa_mesh_gen_fisheye(size_s in_size, size_s out_size, const f
     // Decide the position of mesh in memory.
     mesh_id_phy_addr = mesh_phy_addr;
     mesh_tbl_phy_addr = ALIGN(mesh_phy_addr + mesh_id_size, 0x1000);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "phy-addr of mesh id(%#"PRIx64") mesh_tbl(%#"PRIx64")\n"
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "phy-addr of mesh id(%#"PRIx64") mesh_tbl(%#"PRIx64")\n"
                 , mesh_id_phy_addr, mesh_tbl_phy_addr);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "mesh_id_size(%d) mesh_tbl_size(%d)\n", mesh_id_size, mesh_tbl_size);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "mesh_id_size(%d) mesh_tbl_size(%d)\n", mesh_id_size, mesh_tbl_size);
 
     int *reorder_mesh_tbl[X_TILE_NUMBER * Y_TILE_NUMBER];
 
@@ -2767,9 +2767,9 @@ static void dwa_mesh_gen_affine(size_s in_size, size_s out_size, const affine_at
     // Decide the position of mesh in memory.
     mesh_id_phy_addr = mesh_phy_addr;
     mesh_tbl_phy_addr = ALIGN(mesh_phy_addr + mesh_id_size, 0x1000);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "phy-addr of mesh id(%#"PRIx64") mesh_tbl(%#"PRIx64")\n"
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "phy-addr of mesh id(%#"PRIx64") mesh_tbl(%#"PRIx64")\n"
                 , mesh_id_phy_addr, mesh_tbl_phy_addr);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "mesh_id_size(%d) mesh_tbl_size(%d)\n", mesh_id_size, mesh_tbl_size);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "mesh_id_size(%d) mesh_tbl_size(%d)\n", mesh_id_size, mesh_tbl_size);
 
     bm_mesh_param param;
 
@@ -2804,7 +2804,7 @@ static bm_status_t dwa_mesh_gen_ldc(size_s in_size, size_s out_size, const ldc_a
         return BM_ERR_FAILURE;
     }
 
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "in_size(%d %d) out_size(%d %d)\n"
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "in_size(%d %d) out_size(%d %d)\n"
         , in_size.width, in_size.height
         , out_size.width, out_size.height);
 
@@ -2826,9 +2826,9 @@ static bm_status_t dwa_mesh_gen_ldc(size_s in_size, size_s out_size, const ldc_a
     // Decide the position of mesh in memory.
     mesh_id_phy_addr = mesh_phy_addr;
     mesh_tbl_phy_addr = ALIGN(mesh_phy_addr + mesh_id_size, 0x1000);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "phy-addr of mesh id(%#"PRIx64") mesh_tbl(%#"PRIx64")\n"
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "phy-addr of mesh id(%#"PRIx64") mesh_tbl(%#"PRIx64")\n"
                 , mesh_id_phy_addr, mesh_tbl_phy_addr);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "mesh_id_size(%d) mesh_tbl_size(%d)\n", mesh_id_size, mesh_tbl_size);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "mesh_id_size(%d) mesh_tbl_size(%d)\n", mesh_id_size, mesh_tbl_size);
 
     int *reorder_mesh_tbl[X_TILE_NUMBER * Y_TILE_NUMBER];
 
@@ -2867,7 +2867,7 @@ static bm_status_t dwa_mesh_gen_warp(size_s in_size, size_s out_size, const warp
         return BM_ERR_FAILURE;
     }
 
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "in_size(%d %d) out_size(%d %d)\n"
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "in_size(%d %d) out_size(%d %d)\n"
         , in_size.width, in_size.height
         , out_size.width, out_size.height);
 
@@ -2879,7 +2879,7 @@ static bm_status_t dwa_mesh_gen_warp(size_s in_size, size_s out_size, const warp
 
     fisheye_config->RgnNum = 1;
 
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "OutW_disp(%d) OutH_disp(%d)\n", fisheye_config->OutW_disp, fisheye_config->OutH_disp);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "OutW_disp(%d) OutH_disp(%d)\n", fisheye_config->OutW_disp, fisheye_config->OutH_disp);
 
     fisheye_region[0].RegionValid = 1;
     fisheye_region[0].ViewMode = PROJECTION_STEREO_FIT;
@@ -2899,9 +2899,9 @@ static bm_status_t dwa_mesh_gen_warp(size_s in_size, size_s out_size, const warp
     // Decide the position of mesh in memory.
     mesh_id_phy_addr = mesh_phy_addr;
     mesh_tbl_phy_addr = ALIGN(mesh_phy_addr + mesh_id_size, 0x1000);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "phy-addr of mesh id(%#"PRIx64") mesh_tbl(%#"PRIx64")\n"
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "phy-addr of mesh id(%#"PRIx64") mesh_tbl(%#"PRIx64")\n"
                 , mesh_id_phy_addr, mesh_tbl_phy_addr);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "mesh_id_size(%d) mesh_tbl_size(%d)\n", mesh_id_size, mesh_tbl_size);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "mesh_id_size(%d) mesh_tbl_size(%d)\n", mesh_id_size, mesh_tbl_size);
 
     int *reorder_mesh_tbl[X_TILE_NUMBER * Y_TILE_NUMBER];
 
@@ -2935,7 +2935,7 @@ static bm_status_t bm_dwa_add_ldc_task(bm_handle_t handle, int fd, GDC_HANDLE hH
         }
     }
 
-    struct dwa_task_attr attr;
+    struct gdc_task_attr attr;
     u8 idx;
     pthread_mutex_lock(&mutex);
     ret = bm_get_valid_tsk_mesh_by_name(handle, pstTask->name, &idx);
@@ -2981,7 +2981,7 @@ static bm_status_t bm_dwa_add_ldc_task(bm_handle_t handle, int fd, GDC_HANDLE hH
     memcpy(&attr.img_in, &pstTask->img_in, sizeof(attr.img_in));
     memcpy(&attr.img_out, &pstTask->img_out, sizeof(attr.img_out));
     //memcpy(attr.private_data, pstTask->private_data, sizeof(attr.private_data));
-    memcpy(&attr.stLdcAttr, pstLDCAttr, sizeof(*pstLDCAttr));
+    memcpy(&attr.ldc_attr, pstLDCAttr, sizeof(*pstLDCAttr));
     attr.reserved = pstTask->reserved;
     attr.private_data[0] = dwa_tskMesh[idx].mem.u.device.device_addr;
 
@@ -3011,7 +3011,7 @@ static bm_status_t bm_dwa_add_rotation_task(bm_handle_t handle, int fd, DWA_HAND
         return BM_ERR_FAILURE;
     }
 
-    struct dwa_task_attr attr;
+    struct gdc_task_attr attr;
     u64 paddr;
     bm_device_mem_t pmem;
     size_s in_size, out_size;
@@ -3115,7 +3115,7 @@ static bm_status_t bm_dwa_add_correction_task(bm_handle_t handle, int fd, GDC_HA
         return BM_ERR_FAILURE;
     }
 
-    struct dwa_task_attr attr;
+    struct gdc_task_attr attr;
 
     u8 idx;
     pthread_mutex_lock(&mutex);
@@ -3192,7 +3192,7 @@ static bm_status_t bm_dwa_add_affine_task(bm_handle_t handle, int fd, GDC_HANDLE
         return BM_ERR_FAILURE;
     }
     for (u32 i = 0; i < pstAffineAttr->region_num; ++i) {
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_INFO, "region_num(%d) (%f, %f) (%f, %f) (%f, %f) (%f, %f)\n", i,
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "region_num(%d) (%f, %f) (%f, %f) (%f, %f) (%f, %f)\n", i,
                     pstAffineAttr->region_attr[i][0].x, pstAffineAttr->region_attr[i][0].y,
                     pstAffineAttr->region_attr[i][1].x, pstAffineAttr->region_attr[i][1].y,
                     pstAffineAttr->region_attr[i][2].x, pstAffineAttr->region_attr[i][2].y,
@@ -3216,7 +3216,7 @@ static bm_status_t bm_dwa_add_affine_task(bm_handle_t handle, int fd, GDC_HANDLE
         }
     }
 
-    struct dwa_task_attr attr;
+    struct gdc_task_attr attr;
 
     u8 idx;
     pthread_mutex_lock(&mutex);
@@ -3294,7 +3294,7 @@ static bm_status_t bm_dwa_add_dewarp_task(bm_handle_t handle, int fd, GDC_HANDLE
         return BM_ERR_FAILURE;
     }
 
-    struct dwa_task_attr attr;
+    struct gdc_task_attr attr;
 
     u8 idx;
     pthread_mutex_lock(&mutex);
@@ -3338,7 +3338,7 @@ static bm_status_t bm_dwa_add_dewarp_task(bm_handle_t handle, int fd, GDC_HANDLE
     memcpy(&attr.img_in, &pstTask->img_in, sizeof(attr.img_in));
     memcpy(&attr.img_out, &pstTask->img_out, sizeof(attr.img_out));
     //memcpy(attr.private_data, pstTask->private_data, sizeof(attr.private_data));
-    memcpy(&attr.stWarpAttr, pstWarpAttr, sizeof(*pstWarpAttr));
+    memcpy(&attr.warp_attr, pstWarpAttr, sizeof(*pstWarpAttr));
     attr.reserved = pstTask->reserved;
     attr.private_data[0] = dwa_tskMesh[idx].mem.u.device.device_addr;
 
@@ -3411,26 +3411,26 @@ static bm_status_t bm_dwa_add_task(bm_handle_t handle, int fd, bm_dwa_basic_para
     return ret;
 }
 
-static bm_status_t bm_dwa_init(int fd)
-{
-    bm_status_t ret = BM_SUCCESS;
-    if (bm_get_dwa_fd(&fd) != BM_SUCCESS)
-        return BM_ERR_FAILURE;
+// static bm_status_t bm_dwa_init(int fd)
+// {
+//     bm_status_t ret = BM_SUCCESS;
+//     // if (bm_get_dwa_fd(&fd) != BM_SUCCESS)
+//     //     return BM_ERR_FAILURE;
 
-    ret = (bm_status_t)dwa_init(fd);
-    if (ret != BM_SUCCESS) {
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "init fail\n");
-        return ret;
-    }
+//     ret = (bm_status_t)dwa_init(fd);
+//     if (ret != BM_SUCCESS) {
+//         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "dwa init fail\n");
+//         return ret;
+//     }
 
-    return ret;
-}
+//     return ret;
+// }
 
 static bm_status_t bm_dwa_begin_job(int fd, DWA_HANDLE *phHandle)
 {
     MOD_CHECK_NULL_PTR(ID_DWA, phHandle);
 
-    struct dwa_handle_data cfg;
+    struct gdc_handle_data cfg;
 
     memset(&cfg, 0, sizeof(cfg));
 
@@ -3450,7 +3450,7 @@ static bm_status_t bm_dwa_set_job_identity(int fd, DWA_HANDLE hHandle,gdc_identi
         return BM_ERR_FAILURE;
     }
 
-    struct dwa_identity_attr cfg = {0};
+    struct gdc_identity_attr cfg = {0};
     cfg.handle = hHandle;
     memcpy(&cfg.attr, identity_attr, sizeof(*identity_attr));
 
@@ -3486,7 +3486,7 @@ static bm_status_t bm_dwa_end_job(int fd, GDC_HANDLE hHandle)
         return BM_ERR_PARAM;
     }
 
-    struct dwa_handle_data cfg;
+    struct gdc_handle_data cfg;
 
     memset(&cfg, 0, sizeof(cfg));
     cfg.handle = hHandle;
@@ -3516,7 +3516,7 @@ bm_status_t bm_dwa_get_frame(int fd,
 bm_status_t bm_dwa_get_chn_frame(int fd, gdc_identity_attr_s *identity_attr, video_frame_info_s *pstFrameInfo, int s32MilliSec)
 {
     bm_status_t ret;
-    struct dwa_chn_frm_cfg cfg;
+    struct gdc_chn_frm_cfg cfg;
 
     MOD_CHECK_NULL_PTR(ID_DWA, identity_attr);
     MOD_CHECK_NULL_PTR(ID_DWA, pstFrameInfo);
@@ -3543,10 +3543,10 @@ bm_status_t bm_dwa_cancel_job(int fd, GDC_HANDLE hHandle)
         return BM_ERR_PARAM;
     }
 
-    struct dwa_handle_data cfg;
+    struct gdc_handle_data cfg;
     memset(&cfg, 0, sizeof(cfg));
     cfg.handle = hHandle;
-    ret = (bm_status_t)ioctl(fd, DWA_CANCEL_JOB, &cfg);
+    ret = (bm_status_t)ioctl(fd, LDC_CANCEL_JOB, &cfg);
     if (ret != BM_SUCCESS) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "dwa_cancel_job failed!\n");
         ret = BM_ERR_FAILURE;
@@ -3574,11 +3574,11 @@ static bm_status_t bm_dwa_basic(bm_handle_t handle,
         return BM_ERR_FAILURE;
     }
 
-    ret = bm_dwa_init(fd);
-    if (ret != BM_SUCCESS) {
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "BM_DWA_Init failed!\n");
-        return BM_ERR_FAILURE;
-    }
+    // ret = bm_dwa_init(fd);
+    // if (ret != BM_SUCCESS) {
+    //     bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "BM_DWA_Init failed!\n");
+    //     return BM_ERR_FAILURE;
+    // }
 
     ret = bm_dwa_begin_job(fd, &param->hHandle);
     if (ret != BM_SUCCESS) {
@@ -3649,7 +3649,7 @@ bm_status_t bmcv_dwa_rot_internel(bm_handle_t          handle,
     param.size_out.height = output_image.height;
 
     bm_image_format_to_cvi(input_image.image_format, input_image.data_type, &param.enPixelFormat);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "param.enPixelFormat = [%d]\n", param.enPixelFormat);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "param.enPixelFormat = [%d]\n", param.enPixelFormat);
     param.identity.mod_id = ID_DWA;
     param.identity.id = 0;
 
@@ -3688,7 +3688,7 @@ bm_status_t bmcv_dwa_gdc_internel(bm_handle_t          handle,
     param.size_out.height = output_image.height;
 
     bm_image_format_to_cvi(input_image.image_format, input_image.data_type, &param.enPixelFormat);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "param.enPixelFormat = [%d]\n", param.enPixelFormat);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "param.enPixelFormat = [%d]\n", param.enPixelFormat);
     param.identity.mod_id = ID_DWA;
     param.identity.id = 0;
 
@@ -3721,16 +3721,16 @@ bm_status_t bmcv_dwa_gdc_internel(bm_handle_t          handle,
 
         char md5_grid_info[MD5_STRING_LENGTH + 1];
         // for debug
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "ldc_attr.grid_size = [%d]\n", ldc_attr.grid_info.size);
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "ldc_attr.grid_size = [%d]\n", ldc_attr.grid_info.size);
         md5_get((unsigned char *)gdc_with_grid.grid, ldc_attr.grid_info.size, md5_grid_info, 0);
         // for debug
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "ldc_attr.grid_info[0] = [%d]\n", gdc_with_grid.grid[0]);
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "ldc_attr.grid_info[1] = [%d]\n", gdc_with_grid.grid[1]);
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "ldc_attr.grid_info[2] = [%d]\n", gdc_with_grid.grid[2]);
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "ldc_attr.grid_info[3] = [%d]\n", gdc_with_grid.grid[3]);
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "ldc_attr.grid_info[4] = [%d]\n", gdc_with_grid.grid[4]);
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "ldc_attr.grid_info[0] = [%d]\n", gdc_with_grid.grid[0]);
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "ldc_attr.grid_info[1] = [%d]\n", gdc_with_grid.grid[1]);
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "ldc_attr.grid_info[2] = [%d]\n", gdc_with_grid.grid[2]);
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "ldc_attr.grid_info[3] = [%d]\n", gdc_with_grid.grid[3]);
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "ldc_attr.grid_info[4] = [%d]\n", gdc_with_grid.grid[4]);
         strcpy(gdc_with_grid.ldc_attr.grid_info_attr.grid_bind_name, md5_grid_info);
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "grid_info md5 = [%s]\n", md5_grid_info);
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "grid_info md5 = [%s]\n", md5_grid_info);
         strcpy(gdc_name.grid, md5_grid_info);
         md5_get((unsigned char *)&gdc_name, sizeof(gdc_name), md5_str, 0);
         snprintf(param.stTask.name, sizeof(param.stTask.name) + 1, md5_str);
@@ -3763,7 +3763,7 @@ bm_status_t bmcv_dwa_fisheye_internel(bm_handle_t          handle,
     param.size_out.width = output_image.width;
     param.size_out.height = output_image.height;
     bm_image_format_to_cvi(input_image.image_format, input_image.data_type, &param.enPixelFormat);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "param.enPixelFormat = [%d]\n", param.enPixelFormat);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "param.enPixelFormat = [%d]\n", param.enPixelFormat);
     param.identity.mod_id = ID_DWA;
     param.identity.id = 0;
     param.identity.sync_io = true;
@@ -3797,7 +3797,7 @@ bm_status_t bmcv_dwa_fisheye_internel(bm_handle_t          handle,
         fisheye_name.fisheye_attr = fisheye_with_grid.fisheye_attr;
         char md5_grid_info[MD5_STRING_LENGTH + 1];
         // for debug
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "fisheye_attr.grid_size = [%d]\n", fisheye_attr.grid_info.size);
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "fisheye_attr.grid_size = [%d]\n", fisheye_attr.grid_info.size);
         md5_get((unsigned char *)fisheye_with_grid.grid, fisheye_attr.grid_info.size, md5_grid_info, 0);
         strcpy(fisheye_with_grid.fisheye_attr.grid_info_attr.grid_bind_name, md5_grid_info);
         strcpy(fisheye_name.grid, md5_grid_info);
@@ -3831,7 +3831,7 @@ bm_status_t bmcv_dwa_affine_internel(bm_handle_t          handle,
     param.size_out.width = output_image.width;
     param.size_out.height = output_image.height;
     bm_image_format_to_cvi(input_image.image_format, input_image.data_type, &param.enPixelFormat);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "param.enPixelFormat = [%d]\n", param.enPixelFormat);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "param.enPixelFormat = [%d]\n", param.enPixelFormat);
     param.identity.mod_id = ID_DWA;
     param.identity.id = 0;
     param.identity.sync_io = true;
@@ -3874,7 +3874,7 @@ bm_status_t bmcv_dwa_dewarp_internel(bm_handle_t          handle,
     param.size_out.width = output_image.width;
     param.size_out.height = output_image.height;
     bm_image_format_to_cvi(input_image.image_format, input_image.data_type, &param.enPixelFormat);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "param.enPixelFormat = [%d]\n", param.enPixelFormat);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "param.enPixelFormat = [%d]\n", param.enPixelFormat);
     param.identity.mod_id = ID_DWA;
     param.identity.id = 0;
     param.identity.sync_io = true;
@@ -3889,7 +3889,7 @@ bm_status_t bmcv_dwa_dewarp_internel(bm_handle_t          handle,
 
     char md5_grid_info[MD5_STRING_LENGTH + 1];
     // for debug
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG, "dewarp_attr.grid_size = [%d]\n", grid_info.size);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "dewarp_attr.grid_size = [%d]\n", grid_info.size);
     md5_get((unsigned char *)dewarp_with_grid.grid, grid_info.size, md5_grid_info, 0);
     strcpy(dewarp_with_grid.dewarp_attr.grid_info_attr.grid_bind_name, md5_grid_info);
     strcpy(dewarp_name.grid, md5_grid_info);

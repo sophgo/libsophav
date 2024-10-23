@@ -137,6 +137,7 @@ bm_status_t bmcv_feature_match_normalized(bm_handle_t handle, bm_device_mem_t in
     arg.db_size = db_size;
 
     switch(chipid) {
+        case BM1688_PREV:
         case BM1688:
             ret = bm_tpu_kernel_launch(handle, "cv_feature_match_1684x", (u8*)(&arg),
                                                 sizeof(arg), core_id);
@@ -328,6 +329,7 @@ bm_status_t bmcv_feature_match(bm_handle_t handle, bm_device_mem_t input_data_gl
     arg.rshiftbits = rshiftbits;
 
     switch(chipid) {
+        case BM1688_PREV:
         case BM1688:
             ret = bm_tpu_kernel_launch(handle, "cv_feature_match_fix8b_1684x", (u8*)(&arg),
                                                 sizeof(arg), core_id);

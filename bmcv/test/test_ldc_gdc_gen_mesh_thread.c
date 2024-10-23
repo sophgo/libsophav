@@ -75,13 +75,13 @@ static void * ldc_gdc_gen_mesh(void * arg)
     bm_image_create(handle, height, width, src_fmt, DATA_TYPE_EXT_1N_BYTE, &src, src_stride);
     bm_image_create(handle, align_height, align_width, dst_fmt, DATA_TYPE_EXT_1N_BYTE, &dst, dst_stride);
 
-    ret = bm_image_alloc_dev_mem(src, BMCV_HEAP_ANY);
+    ret = bm_image_alloc_dev_mem(src, BMCV_HEAP1_ID);
     if(ret != BM_SUCCESS){
         printf("bm_image_alloc_dev_mem_src failed \n");
         goto fail;
     }
 
-    ret = bm_image_alloc_dev_mem(dst, BMCV_HEAP_ANY);
+    ret = bm_image_alloc_dev_mem(dst, BMCV_HEAP1_ID);
     if(ret != BM_SUCCESS){
         printf("bm_image_alloc_dev_mem_dst failed \n");
         goto fail;

@@ -67,7 +67,7 @@ bm_status_t bmcv_image_bayer2rgb(
     }
 
     if (!bm_image_is_attached(output)) {
-        ret = sg_image_alloc_dev_mem(output, BMCV_HEAP_ANY);
+        ret = sg_image_alloc_dev_mem(output, BMCV_HEAP1_ID);
         if (ret != BM_SUCCESS) {
             return ret;
         }
@@ -150,6 +150,7 @@ bm_status_t bmcv_image_bayer2rgb(
 
     switch(chipid)
     {
+        case BM1688_PREV:
         case BM1688:
             ret = bm_tpu_kernel_launch(handle, "cv_bayer2rgb", (u8 *)&param, sizeof(param), core_id);
             if (BM_SUCCESS != ret) {

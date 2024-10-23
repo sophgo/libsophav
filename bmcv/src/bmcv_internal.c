@@ -11,20 +11,32 @@
 #include <sys/stat.h>
 #include <math.h>
 #include "bmcv_internal.h"
-#include "../test/test_misc.h"
+#include "test_misc.h"
 
 #define bm_min(x, y) (((x)) < ((y)) ? (x) : (y))
 #define bm_max(x, y) (((x)) > ((y)) ? (x) : (y))
 
-#if __linux__
+#ifdef __linux__
+#define __USE_GNU
 #include <dlfcn.h>
 #endif
 #ifdef _WIN32
 EXTERN_C IMAGE_DOS_HEADER __ImageBase;
 #endif
-
+#ifdef _WIN32
+#define DLLEXPORT __declspec(dllexport)
+#else
+#define DLLEXPORT __attribute__((visibility("default")))
+#endif
 #define FIRMWARE_NAME "libbm1688_kernel_module.so"
 #define TIME_COST_US(start, end) ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec))
+
+DLLEXPORT const char *libbmcv_version_string =
+    "libbmcv_version: " LIBSOPHAV_VERSION
+    ", branch: " BRANCH
+    ", minor version: " COMMIT_COUNT
+    ", commit hash: " COMMIT_HASH
+    ", commit date: " COMMIT_DATE;
 
 int array_cmp_float(float *p_exp, float *p_got, int len, float delta)
 {
@@ -47,19 +59,6 @@ int array_cmp_float(float *p_exp, float *p_got, int len, float delta)
     }
     return 0;
 }
-
-typedef struct
-{
-  const char *dli_fname;	/* File name of defining object.  */
-  void *dli_fbase;		/* Load address of that object.  */
-  const char *dli_sname;	/* Name of nearest symbol.  */
-  void *dli_saddr;		/* Exact value of nearest symbol.  */
-} Dl_info;
-
-/* Fill in *INFO with the following information about ADDRESS.
-   Returns 0 iff no shared object's segments contain that address.  */
-extern int dladdr (const void *__address, Dl_info *__info)
-     __THROW __nonnull ((2));
 
 int find_tpufirmaware_path(char fw_path[512], const char* path){
     char* ptr;
@@ -202,6 +201,40 @@ bm_status_t bm_tpu_kernel_launch(bm_handle_t handle,
         printf("tpu module unload failed \n");
         return BM_ERR_FAILURE;
     }
+    return ret;
+}
+
+bm_status_t bm_kernel_main_launch(bm_handle_t handle, int api_id, void *param, size_t size)
+{
+    bm_status_t ret = BM_SUCCESS;
+    size_t full_size = sizeof(struct dynamic_load_param) + size;
+    struct dynamic_load_param* full_param = (struct dynamic_load_param*)malloc(full_size * sizeof(unsigned char));
+    full_param->api_id = api_id;
+    full_param->size = size;
+    memcpy(full_param->param, param, size);
+
+    tpu_kernel_module_t tpu_module = NULL;
+    tpu_kernel_function_t func_id = 0;
+    ret = bm_load_tpu_module(handle, &tpu_module, 0);
+    if(ret != BM_SUCCESS){
+        printf("module load error! \n");
+        free(full_param);
+        return BM_ERR_FAILURE;
+    }
+    func_id = tpu_kernel_get_function_from_core(handle, tpu_module, "tpu_kernel_main", 0);
+    ret = tpu_kernel_launch_from_core(handle, func_id, full_param, full_size, 0);
+    if(ret != BM_SUCCESS){
+        printf("tpu_kernel_launch_from_core error! \n");
+        free(full_param);
+        return BM_ERR_FAILURE;
+    }
+    ret = tpu_kernel_unload_module_from_core(handle, tpu_module, 0);
+    if(ret != BM_SUCCESS){
+        printf("tpu module unload failed \n");
+        free(full_param);
+        return BM_ERR_FAILURE;
+    }
+    free(full_param);
     return ret;
 }
 
@@ -439,7 +472,25 @@ static void set_denorm(void)
 #endif
 }
 
-struct fp16 fp32tofp16 (float A,int round_method)
+int dtype_size(enum bm_data_type_t data_type)
+{
+    int size = 0;
+    switch (data_type) {
+        case DT_FP32:   size = 4; break;
+        case DT_UINT32: size = 4; break;
+        case DT_INT32:  size = 4; break;
+        case DT_FP16:   size = 2; break;
+        case DT_BFP16:  size = 2; break;
+        case DT_INT16:  size = 2; break;
+        case DT_UINT16: size = 2; break;
+        case DT_INT8:   size = 1; break;
+        case DT_UINT8:  size = 1; break;
+        default: break;
+    }
+    return size;
+}
+
+fp16 fp32tofp16 (float A,int round_method)
 {
     union fp16_data res;
     union fp32_data ina;
@@ -451,7 +502,7 @@ struct fp16 fp32tofp16 (float A,int round_method)
     return res.ndata;
 }
 
-float fp16tofp32(struct fp16 h)
+float fp16tofp32(fp16 h)
 {
     union fp16_data dfp16;
     dfp16.ndata = h;
@@ -578,7 +629,7 @@ plane_layout stride_width(plane_layout src, int stride){
     res.channel_stride  = res.pitch_stride * res.H;
     res.batch_stride     = res.channel_stride * res.C;
     res.size             = res.batch_stride * res.N;
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_DEBUG,"stride_width stride=%d \n",stride);
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE,"stride_width stride=%d \n",stride);
     return res;
 }
 
@@ -620,6 +671,7 @@ bm_status_t update_memory_layout(bm_handle_t     handle,
     }
 
     switch(chipid) {
+        case BM1688_PREV:
         case BM1688:
             ret = bm_tpu_kernel_launch(handle, "cv_width_align", (u8 *)&api, \
                                                 sizeof(api), core_id);
@@ -1014,7 +1066,7 @@ bm_status_t bm_get_dwa_fd(int* fd){
     bm_status_t ret = BM_SUCCESS;
     pthread_mutex_lock(&fd_mutex);
     if(dwa_fd < 0)
-        dwa_fd = open("/dev/soph-dwa", O_RDWR /* required */  | O_NONBLOCK | O_CLOEXEC, 0);
+        dwa_fd = open("/dev/soph-ldc", O_RDWR /* required */  | O_NONBLOCK | O_CLOEXEC, 0);
     pthread_mutex_unlock(&fd_mutex);
     if(dwa_fd < 0){
         BMCV_ERR_LOG("open dwa fail\n");
@@ -1134,48 +1186,46 @@ int close_device(int *fd)
   return 0;
 }
 
-bm_status_t bmcv_nms(
-        bm_handle_t     handle,
-        bm_device_mem_t input_proposal_addr,
-        int             proposal_size,
-        float           nms_threshold,
-        bm_device_mem_t output_proposal_addr){return BM_SUCCESS;};
+unsigned long long bmcv_calc_cbcr_addr(unsigned long long y_addr, unsigned int y_stride, unsigned int frame_height)
+{
+  u64 c_addr = 0, y_len=0;
 
-bm_status_t bmcv_nms_ext(
-        bm_handle_t     handle,
-        bm_device_mem_t input_proposal_addr,
-        int             proposal_size,
-        float           nms_threshold,
-        bm_device_mem_t output_proposal_addr,
-        int             topk,
-        float           score_threshold,
-        int             nms_alg,
-        float           sigma,
-        int             weighting_method,
-        float         * densities,
-        float           eta){return BM_SUCCESS;};
+  y_len = y_stride * ALIGN(frame_height,32);
+  c_addr = y_addr + y_len;
+  return c_addr;
+}
 
-bm_status_t bmcv_fft_1d_create_plan(bm_handle_t handle,
-                                    int batch,
-                                    int len,
-                                    bool forward,
-                                    void *plan){return BM_SUCCESS;};
-bm_status_t bmcv_fft_2d_create_plan(bm_handle_t handle,
-                                    int M,
-                                    int N,
-                                    bool forward,
-                                    void *plan){return BM_SUCCESS;};
-bm_status_t bmcv_fft_execute(bm_handle_t handle,
-                             bm_device_mem_t inputReal,
-                             bm_device_mem_t inputImag,
-                             bm_device_mem_t outputReal,
-                             bm_device_mem_t outputImag,
-                             const void *plan){return BM_SUCCESS;};
-bm_status_t bmcv_fft_execute_real_input(
-                             bm_handle_t handle,
-                             bm_device_mem_t inputReal,
-                             bm_device_mem_t outputReal,
-                             bm_device_mem_t outputImag,
-                             const void *plan){return BM_SUCCESS;};
+bm_status_t bm_image_check(bm_image image)
+{
+    if (image.image_private == NULL) {
+        return BM_ERR_FAILURE;
+    }
+    if (image.image_private->handle == NULL) {
+        return BM_ERR_FAILURE;
+    }
+    return BM_SUCCESS;
+}
 
-void bmcv_fft_destroy_plan(bm_handle_t handle, void *plan){};
+bm_status_t bm_image_zeros(bm_image image)
+{
+    //tpu memset
+    unsigned long long device_addr = 0;
+    if(bm_image_check(image) != BM_SUCCESS) {
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
+          "please check image.image_private or image.image_private->handle %s: %s: %d\n",
+          filename(__FILE__), __func__, __LINE__);
+        return BM_ERR_FAILURE;
+    }
+    for (int i = 0; i < image.image_private->plane_num; i++) {
+      device_addr = bm_mem_get_device_addr(image.image_private->data[i]);
+      if((device_addr > 0x4ffffffff) || (device_addr < 0x100000000))
+        {
+            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
+            "device memory should between 0x100000000 and 0x4ffffffff  %s: %s: %d\n",
+            filename(__FILE__), __func__, __LINE__);
+            return BM_ERR_FAILURE;
+        }
+      bm_memset_device(image.image_private->handle, 0, image.image_private->data[i]);
+    }
+    return BM_SUCCESS;
+}

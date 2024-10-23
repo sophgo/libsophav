@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 project(bmcv)
+# add_subdirectory(./src/cmodel) #github_delete
 # options
 if("${CHIP_NAME}" STREQUAL "bm1688")
     set(SRC_DIR bm1688)
@@ -19,7 +20,14 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../jpeg/inc)
 
 # add library files path
 link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/tpu_kernel_module/)
-link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/libbmcv/lib/${PLATFORM})
+#link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/libbmcv/lib/${PLATFORM})
+string(FIND "${CMAKE_C_COMPILER}" "aarch64-linux-gnu-gcc" COMPILER_FOUND)
+
+if (COMPILER_FOUND GREATER -1)
+    link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/libbmcv/lib/${PLATFORM})
+else ()
+    link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/libbmcv/lib930/${PLATFORM})
+endif ()
 link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/libjpeg-turbo/lib/${PLATFORM})
 link_directories(${CMAKE_CURRENT_BINARY_DIR}/../jpeg)
 
@@ -62,10 +70,19 @@ install(TARGETS ${BMCV_LIB_NAME}
     PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
     COMPONENT ${component})
 
-install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/libbmcv/lib/${PLATFORM}/libcmodel.so
+string(FIND "${CMAKE_C_COMPILER}" "aarch64-linux-gnu-gcc" COMPILER_FOUND)
+
+if (COMPILER_FOUND GREATER -1)
+    install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/libbmcv/lib/${PLATFORM}/libcmodel.so
     DESTINATION lib
     PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
     COMPONENT ${component})
+else ()
+    install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/libbmcv/lib930/${PLATFORM}/libcmodel.so
+    DESTINATION lib
+    PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
+    COMPONENT ${component})
+endif ()
 
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/tpu_kernel_module/libbm1688_kernel_module.so
     DESTINATION lib/tpu_module/

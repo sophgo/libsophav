@@ -104,7 +104,7 @@ static void * ive_resize(void* arg){
         bm_image_create(handle, dst_height[img_idx], dst_width[img_idx], format[img_idx],
                   DATA_TYPE_EXT_1N_BYTE, &dst[img_idx], dst_stride[img_idx]);
 
-        ret = bm_image_alloc_dev_mem(src[img_idx], BMCV_HEAP_ANY);
+        ret = bm_image_alloc_dev_mem(src[img_idx], BMCV_HEAP1_ID);
         if (ret != BM_SUCCESS) {
             printf("src[%d] bm_image_alloc_dev_mem failed. ret = %d\n", img_idx, ret);
             for(int idx = 0; idx < img_idx; idx++){
@@ -114,7 +114,7 @@ static void * ive_resize(void* arg){
             exit(-1);
         }
 
-        ret = bm_image_alloc_dev_mem(dst[img_idx], BMCV_HEAP_ANY);
+        ret = bm_image_alloc_dev_mem(dst[img_idx], BMCV_HEAP1_ID);
         if (ret != BM_SUCCESS) {
             printf("dst[%d] bm_image_alloc_dev_mem failed. ret = %d\n", img_idx, ret);
             for(int idx = 0; idx < img_idx; idx++){
@@ -243,10 +243,10 @@ int main(int argc, char **argv){
     else if (argc == 3){
         test_threads_num = atoi(argv[1]);
         test_loop_times  = atoi(argv[2]);
-    } else if (argc > 3 && argc < 5) {
-        printf("command input error, please follow this order:\n \
+    } else if ((argc > 3 && argc < 5) || (argc == 1)) {
+        printf("please follow this order to input command:\n \
         %s resize_mode ref_name1 ref_name2 ref_name3 bWrite dev_id thread_num loop_num\n \
-        %s thread_num loop_num\n", argv[0], argv[0]);
+        %s 0 ive_data/result/sample_Resize_Bilinear_rgb.rgb ive_data/result/sample_Resize_Bilinear_gray.yuv ive_data/result/sample_Resize_Bilinear_240p.rgb\n", argv[0], argv[0]);
         exit(-1);
     }
     if (test_loop_times > 15000 || test_loop_times < 1) {

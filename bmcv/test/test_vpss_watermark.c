@@ -179,7 +179,7 @@ bm_status_t vpss_watermark_superpose(unsigned char *src_data,
 
     bm_image_create(handle, in_height, in_width, src_format, DATA_TYPE_EXT_1N_BYTE, &src, NULL);
 
-    bm_image_alloc_dev_mem(src, BMCV_HEAP_ANY);
+    bm_image_alloc_dev_mem(src, BMCV_HEAP1_ID);
 
     int src_image_byte_size[4] = {0};
     bm_image_get_byte_size(src, src_image_byte_size);
@@ -474,9 +474,9 @@ int main(int argc, char **argv) {
     color.g = atoi(argv[12]);
     color.b = atoi(argv[13]);
     use_real_img = atoi(argv[14]);
-    strncpy(filename_water, argv[15], sizeof(filename_water));
+    memcpy(filename_water, argv[15], sizeof(filename_water));
     if (argc == 17) {
-        strncpy(filename_src, argv[16], sizeof(filename_src));
+        memcpy(filename_src, argv[16], sizeof(filename_src));
     }
 
     bm_status_t ret =

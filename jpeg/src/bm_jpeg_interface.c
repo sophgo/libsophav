@@ -23,7 +23,7 @@
 #include <errno.h>
 #include "bm_ioctl.h"
 #include "bm_jpeg_interface.h"
-#include "bm_jpeg_logging.h"
+#include "bm_jpeg_internal.h"
 
 #define UNUSED(x)    ((void)(x))
 #define ALIGN(LENGTH, ALIGN_SIZE)   ( (((LENGTH) + (ALIGN_SIZE) - 1) / (ALIGN_SIZE)) * (ALIGN_SIZE) )
@@ -34,66 +34,68 @@
 #define JPEG_CHN_START 64
 
 
-int bm_jpu_calc_framebuffer_sizes(BmJpuColorFormat color_format, unsigned int frame_width, unsigned int frame_height, unsigned int framebuffer_alignment, int chroma_interleave, BmJpuFramebufferSizes *calculated_sizes)
+BmJpuDecReturnCodes bm_jpu_calc_framebuffer_sizes(unsigned int frame_width,
+                                   unsigned int frame_height,
+                                   unsigned int framebuffer_alignment,
+                                   BmJpuImageFormat image_format,
+                                   BmJpuFramebufferSizes *calculated_sizes)
 {
     int alignment;
+    int is_interleave = 0;
 
     if ((calculated_sizes == NULL) || (frame_width <= 0) || ((frame_height <= 0))) {
         BM_JPU_ERROR("bm_jpu_calc_framebuffer_sizes params err: calculated_sizes(0X%lx), frame_width(%d), frame_height(%d).", calculated_sizes, frame_width, frame_height);
         return BM_JPU_DEC_RETURN_CODE_INVALID_PARAMS;
     }
 
-    // calculated_sizes->aligned_frame_width  = BM_JPU_ALIGN_VAL_TO(frame_width, FRAME_WIDTH_ALIGN);
-    // calculated_sizes->aligned_frame_height = BM_JPU_ALIGN_VAL_TO(frame_height, FRAME_HEIGHT_ALIGN);
-    // calculated_sizes->aligned_frame_width  = ALIGN(frame_width, JPEGD_ALIGN_W);
-    // calculated_sizes->aligned_frame_height = ALIGN(frame_height, JPEGD_ALIGN_H);
-
     calculated_sizes->aligned_frame_width  = ALIGN(frame_width, FRAME_WIDTH_ALIGN);
-    if (color_format == BM_JPU_COLOR_FORMAT_YUV420) {
-        calculated_sizes->aligned_frame_height = ALIGN(frame_height, 2);
-    } else {
-        calculated_sizes->aligned_frame_height = frame_height;
-    }
-
     calculated_sizes->y_stride = calculated_sizes->aligned_frame_width;
-    calculated_sizes->y_size = calculated_sizes->y_stride * calculated_sizes->aligned_frame_height;
 
-    switch (color_format)
+    switch (image_format)
     {
-        case BM_JPU_COLOR_FORMAT_YUV420:
+        case BM_JPU_IMAGE_FORMAT_YUV420P:
+            calculated_sizes->aligned_frame_height = ALIGN(frame_height, 2);
+            calculated_sizes->y_size = calculated_sizes->y_stride * calculated_sizes->aligned_frame_height;
             calculated_sizes->cbcr_stride = calculated_sizes->y_stride / 2;
             calculated_sizes->cbcr_size = calculated_sizes->y_size / 4;
             break;
-        case BM_JPU_COLOR_FORMAT_YUV422_HORIZONTAL:
-        case BM_JPU_COLOR_FORMAT_YUV422_VERTICAL:
+        case BM_JPU_IMAGE_FORMAT_NV12:
+        case BM_JPU_IMAGE_FORMAT_NV21:
+            calculated_sizes->aligned_frame_height = ALIGN(frame_height, 2);
+            calculated_sizes->y_size = calculated_sizes->y_stride * calculated_sizes->aligned_frame_height;
+            calculated_sizes->cbcr_stride = calculated_sizes->y_stride;
+            calculated_sizes->cbcr_size = calculated_sizes->y_size / 2;
+            is_interleave = 1;
+            break;
+        case BM_JPU_IMAGE_FORMAT_YUV422P:
+            calculated_sizes->aligned_frame_height = frame_height;
+            calculated_sizes->y_size = calculated_sizes->y_stride * calculated_sizes->aligned_frame_height;
             calculated_sizes->cbcr_stride = calculated_sizes->y_stride / 2;
             calculated_sizes->cbcr_size = calculated_sizes->y_size / 2;
             break;
-        case BM_JPU_COLOR_FORMAT_YUV444:
+        case BM_JPU_IMAGE_FORMAT_NV16:
+        case BM_JPU_IMAGE_FORMAT_NV61:
+            calculated_sizes->aligned_frame_height = frame_height;
+            calculated_sizes->y_size = calculated_sizes->y_stride * calculated_sizes->aligned_frame_height;
+            calculated_sizes->cbcr_stride = calculated_sizes->y_stride;
+            calculated_sizes->cbcr_size = calculated_sizes->y_size;
+            is_interleave = 1;
+            break;
+        case BM_JPU_IMAGE_FORMAT_YUV444P:
+            calculated_sizes->aligned_frame_height = frame_height;
+            calculated_sizes->y_size = calculated_sizes->y_stride * calculated_sizes->aligned_frame_height;
             calculated_sizes->cbcr_stride = calculated_sizes->y_stride;
             calculated_sizes->cbcr_size = calculated_sizes->y_size;
             break;
-        case BM_JPU_COLOR_FORMAT_YUV400:
+        case BM_JPU_IMAGE_FORMAT_GRAY:
+            calculated_sizes->aligned_frame_height = frame_height;
+            calculated_sizes->y_size = calculated_sizes->y_stride * calculated_sizes->aligned_frame_height;
             calculated_sizes->cbcr_stride = 0;
             calculated_sizes->cbcr_size = 0;
             break;
         default:
-          {
-            BM_JPU_ERROR("bm_jpu_calc_framebuffer_sizes color_format(%d) err.", color_format);
-            return 1;
-          }
-    }
-
-    if (chroma_interleave)
-    {
-        /* chroma_interleave != 0 means the Cb and Cr values are interleaved
-         * and share one plane. The stride values are doubled compared to
-         * the chroma_interleave == 0 case because the interleaving happens
-         * horizontally, meaning 2 bytes in the shared chroma plane for the
-         * chroma information of one pixel. */
-
-        calculated_sizes->cbcr_stride *= 2;
-        calculated_sizes->cbcr_size *= 2;
+            BM_JPU_ERROR("bm_jpu_calc_framebuffer_sizes image_format(%d) err.", image_format);
+            return BM_JPU_DEC_RETURN_CODE_ERROR;
     }
 
     alignment = framebuffer_alignment;
@@ -108,12 +110,12 @@ int bm_jpu_calc_framebuffer_sizes(BmJpuColorFormat color_format, unsigned int fr
      * while in the chroma_interleave == 1 case, there is one shared chroma plane
      * for both Cb and Cr data, with cbcr_size bytes */
     calculated_sizes->total_size = calculated_sizes->y_size
-                                 + (chroma_interleave ? calculated_sizes->cbcr_size : (calculated_sizes->cbcr_size * 2))
+                                 + (is_interleave ? calculated_sizes->cbcr_size : (calculated_sizes->cbcr_size * 2))
                                  + (alignment > 1 ? alignment : 0);  // add alignment, why???
 
-    calculated_sizes->chroma_interleave = chroma_interleave;
+    calculated_sizes->image_format = image_format;
 
-    return 0;
+    return BM_JPU_DEC_RETURN_CODE_OK;
 }
 
 void* bm_jpu_devm_map(uint64_t phys_addr, size_t len) {
@@ -162,7 +164,7 @@ void release_fb_node(FramebufferList *node)
                 BM_JPU_DEBUG("phyaddr[1] = %#lx\n", pstFrameInfo->video_frame.phyaddr[1]);
                 BM_JPU_DEBUG("phyaddr[2] = %#lx\n", pstFrameInfo->video_frame.phyaddr[2]);
 
-                bm_status_t ret = bmjpeg_dec_ioctl_release_frame(node->chn_fd, pstFrameInfo);
+                BmJpuDecReturnCodes ret = bmjpeg_dec_ioctl_release_frame(node->chn_fd, pstFrameInfo);
                 if (ret != BM_JPU_DEC_RETURN_CODE_OK) {
                     BM_JPU_WARNING("bmjpeg_dec_ioctl_release_frame failed, ret = %d", ret);
                 }
@@ -242,6 +244,29 @@ void empty_fb_list(FramebufferList *node)
 
     empty_fb_list(node->next);
     release_fb_node(node);
+}
+
+void bm_jpu_dec_set_interrupt_timeout(BmJpuDecoder *decoder, int timeout)
+{
+    if (decoder == NULL) {
+        BM_JPU_ERROR("bm_jpu_dec_set_interrupt_timeout params: decoder(0X%lx)", decoder);
+        return;
+    }
+    /*
+    decoder->timeout is 0  first time set timeout
+        timeout > 0   set timeout
+        timeout <= 0  set deafult value
+    decoder->timeout not 0
+        timeout > 0   set timeout
+        timeout <= 0  use  lasttime value
+    */
+    if (decoder->timeout <= 0) {
+        decoder->timeout = timeout > 0 ? timeout : 0;
+    } else {
+        if (timeout > 0) {
+            decoder->timeout = timeout;
+        }
+    }
 }
 
 int bm_jpu_dec_get_channel_fd(int chn_id)
@@ -372,11 +397,21 @@ BmJpuDecReturnCodes bm_jpu_jpeg_dec_open(BmJpuJPEGDecoder **jpeg_decoder,
 
     memset(&stAttr, 0, sizeof(vdec_chn_attr_s));
     stAttr.enType = PT_JPEG;
-    stAttr.u32PicWidth = open_params->frame_width;
-    stAttr.u32PicHeight = open_params->frame_height;
     stAttr.u32StreamBufSize = ALIGN(open_params->bs_buffer_size, 0x4000);  // align to 16K
     stAttr.u32FrameBufCnt = 1;
     BM_JPU_DEBUG("u32PicWidth = %u, u32PicHeight = %u, u32StreamBufSize = %#lx", stAttr.u32PicWidth, stAttr.u32PicHeight, stAttr.u32StreamBufSize);
+    if(open_params->bitstream_from_user) {
+        stAttr.stBufferInfo.bitstream_buffer = (buffer_info_s*)malloc(sizeof(buffer_info_s));
+        stAttr.stBufferInfo.bitstream_buffer->phys_addr = open_params->bs_buffer_phys_addr;
+        stAttr.stBufferInfo.bitstream_buffer->virt_addr = 0;
+        stAttr.stBufferInfo.bitstream_buffer->size      = open_params->bs_buffer_size;
+    }
+    if(open_params->framebuffer_from_user) {
+        stAttr.stBufferInfo.frame_buffer = (buffer_info_s*)malloc(sizeof(buffer_info_s));
+        stAttr.stBufferInfo.frame_buffer->phys_addr     = *(open_params->framebuffer_phys_addrs);
+        stAttr.stBufferInfo.frame_buffer->virt_addr     = 0;
+        stAttr.stBufferInfo.frame_buffer->size          = open_params->framebuffer_size;
+    }
 
     ret = bmjpeg_dec_ioctl_create_chn(chn_fd, &stAttr);
     if (ret != BM_JPU_DEC_RETURN_CODE_OK) {
@@ -392,17 +427,17 @@ BmJpuDecReturnCodes bm_jpu_jpeg_dec_open(BmJpuJPEGDecoder **jpeg_decoder,
     }
 
     if (open_params->color_format == BM_JPU_COLOR_FORMAT_YUV420) {
-        if (open_params->chroma_interleave == CBCR_INTERLEAVE) {
+        if (open_params->chroma_interleave == BM_JPU_CHROMA_FORMAT_CBCR_INTERLEAVE) {
             stParam.enPixelFormat = PIXEL_FORMAT_NV12;
-        } else if (open_params->chroma_interleave == CRCB_INTERLEAVE) {
+        } else if (open_params->chroma_interleave == BM_JPU_CHROMA_FORMAT_CRCB_INTERLEAVE) {
             stParam.enPixelFormat = PIXEL_FORMAT_NV21;
         } else {
             stParam.enPixelFormat = PIXEL_FORMAT_YUV_PLANAR_420;
         }
     } else if (open_params->color_format == BM_JPU_COLOR_FORMAT_YUV422_HORIZONTAL) {
-        if (open_params->chroma_interleave == CBCR_INTERLEAVE) {
+        if (open_params->chroma_interleave == BM_JPU_CHROMA_FORMAT_CBCR_INTERLEAVE) {
             stParam.enPixelFormat = PIXEL_FORMAT_NV16;
-        } else if (open_params->chroma_interleave == CRCB_INTERLEAVE) {
+        } else if (open_params->chroma_interleave == BM_JPU_CHROMA_FORMAT_CRCB_INTERLEAVE) {
             stParam.enPixelFormat = PIXEL_FORMAT_NV61;
         } else {
             stParam.enPixelFormat = PIXEL_FORMAT_YUV_PLANAR_422;
@@ -415,13 +450,17 @@ BmJpuDecReturnCodes bm_jpu_jpeg_dec_open(BmJpuJPEGDecoder **jpeg_decoder,
         BM_JPU_DEBUG("enPixelFormat not set, decided by driver");
     }
 
-    stParam.stVdecPictureParam.u32HDownSampling = open_params->scale_ratio;
-    stParam.stVdecPictureParam.u32VDownSampling = open_params->scale_ratio;
-    stParam.stVdecPictureParam.s32ROIEnable = open_params->roiEnable;
-    stParam.stVdecPictureParam.s32ROIOffsetX = open_params->roiOffsetX;
-    stParam.stVdecPictureParam.s32ROIOffsetY = open_params->roiOffsetY;
-    stParam.stVdecPictureParam.s32ROIWidth = open_params->roiWidth;
-    stParam.stVdecPictureParam.s32ROIHeight = open_params->roiHeight;
+    stParam.stVdecPictureParam.u32HDownSampling     = open_params->scale_ratio;
+    stParam.stVdecPictureParam.u32VDownSampling     = open_params->scale_ratio;
+    stParam.stVdecPictureParam.s32ROIEnable         = open_params->roiEnable;
+    stParam.stVdecPictureParam.s32ROIOffsetX        = open_params->roiOffsetX;
+    stParam.stVdecPictureParam.s32ROIOffsetY        = open_params->roiOffsetY;
+    stParam.stVdecPictureParam.s32ROIWidth          = open_params->roiWidth;
+    stParam.stVdecPictureParam.s32ROIHeight         = open_params->roiHeight;
+    stParam.stVdecPictureParam.s32MaxFrameWidth     = open_params->max_frame_width;
+    stParam.stVdecPictureParam.s32MaxFrameHeight    = open_params->max_frame_height;
+    stParam.stVdecPictureParam.s32MinFrameWidth     = open_params->min_frame_width;
+    stParam.stVdecPictureParam.s32MinFrameHeight    = open_params->min_frame_height;
     if (open_params->rotationEnable) {
         stParam.stVdecPictureParam.s32RotAngle = open_params->rotationAngle;
     } else {
@@ -452,6 +491,7 @@ BmJpuDecReturnCodes bm_jpu_jpeg_dec_open(BmJpuJPEGDecoder **jpeg_decoder,
     (*jpeg_decoder)->decoder = (BmJpuDecoder *)malloc(sizeof(BmJpuDecoder));
     (*jpeg_decoder)->decoder->device_index = open_params->device_index;
     (*jpeg_decoder)->decoder->channel_id = chn_id;
+    bm_jpu_dec_set_interrupt_timeout((*jpeg_decoder)->decoder, open_params->timeout);
 
     FramebufferList *head = create_fb_node(chn_id, chn_fd, NULL);  // head's framebuffer is NULL, only used to record position
     (*jpeg_decoder)->decoder->fb_list_head = head;
@@ -463,6 +503,16 @@ ERR_DEC_OPEN_2:
     bmjpeg_dec_ioctl_destroy_chn(chn_fd);
 ERR_DEC_OPEN_1:
     close(chn_fd);
+
+    if(open_params->bitstream_from_user) {
+        free(stAttr.stBufferInfo.bitstream_buffer);
+        stAttr.stBufferInfo.bitstream_buffer = NULL;
+    }
+    if(open_params->framebuffer_from_user) {
+        free(stAttr.stBufferInfo.frame_buffer);
+        stAttr.stBufferInfo.frame_buffer = NULL;
+    }
+
     return BM_JPU_DEC_RETURN_CODE_ERROR;
 }
 
@@ -520,15 +570,11 @@ BmJpuDecReturnCodes bm_jpu_jpeg_dec_close(BmJpuJPEGDecoder *jpeg_decoder)
     return ret;
 }
 
-BmJpuDecReturnCodes bm_jpu_jpeg_dec_decode(BmJpuJPEGDecoder *jpeg_decoder, uint8_t const *jpeg_data, size_t const jpeg_data_size)
+BmJpuDecReturnCodes bm_jpu_jpeg_dec_decode(BmJpuJPEGDecoder *jpeg_decoder, uint8_t const *jpeg_data, size_t const jpeg_data_size, int timeout, int timeout_count)
 {
     BmJpuDecReturnCodes ret = BM_JPU_DEC_RETURN_CODE_OK;
     int chn_id = 0;
     int chn_fd = -1;
-    unsigned int jpeg_width = 0;
-    unsigned int jpeg_height = 0;
-    BmJpuColorFormat jpeg_color_format = BM_JPU_COLOR_FORMAT_YUV420;
-    vdec_chn_attr_s stAttr;
     vdec_stream_s stStream;
     vdec_stream_ex_s stStreamEx;
 
@@ -536,6 +582,8 @@ BmJpuDecReturnCodes bm_jpu_jpeg_dec_decode(BmJpuJPEGDecoder *jpeg_decoder, uint8
         BM_JPU_ERROR("bm_jpu_jpeg_dec_decode params err: jpeg_decoder is NULL");
         return BM_JPU_DEC_RETURN_CODE_INVALID_PARAMS;
     }
+
+    bm_jpu_dec_set_interrupt_timeout(jpeg_decoder->decoder, timeout);
 
     chn_id = jpeg_decoder->decoder->channel_id;
     if (chn_id < 0 || chn_id >= VDEC_MAX_CHN_NUM) {
@@ -558,7 +606,7 @@ BmJpuDecReturnCodes bm_jpu_jpeg_dec_decode(BmJpuJPEGDecoder *jpeg_decoder, uint8
     stStream.bDisplay = 1;
 
     stStreamEx.pstStream = &stStream;
-    stStreamEx.s32MilliSec = -1;
+    stStreamEx.s32MilliSec = jpeg_decoder->decoder->timeout;
 
     BM_JPU_DEBUG("send stream addr: %p, len: %d", stStream.pu8Addr, stStream.u32Len);
     ret = bmjpeg_dec_ioctl_send_stream(chn_fd, &stStreamEx);
@@ -570,7 +618,7 @@ BmJpuDecReturnCodes bm_jpu_jpeg_dec_decode(BmJpuJPEGDecoder *jpeg_decoder, uint8
     return ret;
 }
 
-void bm_jpu_jpeg_dec_get_info(BmJpuJPEGDecoder *jpeg_decoder, BmJpuJPEGDecInfo *info)
+BmJpuDecReturnCodes bm_jpu_jpeg_dec_get_info(BmJpuJPEGDecoder *jpeg_decoder, BmJpuJPEGDecInfo *info)
 {
     int ret = BM_SUCCESS;
     int chn_id = 0;
@@ -578,24 +626,25 @@ void bm_jpu_jpeg_dec_get_info(BmJpuJPEGDecoder *jpeg_decoder, BmJpuJPEGDecInfo *
     video_frame_info_s stFrameInfo;
     video_frame_info_ex_s stFrameInfoEx;
     pixel_format_e ePixelFormat;
+    int chroma_interleave = 0;
     FramebufferList *list_curr = NULL;
 
     if (jpeg_decoder == NULL) {
         BM_JPU_ERROR("bm_jpu_jpeg_dec_get_info params err: jpeg_decoder is NULL");
-        return;
+        return BM_JPU_DEC_RETURN_CODE_INVALID_PARAMS;
     }
 
     chn_id = jpeg_decoder->decoder->channel_id;
     if (chn_id < 0 || chn_id >= VDEC_MAX_CHN_NUM) {
         BM_JPU_ERROR("invalid channel id: %d", chn_id);
-        return;
+        return BM_JPU_DEC_RETURN_CODE_INVALID_PARAMS;
     }
 
     pthread_mutex_lock(&g_jpeg_dec_lock);
     if (!g_jpeg_dec_chn[chn_id].is_used) {
         pthread_mutex_unlock(&g_jpeg_dec_lock);
         BM_JPU_ERROR("channel %d is not using", chn_id);
-        return;
+        return BM_JPU_DEC_RETURN_CODE_INVALID_PARAMS;
     }
     chn_fd = g_jpeg_dec_chn[chn_id].chn_fd;
     pthread_mutex_unlock(&g_jpeg_dec_lock);
@@ -606,7 +655,7 @@ void bm_jpu_jpeg_dec_get_info(BmJpuJPEGDecoder *jpeg_decoder, BmJpuJPEGDecInfo *
     ret = bmjpeg_dec_ioctl_get_frame(chn_fd, &stFrameInfoEx);
     if (ret != BM_JPU_DEC_RETURN_CODE_OK) {
         BM_JPU_ERROR("bmjpeg_dec_ioctl_get_frame failed, ret = %d", ret);
-        return;
+        return BM_JPU_DEC_RETURN_CODE_INVALID_FRAMEBUFFER;
     }
 
     BM_JPU_DEBUG("frame_flag = %d\n", stFrameInfoEx.pstFrame->video_frame.frame_flag);
@@ -625,40 +674,36 @@ void bm_jpu_jpeg_dec_get_info(BmJpuJPEGDecoder *jpeg_decoder, BmJpuJPEGDecInfo *
     ePixelFormat = stFrameInfoEx.pstFrame->video_frame.pixel_format;
     switch (ePixelFormat) {
         case PIXEL_FORMAT_YUV_400:
-            info->color_format = BM_JPU_COLOR_FORMAT_YUV400;
-            info->chroma_interleave = CBCR_SEPARATED;
+            info->image_format = BM_JPU_IMAGE_FORMAT_GRAY;
             break;
         case PIXEL_FORMAT_NV16:
-            info->color_format = BM_JPU_COLOR_FORMAT_YUV422_HORIZONTAL;
-            info->chroma_interleave = CBCR_INTERLEAVE;
+            info->image_format = BM_JPU_IMAGE_FORMAT_NV16;
+            chroma_interleave = 1;
             break;
         case PIXEL_FORMAT_NV61:
-            info->color_format = BM_JPU_COLOR_FORMAT_YUV422_HORIZONTAL;
-            info->chroma_interleave = CRCB_INTERLEAVE;
+            info->image_format = BM_JPU_IMAGE_FORMAT_NV61;
+            chroma_interleave = 1;
             break;
         case PIXEL_FORMAT_YUV_PLANAR_422:
-            info->color_format = BM_JPU_COLOR_FORMAT_YUV422_HORIZONTAL;
-            info->chroma_interleave = CBCR_SEPARATED;
+            info->image_format = BM_JPU_IMAGE_FORMAT_YUV422P;
             break;
         case PIXEL_FORMAT_YUV_PLANAR_444:
-            info->color_format = BM_JPU_COLOR_FORMAT_YUV444;
-            info->chroma_interleave = CBCR_SEPARATED;
+            info->image_format = BM_JPU_IMAGE_FORMAT_YUV444P;
             break;
         case PIXEL_FORMAT_NV12:
-            info->color_format = BM_JPU_COLOR_FORMAT_YUV420;
-            info->chroma_interleave = CBCR_INTERLEAVE;
+            info->image_format = BM_JPU_IMAGE_FORMAT_NV12;
+            chroma_interleave = 1;
             break;
         case PIXEL_FORMAT_NV21:
-            info->color_format = BM_JPU_COLOR_FORMAT_YUV420;
-            info->chroma_interleave = CRCB_INTERLEAVE;
+            info->image_format = BM_JPU_IMAGE_FORMAT_NV21;
+            chroma_interleave = 1;
             break;
         case PIXEL_FORMAT_YUV_PLANAR_420:
-            info->color_format = BM_JPU_COLOR_FORMAT_YUV420;
-            info->chroma_interleave = CBCR_SEPARATED;
+            info->image_format = BM_JPU_IMAGE_FORMAT_YUV420P;
             break;
         default:
             BM_JPU_ERROR("unknown pixel format: %d", ePixelFormat);
-            return;
+            return BM_JPU_DEC_RETURN_CODE_INVALID_PARAMS;
     }
 
     info->actual_frame_width = stFrameInfoEx.pstFrame->video_frame.width;
@@ -686,12 +731,13 @@ void bm_jpu_jpeg_dec_get_info(BmJpuJPEGDecoder *jpeg_decoder, BmJpuJPEGDecInfo *
     info->framebuffer->dma_buffer = malloc(sizeof(bm_device_mem_t));
     info->framebuffer->dma_buffer->u.device.device_addr = stFrameInfoEx.pstFrame->video_frame.phyaddr[0];
     BM_JPU_DEBUG("info->framebuffer->dma_buffer->u.device.device_addr: %#lx\n", info->framebuffer->dma_buffer->u.device.device_addr);
-    if (info->color_format == BM_JPU_COLOR_FORMAT_YUV400) {
+
+    if (info->image_format == BM_JPU_IMAGE_FORMAT_GRAY) {
         info->framebuffer->dma_buffer->size = stFrameInfoEx.pstFrame->video_frame.length[0];
-    } else if (info->color_format == BM_JPU_COLOR_FORMAT_YUV444) {
+    } else if (info->image_format == BM_JPU_IMAGE_FORMAT_YUV444P) {
         info->framebuffer->dma_buffer->size = stFrameInfoEx.pstFrame->video_frame.length[0] + stFrameInfoEx.pstFrame->video_frame.length[1] + stFrameInfoEx.pstFrame->video_frame.length[2];
     } else {
-        info->framebuffer->dma_buffer->size = stFrameInfoEx.pstFrame->video_frame.length[0] + stFrameInfoEx.pstFrame->video_frame.length[1] + (info->chroma_interleave ? 0 : stFrameInfoEx.pstFrame->video_frame.length[2]);
+        info->framebuffer->dma_buffer->size = stFrameInfoEx.pstFrame->video_frame.length[0] + stFrameInfoEx.pstFrame->video_frame.length[1] + (chroma_interleave ? 0 : stFrameInfoEx.pstFrame->video_frame.length[2]);
     }
     BM_JPU_DEBUG("info->framebuffer->dma_buffer->size: %u\n", info->framebuffer->dma_buffer->size);
     info->framebuffer->dma_buffer->flags.u.mem_type = BM_MEM_TYPE_DEVICE;
@@ -708,19 +754,16 @@ void bm_jpu_jpeg_dec_get_info(BmJpuJPEGDecoder *jpeg_decoder, BmJpuJPEGDecInfo *
         free(info->framebuffer->context);
         free(info->framebuffer->dma_buffer);
         free(info->framebuffer);
-        return;
+        return BM_JPU_DEC_RETURN_CODE_INVALID_PARAMS;
     }
     jpeg_decoder->decoder->fb_list_curr = list_curr;
 
-    return;
+    return BM_JPU_DEC_RETURN_CODE_OK;
 }
 
 BmJpuDecReturnCodes bm_jpu_jpeg_dec_frame_finished(BmJpuJPEGDecoder *jpeg_decoder, BmJpuFramebuffer *framebuffer)
 {
-    BmJpuDecReturnCodes ret = BM_JPU_DEC_RETURN_CODE_OK;
     int chn_id = 0;
-    int chn_fd = -1;
-    video_frame_info_s *pstFrameInfo;
     FramebufferList *list_curr = NULL;
 
     chn_id = jpeg_decoder->decoder->channel_id;
@@ -735,7 +778,6 @@ BmJpuDecReturnCodes bm_jpu_jpeg_dec_frame_finished(BmJpuJPEGDecoder *jpeg_decode
         BM_JPU_ERROR("channel %d is not using", chn_id);
         return BM_JPU_DEC_RETURN_CODE_ERROR;
     }
-    chn_fd = g_jpeg_dec_chn[chn_id].chn_fd;
     pthread_mutex_unlock(&g_jpeg_dec_lock);
 
     BM_JPU_DEBUG("before del_fb_list: fb_list_head = %p, fb_list_curr = %p", jpeg_decoder->decoder->fb_list_head, jpeg_decoder->decoder->fb_list_curr);
@@ -834,6 +876,7 @@ BmJpuEncReturnCodes bm_jpu_enc_unload(int device_index)
 }
 
 BmJpuEncReturnCodes bm_jpu_jpeg_enc_open(BmJpuJPEGEncoder **jpeg_encoder,
+                                         bm_jpu_phys_addr_t bs_buffer_phys_addr,
                                          int bs_buffer_size,
                                          int device_index)
 {
@@ -895,9 +938,12 @@ BmJpuEncReturnCodes bm_jpu_jpeg_enc_open(BmJpuJPEGEncoder **jpeg_encoder,
     }
 
     *jpeg_encoder = (BmJpuJPEGEncoder *)malloc(sizeof(BmJpuJPEGEncoder));
+    memset(*jpeg_encoder, 0, sizeof(BmJpuJPEGEncoder));
     (*jpeg_encoder)->device_index = device_index;  // soc_idx
     (*jpeg_encoder)->bitstream_buffer_size = bs_buffer_size;
     (*jpeg_encoder)->bitstream_buffer_alignment = 16;
+    if(bs_buffer_phys_addr)
+        (*jpeg_encoder)->bitstream_buffer_addr = bs_buffer_phys_addr;
     (*jpeg_encoder)->encoder = (BmJpuEncoder *)malloc(sizeof(BmJpuEncoder));
     (*jpeg_encoder)->encoder->device_index = device_index;
     (*jpeg_encoder)->encoder->channel_id = chn_id;
@@ -970,6 +1016,8 @@ BmJpuEncReturnCodes bm_jpu_jpeg_enc_encode(BmJpuJPEGEncoder *jpeg_encoder,
     size_t total_size = 0;
     unsigned long long vaddr = 0;
     int map_count = 0;
+    bm_jpu_phys_addr_t external_bs_addr = 0;
+    size_t external_bs_size = 0;
 
     if (jpeg_encoder == NULL) {
         BM_JPU_ERROR("bm_jpu_jpeg_enc_encode params err: jpeg_encoder is NULL");
@@ -987,12 +1035,23 @@ BmJpuEncReturnCodes bm_jpu_jpeg_enc_encode(BmJpuJPEGEncoder *jpeg_encoder,
         return BM_JPU_ENC_RETURN_CODE_ERROR;
     }
 
+    if(params->bs_buffer_phys_addr)
+        external_bs_addr = params->bs_buffer_phys_addr;
+    else
+        external_bs_addr = jpeg_encoder->bitstream_buffer_addr;
+
+    if(params->bs_buffer_size)
+        external_bs_size = params->bs_buffer_size;
+    else
+        external_bs_size = jpeg_encoder->bitstream_buffer_size;
+
     bm_handle = g_jpeg_enc_bm_handle[jpeg_encoder->device_index];
     bm_mem_flush_device_mem(bm_handle, framebuffer->dma_buffer);
 
     unsigned long long base_addr = bm_mem_get_device_addr(*framebuffer->dma_buffer);
     memset(&stAttr, 0, sizeof(venc_chn_attr_s));
     memset(&stFrame, 0, sizeof(video_frame_info_s));
+    memset(&stStream, 0, sizeof(venc_stream_s));
 
     stFrame.video_frame.stride[0] = framebuffer->y_stride;
     stFrame.video_frame.stride[1] = framebuffer->cbcr_stride;
@@ -1002,69 +1061,53 @@ BmJpuEncReturnCodes bm_jpu_jpeg_enc_encode(BmJpuJPEGEncoder *jpeg_encoder,
     stFrame.video_frame.phyaddr[1] = base_addr + framebuffer->cb_offset;
     stFrame.video_frame.phyaddr[2] = base_addr + framebuffer->cr_offset;
 
-    switch (params->color_format) {
-        case BM_JPU_COLOR_FORMAT_YUV420:
-            if (params->chroma_interleave == CBCR_SEPARATED) {
-                stAttr.stVencAttr.enPixelFormat = PIXEL_FORMAT_YUV_PLANAR_420;
-                stFrame.video_frame.pixel_format = PIXEL_FORMAT_YUV_PLANAR_420;
-            } else if (params->chroma_interleave == CBCR_INTERLEAVE) {
-                stAttr.stVencAttr.enPixelFormat = PIXEL_FORMAT_NV12;
-                stFrame.video_frame.pixel_format = PIXEL_FORMAT_NV12;
-                stFrame.video_frame.stride[2] = 0;
-                stFrame.video_frame.phyaddr[2] = 0;
-            } else if (params->chroma_interleave == CRCB_INTERLEAVE) {
-                stAttr.stVencAttr.enPixelFormat = PIXEL_FORMAT_NV21;
-                stFrame.video_frame.pixel_format = PIXEL_FORMAT_NV21;
-                stFrame.video_frame.stride[2] = 0;
-                stFrame.video_frame.phyaddr[2] = 0;
-            } else {
-                BM_JPU_ERROR("unsupported chroma interleave value: %d", params->chroma_interleave);
-                return BM_JPU_ENC_RETURN_CODE_INVALID_PARAMS;
-            }
+    switch (params->image_format) {
+        case BM_JPU_IMAGE_FORMAT_YUV420P:
+            stAttr.stVencAttr.enPixelFormat = PIXEL_FORMAT_YUV_PLANAR_420;
+            stFrame.video_frame.pixel_format = PIXEL_FORMAT_YUV_PLANAR_420;
             break;
-        case BM_JPU_COLOR_FORMAT_YUV422_HORIZONTAL:
-            if (params->chroma_interleave == CBCR_SEPARATED) {
-                stAttr.stVencAttr.enPixelFormat = PIXEL_FORMAT_YUV_PLANAR_422;
-                stFrame.video_frame.pixel_format = PIXEL_FORMAT_YUV_PLANAR_422;
-            } else if (params->chroma_interleave == CBCR_INTERLEAVE) {
-                stAttr.stVencAttr.enPixelFormat = PIXEL_FORMAT_NV16;
-                stFrame.video_frame.pixel_format = PIXEL_FORMAT_NV16;
-                stFrame.video_frame.stride[2] = 0;
-                stFrame.video_frame.phyaddr[2] = 0;
-            } else if (params->chroma_interleave == CRCB_INTERLEAVE) {
-                stAttr.stVencAttr.enPixelFormat = PIXEL_FORMAT_NV61;
-                stFrame.video_frame.pixel_format = PIXEL_FORMAT_NV61;
-                stFrame.video_frame.stride[2] = 0;
-                stFrame.video_frame.phyaddr[2] = 0;
-            } else {
-                BM_JPU_ERROR("unsupported chroma interleave value: %d", params->chroma_interleave);
-                return BM_JPU_ENC_RETURN_CODE_INVALID_PARAMS;
-            }
+        case BM_JPU_IMAGE_FORMAT_NV12:
+            stAttr.stVencAttr.enPixelFormat = PIXEL_FORMAT_NV12;
+            stFrame.video_frame.pixel_format = PIXEL_FORMAT_NV12;
+            stFrame.video_frame.stride[2] = 0;
+            stFrame.video_frame.phyaddr[2] = 0;
             break;
-        case BM_JPU_COLOR_FORMAT_YUV444:
-            if (params->chroma_interleave == CBCR_SEPARATED) {
-                stAttr.stVencAttr.enPixelFormat = PIXEL_FORMAT_YUV_PLANAR_444;
-                stFrame.video_frame.pixel_format = PIXEL_FORMAT_YUV_PLANAR_444;
-            } else {
-                BM_JPU_ERROR("unsupported chroma interleave value: %d", params->chroma_interleave);
-                return BM_JPU_ENC_RETURN_CODE_INVALID_PARAMS;
-            }
+        case BM_JPU_IMAGE_FORMAT_NV21:
+            stAttr.stVencAttr.enPixelFormat = PIXEL_FORMAT_NV21;
+            stFrame.video_frame.pixel_format = PIXEL_FORMAT_NV21;
+            stFrame.video_frame.stride[2] = 0;
+            stFrame.video_frame.phyaddr[2] = 0;
             break;
-        case BM_JPU_COLOR_FORMAT_YUV400:
-            if (params->chroma_interleave == CBCR_SEPARATED) {
-                stAttr.stVencAttr.enPixelFormat = PIXEL_FORMAT_YUV_400;
-                stFrame.video_frame.pixel_format = PIXEL_FORMAT_YUV_400;
-                stFrame.video_frame.stride[1] = 0;
-                stFrame.video_frame.stride[2] = 0;
-                stFrame.video_frame.phyaddr[1] = 0;
-                stFrame.video_frame.phyaddr[2] = 0;
-            } else {
-                BM_JPU_ERROR("unsupported chroma interleave value: %d", params->chroma_interleave);
-                return BM_JPU_ENC_RETURN_CODE_INVALID_PARAMS;
-            }
+        case BM_JPU_IMAGE_FORMAT_YUV422P:
+            stAttr.stVencAttr.enPixelFormat = PIXEL_FORMAT_YUV_PLANAR_422;
+            stFrame.video_frame.pixel_format = PIXEL_FORMAT_YUV_PLANAR_422;
+            break;
+        case BM_JPU_IMAGE_FORMAT_NV16:
+            stAttr.stVencAttr.enPixelFormat = PIXEL_FORMAT_NV16;
+            stFrame.video_frame.pixel_format = PIXEL_FORMAT_NV16;
+            stFrame.video_frame.stride[2] = 0;
+            stFrame.video_frame.phyaddr[2] = 0;
+            break;
+        case BM_JPU_IMAGE_FORMAT_NV61:
+            stAttr.stVencAttr.enPixelFormat = PIXEL_FORMAT_NV61;
+            stFrame.video_frame.pixel_format = PIXEL_FORMAT_NV61;
+            stFrame.video_frame.stride[2] = 0;
+            stFrame.video_frame.phyaddr[2] = 0;
+            break;
+        case BM_JPU_IMAGE_FORMAT_YUV444P:
+            stAttr.stVencAttr.enPixelFormat = PIXEL_FORMAT_YUV_PLANAR_444;
+            stFrame.video_frame.pixel_format = PIXEL_FORMAT_YUV_PLANAR_444;
+            break;
+        case BM_JPU_IMAGE_FORMAT_GRAY:
+            stAttr.stVencAttr.enPixelFormat = PIXEL_FORMAT_YUV_400;
+            stFrame.video_frame.pixel_format = PIXEL_FORMAT_YUV_400;
+            stFrame.video_frame.stride[1] = 0;
+            stFrame.video_frame.stride[2] = 0;
+            stFrame.video_frame.phyaddr[1] = 0;
+            stFrame.video_frame.phyaddr[2] = 0;
             break;
         default:
-            BM_JPU_ERROR("unsupported color format: %d", params->color_format);
+            BM_JPU_ERROR("unsupported image format: %d", params->image_format);
             return BM_JPU_ENC_RETURN_CODE_INVALID_PARAMS;
     }
 
@@ -1080,7 +1123,8 @@ BmJpuEncReturnCodes bm_jpu_jpeg_enc_encode(BmJpuJPEGEncoder *jpeg_encoder,
     stAttr.stVencAttr.u32MaxPicHeight = params->frame_height;
     stAttr.stVencAttr.u32PicWidth = params->frame_width;
     stAttr.stVencAttr.u32PicHeight = params->frame_height;
-    stAttr.stVencAttr.u32BufSize = jpeg_encoder->bitstream_buffer_size;
+    stAttr.stVencAttr.u64ExternalBufAddr = external_bs_addr;
+    stAttr.stVencAttr.u32BufSize = external_bs_size;
     stAttr.stVencAttr.bEsBufQueueEn = 1; // CVI_H26X_ES_BUFFER_QUEUE_DEFAULT
     stAttr.stVencAttr.bIsoSendFrmEn = 1; // CVI_H26X_ISO_SEND_FRAME_DEFAUL
 
@@ -1151,7 +1195,7 @@ BmJpuEncReturnCodes bm_jpu_jpeg_enc_encode(BmJpuJPEGEncoder *jpeg_encoder,
     stFrame.video_frame.pts = 0;
 
     stFrameEx.pstFrame = &stFrame;
-    stFrameEx.s32MilliSec = -1;
+    stFrameEx.s32MilliSec = params->timeout;
     ret = bmjpeg_enc_ioctl_send_frame(chn_fd, &stFrameEx);
     if (ret != BM_JPU_ENC_RETURN_CODE_OK) {
         BM_JPU_ERROR("bmjpeg_enc_ioctl_send_frame failed, ret = %d", ret);
@@ -1166,7 +1210,6 @@ BmJpuEncReturnCodes bm_jpu_jpeg_enc_encode(BmJpuJPEGEncoder *jpeg_encoder,
 
     BM_JPU_DEBUG("u32CurPacks = %d", stStat.u32CurPacks);
 
-    memset(&stStream, 0, sizeof(venc_stream_s));
     stStream.pstPack = malloc(stStat.u32CurPacks * sizeof(venc_pack_s));
     if (stStream.pstPack == NULL) {
         BM_JPU_ERROR("malloc stream packet failed!");
@@ -1247,6 +1290,7 @@ BmJpuEncReturnCodes bm_jpu_jpeg_enc_encode(BmJpuJPEGEncoder *jpeg_encoder,
         if (params->write_output_data(params->output_buffer_context, ptr_start, total_size, NULL) < 0) {
             BM_JPU_ERROR("could not output encoded data with %llu bytes: write callback reported failure", total_size);
             free(ptr_start);
+            ret = BM_JPU_ENC_RETURN_CODE_WRITE_CALLBACK_FAILED;
             goto ERR_ENC_ENCODE_3;
         }
         free(ptr_start);

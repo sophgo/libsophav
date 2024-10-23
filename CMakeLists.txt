@@ -1,8 +1,17 @@
 cmake_minimum_required(VERSION 3.16)
-
-# subdirectories may depend on former settings
-
 project(libsophav C CXX)
+
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+include(GitUtils)
+
+get_version_from_tag(LIBSOPHAV_VERSION COMMIT_HASH COMMIT_COUNT BRANCH COMMIT_DATE)
+
+add_compile_definitions(LIBSOPHAV_VERSION="${LIBSOPHAV_VERSION}")
+add_compile_definitions(COMMIT_HASH="${COMMIT_HASH}")
+add_compile_definitions(COMMIT_COUNT="${COMMIT_COUNT}")
+add_compile_definitions(BRANCH="${BRANCH}")
+add_compile_definitions(COMMIT_DATE=${COMMIT_DATE})
+
 if(CMAKE_HOST_WIN32)
     set(WINDOWS 1)
 elseif(CMAKE_HOST_APPLE)
@@ -83,8 +92,6 @@ message(STATUS "SUBTYPE..................... " ${SUBTYPE})
 message(STATUS "CMAKE_INSTALL_PREFIX........ " ${CMAKE_INSTALL_PREFIX})
 
 # add sub-modules
-#set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/cmake)
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake/)
 find_package(Sophav)
 ADD_TARGET_YUV_LIB(yuv_lib ${PLATFORM} off libsophon ${LIBSOPHAV_OUT_PATH})
 add_subdirectory(jpeg)

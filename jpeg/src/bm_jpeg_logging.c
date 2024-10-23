@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdarg.h>
-#include "bm_jpeg_logging.h"
+#include "bm_jpeg_internal.h"
 
 BmJpuLogLevel bm_jpu_cur_log_level_threshold = BM_JPU_LOG_LEVEL_ERROR;
 
@@ -34,19 +34,42 @@ void logging_fn(BmJpuLogLevel level, char const *file, int const line, char cons
     fprintf(stderr, "\n");
 }
 
+
 char const *bm_jpu_color_format_string(BmJpuColorFormat color_format)
 {
-    switch (color_format) {
-        case BM_JPU_COLOR_FORMAT_YUV420:
+    switch (color_format)
+    {
+        case BM_JPU_COLOR_FORMAT_YUV420: return "YUV 4:2:0";
+        case BM_JPU_COLOR_FORMAT_YUV422_HORIZONTAL: return "YUV 4:2:2 horizontal";
+        case BM_JPU_COLOR_FORMAT_YUV422_VERTICAL: return "YUV 2:2:4 vertical";
+        case BM_JPU_COLOR_FORMAT_YUV444: return "YUV 4:4:4";
+        case BM_JPU_COLOR_FORMAT_YUV400: return "YUV 4:0:0 (8-bit grayscale)";
+        default:
+            return "<unknown>";
+    }
+}
+
+char const *bm_jpu_image_format_string(BmJpuImageFormat image_format)
+{
+    switch (image_format) {
+        case BM_JPU_IMAGE_FORMAT_YUV420P:
             return "YUV 4:2:0";
-        case BM_JPU_COLOR_FORMAT_YUV422_HORIZONTAL:
-            return "YUV 4:2:2 horizontal";
-        case BM_JPU_COLOR_FORMAT_YUV422_VERTICAL:
-            return "YUV 2:2:4 vertical";
-        case BM_JPU_COLOR_FORMAT_YUV444:
+        case BM_JPU_IMAGE_FORMAT_YUV422P:
+            return "YUV 4:2:2";
+        case BM_JPU_IMAGE_FORMAT_YUV444P:
             return "YUV 4:4:4";
-        case BM_JPU_COLOR_FORMAT_YUV400:
-            return "YUV 4:0:0 (8-bit grayscale)";
+        case BM_JPU_IMAGE_FORMAT_NV12:
+            return "NV12";
+        case BM_JPU_IMAGE_FORMAT_NV21:
+            return "NV21";
+        case BM_JPU_IMAGE_FORMAT_NV16:
+            return "NV16";
+        case BM_JPU_IMAGE_FORMAT_NV61:
+            return "NV61";
+        case BM_JPU_IMAGE_FORMAT_GRAY:
+            return "YUV 4:0:0";
+        case BM_JPU_IMAGE_FORMAT_RGB:
+            return "RGB";
         default:
             return "<unknown>";
     }

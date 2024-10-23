@@ -127,6 +127,7 @@ bm_status_t bmcv_dpu_sgbm_disp( bm_handle_t          handle,
     }
 
     switch(chipid){
+        case BM1688_PREV:
         case BM1688:
             ret = bm_dpu_sgbm_disp_internal(handle, left_image, right_image, disp_image, dpu_attr, sgbm_mode);
             if(ret != BM_SUCCESS){
@@ -158,6 +159,7 @@ bm_status_t bmcv_dpu_fgs_disp( bm_handle_t           handle,
     }
 
     switch(chipid){
+        case BM1688_PREV:
         case BM1688:
             ret = bm_dpu_fgs_disp_internal(handle, guide_image, smooth_image, disp_image, fgs_attr, fgs_mode);
             if(ret != BM_SUCCESS){
@@ -190,6 +192,7 @@ bm_status_t bmcv_dpu_online_disp( bm_handle_t         handle,
     }
 
     switch(chipid){
+        case BM1688_PREV:
         case BM1688:
             ret = bm_dpu_online_disp_internal(handle, left_image, right_image, disp_image, dpu_attr, fgs_attr, online_mode);
             if(ret != BM_SUCCESS){

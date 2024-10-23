@@ -95,12 +95,12 @@ static void * dwa_gdc(void* arg) {
     dst_h = src_h;
     bm_image_create(handle, dst_h, dst_w, fmt, DATA_TYPE_EXT_1N_BYTE, &dst, NULL);
 
-    ret = bm_image_alloc_dev_mem(src, BMCV_HEAP_ANY);
+    ret = bm_image_alloc_dev_mem(src, BMCV_HEAP1_ID);
     if (ret != BM_SUCCESS) {
         printf("bm_image_alloc_dev_mem_src. ret = %d\n", ret);
         exit(-1);
     }
-    ret = bm_image_alloc_dev_mem(dst, BMCV_HEAP_ANY);
+    ret = bm_image_alloc_dev_mem(dst, BMCV_HEAP1_ID);
     if (ret != BM_SUCCESS) {
         printf("bm_image_alloc_dev_mem_dst. ret = %d\n", ret);
         exit(-1);

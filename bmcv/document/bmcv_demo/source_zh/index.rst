@@ -11,7 +11,8 @@ BMCV-software-doc
    :maxdepth: 5
    :caption: 目录
    :name: mastertoc
-   
-   1_basic_structure
-   2_basic_function
-   3_bmcv_api
+
+   1_common_component
+   2_basic_structure
+   3_basic_function
+   4_bmcv_api

@@ -279,7 +279,7 @@ static int draw_line_tpu(bm_handle_t handle, unsigned char* input, int height, i
         printf("bm_image_create failed!\n");
         goto exit0;
     }
-    ret = bm_image_alloc_dev_mem(input_img, BMCV_HEAP_ANY);
+    ret = bm_image_alloc_dev_mem(input_img, BMCV_HEAP1_ID);
     if (ret != BM_SUCCESS) {
         printf("bm_image_alloc_dev_mem failed!\n");
         goto exit1;

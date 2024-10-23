@@ -74,7 +74,7 @@ static void * ive_hist(void* arg){
     // calc ive image stride && create bm image struct
     bm_ive_image_calc_stride(handle, height, width, src_fmt, DATA_TYPE_EXT_1N_BYTE, src_stride);
     bm_image_create(handle, height, width, src_fmt, DATA_TYPE_EXT_1N_BYTE, &src, src_stride);
-    ret = bm_image_alloc_dev_mem(src, BMCV_HEAP_ANY);
+    ret = bm_image_alloc_dev_mem(src, BMCV_HEAP1_ID);
     if (ret != BM_SUCCESS) {
         printf("bm_image_alloc_dev_mem_src. ret = %d\n", ret);
         exit(-1);
@@ -171,10 +171,10 @@ int main(int argc, char **argv){
     else if (argc == 3){
         test_threads_num = atoi(argv[1]);
         test_loop_times  = atoi(argv[2]);
-    } else if (argc > 3 && argc < 4) {
-        printf("command input error, please follow this order:\n \
+    } else if ((argc > 3 && argc < 4) || (argc == 1)) {
+        printf("please follow this order to input command:\n \
         %s width height src_name dst_name golden_sample_name dev_id thread_num loop_num\n \
-        %s thread_num loop_num\n", argv[0], argv[0]);
+        %s 352 288 ive_data/00_352x288_y.yuv ./hist_res.bin ive_data/result/sample_Hist.bin 0 1 5\n", argv[0], argv[0]);
         exit(-1);
     }
     if (test_loop_times > 15000 || test_loop_times < 1) {

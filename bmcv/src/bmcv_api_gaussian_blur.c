@@ -58,8 +58,16 @@ static bm_status_t bmcv_gaussian_blur_check(bm_handle_t handle, bm_image input, 
         bmlib_log("GAUSSIAN_BLUR", BMLIB_LOG_ERROR, "Can not get handle!\r\n");
         return BM_ERR_PARAM;
     }
-    if (kw > 3 || kh > 3) {
-        bmlib_log("GAUSSIAN_BLUR", BMLIB_LOG_ERROR, "The kernel size only support 3 now!\n");
+    if (kw > 7 || kh > 7) {
+        bmlib_log("GAUSSIAN_BLUR", BMLIB_LOG_ERROR, "The kernel max size: 7!\n");
+        return BM_ERR_PARAM;
+    }
+    if (kw != 3 && kw != 5 && kw != 7) {
+        bmlib_log("GAUSSIAN_BLUR", BMLIB_LOG_ERROR, "The kernel size only support 3, 5, 7!\n");
+        return BM_ERR_PARAM;
+    }
+    if (kw != kh) {
+        bmlib_log("GAUSSIAN_BLUR", BMLIB_LOG_ERROR, "The kernel size onlt support 3*3, 5*5, 7*7!\n");
         return BM_ERR_PARAM;
     }
     bm_image_format_ext src_format = input.image_format;
@@ -71,9 +79,17 @@ static bm_status_t bmcv_gaussian_blur_check(bm_handle_t handle, bm_image input, 
     int image_dh = output.height;
     int image_dw = output.width;
 
-    if (image_sw < 2 || image_sw > 4096) {
-        bmlib_log("GAUSSIAN_BLUR", BMLIB_LOG_ERROR, "image width should not be less than 2 or greater than 4096!\r\n");
-        return BM_NOT_SUPPORTED;
+    if ((kw == 3) && (image_sw > 4096)) {
+        bmlib_log("GAUSSIAN_BLUR", BMLIB_LOG_ERROR, "when ksize = 3, image max_width: 4096!\r\n");
+        return BM_ERR_PARAM;
+    }
+    if ((kw == 5) && (image_sw > 2048)) {
+        bmlib_log("GAUSSIAN_BLUR", BMLIB_LOG_ERROR, "when ksize = 5, image max_width: 2048!\r\n");
+        return BM_ERR_PARAM;
+    }
+    if ((kw == 7) && (image_sw > 1500)) {
+        bmlib_log("GAUSSIAN_BLUR", BMLIB_LOG_ERROR, "when ksize = 7, image max_width: 1500!\r\n");
+        return BM_ERR_PARAM;
     }
     if (src_format != FORMAT_RGB_PLANAR &&
         src_format != FORMAT_BGR_PLANAR &&
@@ -126,7 +142,7 @@ bm_status_t bmcv_image_gaussian_blur(bm_handle_t handle, bm_image input, bm_imag
         return ret;
     }
     if (!bm_image_is_attached(output)) {
-        ret = sg_image_alloc_dev_mem(output, BMCV_HEAP_ANY);
+        ret = sg_image_alloc_dev_mem(output, BMCV_HEAP1_ID);
         if (ret != BM_SUCCESS) {
             sg_free_device_mem(handle, kernel_mem);
             free(tpu_kernel);
@@ -145,9 +161,8 @@ bm_status_t bmcv_image_gaussian_blur(bm_handle_t handle, bm_image input, bm_imag
     bm_image_get_device_mem(input, input_mem);
     bm_image_get_device_mem(output, output_mem);
     int channel = bm_image_get_plane_num(input);
-    bm_api_cv_filter_t api;
+    sg_api_cv_gaussian_blur_t api;
     int core_id = 0;
-
     api.channel = channel;
     api.kernel_addr = bm_mem_get_device_addr(kernel_mem.bm_device_mem);
     api.kh = kh;
@@ -158,32 +173,30 @@ bm_status_t bmcv_image_gaussian_blur(bm_handle_t handle, bm_image input, bm_imag
     for (int i = 0; i < channel; i++) {
         api.input_addr[i] = bm_mem_get_device_addr(input_mem[i]);
         api.output_addr[i] = bm_mem_get_device_addr(output_mem[i]);
-        api.width[i] = input.image_private->memory_layout[i].W / (api.is_packed ? 3 : 1);
-        api.height[i] = input.image_private->memory_layout[i].H;
-        api.stride_i[i] = stride_i[i];
-        api.stride_o[i] = stride_o[i];
+        api.width = input.image_private->memory_layout[i].W / (api.is_packed ? 3 : 1);
+        api.height = input.image_private->memory_layout[i].H;
+        api.stride_i = stride_i[i];
+        api.stride_o = stride_o[i];
     }
-    if (input.image_format == FORMAT_RGB_PLANAR || input.image_format == FORMAT_BGR_PLANAR) {
+    if (input.image_format == FORMAT_RGB_PLANAR ||
+        input.image_format == FORMAT_BGR_PLANAR) {
         api.channel = 3;
-        api.stride_i[1] = api.stride_i[0];
-        api.stride_i[2] = api.stride_i[0];
-        api.stride_o[1] = api.stride_o[0];
-        api.stride_o[2] = api.stride_o[0];
-        api.width[1] = api.width[0];
-        api.width[2] = api.width[0];
-        api.height[1] = api.height[0];
-        api.height[2] = api.height[0];
-        api.input_addr[1] = api.input_addr[0] + api.height[0] * api.stride_i[0];
-        api.input_addr[2] = api.input_addr[0] + api.height[0] * api.stride_i[0] * 2;
-        api.output_addr[1] = api.output_addr[0] + api.height[0] * api.stride_i[0];
-        api.output_addr[2] = api.output_addr[0] + api.height[0] * api.stride_i[0] * 2;
+        for (int i = 0; i < 3; i++) {
+            api.stride_i = stride_i[0];
+            api.stride_o = stride_o[0];
+            api.width = input.width;
+            api.height = input.height;
+            api.input_addr[i] = bm_mem_get_device_addr(input_mem[0]) + input.height * stride_i[0] * i;
+            api.output_addr[i] = bm_mem_get_device_addr(output_mem[0]) + input.height * stride_i[0] * i;
+        }
     }
     ret = bm_get_chipid(handle, &chipid);
     switch (chipid) {
+        case BM1688_PREV:
         case BM1688:
-            ret = bm_tpu_kernel_launch(handle, "cv_gaussinan_blur_", (u8 *)&api, sizeof(api), core_id);
+            ret = bm_tpu_kernel_launch(handle, "cv_gaussian_blur", (u8 *)&api, sizeof(api), core_id);
             if (BM_SUCCESS != ret) {
-                bmlib_log("gaussinan_blur", BMLIB_LOG_ERROR, "gaussinan_blur sync api error\n");
+                bmlib_log("gaussian_blur", BMLIB_LOG_ERROR, "gaussian_blur sync api error\n");
                 return ret;
             }
             break;

@@ -17,6 +17,14 @@ typedef struct {
     int pix_fmt;
     int cbcr_interleave;
     int rotate;
+    int external_memory;
+    int bitstream_size;
+    int bs_set_on_process;
+    int timeout;
+    int timeout_count;
+    int bs_heap;
+    int fb_heap;
+    int quality_factor;
 } EncParam;
 
 typedef struct {

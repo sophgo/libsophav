@@ -170,3 +170,25 @@ int  bmenc_ioctl_query_status(int chn_fd, venc_chn_status_s* pstatus)
     return ret;
 }
 
+int  bmenc_ioctl_enc_set_extern_buf(int chn_fd, venc_extern_buf_s* extern_buf)
+{
+    int ret = 0;
+    ret = ioctl(chn_fd, DRV_VC_VENC_SET_EXTERN_BUF, extern_buf);
+    return ret;
+}
+
+int  bmenc_ioctl_enc_alloc_physical_memory(int chn_fd, venc_phys_buf_s* phys_buf)
+{
+    int ret = 0;
+    ret = ioctl(chn_fd, DRV_VC_VENC_ALLOC_PHYSICAL_MEMORY, phys_buf);
+    return ret;
+}
+
+int  bmenc_ioctl_enc_free_physical_memory(int chn_fd, venc_phys_buf_s* phys_buf)
+{
+    int ret = 0;
+    ret = ioctl(chn_fd, DRV_VC_VENC_FREE_PHYSICAL_MEMORY, phys_buf);
+    return ret;
+}
+
+

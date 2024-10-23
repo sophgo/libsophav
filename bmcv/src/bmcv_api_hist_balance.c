@@ -62,6 +62,7 @@ bm_status_t bmcv_hist_balance(bm_handle_t handle, bm_device_mem_t input, bm_devi
     api1.cdf_addr = bm_mem_get_device_addr(cdf);
 
     switch(chipid) {
+        case BM1688_PREV:
         case BM1688:
             ret = bm_tpu_kernel_launch(handle, "cv_hist_balance1", (u8*)&api1,
                                                 sizeof(api1), core_id);
@@ -90,6 +91,7 @@ bm_status_t bmcv_hist_balance(bm_handle_t handle, bm_device_mem_t input, bm_devi
     api2.cdf_addr = bm_mem_get_device_addr(cdf);
     api2.Yaddr = bm_mem_get_device_addr(output);
     switch(chipid) {
+        case BM1688_PREV:
         case BM1688:
             ret = bm_tpu_kernel_launch(handle, "cv_hist_balance2", (u8*)&api2,
                                                 sizeof(api2), core_id);

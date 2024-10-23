@@ -23,6 +23,7 @@ extern void bm_write_bin(bm_image dst, const char *output_name);
 pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
 _Atomic int threads_running = 1;
 _Atomic int num_threads = 0;
+int process_num = 0;
 
 typedef struct {
     int     input_num;
@@ -73,6 +74,7 @@ static void user_usage() {
     "-y : dev_id[0],\n"
     "-z : compare_name,\n"
     "-W : wgt_mode,\n"
+    "-P : process_num,\n"
     "-H : user_usage \n"
   );
 }
@@ -272,6 +274,8 @@ static int test_4way_blending(int input_num, char** src_name, int src_w, int src
 #endif
 
     ret = bmcv_blending(handle, input_num, src, dst, stitch_config);
+    usleep(process_num * 1000 * 1000);
+    // printf("sleep time =  %d us, %d ms\n", process_num * 1000 * 1000, process_num * 1000);
     if(0 != ret)
     {
       printf("bmcv_blending failed,ret = %d\n", ret);
@@ -352,8 +356,10 @@ void* test_blending(void* args){
   int wgt_len = cv_blending4_thread_arg->wgt_len;
   char* compare_name = cv_blending4_thread_arg->compare_name;
   stitch_config.wgt_mode = cv_blending4_thread_arg->stitch_config.wgt_mode;
+  stitch_config.ovlap_attr.ovlp_lx[2] = cv_blending4_thread_arg->stitch_config.ovlap_attr.ovlp_lx[2];
   stitch_config.ovlap_attr.ovlp_lx[1] = cv_blending4_thread_arg->stitch_config.ovlap_attr.ovlp_lx[1];
   stitch_config.ovlap_attr.ovlp_lx[0] = cv_blending4_thread_arg->stitch_config.ovlap_attr.ovlp_lx[0];
+  stitch_config.ovlap_attr.ovlp_rx[2] = cv_blending4_thread_arg->stitch_config.ovlap_attr.ovlp_rx[2];
   stitch_config.ovlap_attr.ovlp_rx[1] = cv_blending4_thread_arg->stitch_config.ovlap_attr.ovlp_rx[1];
   stitch_config.ovlap_attr.ovlp_rx[0] = cv_blending4_thread_arg->stitch_config.ovlap_attr.ovlp_rx[0];
   bm_handle_t handle = cv_blending4_thread_arg->handle;
@@ -398,6 +404,7 @@ int main(int argc, char *argv[])
     {"dev_id",      required_argument,   NULL,  'y'},
     {"compare_name",required_argument,   NULL,  'z'},
     {"wgt_mode",    required_argument,   NULL,  'W'},
+    {"process_num", required_argument,   NULL,  'P'},
     {"user_usage",  no_argument,         NULL,  'H'},
   };
 
@@ -424,7 +431,7 @@ int main(int argc, char *argv[])
   signal(SIGTERM, blend_HandleSig);
 
   int ch = 0, opt_idx = 0;
-  while ((ch = getopt_long(argc, argv, "T:N:a:b:c:d:e:f:g:h:i:j:k:l:m:n:o:p:q:r:s:t:u:v:w:x:y:z:W:H", long_options, &opt_idx)) != -1) {
+  while ((ch = getopt_long(argc, argv, "T:N:a:b:c:d:e:f:g:h:i:j:k:l:m:n:o:p:q:r:s:t:u:v:w:x:y:z:W:P:H", long_options, &opt_idx)) != -1) {
     switch (ch) {
       case 'T':
         thread_num = atoi(optarg);
@@ -513,6 +520,9 @@ int main(int argc, char *argv[])
       case 'W':
         stitch_config.wgt_mode = atoi(optarg);
         break;
+      case 'P':
+        process_num = atoi(optarg);
+        break;
       case 'H':
         user_usage();
         return 0;
@@ -552,6 +562,8 @@ int main(int argc, char *argv[])
         cv_blending4_thread_arg[i].wgt_len = wgt_len;
         cv_blending4_thread_arg[i].compare_name = compare_name;
         cv_blending4_thread_arg[i].stitch_config.wgt_mode = stitch_config.wgt_mode;
+        cv_blending4_thread_arg[i].stitch_config.ovlap_attr.ovlp_rx[2] = stitch_config.ovlap_attr.ovlp_rx[2];
+        cv_blending4_thread_arg[i].stitch_config.ovlap_attr.ovlp_lx[2] = stitch_config.ovlap_attr.ovlp_lx[2];
         cv_blending4_thread_arg[i].stitch_config.ovlap_attr.ovlp_rx[1] = stitch_config.ovlap_attr.ovlp_rx[1];
         cv_blending4_thread_arg[i].stitch_config.ovlap_attr.ovlp_lx[1] = stitch_config.ovlap_attr.ovlp_lx[1];
         cv_blending4_thread_arg[i].stitch_config.ovlap_attr.ovlp_lx[0] = stitch_config.ovlap_attr.ovlp_lx[0];

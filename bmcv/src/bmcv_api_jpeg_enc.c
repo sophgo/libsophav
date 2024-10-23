@@ -353,7 +353,7 @@ static int bmcv_jpeg_encoder_create(bmcv_jpeg_encoder_t** p_jpeg_encoder,
         goto End;
     }
 
-    ret = bm_jpu_jpeg_enc_open(&enc->encoder_, buffer_size, devid);
+    ret = bm_jpu_jpeg_enc_open(&enc->encoder_, 0, buffer_size, devid);
     if (BM_JPU_ENC_RETURN_CODE_OK != ret) {
         bmlib_log(JPEG_ENC_LOG_TAG, BMLIB_LOG_ERROR, "open jpeg encoder failed!\r\n");
        goto End;
@@ -395,13 +395,11 @@ bm_status_t bmcv_jpeg_enc_one_image(bmcv_jpeg_encoder_t  *jpeg_enc,
     bm_image_get_format_info(src, &info);
     int width = src->width;
     int height = src->height;
-    BmJpuColorFormat out_pixformat;
+    BmJpuImageFormat out_pixformat;
 
     int y_size = info.stride[0] * height;
     int c_size = 0;
     int total_size = 0;
-    int interleave = 0;
-    int packed_format = 0;
 
     int src_image_format = src->image_format;
     bmcv_jpeg_buffer_t encoded_buffer;
@@ -412,54 +410,47 @@ bm_status_t bmcv_jpeg_enc_one_image(bmcv_jpeg_encoder_t  *jpeg_enc,
     switch (src_image_format)
     {
         case FORMAT_YUV420P:
-            out_pixformat = BM_JPU_COLOR_FORMAT_YUV420;
+            out_pixformat = BM_JPU_IMAGE_FORMAT_YUV420P;
             c_size = info.stride[1] * (height + 1) / 2;
             total_size = y_size + c_size * 2;
-            interleave = 0;
             break;
         case FORMAT_NV12:
-            out_pixformat = BM_JPU_COLOR_FORMAT_YUV420;
+            out_pixformat = BM_JPU_IMAGE_FORMAT_NV12;
             c_size = info.stride[1] * (height + 1) / 2;
             total_size = y_size + c_size;
-            interleave = 1;
             break;
         case FORMAT_NV21:
-            out_pixformat = BM_JPU_COLOR_FORMAT_YUV420;
+            out_pixformat = BM_JPU_IMAGE_FORMAT_NV21;
             c_size = info.stride[1] * (height + 1) / 2;
             total_size = y_size + c_size;
-            interleave = 2;
             break;
         case FORMAT_YUV422P:
-            out_pixformat = BM_JPU_COLOR_FORMAT_YUV422_HORIZONTAL;
+            out_pixformat = BM_JPU_IMAGE_FORMAT_YUV422P;
             c_size = info.stride[1] * height;
             total_size = y_size + c_size * 2;
-            interleave = 0;
             break;
         case FORMAT_NV16:
-            out_pixformat = BM_JPU_COLOR_FORMAT_YUV422_HORIZONTAL;
+            out_pixformat = BM_JPU_IMAGE_FORMAT_NV16;
             c_size = info.stride[1] * height;
             total_size = y_size + c_size;
-            interleave = 1;
             break;
         case FORMAT_NV61:
-            out_pixformat = BM_JPU_COLOR_FORMAT_YUV422_HORIZONTAL;
+            out_pixformat = BM_JPU_IMAGE_FORMAT_NV61;
             c_size = info.stride[1] * height;
             total_size = y_size + c_size;
-            interleave = 2;
             break;
         case FORMAT_YUV444P:
-            out_pixformat = BM_JPU_COLOR_FORMAT_YUV444;
+            out_pixformat = BM_JPU_IMAGE_FORMAT_YUV444P;
             c_size = info.stride[1] * height;
             total_size = y_size + c_size * 2;
-            interleave = 0;
             break;
         case FORMAT_GRAY:
-            out_pixformat = BM_JPU_COLOR_FORMAT_YUV400;
+            out_pixformat = BM_JPU_IMAGE_FORMAT_GRAY;
             c_size = 0;
             total_size = y_size;
             break;
         default:
-            out_pixformat = BM_JPU_COLOR_FORMAT_YUV400;
+            out_pixformat = BM_JPU_IMAGE_FORMAT_GRAY;
             c_size = 0;
             total_size = y_size;
             break;
@@ -493,9 +484,7 @@ bm_status_t bmcv_jpeg_enc_one_image(bmcv_jpeg_encoder_t  *jpeg_enc,
     enc_params.frame_width    = width;
     enc_params.frame_height   = height;
     enc_params.quality_factor = quality_factor;
-    enc_params.color_format   = out_pixformat;
-    enc_params.packed_format  = packed_format;
-    enc_params.chroma_interleave     = interleave;
+    enc_params.image_format   = out_pixformat;
     enc_params.output_buffer_context = (void*)&encoded_buffer;
     enc_params.acquire_output_buffer = acquire_output_buffer;
     enc_params.finish_output_buffer  = finish_output_buffer;

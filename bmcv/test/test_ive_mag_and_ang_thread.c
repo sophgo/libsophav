@@ -113,13 +113,13 @@ static void * ive_magAndAng(void* arg){
     bm_image_create(handle, height, width, fmt, DATA_TYPE_EXT_1N_BYTE, &src, stride);
     bm_image_create(handle, height, width, fmt, DATA_TYPE_EXT_U16, &dst_mag, magStride);
 
-    ret = bm_image_alloc_dev_mem(src, BMCV_HEAP_ANY);
+    ret = bm_image_alloc_dev_mem(src, BMCV_HEAP1_ID);
     if (ret != BM_SUCCESS) {
         printf("src bm_image_alloc_dev_mem_src. ret = %d\n", ret);
         exit(-1);
     }
 
-    ret = bm_image_alloc_dev_mem(dst_mag, BMCV_HEAP_ANY);
+    ret = bm_image_alloc_dev_mem(dst_mag, BMCV_HEAP1_ID);
     if (ret != BM_SUCCESS) {
         printf("dst_mag bm_image_alloc_dev_mem_src. ret = %d\n", ret);
         exit(-1);
@@ -128,7 +128,7 @@ static void * ive_magAndAng(void* arg){
 
     if(enMode == BM_IVE_MAG_AND_ANG_OUT_ALL){
         bm_image_create(handle, height, width, fmt, DATA_TYPE_EXT_1N_BYTE, &dst_ang, stride);
-        ret = bm_image_alloc_dev_mem(dst_ang, BMCV_HEAP_ANY);
+        ret = bm_image_alloc_dev_mem(dst_ang, BMCV_HEAP1_ID);
         if (ret != BM_SUCCESS) {
             printf("dst_mag bm_image_alloc_dev_mem_src. ret = %d\n", ret);
             exit(-1);
@@ -228,9 +228,9 @@ static void * ive_magAndAng(void* arg){
     char fmt_str[100], thr_str[50], modeStr[100];
     format_to_str(src.image_format, fmt_str);
     if(templateSize == 0)
-        memcpy(thr_str, "3x3", 50);
+        memcpy(thr_str, "3x3", 4);
     else
-        memcpy(thr_str, "5x5", 50);
+        memcpy(thr_str, "5x5", 4);
     magAndAngMode_to_str(magAndAng_attr.en_out_ctrl, modeStr);
 
     printf("bmcv_ive_magAndAng: format %s, MagAndAng_OutMode is %s , templateSize is %s, thrValue is %d size %d x %d \n",
@@ -266,10 +266,10 @@ int main(int argc, char **argv){
     else if (argc == 3){
         test_threads_num = atoi(argv[1]);
         test_loop_times  = atoi(argv[2]);
-    } else if (argc > 3 && argc < 7) {
-        printf("command input error, please follow this order:\n \
+    } else if ((argc > 3 && argc < 7) || (argc == 1)) {
+        printf("please follow this order to input command:\n \
         %s width height src_name thrValue templateSize(0:3x3 1:5x5) magAndAng_mode goldenMagsample_name goldenAngSample_name dev_id thread_num loop_num bWrite dstMag_name dsiAng_name\n \
-        %s thread_num loop_num\n", argv[0], argv[0]);
+        %s 640 480 ive_data/sky_640x480.yuv 0 0 1 ive_data/result/sample_tile_MagAndAng_MagAndAng3x3_Mag.yuv ive_data/result/sample_tile_MagAndAng_MagAndAng3x3_Ang.yuv 0 1 6 0\n", argv[0], argv[0]);
         exit(-1);
     }
     if (test_loop_times > 15000 || test_loop_times < 1) {

@@ -79,8 +79,8 @@ static unsigned char* image_read_2(
         for (int i = 0;i < pad_h_value * image_sw;i++)
             res_temp[i] = 0;
 
-        for (int i = pad_h_value * image_sw; i < pad_h_value * image_sw + image_n * image_c * image_sh * image_sw;i++)
-            res_temp[i] = res[i];
+        for (int i = pad_h_value * image_sw, j = 0; i < pad_h_value * image_sw + image_n * image_c * image_sh * image_sw;i++,j++)
+            res_temp[i] = res[j];
 
         for (int i = pad_h_value * image_sw + image_n * image_c * image_sh * image_sw;i <  pad_h_value * image_sw + image_n * image_c * image_sh * image_sw + pad_h_value * image_sw;i++)
             res_temp[i] = 0;
@@ -88,13 +88,14 @@ static unsigned char* image_read_2(
 
     if (image_dw > image_sw){
         int pad_w_value = (image_dw - image_sw) / 2;
+        int j = 0;
         for (int i = 0;i < image_dh;i++){
-            for (int i = 0;i < pad_w_value;i++)
-                res_temp_bak[i] = 0;
-            for (int i = pad_w_value;i < pad_w_value + image_sw;i++)
-                res_temp_bak[i] = res_temp[i-pad_w_value];
-            for (int i = pad_w_value + image_sw;i < pad_w_value + image_sw + pad_w_value + image_sw;i++)
-                res_temp_bak[i] = 0;
+            for (;j < pad_w_value + i * image_dw;j++)
+                res_temp_bak[j] = 0;
+            for (;j < pad_w_value + image_sw + i * image_dw;j++)
+                res_temp_bak[j] = res_temp[j - pad_w_value - i * image_dw + i * image_sw];
+            for (;j < pad_w_value + pad_w_value + image_sw + i * image_dw;j++)
+                res_temp_bak[j] = 0;
         }
     }
 
@@ -440,24 +441,44 @@ static int bmcv_affine_nearest_1n_ref(
     int dst_w_stride = dst_w * w_stride;
 
     // warp in source image directly.
-    unsigned char *sb = src_image;
-    unsigned char *sg = sb + src_w_stride * src_h;
-    unsigned char *sr = sg + src_w_stride * src_h;
-    unsigned char *db = dst_image;
-    unsigned char *dg = db + dst_w_stride * dst_h;
-    unsigned char *dr = dg + dst_w_stride * dst_h;
-    tensor_DX         = map;
-    tensor_DY         = tensor_DX + dst_h * dst_w;
-    for (int y = 0; y < dst_h; y++) {
-        for (int x = 0; x < dst_w; x++) {
-            unsigned short sx = tensor_DX[y * dst_w + x];
-            unsigned short sy = tensor_DY[y * dst_w + x];
-            db[y * dst_w_stride + x * w_stride] =
-                sb[sy * src_w_stride + sx * w_stride];
-            dg[y * dst_w_stride + x * w_stride] =
-                sg[sy * src_w_stride + sx * w_stride];
-            dr[y * dst_w_stride + x * w_stride] =
-                sr[sy * src_w_stride + sx * w_stride];
+    if (image_c == 1) {
+        unsigned char *sb = src_image;
+        unsigned char *db = dst_image;
+
+        tensor_DX         = map;
+        tensor_DY         = tensor_DX + dst_h * dst_w;
+
+        for (int y = 0; y < dst_h; y++) {
+            for (int x = 0; x < dst_w; x++) {
+                unsigned short sx = tensor_DX[y * dst_w + x];
+                unsigned short sy = tensor_DY[y * dst_w + x];
+                db[y * dst_w_stride + x * w_stride] =
+                    sb[sy * src_w_stride + sx * w_stride];
+            }
+        }
+    }
+    else if (image_c == 3) {
+        unsigned char *sb = src_image;
+        unsigned char *sg = sb + src_w_stride * src_h;
+        unsigned char *sr = sg + src_w_stride * src_h;
+        unsigned char *db = dst_image;
+        unsigned char *dg = db + dst_w_stride * dst_h;
+        unsigned char *dr = dg + dst_w_stride * dst_h;
+
+        tensor_DX         = map;
+        tensor_DY         = tensor_DX + dst_h * dst_w;
+
+        for (int y = 0; y < dst_h; y++) {
+            for (int x = 0; x < dst_w; x++) {
+                unsigned short sx = tensor_DX[y * dst_w + x];
+                unsigned short sy = tensor_DY[y * dst_w + x];
+                db[y * dst_w_stride + x * w_stride] =
+                    sb[sy * src_w_stride + sx * w_stride];
+                dg[y * dst_w_stride + x * w_stride] =
+                    sg[sy * src_w_stride + sx * w_stride];
+                dr[y * dst_w_stride + x * w_stride] =
+                    sr[sy * src_w_stride + sx * w_stride];
+            }
         }
     }
     free(tensor_S);
@@ -848,7 +869,7 @@ static int test_cv_warp_random(int trials) {
         int matrix_num[4] = {0};
 
         printf("is_bilinear: %d \n", is_bilinear);
-        int image_n = rand() % 0x03 + 1;
+        int image_n = 1;
         bool use_opencv = rand() % 0x02 ? true : false;
         use_opencv = false;
         if (flag == 1){

@@ -21,7 +21,7 @@ extern "C" {
 #endif
 
 #ifndef VER_Y
-#define VER_Y 5
+#define VER_Y 7
 #endif
 
 #ifndef VER_Z
@@ -75,6 +75,7 @@ typedef int vpss_chn;
 typedef int dpu_grp;
 typedef int dpu_chn;
 typedef int stitch_src_idx;
+typedef int stitch_grp;
 
 #define INVALID_CHN (-1)
 #define INVALID_LAYER (-1)

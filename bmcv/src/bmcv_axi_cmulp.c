@@ -27,6 +27,7 @@ bm_status_t bmcv_cmulp(bm_handle_t handle, bm_device_mem_t inputReal, bm_device_
     }
 
     switch(chipid) {
+        case BM1688_PREV:
         case BM1688:
             ret = bm_tpu_kernel_launch(handle, "cv_cmulp", (u8*)&api, sizeof(api), core_id);
             if(ret != BM_SUCCESS){

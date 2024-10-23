@@ -106,7 +106,7 @@ static void * ive_sobel(void* arg){
     // calc ive image stride && create bm image struct
     bm_ive_image_calc_stride(handle, height, width, fmt, DATA_TYPE_EXT_1N_BYTE, src_stride);
     bm_image_create(handle, height, width, fmt, DATA_TYPE_EXT_1N_BYTE, &src, src_stride);
-    ret = bm_image_alloc_dev_mem(src, BMCV_HEAP_ANY);
+    ret = bm_image_alloc_dev_mem(src, BMCV_HEAP1_ID);
     if (ret != BM_SUCCESS) {
         printf("src bm_image_alloc_dev_mem_src. ret = %d\n", ret);
         exit(-1);
@@ -116,7 +116,7 @@ static void * ive_sobel(void* arg){
     bm_ive_image_calc_stride(handle, height, width, fmt, DATA_TYPE_EXT_S16, dst_stride);
     if(enMode == BM_IVE_SOBEL_OUT_MODE_BOTH || enMode == BM_IVE_SOBEL_OUT_MODE_HOR){
         bm_image_create(handle, height, width, fmt, DATA_TYPE_EXT_S16, &dst_H, dst_stride);
-        ret = bm_image_alloc_dev_mem(dst_H, BMCV_HEAP_ANY);
+        ret = bm_image_alloc_dev_mem(dst_H, BMCV_HEAP1_ID);
         if (ret != BM_SUCCESS) {
             printf("dst_H bm_image_alloc_dev_mem_src. ret = %d\n", ret);
             exit(-1);
@@ -125,7 +125,7 @@ static void * ive_sobel(void* arg){
 
     if(enMode == BM_IVE_SOBEL_OUT_MODE_BOTH || enMode == BM_IVE_SOBEL_OUT_MODE_VER){
         bm_image_create(handle, height, width, fmt, DATA_TYPE_EXT_S16, &dst_V, dst_stride);
-        ret = bm_image_alloc_dev_mem(dst_V, BMCV_HEAP_ANY);
+        ret = bm_image_alloc_dev_mem(dst_V, BMCV_HEAP1_ID);
         if (ret != BM_SUCCESS) {
             printf("dst_V bm_image_alloc_dev_mem_src. ret = %d\n", ret);
             exit(-1);
@@ -232,7 +232,7 @@ static void * ive_sobel(void* arg){
 
     char fmt_str[100], thr_str[50], modeStr[100];
     format_to_str(src.image_format, fmt_str);
-    (thrSize == 0) ? memcpy(thr_str, "3x3", 50) : memcpy(thr_str, "5x5", 50);
+    (thrSize == 0) ? memcpy(thr_str, "3x3", 4) : memcpy(thr_str, "5x5", 4);
 
     sobelMode_to_str(sobelAtt.sobel_mode, modeStr);
 
@@ -267,10 +267,10 @@ int main(int argc, char **argv){
     else if (argc == 3){
         test_threads_num = atoi(argv[1]);
         test_loop_times  = atoi(argv[2]);
-    } else if (argc > 3 && argc < 6) {
-        printf("command input error, please follow this order:\n \
+    } else if ((argc > 3 && argc < 6) || (argc == 1)) {
+        printf("please follow this order to input command:\n \
         %s width height src_name sobelSize(0:3x3 1:5x5) sobel_out_mode golden_hDstName golden_vDstName dev_id thread_num loop_num bWrite sobel_hName sobel_vName\n \
-        %s thread_num loop_num\n", argv[0], argv[0]);
+        %s 640 480 ive_data/sky_640x480.yuv 0 0 ive_data/result/sample_tile_Sobel_Hor3x3.yuv ive_data/result/sample_tile_Sobel_Ver3x3.yuv 0 1 5 0 out/dst_sobelh.bin out/dst_sobelv.bin\n", argv[0], argv[0]);
         exit(-1);
     }
     if (test_loop_times > 15000 || test_loop_times < 1) {

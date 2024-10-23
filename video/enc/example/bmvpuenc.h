@@ -44,5 +44,38 @@ enum
     RETVAL_EOS = 2
 };
 
+static void logging_fn(BmVpuEncLogLevel level,
+                       char const *file,
+                       int const line,
+                       char const *fn,
+                       const char *format, ...)
+{
+    va_list args;
+
+    char const *lvlstr = "";
+    switch (level)
+    {
+    case BMVPU_ENC_LOG_LEVEL_ERROR:   lvlstr = "ERROR";   break;
+    case BMVPU_ENC_LOG_LEVEL_WARNING: lvlstr = "WARNING"; break;
+    case BMVPU_ENC_LOG_LEVEL_INFO:    lvlstr = "INFO";    break;
+    case BMVPU_ENC_LOG_LEVEL_DEBUG:   lvlstr = "DEBUG";   break;
+    case BMVPU_ENC_LOG_LEVEL_TRACE:   lvlstr = "TRACE";   break;
+    case BMVPU_ENC_LOG_LEVEL_LOG:     lvlstr = "LOG";     break;
+    default: break;
+    }
+#ifdef __linux__
+    fprintf(stderr, "[%zx] %s:%d (%s)   %s: ", pthread_self(), file, line, fn, lvlstr);
+#endif
+#ifdef _WIN32
+    fprintf(stderr, "[%zx] %s:%d (%s)   %s: ", GetCurrentThreadId(), file, line, fn, lvlstr);
+#endif
+    va_start(args, format);
+    vfprintf(stderr, format, args);
+    va_end(args);
+
+    fprintf(stderr, "\n");
+}
+
+
 #endif /* __TEST_ENC_H__ */
 

@@ -56,7 +56,7 @@ static void * fill_rect(void* arg) {
 
     bm_image_create(handle, src_h, src_w, src_fmt, DATA_TYPE_EXT_1N_BYTE, &src, NULL);
 
-    ret = bm_image_alloc_dev_mem(src,BMCV_HEAP_ANY);
+    ret = bm_image_alloc_dev_mem(src,BMCV_HEAP1_ID);
     if (ret != BM_SUCCESS) {
         printf("bm_image_alloc_dev_mem_src. ret = %d\n", ret);
         exit(-1);

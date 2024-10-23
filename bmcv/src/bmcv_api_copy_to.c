@@ -156,7 +156,7 @@ bm_status_t bmcv_image_copy_to_(bm_handle_t         handle,
         return BM_ERR_FAILURE;
     }
     if (!bm_image_is_attached(output)) {
-        if (BM_SUCCESS != bm_image_alloc_dev_mem(output, BMCV_HEAP_ANY)) {
+        if (BM_SUCCESS != bm_image_alloc_dev_mem(output, BMCV_HEAP1_ID)) {
             printf("[CopyTo] bm_image_alloc_dev_mem error!\r\n");
 
             return BM_ERR_FAILURE;
@@ -195,6 +195,7 @@ bm_status_t bmcv_image_copy_to_(bm_handle_t         handle,
 
     int core_id = 0;
     switch(chipid) {
+        case BM1688_PREV:
         case BM1688:
             if(BM_SUCCESS != bm_tpu_kernel_launch(handle, "sg_cv_copy_to", (u8 *)&arg, sizeof(arg), core_id)){
                     printf("copy_to launch api error\r\n");

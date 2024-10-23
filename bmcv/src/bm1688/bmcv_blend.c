@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdatomic.h>
 #include <pthread.h>
+#include <unistd.h>
 #include "bmcv_a2_common_internal.h"
 #include "bmcv_blend_ioctl.h"
 #include "bmcv_api_ext_c.h"
@@ -34,6 +35,8 @@ struct vdev {
 #define BLEND_INCORRECT_WGT_SIZE        (-8)
 #define BLEND_INCORRECT_WIDTH_MATCH     (-9)
 
+#define DEFAULT_GRP_ID 0
+#define MULTI_GRP_CNT 8
 
 /* For STITCH*/
 #define STITCH_TIMEOUT 60000
@@ -44,7 +47,7 @@ int close_device(int *fd);
 
 static atomic_bool stitch_init_once = ATOMIC_VAR_INIT(false);
 
-static struct vdev dev_stitch;;
+static struct vdev dev_stitch;
 
 static inline int check_stitch_src_id_valid(int idx)
 {
@@ -179,10 +182,11 @@ int bm_stitch_deinit(void)
   return s32Ret;
 }
 
-static int bm_stitch_SetSrcAttr(stitch_src_attr *srcAttr)
+static int bm_stitch_SetSrcAttr(stitch_grp stitchGrpIdx, stitch_src_attr *srcAttr)
 {
   int fd = -1;
   int s32Ret = BM_SUCCESS;
+  stitch_grp_src_attr cfg;
 
   if(NULL == srcAttr)
   {
@@ -193,7 +197,10 @@ static int bm_stitch_SetSrcAttr(stitch_src_attr *srcAttr)
   if (get_stitch_fd(&fd) != BM_SUCCESS)
     return BM_ERR_FAILURE;
 
-  s32Ret = stitch_set_src_attr(fd, srcAttr);
+  cfg.grp_id = stitchGrpIdx;
+  cfg.src_attr = *srcAttr;
+
+  s32Ret = stitch_set_src_attr(fd, &cfg);
   if (s32Ret != BM_SUCCESS) {
     BMCV_ERR_LOG("stitch, stitch_set_src_attr fail\n");
     return s32Ret;
@@ -202,10 +209,11 @@ static int bm_stitch_SetSrcAttr(stitch_src_attr *srcAttr)
   return BM_SUCCESS;
 }
 
-static __attribute__((unused)) int bm_stitch_GetSrcAttr(stitch_src_attr *srcAttr)
+static __attribute__((unused)) int bm_stitch_GetSrcAttr(stitch_grp stitchGrpIdx, stitch_src_attr *srcAttr)
 {
   int fd = -1;
   int s32Ret = BM_SUCCESS;
+  stitch_grp_src_attr cfg;
 
   if(NULL == srcAttr)
   {
@@ -216,7 +224,10 @@ static __attribute__((unused)) int bm_stitch_GetSrcAttr(stitch_src_attr *srcAttr
   if (get_stitch_fd(&fd) != BM_SUCCESS)
     return BM_ERR_FAILURE;
 
-  s32Ret = stitch_get_src_attr(fd, srcAttr);
+  cfg.grp_id = stitchGrpIdx;
+  cfg.src_attr = *srcAttr;
+
+  s32Ret = stitch_get_src_attr(fd, &cfg);
   if (s32Ret != BM_SUCCESS) {
     BMCV_ERR_LOG("stitch, stitch_set_src_attr fail\n");
     return s32Ret;
@@ -225,10 +236,11 @@ static __attribute__((unused)) int bm_stitch_GetSrcAttr(stitch_src_attr *srcAttr
   return BM_SUCCESS;
 }
 
-static int bm_stitch_SetChnAttr(stitch_chn_attr *chnAttr)
+static int bm_stitch_SetChnAttr(stitch_grp stitchGrpIdx, stitch_chn_attr *chnAttr)
 {
   int fd = -1;
   int s32Ret = BM_SUCCESS;
+  stitch_grp_chn_attr cfg;
 
   if(NULL == chnAttr)
   {
@@ -239,7 +251,10 @@ static int bm_stitch_SetChnAttr(stitch_chn_attr *chnAttr)
   if (get_stitch_fd(&fd) != BM_SUCCESS)
     return BM_ERR_FAILURE;
 
-  s32Ret = stitch_set_chn_attr(fd, chnAttr);
+  cfg.grp_id = stitchGrpIdx;
+  cfg.chn_attr = *chnAttr;
+
+  s32Ret = stitch_set_chn_attr(fd, &cfg);
   if (s32Ret != BM_SUCCESS) {
     BMCV_ERR_LOG("stitch, stitch_set_chn_attr fail\n");
     return s32Ret;
@@ -248,10 +263,11 @@ static int bm_stitch_SetChnAttr(stitch_chn_attr *chnAttr)
   return BM_SUCCESS;
 }
 
-static __attribute__((unused)) int bm_stitch_GetChnAttr(stitch_chn_attr *chnAttr)
+static __attribute__((unused)) int bm_stitch_GetChnAttr(stitch_grp stitchGrpIdx, stitch_chn_attr *chnAttr)
 {
   int fd = -1;
   int s32Ret = BM_SUCCESS;
+  stitch_grp_chn_attr cfg;
 
   if(NULL == chnAttr)
   {
@@ -262,7 +278,10 @@ static __attribute__((unused)) int bm_stitch_GetChnAttr(stitch_chn_attr *chnAttr
   if (get_stitch_fd(&fd) != BM_SUCCESS)
     return BM_ERR_FAILURE;
 
-  s32Ret = stitch_get_chn_attr(fd, chnAttr);
+  cfg.grp_id = stitchGrpIdx;
+  cfg.chn_attr = *chnAttr;
+
+  s32Ret = stitch_get_chn_attr(fd, &cfg);
   if (s32Ret != BM_SUCCESS) {
     BMCV_ERR_LOG("stitch, stitch_get_chn_attr fail\n");
     return s32Ret;
@@ -271,10 +290,11 @@ static __attribute__((unused)) int bm_stitch_GetChnAttr(stitch_chn_attr *chnAttr
   return BM_SUCCESS;
 }
 
-static int bm_stitch_SetOpAttr(stitch_op_attr *opAttr)
+static int bm_stitch_SetOpAttr(stitch_grp stitchGrpIdx, stitch_op_attr *opAttr)
 {
   int fd = -1;
   int s32Ret = BM_SUCCESS;
+  stitch_grp_op_attr cfg;
 
   if(NULL == opAttr)
   {
@@ -285,7 +305,10 @@ static int bm_stitch_SetOpAttr(stitch_op_attr *opAttr)
   if (get_stitch_fd(&fd) != BM_SUCCESS)
     return BM_ERR_FAILURE;
 
-  s32Ret = stitch_set_op_attr(fd, opAttr);
+  cfg.grp_id = stitchGrpIdx;
+  cfg.opt_attr = *opAttr;
+
+  s32Ret = stitch_set_op_attr(fd, &cfg);
   if (s32Ret != BM_SUCCESS) {
     BMCV_ERR_LOG("stitch, stitch_set_op_attr fail\n");
     return s32Ret;
@@ -294,10 +317,11 @@ static int bm_stitch_SetOpAttr(stitch_op_attr *opAttr)
   return BM_SUCCESS;
 }
 
-static __attribute__((unused)) int bm_stitch_GetOpAttr(stitch_op_attr *opAttr)
+static __attribute__((unused)) int bm_stitch_GetOpAttr(stitch_grp stitchGrpIdx, stitch_op_attr *opAttr)
 {
   int fd = -1;
   int s32Ret = BM_SUCCESS;
+  stitch_grp_op_attr cfg;
 
   if(NULL == opAttr)
   {
@@ -308,7 +332,10 @@ static __attribute__((unused)) int bm_stitch_GetOpAttr(stitch_op_attr *opAttr)
   if (get_stitch_fd(&fd) != BM_SUCCESS)
     return BM_ERR_FAILURE;
 
-  s32Ret = stitch_get_op_attr(fd, opAttr);
+  cfg.grp_id = stitchGrpIdx;
+  cfg.opt_attr = *opAttr;
+
+  s32Ret = stitch_get_op_attr(fd, &cfg);
   if (s32Ret != BM_SUCCESS) {
     BMCV_ERR_LOG("stitch, stitch_get_op_attr fail\n");
     return s32Ret;
@@ -317,10 +344,11 @@ static __attribute__((unused)) int bm_stitch_GetOpAttr(stitch_op_attr *opAttr)
   return BM_SUCCESS;
 }
 
-static int bm_stitch_SetWgtAttr(stitch_bld_wgt_attr *wgtAttr)
+static int bm_stitch_SetWgtAttr(stitch_grp stitchGrpIdx, stitch_bld_wgt_attr *wgtAttr)
 {
   int fd = -1;
   int s32Ret = BM_SUCCESS;
+  stitch_grp_bld_wgt_attr cfg;
 
   if(NULL == wgtAttr)
   {
@@ -331,7 +359,10 @@ static int bm_stitch_SetWgtAttr(stitch_bld_wgt_attr *wgtAttr)
   if (get_stitch_fd(&fd) != BM_SUCCESS)
     return BM_ERR_FAILURE;
 
-  s32Ret = stitch_set_wgt_attr(fd, wgtAttr);
+  cfg.grp_id = stitchGrpIdx;
+  cfg.bld_wgt_attr = *wgtAttr;
+
+  s32Ret = stitch_set_wgt_attr(fd, &cfg);
   if (s32Ret != BM_SUCCESS) {
     BMCV_ERR_LOG("stitch, stitch_set_wgt_attr fail\n");
     return s32Ret;
@@ -339,10 +370,11 @@ static int bm_stitch_SetWgtAttr(stitch_bld_wgt_attr *wgtAttr)
 
   return BM_SUCCESS;
 }
-__attribute__((unused)) static int bm_stitch_GetWgtAttr(stitch_bld_wgt_attr *wgtAttr)
+__attribute__((unused)) static int bm_stitch_GetWgtAttr(stitch_grp stitchGrpIdx, stitch_bld_wgt_attr *wgtAttr)
 {
   int fd = -1;
   int s32Ret = BM_SUCCESS;
+  stitch_grp_bld_wgt_attr cfg;
 
   if (NULL == wgtAttr)
   {
@@ -353,7 +385,10 @@ __attribute__((unused)) static int bm_stitch_GetWgtAttr(stitch_bld_wgt_attr *wgt
   if (get_stitch_fd(&fd) != BM_SUCCESS)
     return BM_ERR_FAILURE;
 
-  s32Ret = stitch_get_wgt_attr(fd, wgtAttr);
+  cfg.grp_id = stitchGrpIdx;
+  cfg.bld_wgt_attr = *wgtAttr;
+
+  s32Ret = stitch_get_wgt_attr(fd, &cfg);
   if (s32Ret != BM_SUCCESS) {
     BMCV_ERR_LOG("stitch, stitch_get_wgt_attr fail\n");
     return s32Ret;
@@ -379,7 +414,7 @@ __attribute__((unused)) static int bm_stitch_SetRegX(unsigned char regX)
   return BM_SUCCESS;
 }
 
-static int bm_stitch_EnableDev(void)
+static int bm_stitch_EnableGrp(stitch_grp stitchGrpIdx)
 {
   int fd = -1;
   int s32Ret = BM_SUCCESS;
@@ -387,7 +422,7 @@ static int bm_stitch_EnableDev(void)
   if (get_stitch_fd(&fd) != BM_SUCCESS)
     return BM_ERR_FAILURE;
 
-  s32Ret = stitch_dev_enable(fd);
+  s32Ret = stitch_grp_enable(fd, &stitchGrpIdx);
   if (s32Ret != BM_SUCCESS) {
     BMCV_ERR_LOG("stitch, stitch_EnableDev fail\n");
     return s32Ret;
@@ -396,7 +431,7 @@ static int bm_stitch_EnableDev(void)
   return BM_SUCCESS;
 }
 
-static int bm_stitch_DisableDev(void)
+static int bm_stitch_DisableGrp(stitch_grp stitchGrpIdx)
 {
   int fd = -1;
   int s32Ret = BM_SUCCESS;
@@ -404,7 +439,7 @@ static int bm_stitch_DisableDev(void)
   if (get_stitch_fd(&fd) != BM_SUCCESS)
     return BM_ERR_FAILURE;
 
-  s32Ret = stitch_dev_disable(fd);
+  s32Ret = stitch_grp_disable(fd, &stitchGrpIdx);
   if (s32Ret != BM_SUCCESS) {
     BMCV_ERR_LOG("stitch, stitch_dev_disable fail\n");
     return s32Ret;
@@ -413,11 +448,11 @@ static int bm_stitch_DisableDev(void)
   return BM_SUCCESS;
 }
 
-static int bm_stitch_SendFrame(int srcIdx, const video_frame_info_s *VideoFrame, int MilliSec)
+static int bm_stitch_SendFrame(stitch_grp stitchGrpIdx, int srcIdx, const video_frame_info_s *VideoFrame, int MilliSec)
 {
   int fd = -1;
   int s32Ret = BM_SUCCESS;
-  struct stitch_src_frm_cfg cfg;
+  struct stitch_grp_src_frm_cfg cfg;
 
   if(NULL == VideoFrame)
   {
@@ -432,9 +467,10 @@ static int bm_stitch_SendFrame(int srcIdx, const video_frame_info_s *VideoFrame,
   if (s32Ret != BM_SUCCESS)
     return s32Ret;
 
-  cfg.src_id = srcIdx;
-  cfg.milli_sec = MilliSec;
-  memcpy(&cfg.video_frame, VideoFrame, sizeof(cfg.video_frame));
+  cfg.grp_id = stitchGrpIdx;
+  cfg.cfg.src_id = srcIdx;
+  cfg.cfg.milli_sec = MilliSec;
+  memcpy(&cfg.cfg.video_frame, VideoFrame, sizeof(cfg.cfg.video_frame));
 
   s32Ret = stitch_send_src_frame(fd, &cfg);
   if (s32Ret != BM_SUCCESS) {
@@ -445,11 +481,11 @@ static int bm_stitch_SendFrame(int srcIdx, const video_frame_info_s *VideoFrame,
   return BM_SUCCESS;
 }
 
-static int bm_stitch_SendChnFrame(const video_frame_info_s *VideoFrame, int MilliSec)
+static int bm_stitch_SendChnFrame(stitch_grp stitchGrpIdx, const video_frame_info_s *VideoFrame, int MilliSec)
 {
   int fd = -1;
   int s32Ret = BM_SUCCESS;
-  struct stitch_chn_frm_cfg cfg;
+  struct stitch_grp_chn_frm_cfg cfg;
 
   if(NULL == VideoFrame)
   {
@@ -460,8 +496,9 @@ static int bm_stitch_SendChnFrame(const video_frame_info_s *VideoFrame, int Mill
   if (get_stitch_fd(&fd) != BM_SUCCESS)
     return BM_ERR_FAILURE;
 
-  cfg.milli_sec = MilliSec;
-  memcpy(&cfg.video_frame, VideoFrame, sizeof(cfg.video_frame));
+  cfg.grp_id = stitchGrpIdx;
+  cfg.cfg.milli_sec = MilliSec;
+  memcpy(&cfg.cfg.video_frame, VideoFrame, sizeof(cfg.cfg.video_frame));
 
   s32Ret = stitch_send_chn_frame(fd, &cfg);
   if (s32Ret != BM_SUCCESS) {
@@ -473,11 +510,11 @@ static int bm_stitch_SendChnFrame(const video_frame_info_s *VideoFrame, int Mill
 }
 
 
-static int bm_stitch_GetChnFrame(video_frame_info_s *VideoFrame, int MilliSec)
+static int bm_stitch_GetChnFrame(stitch_grp stitchGrpIdx, video_frame_info_s *VideoFrame, int MilliSec)
 {
   int fd = -1;
   int s32Ret = BM_SUCCESS;
-  struct stitch_chn_frm_cfg cfg;
+  struct stitch_grp_chn_frm_cfg cfg;
 
   if (get_stitch_fd(&fd) != BM_SUCCESS)
     return BM_ERR_FAILURE;
@@ -489,23 +526,24 @@ static int bm_stitch_GetChnFrame(video_frame_info_s *VideoFrame, int MilliSec)
   }
 
   memset(&cfg, 0, sizeof(cfg));
-  cfg.milli_sec = MilliSec;
+  cfg.grp_id = stitchGrpIdx;
+  cfg.cfg.milli_sec = MilliSec;
 
   s32Ret = stitch_get_chn_frame(fd, &cfg);
   if (s32Ret != BM_SUCCESS) {
     BMCV_ERR_LOG("stitch, get chn frame fail\n");
     return s32Ret;
   }
-  memcpy(VideoFrame, &cfg.video_frame, sizeof(*VideoFrame));
+  memcpy(VideoFrame, &cfg.cfg.video_frame, sizeof(*VideoFrame));
 
   return BM_SUCCESS;
 }
 
-__attribute__((unused)) static int bm_stitch_ReleaseChnFrame(video_frame_info_s *VideoFrame)
+__attribute__((unused)) static int bm_stitch_ReleaseChnFrame(stitch_grp stitchGrpIdx, video_frame_info_s *VideoFrame)
 {
   int fd = -1;
   int s32Ret = BM_SUCCESS;
-  struct stitch_chn_frm_cfg cfg;
+  struct stitch_grp_chn_frm_cfg cfg;
 
   if (get_stitch_fd(&fd) != BM_SUCCESS)
     return BM_ERR_FAILURE;
@@ -516,9 +554,11 @@ __attribute__((unused)) static int bm_stitch_ReleaseChnFrame(video_frame_info_s 
     return BM_ERR_FAILURE;
   }
 
+  cfg.grp_id = stitchGrpIdx;
   memset(&cfg, 0, sizeof(cfg));
-  memcpy(&cfg.video_frame, VideoFrame, sizeof(*VideoFrame));
+  memcpy(&cfg.cfg.video_frame, VideoFrame, sizeof(*VideoFrame));
 
+  // BMCV_ERR_LOG("release frame from grp(%d)\n", stitchGrpIdx);
   s32Ret = stitch_release_chn_frame(fd, &cfg);
   if (s32Ret != BM_SUCCESS) {
     BMCV_ERR_LOG("stitch, release chn frame fail\n");
@@ -543,6 +583,55 @@ static int bm_stitch_DumpRegInfo(void)
   }
 
   return BM_SUCCESS;
+}
+
+static int bm_stitch_InitGrp(stitch_grp stitchGrpIdx)
+{
+  int fd = -1;
+  int s32Ret = BM_SUCCESS;
+
+  if (get_stitch_fd(&fd) != BM_SUCCESS)
+    return BM_ERR_FAILURE;
+
+  s32Ret = stitch_init_grp(fd, &stitchGrpIdx);
+  if (s32Ret != BM_SUCCESS) {
+    BMCV_ERR_LOG("grp[%d] init fail\n", stitchGrpIdx);
+    return s32Ret;
+  }
+
+  return BM_SUCCESS;
+}
+
+static int bm_stitch_DeInitGrp(stitch_grp stitchGrpIdx)
+{
+  int fd = -1;
+  int s32Ret = BM_SUCCESS;
+
+  if (get_stitch_fd(&fd) != BM_SUCCESS)
+    return BM_ERR_FAILURE;
+
+  s32Ret = stitch_deinit_grp(fd, &stitchGrpIdx);
+  if (s32Ret != BM_SUCCESS) {
+    BMCV_ERR_LOG("grp[%d] deinit fail\n", stitchGrpIdx);
+    return s32Ret;
+  }
+
+  return BM_SUCCESS;
+}
+
+int bm_stitch_GetAvailableGrp(stitch_grp *grp)
+{
+  int s32Ret = BM_SUCCESS;
+  int fd = -1;
+  if (get_stitch_fd(&fd) != BM_SUCCESS)
+    return BM_ERR_FAILURE;
+
+  while (*grp == STITCH_INVALID_GRP) {
+    stitch_get_available_grp(fd, grp);
+    usleep(100);
+  }
+
+  return s32Ret;
 }
 
 extern bm_status_t bm_image_format_to_cvi(bm_image_format_ext fmt, bm_image_data_format_ext datatype, pixel_format_e * cvi_fmt);
@@ -618,34 +707,35 @@ static void cfg_Frame(bm_image stitch_image, size_s stSize, pixel_format_e enPix
   for(i = 0; i < 3; i++)
   {
     stVideoFrame->video_frame.stride[i] = stitch_image.image_private->memory_layout[i].pitch_stride;
-    stVideoFrame->video_frame.length[i] = stitch_image.image_private->memory_layout[i].size;
+    // stVideoFrame->video_frame.length[i] = stitch_image.image_private->memory_layout[i].size;
+    stVideoFrame->video_frame.length[i] = stitch_image.image_private->data[i].size;         // workaround for blend error
     stVideoFrame->video_frame.phyaddr[i] = stitch_image.image_private->data[i].u.device.device_addr;
     stVideoFrame->video_frame.viraddr[i] = NULL; //(unsigned char*)input.image_private->data[i].u.system.system_addr
   }
   return;
 }
 
-static int send_input_Frame(bm_image input,int src_id, size_s stSize, pixel_format_e enPixelFormat)
+static int send_input_Frame(bm_image input,int src_id, size_s stSize, pixel_format_e enPixelFormat, stitch_grp stitchGrpIdx)
 {
   int s32Ret = BM_SUCCESS;
   video_frame_info_s stVideoFrame;
 
   cfg_Frame(input,stSize,enPixelFormat,&stVideoFrame);
 
-  s32Ret = bm_stitch_SendFrame(src_id, &stVideoFrame, 1000);
+  s32Ret = bm_stitch_SendFrame(stitchGrpIdx, src_id, &stVideoFrame, 1000);
   if (s32Ret != BM_SUCCESS)
     BMCV_ERR_LOG("stitch_send_VideoFrame fail.\n");
 
   return s32Ret;
 }
 
-static int send_output_Frame(bm_image output, size_s stSize, pixel_format_e enPixelFormat)
+static int send_output_Frame(bm_image output, size_s stSize, pixel_format_e enPixelFormat, stitch_grp stitchGrpIdx)
 {
   int s32Ret = BM_SUCCESS;
   video_frame_info_s stVideoFrame;
 
   cfg_Frame(output,stSize,enPixelFormat,&stVideoFrame);
-  s32Ret = bm_stitch_SendChnFrame(&stVideoFrame, 1000);
+  s32Ret = bm_stitch_SendChnFrame(stitchGrpIdx, &stVideoFrame, 1000);
   if (s32Ret != BM_SUCCESS)
     BMCV_ERR_LOG("stitch_send_VideoFrame fail.\n");
 
@@ -959,6 +1049,7 @@ static int bmcv_blending_asic(bm_handle_t handle, int input_num, bm_image* input
   stitch_op_attr  opAttr;
   stitch_bld_wgt_attr wgtAttr;
   video_frame_info_s stVideoFrameOut;
+  stitch_grp available_grp = STITCH_INVALID_GRP;
 
   s32Ret = check_blend_param(handle, input_num, input, output, stitch_config);
   if (s32Ret != BM_SUCCESS) {
@@ -973,84 +1064,102 @@ static int bmcv_blending_asic(bm_handle_t handle, int input_num, bm_image* input
     goto exit1;
   }
 
-  Create_SrcAttr_wgtAttr(input, input_num, stitch_config, &srcAttr,&wgtAttr);
-  s32Ret = bm_stitch_SetSrcAttr(&srcAttr);
+  s32Ret = bm_stitch_GetAvailableGrp(&available_grp);
+  // BMCV_ERR_LOG("=========== available_grp = %d! ==========\n", available_grp);
+  if (s32Ret != BM_SUCCESS) {
+      BMCV_ERR_LOG("bm_stitch_GetAvailableGrp failed!, available_grp = %d\n", available_grp);
+      goto exit2;
+  }
+
+  if (available_grp == STITCH_INVALID_GRP || available_grp >= STITCH_MAX_GRP_NUM) {
+      s32Ret = BM_ERR_PARAM;
+      BMCV_ERR_LOG("bm_stitch_GetAvailableGrp failed!, available_grp = %d\n", available_grp);
+      goto exit2;
+  }
+
+  s32Ret = bm_stitch_InitGrp(available_grp);
+  if (s32Ret != BM_SUCCESS) {
+    BMCV_ERR_LOG("bm_stitch_InitGrp failed!\n");
+    goto exit2;
+  }
+
+  Create_SrcAttr_wgtAttr(input, input_num, stitch_config, &srcAttr, &wgtAttr);
+  s32Ret = bm_stitch_SetSrcAttr(available_grp, &srcAttr);
   if (s32Ret != BM_SUCCESS) {
     BMCV_ERR_LOG("bm_stitch_SetSrcAttr failed!\n");
-    goto exit1;
+    goto exit2;
   }
 
   CreatechnAttr(output, &chnAttr);
-  s32Ret = bm_stitch_SetChnAttr(&chnAttr);
+  s32Ret = bm_stitch_SetChnAttr(available_grp, &chnAttr);
   if (s32Ret != BM_SUCCESS) {
     BMCV_ERR_LOG("bm_stitch_SetChnAttr failed!\n");
-    goto exit1;
+    goto exit2;
   }
 
   opAttr.data_src = STITCH_DATA_SRC_DDR;
   opAttr.wgt_mode = stitch_config.wgt_mode;
 
-  s32Ret = bm_stitch_SetOpAttr(&opAttr);
+  s32Ret = bm_stitch_SetOpAttr(available_grp, &opAttr);
   if (s32Ret != BM_SUCCESS) {
     BMCV_ERR_LOG("bm_stitch_SetOpAttr failed!\n");
-    goto exit1;
+    goto exit2;
   }
 
-  s32Ret = bm_stitch_SetWgtAttr(&wgtAttr);
+  s32Ret = bm_stitch_SetWgtAttr(available_grp, &wgtAttr);
   if (s32Ret != BM_SUCCESS) {
     BMCV_ERR_LOG("bm_stitch_SetWgtAttr failed!\n");
-    goto exit1;
+    goto exit2;
   }
 
-  /*start stitch*/
-  s32Ret = bm_stitch_EnableDev();
+  s32Ret = bm_stitch_EnableGrp(available_grp);
   if (s32Ret != BM_SUCCESS) {
-    BMCV_ERR_LOG("bm_stitch_EnableDev failed!\n");
-    goto exit1;
-  }
-
-  s32Ret = send_output_Frame(output, chnAttr.size,chnAttr.fmt_out);
-  if (s32Ret != BM_SUCCESS)
-  {
-    BMCV_ERR_LOG("stitch_send_VideoFrame[%d] fail, s32Ret: 0x%x !\n", 0, s32Ret);
+    BMCV_ERR_LOG("bm_stitch_EnableGrp failed!\n");
     goto exit2;
   }
 
-  s32Ret = send_input_Frame(input[0],0, srcAttr.size[0], srcAttr.fmt_in);
+  s32Ret = send_output_Frame(output, chnAttr.size,chnAttr.fmt_out, available_grp);
   if (s32Ret != BM_SUCCESS)
   {
     BMCV_ERR_LOG("stitch_send_VideoFrame[%d] fail, s32Ret: 0x%x !\n", 0, s32Ret);
-    goto exit2;
+    goto exit3;
   }
-  s32Ret = send_input_Frame(input[1],1, srcAttr.size[1], srcAttr.fmt_in);
+
+  s32Ret = send_input_Frame(input[0],0, srcAttr.size[0], srcAttr.fmt_in, available_grp);
+  if (s32Ret != BM_SUCCESS)
+  {
+    BMCV_ERR_LOG("stitch_send_VideoFrame[%d] fail, s32Ret: 0x%x !\n", 0, s32Ret);
+    goto exit3;
+  }
+  s32Ret = send_input_Frame(input[1],1, srcAttr.size[1], srcAttr.fmt_in, available_grp);
   if (s32Ret != BM_SUCCESS)
   {
     BMCV_ERR_LOG("stitch_send_VideoFrame[%d] fail, s32Ret: 0x%x !\n", 1, s32Ret);
-    goto exit2;
+    goto exit3;
   }
 
   if (STITCH_4_WAY == srcAttr.way_num)
   {
-    s32Ret = send_input_Frame(input[2],2, srcAttr.size[2], srcAttr.fmt_in);
+    s32Ret = send_input_Frame(input[2],2, srcAttr.size[2], srcAttr.fmt_in, available_grp);
     if (s32Ret != BM_SUCCESS)
     {
       BMCV_ERR_LOG("stitch_send_VideoFrame[%d] fail, s32Ret: 0x%x !\n", 2, s32Ret);
-      goto exit2;
+      goto exit3;
     }
-    s32Ret = send_input_Frame(input[3],3, srcAttr.size[3], srcAttr.fmt_in);
+    s32Ret = send_input_Frame(input[3],3, srcAttr.size[3], srcAttr.fmt_in, available_grp);
     if (s32Ret != BM_SUCCESS)
     {
       BMCV_ERR_LOG("stitch_send_VideoFrame[%d] fail, s32Ret: 0x%x !\n", 3, s32Ret);
-      goto exit2;
+      goto exit3;
     }
   }
 
-  s32Ret = bm_stitch_GetChnFrame(&stVideoFrameOut, STITCH_TIMEOUT);
+  s32Ret = bm_stitch_GetChnFrame(available_grp, &stVideoFrameOut, STITCH_TIMEOUT);
   if (s32Ret != BM_SUCCESS) {
-    BMCV_ERR_LOG("STITCH_GetChnFrame fail. s32Ret: 0x%x !\n", s32Ret);
+    BMCV_ERR_LOG("available_grp = %d, STITCH_GetChnFrame fail. s32Ret: 0x%x !\n", available_grp, s32Ret);
     //bm_stitch_Reset();
     bm_stitch_DumpRegInfo();
-    goto exit2;
+    goto exit3;
   }
 
 #if 0
@@ -1061,8 +1170,15 @@ static int bmcv_blending_asic(bm_handle_t handle, int input_num, bm_image* input
   }
 #endif
 
+exit3:
+  bm_stitch_DumpRegInfo();
+  bm_stitch_DisableGrp(available_grp);
+  bm_stitch_DeInitGrp(available_grp);
+#ifdef stitch_need_reset
+  bm_stitch_Reset();
+#endif
 exit2:
-  bm_stitch_DisableDev();
+  bm_stitch_deinit();
 exit1:
   pthread_mutex_unlock(&lock);
   return s32Ret;
@@ -1101,7 +1217,7 @@ int bmcv_three_way_blending(bm_handle_t handle, int input_num, bm_image* input,b
     - stitch_config.bd_attr.bd_lx[0] - stitch_config.bd_attr.bd_rx[0] - stitch_config.bd_attr.bd_lx[1] - stitch_config.bd_attr.bd_rx[1];
 
   bm_image_create(handle, input[0].height, o_width, input[0].image_format, DATA_TYPE_EXT_1N_BYTE, &out_temp,NULL);
-  bm_image_alloc_dev_mem(out_temp, BMCV_HEAP_ANY);
+  bm_image_alloc_dev_mem(out_temp, BMCV_HEAP1_ID);
   s32Ret = bmcv_blending_asic(handle, TWO_WAY_BLENDING, input, out_temp, stitch_config);
   if(0 != s32Ret)
   {

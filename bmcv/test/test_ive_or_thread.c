@@ -61,7 +61,7 @@ static void * ive_or(void* arg) {
     unsigned int i = 0, loop_time = 0;
     unsigned long long time_single, time_total = 0, time_avg = 0;
     unsigned long long time_max = 0, time_min = 10000, fps_actual = 0, pixel_per_sec = 0;
-#ifdef SLEEP_ON
+#if SLEEP_ON
     int fps = 60;
     int sleep_time = 1000000 / fps;
 #endif
@@ -82,17 +82,17 @@ static void * ive_or(void* arg) {
     bm_image_create(handle, height, width, dst_fmt, DATA_TYPE_EXT_1N_BYTE, &dst, dst_stride);
 
     // alloc bm image memory
-    ret = bm_image_alloc_dev_mem(src1, BMCV_HEAP_ANY);
+    ret = bm_image_alloc_dev_mem(src1, BMCV_HEAP1_ID);
     if (ret != BM_SUCCESS) {
         printf("bm_image_alloc_dev_mem_src. ret = %d\n", ret);
         exit(-1);
     }
-    ret = bm_image_alloc_dev_mem(src2, BMCV_HEAP_ANY);
+    ret = bm_image_alloc_dev_mem(src2, BMCV_HEAP1_ID);
     if (ret != BM_SUCCESS) {
         printf("bm_image_alloc_dev_mem_src. ret = %d\n", ret);
         exit(-1);
     }
-    ret = bm_image_alloc_dev_mem(dst, BMCV_HEAP_ANY);
+    ret = bm_image_alloc_dev_mem(dst, BMCV_HEAP1_ID);
     if (ret != BM_SUCCESS) {
         printf("bm_image_alloc_dev_mem_dst. ret = %d\n", ret);
         exit(-1);
@@ -111,7 +111,7 @@ static void * ive_or(void* arg) {
         timediff.tv_sec  = tv_end.tv_sec - tv_start.tv_sec;
         timediff.tv_usec = tv_end.tv_usec - tv_start.tv_usec;
         time_single = (unsigned int)(timediff.tv_sec * 1000000 + timediff.tv_usec);
-#ifdef SLEEP_ON
+#if SLEEP_ON
         if(time_single < sleep_time)
             usleep((sleep_time - time_single));
         gettimeofday(&tv_end, NULL);
@@ -194,10 +194,10 @@ int main(int argc, char **argv) {
         test_threads_num = atoi(argv[1]);
         test_loop_times  = atoi(argv[2]);
     }
-    if (argc > 3 && argc < 7) {
-        printf("command input error, please follow this order:\n \
+    if ((argc > 3 && argc < 7) || (argc == 1)) {
+        printf("please follow this order to input command:\n \
         %s width height src_fmt dst_fmt src1_name src2_name ref_name dev_id thread_num loop_num bWrite dst_name\n \
-        %s thread_num loop_num\n", argv[0], argv[0]);
+        %s 352 288 14 14 ive_data/00_352x288_y.yuv ive_data/01_352x288_y.yuv ive_data/result/sample_Or.yuv 0 1 5 0\n", argv[0], argv[0]);
         exit(-1);
     }
     if (test_loop_times > 15000 || test_loop_times < 1) {

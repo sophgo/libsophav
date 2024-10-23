@@ -30,6 +30,7 @@ bm_status_t bmcv_image_vpp_basic(
 	switch(chipid)
 	{
 #ifndef USING_CMODEL
+		case BM1688_PREV:
 		case BM1688:
 			ret = bm_vpss_basic(handle, in_img_num, input,
 				output, crop_num_vec, crop_rect, padding_attr, algorithm, csc_type, matrix);
@@ -64,6 +65,7 @@ bm_status_t bmcv_image_vpp_convert(
 	switch(chipid)
 	{
 #ifndef USING_CMODEL
+		case BM1688_PREV:
 		case BM1688:
 			ret = bm_vpss_convert_internal(
 				handle, output_num, input, output, crop_rect, algorithm, NULL);
@@ -100,6 +102,7 @@ bm_status_t bmcv_image_vpp_csc_matrix_convert(
 	switch(chipid)
 	{
 #ifndef USING_CMODEL
+		case BM1688_PREV:
 		case BM1688:
 			ret = bm_vpss_csc_matrix_convert(
 				handle, output_num, input, output, csc, matrix, algorithm, crop_rect);
@@ -132,6 +135,7 @@ bm_status_t bmcv_image_storage_convert_with_csctype(
 
 	switch(chipid)
 	{
+		case BM1688_PREV:
 		case BM1688:
 			ret = bm_vpss_storage_convert(handle, image_num, input_, output_, csc_type);
 			break;
@@ -179,6 +183,7 @@ bm_status_t bmcv_image_vpp_convert_padding(
 
 	switch(chipid)
 	{
+		case BM1688_PREV:
 		case BM1688:
 			ret = bm_vpss_cvt_padding(handle, output_num, input, output,\
 				padding_attr, crop_rect, algorithm, NULL);
@@ -224,37 +229,38 @@ bm_status_t bmcv_image_resize(
 };
 
 bm_status_t bmcv_image_draw_rectangle(
-		bm_handle_t   handle,
-		bm_image      image,
-		int           rect_num,
-		bmcv_rect_t * rects,
-		int           line_width,
-		unsigned char r,
-		unsigned char g,
-		unsigned char b)
+	bm_handle_t   handle,
+	bm_image      image,
+	int           rect_num,
+	bmcv_rect_t * rects,
+	int           line_width,
+	unsigned char r,
+	unsigned char g,
+	unsigned char b)
 {
-		unsigned int chipid = BM1688;
-		bm_status_t ret = BM_SUCCESS;
+	unsigned int chipid = BM1688;
+	bm_status_t ret = BM_SUCCESS;
 
 #ifndef _FPGA
-		ret = bm_get_chipid(handle, &chipid);
-		if (BM_SUCCESS != ret)
-			return ret;
+	ret = bm_get_chipid(handle, &chipid);
+	if (BM_SUCCESS != ret)
+		return ret;
 #endif
 
-		u8 draw_val[3] = {r, g, b};
-		switch(chipid)
-		{
-			case BM1688:
-				ret = bm_vpss_draw_rectangle(handle, image, rect_num, rects, line_width, draw_val[0], draw_val[1], draw_val[2]);
-				break;
+	u8 draw_val[3] = {r, g, b};
+	switch(chipid)
+	{
+		case BM1688_PREV:
+		case BM1688:
+			ret = bm_vpss_draw_rectangle(handle, image, rect_num, rects, line_width, draw_val[0], draw_val[1], draw_val[2]);
+			break;
 
-			default:
-				ret = BM_ERR_NOFEATURE;
-				break;
-		}
+		default:
+			ret = BM_ERR_NOFEATURE;
+			break;
+	}
 
-		return ret;
+	return ret;
 }
 
 bm_status_t bmcv_image_csc_convert_to(
@@ -270,28 +276,29 @@ bm_status_t bmcv_image_csc_convert_to(
 	csc_matrix_t*           matrix,
 	bmcv_convert_to_attr*   convert_to_attr)
 {
-		unsigned int chipid = BM1688;
-		bm_status_t ret = BM_SUCCESS;
+	unsigned int chipid = BM1688;
+	bm_status_t ret = BM_SUCCESS;
 
 #ifndef _FPGA
-		ret = bm_get_chipid(handle, &chipid);
-		if (BM_SUCCESS != ret)
-			return ret;
+	ret = bm_get_chipid(handle, &chipid);
+	if (BM_SUCCESS != ret)
+		return ret;
 #endif
 
-		switch(chipid)
-		{
-			case BM1688:
-					ret = bm_vpss_csc_convert_to(handle, img_num, input,
-							output, crop_num_vec, crop_rect, padding_attr, algorithm, csc_type, matrix, convert_to_attr);
-					break;
+	switch(chipid)
+	{
+		case BM1688_PREV:
+		case BM1688:
+			ret = bm_vpss_csc_convert_to(handle, img_num, input,
+					output, crop_num_vec, crop_rect, padding_attr, algorithm, csc_type, matrix, convert_to_attr);
+			break;
 
-			default:
-					ret = BM_ERR_NOFEATURE;
-					break;
-		}
+		default:
+			ret = BM_ERR_NOFEATURE;
+			break;
+	}
 
-		return ret;
+	return ret;
 }
 
 bm_status_t bmcv_image_copy_to_vpss(
@@ -313,22 +320,22 @@ bm_status_t bmcv_image_copy_to_vpss(
 
 	switch(chipid)
 	{
-		case BM1688:{
-				if ((data_type == DATA_TYPE_EXT_1N_BYTE)) {
-					ret = bm_vpss_copy_to(handle, copy_to_attr, input, output);
-				} else if ((data_type == DATA_TYPE_EXT_FLOAT32) || (data_type == DATA_TYPE_EXT_1N_BYTE_SIGNED)) {
-						// ret = bmcv_image_copy_to_(handle, copy_to_attr, input, output);
-						bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
-						"not support, %s: %s: %d\n",
-						filename(__FILE__), __func__, __LINE__);
-						ret = BM_ERR_DATA;
-				}
-				break;
-		}
+		case BM1688_PREV:
+		case BM1688:
+			if ((data_type == DATA_TYPE_EXT_1N_BYTE)) {
+				ret = bm_vpss_copy_to(handle, copy_to_attr, input, output);
+			} else if ((data_type == DATA_TYPE_EXT_FLOAT32) || (data_type == DATA_TYPE_EXT_1N_BYTE_SIGNED)) {
+				// ret = bmcv_image_copy_to_(handle, copy_to_attr, input, output);
+				bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
+				"not support, %s: %s: %d\n",
+				filename(__FILE__), __func__, __LINE__);
+				ret = BM_ERR_DATA;
+			}
+			break;
 
 		default:
-				ret = BM_ERR_NOFEATURE;
-				break;
+			ret = BM_ERR_NOFEATURE;
+			break;
 	}
 	return ret;
 }
@@ -353,6 +360,7 @@ bm_status_t bmcv_image_vpp_stitch(
 
 	switch(chipid)
 	{
+		case BM1688_PREV:
 		case BM1688:
 			ret = bm_vpss_stitch(handle,
 				input_num, input, output, dst_crop_rect, src_crop_rect, algorithm);
@@ -447,6 +455,7 @@ bm_status_t bmcv_image_mosaic(
 		goto mosaic_fail;
 	switch(chipid)
 	{
+		case BM1688_PREV:
 		case BM1688:
 			ret = bm_vpss_mosaic(handle, mosaic_num, input, crop_rect);
 			break;
@@ -495,18 +504,15 @@ bm_status_t bmcv_image_fill_rectangle(
 
 	switch(chipid)
 	{
+		case BM1688_PREV:
 		case BM1688:
-		{
 			ret = bm_vpss_fill_rectangle(handle, &image, rect_num, rects, r, g, b);
-			if (ret!=BM_SUCCESS) {
-					BMCV_ERR_LOG("error bm1688 fill rectangle\n");
+			if (ret != BM_SUCCESS) {
+				BMCV_ERR_LOG("error bm1688 fill rectangle\n");
 			}
 			break;
-		}
 		default:
-		{
 			return BM_ERR_NOFEATURE;
-		}
 	}
 	return ret;
 }
@@ -523,7 +529,7 @@ static bm_status_t bmcv_vpss_bitmap_mem_to_argb8888(
 	int overlay_mem_pitch = (bitmap_type == BITMAP_1BIT) ? (pitch << 3) : pitch;
 	int overlay_height = bitmap_mem->size / pitch;
 	bm_image_create(handle, overlay_height, overlay_mem_pitch, FORMAT_ARGB_PACKED, DATA_TYPE_EXT_1N_BYTE, overlay_image, NULL);
-	ret = bm_image_alloc_dev_mem(overlay_image[0], BMCV_HEAP_ANY);
+	ret = bm_image_alloc_dev_mem(overlay_image[0], BMCV_HEAP1_ID);
 	if (ret != BM_SUCCESS) {
 		bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "bm_image_alloc_dev_mem fail, %s: %s: %d\n", filename(__FILE__), __func__, __LINE__);
 		return ret;
@@ -647,6 +653,7 @@ bm_status_t bmcv_image_watermark_superpose(
 
 	switch(chipid)
 	{
+		case BM1688_PREV:
 		case BM1688:
 			ret = bmcv_vpss_watermark_superpose(handle, image, bitmap_mem, bitmap_num, bitmap_type, pitch, rects, color);
 			break;
@@ -678,6 +685,7 @@ bm_status_t bmcv_image_watermark_repeat_superpose(
 
 	switch(chipid)
 	{
+		case BM1688_PREV:
 		case BM1688:
 			ret = bmcv_vpss_watermark_repeat_superpose(handle, image, bitmap_mem, bitmap_num, bitmap_type, pitch, rects, color);
 			break;
@@ -707,6 +715,7 @@ bm_status_t bmcv_image_overlay(
 
 	switch(chipid)
 	{
+		case BM1688_PREV:
 		case BM1688:
 			ret = bm_vpss_overlay(handle, image, overlay_num, overlay_info, overlay_image);
 			break;
@@ -734,6 +743,7 @@ bm_status_t bmcv_image_flip(
 
 	switch(chipid)
 	{
+		case BM1688_PREV:
 		case BM1688:
 			ret = bm_vpss_flip(handle, input, output, flip_mode);
 			break;

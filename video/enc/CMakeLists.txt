@@ -7,7 +7,12 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/inc)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../3rdparty/osdrv)
 
 # add library files path
-link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../3rdparty/libbmcv/lib/${PLATFORM})
+string(FIND "${CMAKE_C_COMPILER}" "aarch64-linux-gnu-gcc" COMPILER_FOUND)
+if (COMPILER_FOUND GREATER -1)
+    link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../3rdparty/libbmcv/lib/${PLATFORM})
+else ()
+    link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../3rdparty/libbmcv/lib930/${PLATFORM})
+endif ()
 link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../3rdparty/lib/${PLATFORM})
 #link_directories(${CMAKE_INSTALL_PREFIX}/lib)
 #link_directories(${CMAKE_INSTALL_PREFIX}/soc)
@@ -15,7 +20,7 @@ link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../3rdparty/lib/${PLATFORM})
 # build venc library
 set(VPUENC_LIB_NAME bmvenc CACHE INTERNAL "vpuenc library name")
 set(SRCS src/bm_ioctl.c src/bm_vpuenc_interface.c src/bm_vpu_logging.c)
-set(HEADERS inc/bm_vpuenc_interface.h inc/bmvpuapi_common.h)
+set(HEADERS inc/bm_vpuenc_interface.h)
 set(component libsophon)
 
 add_library(${VPUENC_LIB_NAME} SHARED ${SRCS})

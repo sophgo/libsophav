@@ -72,6 +72,7 @@ static bm_status_t per_image_deal_nearest(bm_handle_t handle,
     param.input_image_addr_align = bm_mem_get_device_addr(tensor_temp);
     param.out_image_addr_align   = bm_mem_get_device_addr(tensor_out_align);
     param.image_n  = NO_USE;
+    param.image_c  = (input.image_format == FORMAT_BGR_PLANAR || input.image_format == FORMAT_RGB_PLANAR) ? 3 : 1;
     param.image_sh = image_sh;
     param.image_sw = image_sw;
     param.image_dh = image_dh;
@@ -82,7 +83,9 @@ static bm_status_t per_image_deal_nearest(bm_handle_t handle,
         param.m.m[i] = matrix.matrix->m[i];
     }
 
-    bm_image_get_stride(input, &(param.src_w_stride));
+    int tmp_stride;
+    bm_image_get_stride(input, &(tmp_stride));
+    param.src_w_stride = tmp_stride;
     int index_size_temp = image_dw > image_dh ? ALIGN(image_dw, 64) : ALIGN(image_dh, 64);
     ret = bm_malloc_device_byte(handle, &tensor_S, index_size_temp * index_size_temp * image_c * 4);
     // ret = bm_malloc_device_byte(handle, &tensor_S, image_dh * image_dw * image_c * 4);
@@ -93,11 +96,12 @@ static bm_status_t per_image_deal_nearest(bm_handle_t handle,
         return ret;
     }
     param.index_image_addr = bm_mem_get_device_addr(tensor_S);
-    bm_image_get_stride(output, &(param.dst_w_stride));
+    bm_image_get_stride(output, &(tmp_stride));
+    param.dst_w_stride = tmp_stride;
     int core_id = 0;
-    ret = bm_tpu_kernel_launch(handle, "sg_cv_warp_affine_1684x", (u8 *)&param, sizeof(param), core_id);
+    ret = bm_tpu_kernel_launch(handle, "sg_cv_warp_affine_1688", (u8 *)&param, sizeof(param), core_id);
     if(BM_SUCCESS != ret){
-        printf("sg_cv_warp_affine_a2 error\n");
+        printf("sg_cv_warp_affine_1688 error\n");
         bm_free_device(handle, tensor_temp);
         bm_free_device(handle, tensor_out_align);
         return ret;
@@ -275,7 +279,7 @@ ERR_0:
     for (int num = 0;num < image_num;num++){
         output_alloc_flag[num] = false;
         if(!bm_image_is_attached(output[num])) {
-            if(BM_SUCCESS !=bm_image_alloc_dev_mem(output[num], BMCV_HEAP_ANY)) {
+            if(BM_SUCCESS !=bm_image_alloc_dev_mem(output[num], BMCV_HEAP1_ID)) {
                 printf("bm_image_alloc_dev_mem error\r\n");
                 for (int free_idx = 0; free_idx < num; free_idx ++) {
                     if (output_alloc_flag[free_idx]) {
@@ -352,7 +356,7 @@ static bm_status_t bmcv_warp_check(
         printf("expect  the same input / output image format \n");
         return BM_NOT_SUPPORTED;
     }
-    if (src_format != FORMAT_RGB_PLANAR && src_format != FORMAT_BGR_PLANAR) {
+    if (src_format != FORMAT_RGB_PLANAR && src_format != FORMAT_BGR_PLANAR && src_format != FORMAT_GRAY) {
         printf("Not supported input image format \n");
         return BM_NOT_SUPPORTED;
     }
@@ -425,7 +429,7 @@ bm_status_t bmcv_image_warp_affine(
 
     unsigned int chipid;
     bm_get_chipid(handle, &chipid);
-    if (chipid == BM1688){
+    if (chipid == BM1688 || chipid == BM1688_PREV){
         return bmcv_image_warp_affine_1684X(handle,
                 image_num,
                 &matrix[0],

@@ -1,8 +1,8 @@
 #include "bmcv_common.h"
 #include "bmcv_internal.h"
-#include "../test/test_misc.h"
+#include "test_misc.h"
 
-static float fp16tofp32_(struct fp16 val)
+static float fp16tofp32_(fp16 val)
 {
     union fp16_data dfp16;
     dfp16.ndata = val;
@@ -68,7 +68,7 @@ bm_status_t bmcv_distance(bm_handle_t handle, bm_device_mem_t input, bm_device_m
     }
 
     if (dtype == DT_FP16) {
-        struct fp16 *pnt16 = (struct fp16 *)pnt;
+        fp16 *pnt16 = (fp16 *)pnt;
         for (i = 0; i < dim; ++i) {
             api.pnt[i] = fp16tofp32_(pnt16[i]);
         }
@@ -86,6 +86,7 @@ bm_status_t bmcv_distance(bm_handle_t handle, bm_device_mem_t input, bm_device_m
     }
 
     switch(chipid) {
+        case BM1688_PREV:
         case BM1688:
             ret = bm_tpu_kernel_launch(handle, "cv_distance", (u8*)&api,
                                                 sizeof(api), core_id);

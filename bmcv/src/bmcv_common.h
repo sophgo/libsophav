@@ -282,6 +282,22 @@ typedef struct bm_api_cv_filter {
   int out_type;
 }__attribute__((packed)) bm_api_cv_filter_t;
 
+typedef struct sg_api_cv_gaussian_blur {
+  int channel;
+  u64 input_addr[3];
+  u64 kernel_addr;
+  u64 output_addr[3];
+  int width;
+  int height;
+  int kw;
+  int kh;
+  int stride_i;
+  int stride_o;
+  float delta;
+  int is_packed;
+  int out_type;
+}__attribute__((packed)) sg_api_cv_gaussian_blur_t;
+
 typedef struct bm_api_cv_bayer2rgb {
   int width;
   int height;
@@ -318,6 +334,23 @@ typedef struct bm_api_cv_copy_to_st {
   int if_padding;
 } __attribute__((packed)) bm_api_cv_copy_to_t;
 
+typedef struct bm_api_cv_nms {
+    u64 input_proposal_addr;
+    u64 output_proposal_addr;
+    u64 all_mask_addr;
+    u64 iou_addr;
+    int nms_type; //0:hard nms, 1:soft nms
+    int proposal_size;
+    float nms_threshold;
+    //below pararemter is used for soft-nms
+    float score_threshold;
+    float sigma;
+    int weighting_method;
+    float eta;
+    int hard_nms_version;/* 1 */
+    int keep_top_k;
+}__attribute__((packed)) bm_api_cv_nms_t;
+
 typedef struct sgcv_affine_matrix_s{
     float m[6];
 } __attribute__((packed)) sgcv_affine_matrix;
@@ -332,6 +365,7 @@ typedef struct sg_api_cv_warp {
   int src_w_stride;
   int dst_w_stride;
   int image_n;
+  int image_c;
   int image_sh;
   int image_sw;
   int image_dh;
@@ -367,6 +401,26 @@ typedef struct sgcv_perspective_matrix_s{
     float m[9];
 } __attribute__((packed)) sgcv_perspective_matrix;
 
+typedef struct {
+    unsigned long long input_image_addr;
+    unsigned long long output_image_addr;
+    unsigned long long index_image_addr_lu;
+    unsigned long long index_image_addr_ld;
+    unsigned long long index_image_addr_ru;
+    unsigned long long index_image_addr_rd;
+    unsigned long long input_image_addr_align;
+    unsigned long long out_image_addr_align;
+    sgcv_perspective_matrix m;
+    int src_w_stride;
+    int dst_w_stride;
+    int image_n;
+    int image_sh;
+    int image_sw;
+    int image_dh;
+    int image_dw;
+    int type;
+} __attribute__((packed)) sg_api_cv_warp_perspective_bilinear_t;
+
 typedef struct sg_api_cv_warp_perspective {
   unsigned long long input_image_addr;
   unsigned long long output_image_addr;
@@ -382,7 +436,7 @@ typedef struct sg_api_cv_warp_perspective {
   int image_dh;
   int image_dw;
   int type;
-} __attribute__((packed)) sg_api_cv_warp_perspective_1684x_t;
+} __attribute__((packed)) sg_api_cv_warp_perspective_t;
 
 typedef struct bm_api_cv_pyramid {
   u64 input_addr;
@@ -492,6 +546,56 @@ typedef struct bm_api_cv_hist_balance2 {
     u64 cdf_addr;
     u64 Yaddr;
 } __attribute__((packed)) bm_api_cv_hist_balance_t2;
+
+typedef struct {
+    u64   XR;
+    u64   XI;
+    u64   YR;
+    u64   YI;
+    u64   ER;
+    u64   EI;
+    int   batch;
+    int   len;
+    bool  forward;
+    bool  realInput;
+    int   trans;
+    int   factorSize;
+    int   factors[10];
+    bool  normalize;
+} __attribute__((aligned(4))) bm_api_cv_fft_t;
+
+typedef struct {
+    u64 input_query_global_addr;
+    u64 database_global_addr;
+    u64 buffer_global_addr;
+    u64 output_sorted_similarity_global_addr;
+    u64 output_sorted_index_global_addr;
+    int vec_dims;
+    int query_vecs_num;
+    int database_vecs_num;
+    int k;
+    int transpose;
+    int input_dtype;
+    int output_dtype;
+} __attribute__((packed)) faiss_api_indexflatIP_t;
+
+typedef struct {
+    u64 input_query_global_addr;
+    u64 database_global_addr;
+    u64 query_L2norm_global_addr;
+    u64 db_L2norm_global_addr;
+    u64 buffer_global_addr;
+    u64 output_sorted_similarity_global_addr;
+    u64 output_sorted_index_global_addr;
+    int vec_dims;
+    int query_vecs_num;
+    int database_vecs_num;
+    int k;
+    int transpose;
+    int input_dtype;
+    int output_dtype;
+} __attribute__((packed)) faiss_api_indexflatL2_t;
+
 
 #ifdef _WIN32
 

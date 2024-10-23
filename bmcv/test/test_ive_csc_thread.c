@@ -119,7 +119,7 @@ static void * ive_csc(void* arg){
     bm_image_create(handle, height, width, src_fmt, DATA_TYPE_EXT_1N_BYTE, &src, src_stride);
     bm_image_create(handle, height, width, dst_fmt, DATA_TYPE_EXT_1N_BYTE, &dst, dst_stride);
 
-    ret = bm_image_alloc_dev_mem(src, BMCV_HEAP_ANY);
+    ret = bm_image_alloc_dev_mem(src, BMCV_HEAP1_ID);
     if (ret != BM_SUCCESS) {
         printf("src bm_image_alloc_dev_mem failed. ret = %d\n", ret);
         bm_image_destroy(&src);
@@ -127,7 +127,7 @@ static void * ive_csc(void* arg){
         exit(-1);
     }
 
-    ret = bm_image_alloc_dev_mem(dst, BMCV_HEAP_ANY);
+    ret = bm_image_alloc_dev_mem(dst, BMCV_HEAP1_ID);
     if (ret != BM_SUCCESS) {
         printf("src bm_image_alloc_dev_mem failed. ret = %d\n", ret);
         bm_image_destroy(&src);
@@ -244,10 +244,10 @@ int main(int argc, char **argv){
     else if (argc == 3){
         test_threads_num = atoi(argv[1]);
         test_loop_times  = atoi(argv[2]);
-    } else if (argc > 3 && argc < 7) {
-        printf("command input error, please follow this order:\n \
+    } else if ((argc > 3 && argc < 7) || (argc == 1)) {
+        printf("please follow this order to input command:\n \
         %s width height src_fmt csc_type dst_fmt src_name goldenDst_name dev_id thread_num loop_num bWrite dst_name\n \
-        %s thread_num loop_num\n", argv[0], argv[0]);
+        %s 352 288 4 0 10 ive_data/00_352x288_SP420.yuv ive_data/result/sample_CSC_YUV2RGB.rgb\n", argv[0], argv[0]);
         exit(-1);
     }
     if (test_loop_times > 15000 || test_loop_times < 1) {

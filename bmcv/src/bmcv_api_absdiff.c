@@ -72,7 +72,7 @@ bm_status_t bmcv_image_absdiff(
     }
     bool output_alloc_flag = false;
     if (!bm_image_is_attached(output)) {
-        ret = bm_image_alloc_dev_mem(output, BMCV_HEAP_ANY);
+        ret = bm_image_alloc_dev_mem(output, BMCV_HEAP1_ID);
         if (ret != BM_SUCCESS) {
             return ret;
         }
@@ -134,6 +134,7 @@ bm_status_t bmcv_image_absdiff(
 
     switch(chipid)
     {
+        case BM1688_PREV:
         case BM1688:
             ret = bm_tpu_kernel_launch(handle, "cv_absdiff", (u8 *)&api, sizeof(api), core_id);
             if(BM_SUCCESS != ret){

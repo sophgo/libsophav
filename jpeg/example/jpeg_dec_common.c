@@ -6,45 +6,32 @@
 
 int save_yuv(FILE *fp, BmJpuJPEGDecInfo *dec_info, uint8_t *virt_addr)
 {
-    switch (dec_info->color_format) {
-        case BM_JPU_COLOR_FORMAT_YUV420:
-            for (unsigned int i = 0; i < dec_info->actual_frame_height; i++) {
-                fwrite(virt_addr + dec_info->y_offset + i * dec_info->y_stride, 1, dec_info->actual_frame_width, fp);
-            }
-            if (dec_info->chroma_interleave) {
-                for (unsigned int i = 0; i < dec_info->actual_frame_height / 2; i++) {
-                    fwrite(virt_addr + dec_info->cb_offset + i * dec_info->cbcr_stride, 1, dec_info->actual_frame_width, fp);
-                }
-            } else {
-                for (unsigned int i = 0; i < dec_info->actual_frame_height / 2; i++) {
-                    fwrite(virt_addr + dec_info->cb_offset + i * dec_info->cbcr_stride, 1, dec_info->actual_frame_width / 2, fp);
-                }
-                for (unsigned int i = 0; i < dec_info->actual_frame_height / 2; i++) {
-                    fwrite(virt_addr + dec_info->cr_offset + i * dec_info->cbcr_stride, 1, dec_info->actual_frame_width / 2, fp);
-                }
+    for (unsigned int i = 0; i < dec_info->actual_frame_height; i++) {
+        fwrite(virt_addr + dec_info->y_offset + i * dec_info->y_stride, 1, dec_info->actual_frame_width, fp);
+    }
+
+    switch (dec_info->image_format) {
+        case BM_JPU_IMAGE_FORMAT_NV12:
+        case BM_JPU_IMAGE_FORMAT_NV21:
+            for (unsigned int i = 0; i < dec_info->actual_frame_height / 2; i++) {
+                fwrite(virt_addr + dec_info->cb_offset + i * dec_info->cbcr_stride, 1, dec_info->actual_frame_width, fp);
             }
             break;
-        case BM_JPU_COLOR_FORMAT_YUV422_HORIZONTAL:
-            for (unsigned int i = 0; i < dec_info->actual_frame_height; i++) {
-                fwrite(virt_addr + dec_info->y_offset + i * dec_info->y_stride, 1, dec_info->actual_frame_width, fp);
+        case BM_JPU_IMAGE_FORMAT_YUV420P:
+            for (unsigned int i = 0; i < dec_info->actual_frame_height / 2; i++) {
+                fwrite(virt_addr + dec_info->cb_offset + i * dec_info->cbcr_stride, 1, dec_info->actual_frame_width / 2, fp);
             }
-            if (dec_info->chroma_interleave) {
-                for (unsigned int i = 0; i < dec_info->actual_frame_height; i++) {
-                    fwrite(virt_addr + dec_info->cb_offset + i * dec_info->cbcr_stride, 1, dec_info->actual_frame_width, fp);
-                }
-            } else {
-                for (unsigned int i = 0; i < dec_info->actual_frame_height; i++) {
-                    fwrite(virt_addr + dec_info->cb_offset + i * dec_info->cbcr_stride, 1, dec_info->actual_frame_width / 2, fp);
-                }
-                for (unsigned int i = 0; i < dec_info->actual_frame_height; i++) {
-                    fwrite(virt_addr + dec_info->cr_offset + i * dec_info->cbcr_stride, 1, dec_info->actual_frame_width / 2, fp);
-                }
+            for (unsigned int i = 0; i < dec_info->actual_frame_height / 2; i++) {
+                fwrite(virt_addr + dec_info->cr_offset + i * dec_info->cbcr_stride, 1, dec_info->actual_frame_width / 2, fp);
             }
             break;
-        case BM_JPU_COLOR_FORMAT_YUV422_VERTICAL:
+        case BM_JPU_IMAGE_FORMAT_NV16:
+        case BM_JPU_IMAGE_FORMAT_NV61:
             for (unsigned int i = 0; i < dec_info->actual_frame_height; i++) {
-                fwrite(virt_addr + dec_info->y_offset + i * dec_info->y_stride, 1, dec_info->actual_frame_width, fp);
+                fwrite(virt_addr + dec_info->cb_offset + i * dec_info->cbcr_stride, 1, dec_info->actual_frame_width, fp);
             }
+            break;
+        case BM_JPU_IMAGE_FORMAT_YUV422P:
             for (unsigned int i = 0; i < dec_info->actual_frame_height; i++) {
                 fwrite(virt_addr + dec_info->cb_offset + i * dec_info->cbcr_stride, 1, dec_info->actual_frame_width / 2, fp);
             }
@@ -52,11 +39,8 @@ int save_yuv(FILE *fp, BmJpuJPEGDecInfo *dec_info, uint8_t *virt_addr)
                 fwrite(virt_addr + dec_info->cr_offset + i * dec_info->cbcr_stride, 1, dec_info->actual_frame_width / 2, fp);
             }
             break;
-        case BM_JPU_COLOR_FORMAT_YUV444:
-        case BM_JPU_COLOR_FORMAT_RGB:
-            for (unsigned int i = 0; i < dec_info->actual_frame_height; i++) {
-                fwrite(virt_addr + dec_info->y_offset + i * dec_info->y_stride, 1, dec_info->actual_frame_width, fp);
-            }
+        case BM_JPU_IMAGE_FORMAT_YUV444P:
+        case BM_JPU_IMAGE_FORMAT_RGB:
             for (unsigned int i = 0; i < dec_info->actual_frame_height; i++) {
                 fwrite(virt_addr + dec_info->cb_offset + i * dec_info->cbcr_stride, 1, dec_info->actual_frame_width, fp);
             }
@@ -64,20 +48,17 @@ int save_yuv(FILE *fp, BmJpuJPEGDecInfo *dec_info, uint8_t *virt_addr)
                 fwrite(virt_addr + dec_info->cr_offset + i * dec_info->cbcr_stride, 1, dec_info->actual_frame_width, fp);
             }
             break;
-        case BM_JPU_COLOR_FORMAT_YUV400:
-            for (unsigned int i = 0; i < dec_info->actual_frame_height; i++) {
-                fwrite(virt_addr + dec_info->y_offset + i * dec_info->y_stride, 1, dec_info->actual_frame_width, fp);
-            }
+        case BM_JPU_IMAGE_FORMAT_GRAY:
             break;
         default:
-            fprintf(stderr, "unsupported color format: %d\n", dec_info->color_format);
+            fprintf(stderr, "unsupported image format: %d\n", dec_info->image_format);
             return -1;
     }
 
     return 0;
 }
 
-BmJpuDecReturnCodes start_decode(BmJpuJPEGDecoder *jpeg_decoder, uint8_t *bs_buffer, size_t bs_size, FILE *fp_out, int inst_idx, const uint8_t *ref_md5, int dump_crop)
+BmJpuDecReturnCodes start_decode(BmJpuJPEGDecoder *jpeg_decoder, uint8_t *bs_buffer, size_t bs_size, FILE *fp_out, const uint8_t *ref_md5, int dump_crop, int timeout, int timeout_count)
 {
     BmJpuDecReturnCodes ret = BM_JPU_DEC_RETURN_CODE_OK;
     BmJpuJPEGDecInfo dec_info;
@@ -88,13 +69,13 @@ BmJpuDecReturnCodes start_decode(BmJpuJPEGDecoder *jpeg_decoder, uint8_t *bs_buf
 
     /* perform the actual jpeg decoding */
     gettimeofday(&tv_start, NULL);
-    ret = bm_jpu_jpeg_dec_decode(jpeg_decoder, bs_buffer, bs_size);
+    ret = bm_jpu_jpeg_dec_decode(jpeg_decoder, bs_buffer, bs_size, timeout, timeout_count);
     if (ret != 0) {
         fprintf(stderr, "decode failed!\n");
         return BM_JPU_DEC_RETURN_CODE_ERROR;
     }
     gettimeofday(&tv_end, NULL);
-    printf("inst %d: decode time is %ld us\n", inst_idx, (tv_end.tv_sec - tv_start.tv_sec) * 1000 * 1000 + (tv_end.tv_usec - tv_start.tv_usec));
+    printf("decode time is %ld us\n", (tv_end.tv_sec - tv_start.tv_sec) * 1000 * 1000 + (tv_end.tv_usec - tv_start.tv_usec));
 
     /* get output info */
     bm_jpu_jpeg_dec_get_info(jpeg_decoder, &dec_info);
@@ -104,15 +85,13 @@ BmJpuDecReturnCodes start_decode(BmJpuJPEGDecoder *jpeg_decoder, uint8_t *bs_buf
            "pixel Y/Cb/Cr stride: %u/%u/%u\n"
            "pixel Y/Cb/Cr size: %u/%u/%u\n"
            "pixel Y/Cb/Cr offset: %u/%u/%u\n"
-           "color format: %d\n"
-           "chroma interleave: %d\n",
+           "image format: %d\n",
            dec_info.aligned_frame_width, dec_info.aligned_frame_height,
            dec_info.actual_frame_width, dec_info.actual_frame_height,
            dec_info.y_stride, dec_info.cbcr_stride, dec_info.cbcr_stride,
            dec_info.y_size, dec_info.cbcr_size, dec_info.cbcr_size,
            dec_info.y_offset, dec_info.cb_offset, dec_info.cr_offset,
-           dec_info.color_format,
-           dec_info.chroma_interleave);
+           dec_info.image_format);
 
     if (dec_info.framebuffer == NULL) {
         fprintf(stderr, "no framebuffer returned!\n");

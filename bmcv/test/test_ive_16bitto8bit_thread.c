@@ -109,13 +109,13 @@ static void * ive_16bitTo8bit(void* arg) {
     bm_image_create(handle, height, width, FORMAT_GRAY, srcDtype, &src, srcStride);
     bm_image_create(handle, height, width, FORMAT_GRAY, dstDtype, &dst, dstStride);
 
-    ret = bm_image_alloc_dev_mem(src, BMCV_HEAP_ANY);
+    ret = bm_image_alloc_dev_mem(src, BMCV_HEAP1_ID);
     if (ret != BM_SUCCESS) {
         printf("src bm_image_alloc_dev_mem failed. ret = %d\n", ret);
         exit(-1);
     }
 
-    ret = bm_image_alloc_dev_mem(dst, BMCV_HEAP_ANY);
+    ret = bm_image_alloc_dev_mem(dst, BMCV_HEAP1_ID);
     if (ret != BM_SUCCESS) {
         printf("src bm_image_alloc_dev_mem failed. ret = %d\n", ret);
         exit(-1);
@@ -227,10 +227,10 @@ int main(int argc, char **argv) {
         test_threads_num = atoi(argv[1]);
         test_loop_times  = atoi(argv[2]);
     }
-    if ((argc > 3 && argc < 10)) {
-        printf("command input error, please follow this order:\n \
+    if ((argc > 3 && argc < 10) || (argc == 1)) {
+        printf("please follow this order to input command:\n \
         %s width height mode u8Numerator u16Denominator s8Bias srcDtype dstDtype src_name ref_name dev_id thread_num loop_num bWrite\n \
-        %s thread_num loop_num\n", argv[0], argv[0]);
+        %s 352 288 0 41 18508 0 6 2 ive_data/00_704x576.s16 ive_data/result/sample_16BitTo8Bit_S16ToS8.yuv 0 1 1 0\n", argv[0], argv[0]);
         exit(-1);
     }
     if (test_loop_times > 15000 || test_loop_times < 1) {

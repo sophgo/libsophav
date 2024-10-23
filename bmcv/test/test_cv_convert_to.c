@@ -665,7 +665,7 @@ DWORD WINAPI test_convert_to_thread(LPVOID arg)
         int test_cnt = 0;
         int dev_id = 0;
         // TODO: get random seed
-        struct timespec tp;
+        //struct timespec tp;
         // #ifdef __linux__
         // clock_gettime(CLOCK_THREAD_CPUTIME_ID, &tp);
         // #else
@@ -673,7 +673,7 @@ DWORD WINAPI test_convert_to_thread(LPVOID arg)
         // #endif
         unsigned int seed;
         if(test_seed == -1){
-            seed = tp.tv_nsec;
+            seed = 0;//tp.tv_nsec;
         } else {
             seed = test_seed;
         }

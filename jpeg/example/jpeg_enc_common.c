@@ -9,6 +9,34 @@
 
 #define HEAP_MASK_1_2 0x06
 
+
+void ConvertToImageFormat(BmJpuImageFormat *image_format, BmJpuColorFormat color_format, BmJpuChromaFormat cbcr_interleave)
+{
+    // TODO: support packed format?
+    if (color_format == BM_JPU_COLOR_FORMAT_YUV420) {
+        if (cbcr_interleave == BM_JPU_CHROMA_FORMAT_CBCR_INTERLEAVE) {
+            *image_format = BM_JPU_IMAGE_FORMAT_NV12;
+        } else if (cbcr_interleave == BM_JPU_CHROMA_FORMAT_CRCB_INTERLEAVE) {
+            *image_format = BM_JPU_IMAGE_FORMAT_NV21;
+        } else {
+            *image_format = BM_JPU_IMAGE_FORMAT_YUV420P;
+        }
+    } else if (color_format == BM_JPU_COLOR_FORMAT_YUV422_HORIZONTAL) {
+        if (cbcr_interleave == BM_JPU_CHROMA_FORMAT_CBCR_INTERLEAVE) {
+            *image_format = BM_JPU_IMAGE_FORMAT_NV16;
+        } else if (cbcr_interleave == BM_JPU_CHROMA_FORMAT_CRCB_INTERLEAVE) {
+            *image_format = BM_JPU_IMAGE_FORMAT_NV61;
+        } else {
+            *image_format = BM_JPU_IMAGE_FORMAT_YUV422P;
+        }
+    } else if (color_format == BM_JPU_COLOR_FORMAT_YUV444) {
+        // only support planar type
+        *image_format = BM_JPU_IMAGE_FORMAT_YUV444P;
+    } else {
+        *image_format = BM_JPU_IMAGE_FORMAT_GRAY;
+    }
+}
+
 void* acquire_output_buffer(void *context, unsigned int size, void **acquired_handle)
 {
     printf("acquire_output_buffer callback line = %d, size = %u.\n", __LINE__, size);
@@ -38,6 +66,7 @@ BmJpuEncReturnCodes start_encode(BmJpuJPEGEncoder *jpeg_encoder, EncParam *enc_p
     BmJpuEncReturnCodes ret = BM_JPU_ENC_RETURN_CODE_OK;
     BmJpuFramebuffer framebuffer;
     BmJpuJPEGEncParams jpu_enc_params;
+    BmJpuImageFormat image_format;
     void *acquired_handle = NULL;
     size_t output_buffer_size = 0;
     unsigned int rotation_info;
@@ -49,6 +78,7 @@ BmJpuEncReturnCodes start_encode(BmJpuJPEGEncoder *jpeg_encoder, EncParam *enc_p
     uint8_t *virt_addr = NULL;
     bm_handle_t bm_handle;
     bm_status_t bm_ret = BM_SUCCESS;
+    bm_device_mem_t *bitstream_buffer = NULL;
     struct timeval tv_start, tv_end;
 
     y_size = enc_params->y_stride * enc_params->aligned_height;
@@ -122,15 +152,34 @@ BmJpuEncReturnCodes start_encode(BmJpuJPEGEncoder *jpeg_encoder, EncParam *enc_p
     #endif
     }
 
+    ConvertToImageFormat(&image_format, enc_params->pix_fmt, enc_params->cbcr_interleave);
     memset(&jpu_enc_params, 0, sizeof(BmJpuJPEGEncParams));
     jpu_enc_params.frame_width = enc_params->width;
     jpu_enc_params.frame_height = enc_params->height;
-    jpu_enc_params.quality_factor = 85;
-    jpu_enc_params.color_format = enc_params->pix_fmt;
-    jpu_enc_params.chroma_interleave = enc_params->cbcr_interleave;
+    jpu_enc_params.quality_factor = enc_params->quality_factor;
+    jpu_enc_params.image_format = image_format;
     jpu_enc_params.acquire_output_buffer = acquire_output_buffer;
     jpu_enc_params.finish_output_buffer = finish_output_buffer;
     jpu_enc_params.output_buffer_context = NULL;
+    jpu_enc_params.timeout = enc_params->timeout;
+    jpu_enc_params.timeout_count = enc_params->timeout_count;
+ 
+    if (enc_params->bs_set_on_process) {
+        bitstream_buffer = (bm_device_mem_t*)malloc(sizeof(bm_device_mem_t));
+        ret = bm_malloc_device_byte_heap(bm_handle, bitstream_buffer, 1, enc_params->bitstream_size);
+        if (ret != BM_SUCCESS) {
+            fprintf(stderr, "malloc device memory size = %d failed, ret = %d\n", enc_params->bitstream_size, ret);
+            if (bitstream_buffer != NULL) {
+                free(bitstream_buffer);
+                bitstream_buffer = NULL;
+            }
+            ret = -1;
+            goto finish;
+        }
+
+        jpu_enc_params.bs_buffer_phys_addr = bitstream_buffer->u.device.device_addr;
+        jpu_enc_params.bs_buffer_size = bitstream_buffer->size;
+    }
 
     rotation_info = enc_params->rotate & 0x3;
     if (rotation_info != 0) {
@@ -201,6 +250,10 @@ finish:
         free(framebuffer.dma_buffer);
     }
 
+    if (bitstream_buffer != NULL) {
+        bm_free_device(bm_handle, *bitstream_buffer);
+        bitstream_buffer = NULL;
+    }
     // bm_dev_free(bm_handle);
 
     return ret;

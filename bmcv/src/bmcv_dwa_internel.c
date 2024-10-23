@@ -16,6 +16,7 @@ bm_status_t bmcv_dwa_rot(bm_handle_t          handle,
     }
 
     switch(chipid){
+        case BM1688_PREV:
         case BM1688:
             ret = bmcv_dwa_rot_internel(handle, input_image, output_image, rot_mode);
             if(ret != BM_SUCCESS){
@@ -46,6 +47,7 @@ bm_status_t bmcv_dwa_gdc(bm_handle_t          handle,
     }
 
     switch(chipid){
+        case BM1688_PREV:
         case BM1688:
             ret = bmcv_dwa_gdc_internel(handle, input_image, output_image, ldc_attr);
             if(ret != BM_SUCCESS){
@@ -75,6 +77,7 @@ bm_status_t bmcv_dwa_fisheye(bm_handle_t          handle,
     }
 
     switch(chipid){
+        case BM1688_PREV:
         case BM1688:
             ret = bmcv_dwa_fisheye_internel(handle, input_image, output_image, fisheye_attr);
             if(ret != BM_SUCCESS){
@@ -104,6 +107,7 @@ bm_status_t bmcv_dwa_affine(bm_handle_t          handle,
     }
 
     switch(chipid){
+        case BM1688_PREV:
         case BM1688:
             ret = bmcv_dwa_affine_internel(handle, input_image, output_image, affine_attr);
             if(ret != BM_SUCCESS){
@@ -133,6 +137,7 @@ bm_status_t bmcv_dwa_dewarp(bm_handle_t          handle,
     }
 
     switch(chipid){
+        case BM1688_PREV:
         case BM1688:
             ret = bmcv_dwa_dewarp_internel(handle, input_image, output_image, grid_info);
             if(ret != BM_SUCCESS){

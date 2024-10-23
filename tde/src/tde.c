@@ -1,5 +1,6 @@
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include "tde.h"
 #include "vg_lite.h"
 #include "vg_lite_util.h"

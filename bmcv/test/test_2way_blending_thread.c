@@ -22,6 +22,7 @@ extern void bm_write_bin(bm_image dst, const char *output_name);
 pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
 _Atomic int threads_running = 1;
 _Atomic int num_threads = 0;
+int process_num = 0;
 
 typedef struct {
     int src_h[2];
@@ -86,6 +87,7 @@ static void user_usage() {
     "-z : compare_name,\n"
     "-W : wgt_mode,\n"
     "-H : user_usage \n"
+    "-P : process_num \n"
   );
 }
 
@@ -239,6 +241,8 @@ static int test_2way_blending(int* src_h, int* src_w, char** src_name, char** wg
 #endif
 
     ret = bmcv_blending(handle, input_num, src, dst, stitch_config);
+    usleep(process_num * 1000 * 1000);
+    // printf("sleep time =  %d us, %d ms\n", process_num * 1000 * 1000, process_num * 1000);
     if(0 != ret)
     {
       printf("bmcv_blending failed,ret = %d\n", ret);
@@ -352,6 +356,7 @@ int main(int argc, char *argv[])
     {"dev_id",      required_argument,   NULL,  'y'},
     {"compare_name",required_argument,   NULL,  'z'},
     {"wgt_mode",    required_argument,   NULL,  'W'},
+    {"process_num", required_argument,   NULL,  'P'},
     {"user_usage",  no_argument,         NULL,  'H'},
   };
 
@@ -380,7 +385,7 @@ int main(int argc, char *argv[])
   signal(SIGTERM, blend_HandleSig);
 
   int ch = 0, opt_idx = 0;
-  while ((ch = getopt_long(argc, argv, "n:a:b:c:d:e:f:g:h:i:j:k:l:m:r:s:x:y:z:W:H", long_options, &opt_idx)) != -1) {
+  while ((ch = getopt_long(argc, argv, "n:a:b:c:d:e:f:g:h:i:j:k:l:m:r:s:x:y:z:W:P:H", long_options, &opt_idx)) != -1) {
     switch (ch) {
       case 'n':
         thread_num = atoi(optarg);
@@ -441,6 +446,9 @@ int main(int argc, char *argv[])
         break;
       case 'W':
         stitch_config.wgt_mode = atoi(optarg);
+        break;
+      case 'P':
+        process_num= atoi(optarg);
         break;
       case 'H':
         user_usage();

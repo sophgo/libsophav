@@ -88,17 +88,17 @@ static void * ive_sub(void* arg) {
     bm_image_create(handle, height, width, dst_fmt, DATA_TYPE_EXT_1N_BYTE, &dst, dst_stride);
 
     // alloc bm image memory
-    ret = bm_image_alloc_dev_mem(src1, BMCV_HEAP_ANY);
+    ret = bm_image_alloc_dev_mem(src1, BMCV_HEAP1_ID);
     if (ret != BM_SUCCESS) {
         printf("bm_image_alloc_dev_mem_src. ret = %d\n", ret);
         exit(-1);
     }
-    ret = bm_image_alloc_dev_mem(src2, BMCV_HEAP_ANY);
+    ret = bm_image_alloc_dev_mem(src2, BMCV_HEAP1_ID);
     if (ret != BM_SUCCESS) {
         printf("bm_image_alloc_dev_mem_src. ret = %d\n", ret);
         exit(-1);
     }
-    ret = bm_image_alloc_dev_mem(dst, BMCV_HEAP_ANY);
+    ret = bm_image_alloc_dev_mem(dst, BMCV_HEAP1_ID);
     if (ret != BM_SUCCESS) {
         printf("bm_image_alloc_dev_mem_dst. ret = %d\n", ret);
         exit(-1);
@@ -200,10 +200,10 @@ int main(int argc, char **argv) {
         test_threads_num = atoi(argv[1]);
         test_loop_times  = atoi(argv[2]);
     }
-    if (argc > 3 && argc < 8) {
-        printf("command input error, please follow this order:\n \
+    if ((argc > 3 && argc < 8) || (argc == 1)) {
+        printf("please follow this order to input command:\n \
         %s width height sub_mode src_fmt dst_fmt src1_name src2_name dev_id thread_num loop_num bWrite dst_name\n \
-        %s thread_num loop_num\n", argv[0], argv[0]);
+        %s 352 288 1 14 14 ive_data/00_352x288_y.yuv ive_data/01_352x288_y.yuv ive_data/result/sample_Sub_Shift.yuv 0 1 5 0\n", argv[0], argv[0]);
         exit(-1);
     }
     if (test_loop_times > 15000 || test_loop_times < 1) {

@@ -109,7 +109,7 @@ static void * ive_gmm(void* arg){
     bm_image_create(handle, height, width, FORMAT_GRAY, DATA_TYPE_EXT_1N_BYTE, &dst_fg, stride);
     bm_image_create(handle, height, width, FORMAT_GRAY, DATA_TYPE_EXT_1N_BYTE, &dst_bg, stride);
 
-    ret = bm_image_alloc_dev_mem(src, BMCV_HEAP_ANY);
+    ret = bm_image_alloc_dev_mem(src, BMCV_HEAP1_ID);
     if (ret != BM_SUCCESS) {
         printf("bm_image_alloc_dev_mem_src. ret = %d\n", ret);
         free(inputData);
@@ -120,7 +120,7 @@ static void * ive_gmm(void* arg){
         exit(-1);
     }
 
-    ret = bm_image_alloc_dev_mem(dst_fg, BMCV_HEAP_ANY);
+    ret = bm_image_alloc_dev_mem(dst_fg, BMCV_HEAP1_ID);
     if (ret != BM_SUCCESS) {
         printf("bm_image_alloc_dev_mem_src. ret = %d\n", ret);
         free(inputData);
@@ -131,7 +131,7 @@ static void * ive_gmm(void* arg){
         exit(-1);
     }
 
-    ret = bm_image_alloc_dev_mem(dst_bg, BMCV_HEAP_ANY);
+    ret = bm_image_alloc_dev_mem(dst_bg, BMCV_HEAP1_ID);
     if (ret != BM_SUCCESS) {
         printf("bm_image_alloc_dev_mem_src. ret = %d\n", ret);
         free(inputData);
@@ -331,10 +331,10 @@ int main(int argc, char **argv){
     else if (argc == 3){
         test_threads_num = atoi(argv[1]);
         test_loop_times  = atoi(argv[2]);
-    } else if (argc > 3 && argc < 5) {
-        printf("command input error, please follow this order:\n \
+    } else if ((argc > 3 && argc < 5) || (argc == 1)) {
+        printf("please follow this order to input command:\n \
         %s width height src_fmt src_name goldenFg_name goldenBg_name dev_id thread_num loop_num bWrite dstFg_name dstFg_name\n \
-        %s thread_num loop_num\n", argv[0], argv[0]);
+        %s 352 288 14 ive_data/campus.u8c1.1_100.raw ive_data/result/sample_GMM_U8C1_fg_31.yuv ive_data/result/sample_GMM_U8C1_bg_31.yuv\n", argv[0], argv[0]);
         exit(-1);
     }
     if (test_loop_times > 15000 || test_loop_times < 1) {

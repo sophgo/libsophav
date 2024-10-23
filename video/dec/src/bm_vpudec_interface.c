@@ -62,7 +62,46 @@ BM_VDEC_CTX vpu_dec_chn[VDEC_MAX_CHN_NUM] = {0};
 static unsigned int u32ChannelCreatedCnt = 0;
 static pthread_mutex_t VdecChn_Mutex = PTHREAD_MUTEX_INITIALIZER;
 
-int bmvpu_dec_dump_stream(BMVidCodHandle vidCodHandle, BMVidStream vidStream);
+void bmvpu_dec_set_logging_threshold(BmVpuDecLogLevel log_level)
+{
+    bm_vpu_set_logging_threshold(log_level);
+}
+
+BMVidDecRetStatus bmvpu_dec_dump_stream(BMVidCodHandle vidCodHandle, unsigned char *p_stream, int size)
+{
+    int ret = 0;
+    static int stream_count = 0;
+    static int file_flag = 0;
+    int core_idx, inst_idx;
+    char filename[128];
+    static FILE* stream_fp = NULL;
+
+    if(stream_fp == NULL) {
+        core_idx = bmvpu_dec_get_core_idx(vidCodHandle);
+        inst_idx = bmvpu_dec_get_inst_idx(vidCodHandle);
+        sprintf(filename, "core%d_inst%d_ref_stream%d.bin", core_idx, inst_idx, file_flag);
+
+        stream_fp = fopen(filename, "wb");
+        if(stream_fp == NULL) {
+            BMVPU_DEC_ERROR("can not open dump file.\n");
+            return BM_ERR_VDEC_FAILURE;
+        }
+    }
+
+    if(stream_fp != NULL) {
+        fwrite(p_stream, 1, size, stream_fp);
+        stream_count += 1;
+    }
+
+    if(stream_count == atoi(getenv("BMVPU_DEC_DUMP_NUM"))) {
+        fclose(stream_fp);
+        stream_fp = NULL;
+        stream_count = 0;
+        file_flag = 1 - file_flag;
+    }
+
+    return BM_SUCCESS;
+}
 
 int bmvpu_dec_get_core_idx(BMVidCodHandle handle){
     int ret;
@@ -114,7 +153,7 @@ int bmvpu_dec_get_device_fd(BMVidCodHandle vidCodHandle)
  * @param pHandle [Output] decoder instance.
  * @return error code.
  */
-int bmvpu_dec_create(BMVidCodHandle *pVidCodHandle, BMVidDecParam decParam)
+BMVidDecRetStatus bmvpu_dec_create(BMVidCodHandle *pVidCodHandle, BMVidDecParam decParam)
 {
     int ret = 0;
     int VdChn_id = -1;
@@ -129,19 +168,49 @@ int bmvpu_dec_create(BMVidCodHandle *pVidCodHandle, BMVidDecParam decParam)
 
     bm_vpu_set_logging_threshold(BM_VPU_LOG_LEVEL_INFO);
 
-    if(decParam.streamFormat == 0)
+    if(decParam.streamFormat == BMDEC_AVC)
         stAttr.enType = PT_H264;
-    else if(decParam.streamFormat == 12)
+    else if(decParam.streamFormat == BMDEC_HEVC)
         stAttr.enType = PT_H265;
-    stAttr.u32StreamBufSize = decParam.streamBufferSize == 0 ? STREAM_BUF_SIZE : decParam.streamBufferSize;
-    stAttr.enMode = decParam.bsMode == 0 ? VIDEO_MODE_STREAM : VIDEO_MODE_FRAME;
-    stAttr.u32FrameBufCnt = (decParam.extraFrameBufferNum >= 0) ? decParam.extraFrameBufferNum : 2;
+    else {
+        BMVPU_DEC_ERROR("init dec error: invalid streamFormat\n");
+        return BM_ERR_VDEC_FAILURE;
+    }
+    stAttr.u32StreamBufSize = (decParam.streamBufferSize == 0) ? STREAM_BUF_SIZE : decParam.streamBufferSize;
+    stAttr.enMode = (decParam.bsMode == BMDEC_BS_MODE_INTERRUPT) ? VIDEO_MODE_STREAM : VIDEO_MODE_FRAME;
+    stAttr.u32FrameBufCnt = (decParam.extraFrameBufferNum > 0) ? decParam.extraFrameBufferNum : 2;
     stAttr.enCompressMode = (decParam.wtlFormat == BMDEC_OUTPUT_COMPRESSED) ? COMPRESS_MODE_FRAME : COMPRESS_MODE_NONE;
     stAttr.u8CommandQueueDepth = decParam.cmd_queue_depth;
     if (decParam.reorder_disable)
         stAttr.u8ReorderEnable = 0;
     else
         stAttr.u8ReorderEnable = 1; //default
+    if(decParam.picWidth != 0 && decParam.picHeight != 0) {
+        stAttr.u32PicWidth = decParam.picWidth;
+        stAttr.u32PicHeight = decParam.picHeight;
+    }
+
+    if(decParam.bitstream_buffer != NULL) {
+        if(stAttr.u8CommandQueueDepth <= 0) {
+            BMVPU_DEC_ERROR("Invalid command queue depth: %d\n", stAttr.u8CommandQueueDepth);
+            return BM_ERR_VDEC_ILLEGAL_PARAM;
+        }
+        stAttr.stBufferInfo.bitstream_buffer = (buffer_info_s *)decParam.bitstream_buffer;
+    }
+    if(decParam.frame_buffer != NULL && decParam.Ytable_buffer != NULL && decParam.Ctable_buffer != NULL) {
+        if(decParam.extraFrameBufferNum <= 0 || decParam.min_framebuf_cnt <= 0 ||
+            decParam.framebuf_delay <=0 || decParam.cmd_queue_depth <= 0 ) {
+            BMVPU_DEC_ERROR("Invalid frame buffer count: extra frame buffer:%d mini frame buffer:%d frame delay:%d command queue depth:%d\n",
+                decParam.extraFrameBufferNum, decParam.min_framebuf_cnt, decParam.framebuf_delay, decParam.cmd_queue_depth);
+            return BM_ERR_VDEC_ILLEGAL_PARAM;
+        }
+        if(decParam.wtlFormat != BMDEC_OUTPUT_COMPRESSED)
+            stAttr.stBufferInfo.numOfDecwtl = decParam.framebuf_delay + decParam.extraFrameBufferNum + decParam.cmd_queue_depth;
+        stAttr.stBufferInfo.numOfDecFbc = decParam.min_framebuf_cnt + decParam.extraFrameBufferNum + decParam.cmd_queue_depth;
+        stAttr.stBufferInfo.frame_buffer = (buffer_info_s *)decParam.frame_buffer;
+        stAttr.stBufferInfo.Ytable_buffer = (buffer_info_s *)decParam.Ytable_buffer;
+        stAttr.stBufferInfo.Ctable_buffer = (buffer_info_s *)decParam.Ctable_buffer;
+    }
 
     if(getenv("NO_FRAMEBUFFER")!=NULL && strcmp(getenv("NO_FRAMEBUFFER"),"1")==0)
     {
@@ -200,9 +269,9 @@ int bmvpu_dec_create(BMVidCodHandle *pVidCodHandle, BMVidDecParam decParam)
     pthread_mutex_unlock(&VdecChn_Mutex);
 
     bmdec_ioctl_get_chn_param(vpu_dec_chn[VdChn_id].chn_fd, &stChnParam);
-    if(decParam.cbcrInterleave == 1)
-        stChnParam.enPixelFormat = (decParam.nv21 == 1) ? PIXEL_FORMAT_NV21 : PIXEL_FORMAT_NV12;
-    else if(decParam.cbcrInterleave == 2)
+    if(decParam.pixel_format == BM_VPU_DEC_PIX_FORMAT_NV12)
+        stChnParam.enPixelFormat = PIXEL_FORMAT_NV12;
+    else if(decParam.pixel_format == BM_VPU_DEC_PIX_FORMAT_NV21)
         stChnParam.enPixelFormat = PIXEL_FORMAT_NV21;
     else
         stChnParam.enPixelFormat = PIXEL_FORMAT_YUV_PLANAR_420;
@@ -236,7 +305,7 @@ ERR_DEC_INIT2:
 }
 
 
-int bmvpu_dec_decode(BMVidCodHandle vidCodHandle, BMVidStream vidStream)
+BMVidDecRetStatus bmvpu_dec_decode(BMVidCodHandle vidCodHandle, BMVidStream vidStream)
 {
     int ret = BM_SUCCESS;
     char *dump_num;
@@ -244,6 +313,7 @@ int bmvpu_dec_decode(BMVidCodHandle vidCodHandle, BMVidStream vidStream)
     vdec_stream_ex_s stStreamEx;
     vdec_stream_s stStream;
     vdec_chn_attr_s stAttr;
+    vdec_chn_status_s stDecStatus = {0};
     uint8_t *total_buf = NULL;
     int total_size;
 
@@ -255,6 +325,16 @@ int bmvpu_dec_decode(BMVidCodHandle vidCodHandle, BMVidStream vidStream)
     }
 
     BMVPU_DEC_TRACE("enter bmvpu_dec_decode\n");
+
+    ret = bmdec_ioctl_query_chn_status(vpu_dec_chn[VdChn].chn_fd, &stDecStatus);
+    if(ret != BM_SUCCESS)
+    {
+        BMVPU_DEC_ERROR("Vdec query channel status failed.");
+        return ret;
+    }
+
+    if(stDecStatus.u8Status == SEQ_CHANGE)
+        return BM_ERR_VDEC_SEQ_CHANGE;
 
     ret = bmdec_ioctl_get_chn_attr(vpu_dec_chn[VdChn].chn_fd, &stAttr);
     if(ret != BM_SUCCESS){
@@ -296,19 +376,24 @@ int bmvpu_dec_decode(BMVidCodHandle vidCodHandle, BMVidStream vidStream)
 
     /* send bitstream and decode */
     ret = bmdec_ioctl_send_stream(vpu_dec_chn[VdChn].chn_fd, &stStreamEx);
+    if(ret == BM_ERR_VDEC_ILLEGAL_PARAM)
+        BMVPU_DEC_ERROR("bmdec_ioctl_send_stream failed. REASON:%d\n", ret);
 
     if(total_buf != NULL) {
         free(total_buf);
         total_buf = NULL;
     }
 
-    if((dump_num = getenv("BMVPU_DEC_DUMP_NUM")) != NULL)
-        bmvpu_dec_dump_stream(vidCodHandle, vidStream);
+    if((dump_num = getenv("BMVPU_DEC_DUMP_NUM")) != NULL) {
+        if(vidStream.header_buf != NULL && vidStream.header_size != 0)
+            bmvpu_dec_dump_stream(vidCodHandle, vidStream.header_buf, vidStream.header_size);
+        bmvpu_dec_dump_stream(vidCodHandle, vidStream.buf, vidStream.length);
+    }
 
     return ret;
 }
 
-int bmvpu_dec_get_output(BMVidCodHandle vidCodHandle, BMVidFrame *bmFrame)
+BMVidDecRetStatus bmvpu_dec_get_output(BMVidCodHandle vidCodHandle, BMVidFrame *bmFrame)
 {
     int ret;
     int dump_num;
@@ -338,22 +423,14 @@ int bmvpu_dec_get_output(BMVidCodHandle vidCodHandle, BMVidFrame *bmFrame)
     else
         BMVPU_DEC_LOG("get frame success");
 
-    if(stFrameInfo.video_frame.pixel_format == PIXEL_FORMAT_NV12){
-        bmFrame->frameFormat = 0;
-        bmFrame->cbcrInterleave = 1;
-        bmFrame->nv21 = 0;
-    }
-    else if(stFrameInfo.video_frame.pixel_format == PIXEL_FORMAT_NV21){
-        bmFrame->frameFormat = 0;
-        bmFrame->cbcrInterleave = 1;
-        bmFrame->nv21 = 1;
-    }
-    else{
-        bmFrame->frameFormat = 0;
-        bmFrame->cbcrInterleave = 0;
-        bmFrame->nv21 = 0;
-    }
-    bmFrame->compressed_mode = stFrameInfo.video_frame.compress_mode;
+    if(stFrameInfo.video_frame.pixel_format == PIXEL_FORMAT_NV12)
+        bmFrame->pixel_format = BM_VPU_DEC_PIX_FORMAT_NV12;
+    else if(stFrameInfo.video_frame.pixel_format == PIXEL_FORMAT_NV21)
+        bmFrame->pixel_format = BM_VPU_DEC_PIX_FORMAT_NV21;
+    else if(stFrameInfo.video_frame.compress_mode == COMPRESS_MODE_FRAME)
+        bmFrame->pixel_format = BM_VPU_DEC_PIX_FORMAT_COMPRESSED;
+    else
+        bmFrame->pixel_format = BM_VPU_DEC_PIX_FORMAT_YUV420P;
 
     /* BMVidFrame.buf
     < 0: Y virt addr, 1: Cb virt addr: 2, Cr virt addr. 4: Y phy addr, 5: Cb phy addr, 6: Cr phy addr */
@@ -443,7 +520,7 @@ int bmvpu_dec_get_output(BMVidCodHandle vidCodHandle, BMVidFrame *bmFrame)
     return BM_SUCCESS;
 }
 
-int bmvpu_dec_clear_output(BMVidCodHandle vidCodHandle, BMVidFrame *frame)
+BMVidDecRetStatus bmvpu_dec_clear_output(BMVidCodHandle vidCodHandle, BMVidFrame *frame)
 {
     int ret;
     int VdChn = *((int *)vidCodHandle);
@@ -469,7 +546,10 @@ int bmvpu_dec_clear_output(BMVidCodHandle vidCodHandle, BMVidFrame *frame)
     stFrameInfo.video_frame.phyaddr[1]   = frame->buf[5];
     stFrameInfo.video_frame.phyaddr[2]   = frame->buf[6];
 
-    stFrameInfo.video_frame.compress_mode = frame->compressed_mode;
+    if(frame->pixel_format == BM_VPU_DEC_PIX_FORMAT_COMPRESSED)
+        stFrameInfo.video_frame.compress_mode = COMPRESS_MODE_FRAME;
+    else
+        stFrameInfo.video_frame.compress_mode = COMPRESS_MODE_NONE;
     stFrameInfo.video_frame.private_data  = (void *)frame->frameIdx;
 
     stFrameInfo.video_frame.length[0]   = frame->stride[0] * frame->height;
@@ -485,10 +565,12 @@ int bmvpu_dec_clear_output(BMVidCodHandle vidCodHandle, BMVidFrame *frame)
         stFrameInfo.video_frame.ext_phy_addr     = frame->buf[7];
     }
 
-    if(frame->cbcrInterleave == 1)
-        stFrameInfo.video_frame.pixel_format = (frame->nv21 == 1) ? PIXEL_FORMAT_NV21 : PIXEL_FORMAT_NV12;
-    else
+    if(frame->pixel_format == BM_VPU_DEC_PIX_FORMAT_YUV420P)
         stFrameInfo.video_frame.pixel_format = PIXEL_FORMAT_YUV_PLANAR_420;
+    else if(frame->pixel_format == BM_VPU_DEC_PIX_FORMAT_NV21)
+        stFrameInfo.video_frame.pixel_format = PIXEL_FORMAT_NV21;
+    else
+        stFrameInfo.video_frame.pixel_format = PIXEL_FORMAT_NV12;
 
     ret = bmdec_ioctl_release_frame(vpu_dec_chn[VdChn].chn_fd, &stFrameInfo, frame->size);
     if(ret != BM_SUCCESS) {
@@ -500,7 +582,7 @@ int bmvpu_dec_clear_output(BMVidCodHandle vidCodHandle, BMVidFrame *frame)
 }
 
 
-int bmvpu_dec_flush(BMVidCodHandle vidCodHandle)
+BMVidDecRetStatus bmvpu_dec_flush(BMVidCodHandle vidCodHandle)
 {
     int ret;
     int VdChn = *((int *)vidCodHandle);
@@ -517,15 +599,18 @@ int bmvpu_dec_flush(BMVidCodHandle vidCodHandle)
     stStream.bEndOfStream = 1;
     stStreamEx.pstStream = &stStream;
     stStreamEx.s32MilliSec = -1;
-    while(bmdec_ioctl_send_stream(vpu_dec_chn[VdChn].chn_fd, &stStreamEx) != 0)
+    while(1)
     {
+        ret = bmdec_ioctl_send_stream(vpu_dec_chn[VdChn].chn_fd, &stStreamEx);
+        if(ret == BM_SUCCESS || ret == BM_ERR_VDEC_ILLEGAL_PARAM)
+            break;
         usleep(1000);
     }
 
     return BM_SUCCESS;
 }
 
-int bmvpu_dec_delete(BMVidCodHandle vidCodHandle)
+BMVidDecRetStatus bmvpu_dec_delete(BMVidCodHandle vidCodHandle)
 {
     int ret;
     int VdChn = *((int *)vidCodHandle);
@@ -598,6 +683,9 @@ BMDecStatus bmvpu_dec_get_status(BMVidCodHandle vidCodHandle)
     case SEQ_DECODE_START:
         state = BMDEC_DECODING;
         break;
+    case SEQ_DECODE_WRONG_RESOLUTION:
+        state = BMDEC_WRONG_RESOLUTION;
+        break;
     // case SEQ_DECODE_HANG:
     //     state = BMDEC_HUNG;
     //     break;
@@ -615,7 +703,7 @@ BMDecStatus bmvpu_dec_get_status(BMVidCodHandle vidCodHandle)
 }
 
 
-int bmvpu_dec_get_caps(BMVidCodHandle vidCodHandle, BMVidStreamInfo *streamInfo)
+BMVidDecRetStatus bmvpu_dec_get_caps(BMVidCodHandle vidCodHandle, BMVidStreamInfo *streamInfo)
 {
     int ret;
     vdec_chn_status_s stDecStatus = {0};
@@ -678,6 +766,27 @@ int bmvpu_dec_get_all_empty_input_buf_cnt(BMVidCodHandle vidCodHandle)
     return (int)stDecStatus.u8FreeSrcBuffer;
 }
 
+int bmvpu_dec_get_stream_buffer_empty_size(BMVidCodHandle vidCodHandle)
+{
+    int ret;
+    vdec_chn_status_s stDecStatus = {0};
+    int VdChn = *((int *)vidCodHandle);
+    if(vpu_dec_chn[VdChn].chn_fd < 0)
+    {
+        BMVPU_DEC_ERROR("Vdec device fd error.");
+        return BM_ERR_VDEC_INVALID_CHNID;
+    }
+
+    ret = bmdec_ioctl_query_chn_status(vpu_dec_chn[VdChn].chn_fd, &stDecStatus);
+    if(ret != BM_SUCCESS)
+    {
+        BMVPU_DEC_ERROR("Vdec query channel status failed.");
+        return ret;
+    }
+
+    return (int)stDecStatus.u32EmptyStreamBufSzie;
+}
+
 
 int bmvpu_dec_get_pkt_in_buf_cnt(BMVidCodHandle vidCodHandle)
 {
@@ -701,7 +810,7 @@ int bmvpu_dec_get_pkt_in_buf_cnt(BMVidCodHandle vidCodHandle)
 }
 
 
-int bmvpu_dec_get_all_frame_in_buffer(BMVidCodHandle vidCodHandle)
+BMVidDecRetStatus bmvpu_dec_get_all_frame_in_buffer(BMVidCodHandle vidCodHandle)
 {
     int ret;
     int VdChn = *((int *)vidCodHandle);
@@ -723,7 +832,7 @@ int bmvpu_dec_get_all_frame_in_buffer(BMVidCodHandle vidCodHandle)
     return BMDEC_FLUSH_SUCCESS;
 }
 
-int bmvpu_dec_reset(int devIdx, int coreIdx)
+BMVidDecRetStatus bmvpu_dec_reset(int devIdx, int coreIdx)
 {
     int VdChn;
 
@@ -731,42 +840,3 @@ int bmvpu_dec_reset(int devIdx, int coreIdx)
     return BM_SUCCESS;
 }
 
-
-int bmvpu_dec_dump_stream(BMVidCodHandle vidCodHandle, BMVidStream vidStream)
-{
-    int ret = 0;
-    static int stream_count = 0;
-    static int file_flag = 0;
-    int core_idx, inst_idx;
-    char filename[128];
-    static FILE* stream_fp = NULL;
-
-    if(stream_fp == NULL) {
-        core_idx = bmvpu_dec_get_core_idx(vidCodHandle);
-        inst_idx = bmvpu_dec_get_inst_idx(vidCodHandle);
-        sprintf(filename, "core%d_inst%d_ref_stream%d.bin", core_idx, inst_idx, file_flag);
-
-        stream_fp = fopen(filename, "wb");
-        if(stream_fp == NULL) {
-            BMVPU_DEC_ERROR("can not open dump file.\n");
-            return BM_ERR_VDEC_FAILURE;
-        }
-    }
-
-    if(stream_fp != NULL) {
-        if(vidStream.header_buf != NULL && vidStream.header_size != 0) {
-            fwrite(vidStream.header_buf, 1, vidStream.header_size, stream_fp);
-        }
-        fwrite(vidStream.buf, 1, vidStream.length, stream_fp);
-        stream_count += 1;
-    }
-
-    if(stream_count == atoi(getenv("BMVPU_DEC_DUMP_NUM"))) {
-        fclose(stream_fp);
-        stream_fp = NULL;
-        stream_count = 0;
-        file_flag = 1 - file_flag;
-    }
-
-    return BM_SUCCESS;
-}

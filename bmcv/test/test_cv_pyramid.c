@@ -105,7 +105,7 @@ static int tpu_pyramid_down(unsigned char* input, unsigned char* output,
         return -1;
     }
 
-    ret = bm_image_alloc_dev_mem(img_i, BMCV_HEAP_ANY);
+    ret = bm_image_alloc_dev_mem(img_i, BMCV_HEAP1_ID);
     if (ret != BM_SUCCESS) {
         printf("bm_image_alloc_dev_mem input img failed. ret = %d\n", ret);
         bm_image_destroy(&img_i);
@@ -114,7 +114,7 @@ static int tpu_pyramid_down(unsigned char* input, unsigned char* output,
         return -1;
     }
 
-    ret = bm_image_alloc_dev_mem(img_o, BMCV_HEAP_ANY);
+    ret = bm_image_alloc_dev_mem(img_o, BMCV_HEAP1_ID);
     if (ret != BM_SUCCESS) {
         printf("bm_image_alloc_dev_mem output img failed. ret = %d\n", ret);
         bm_image_destroy(&img_i);

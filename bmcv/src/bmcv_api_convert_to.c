@@ -146,6 +146,7 @@ bm_status_t bmcv_convert_to_internal(bm_handle_t          handle,
     unsigned int chipid = BM1688;
     bm_get_chipid(handle, &chipid);
     switch (chipid){
+        case BM1688_PREV:
         case BM1688:
             ret = bm_tpu_kernel_launch(handle, "cv_convert_to", (u8 *)&arg, sizeof(arg), core_id);
             if(ret != BM_SUCCESS){
@@ -278,7 +279,7 @@ bm_status_t bmcv_image_convert_to_(bm_handle_t          handle,
          output_idx++) {
         if (!bm_image_is_attached(output[output_idx])) {
             if (BM_SUCCESS !=
-                bm_image_alloc_dev_mem(output[output_idx], BMCV_HEAP_ANY)) {
+                bm_image_alloc_dev_mem(output[output_idx], BMCV_HEAP1_ID)) {
                 for (int free_idx = 0; free_idx < output_idx; free_idx++) {
                     bm_device_mem_t dmem;
                     bm_image_get_device_mem(output[free_idx], &dmem);
@@ -339,22 +340,22 @@ bm_status_t bmcv_image_convert_to(
 
     switch(chipid)
     {
-      case BM1688:{
-        if(input->data_type == DATA_TYPE_EXT_FLOAT32 || input->data_type == DATA_TYPE_EXT_1N_BYTE_SIGNED){
-            for (i = 0; i < loop; i++) {
-                int num = (i == loop - 1) ? (input_num - (loop - 1) * 4) : 4;
-                ret = bmcv_image_convert_to_(handle, num, convert_to_attr, input + i * 4, output + i * 4);
-                if (ret != BM_SUCCESS) return ret;
+        case BM1688_PREV:
+        case BM1688:
+            if(input->data_type == DATA_TYPE_EXT_FLOAT32 || input->data_type == DATA_TYPE_EXT_1N_BYTE_SIGNED){
+                for (i = 0; i < loop; i++) {
+                    int num = (i == loop - 1) ? (input_num - (loop - 1) * 4) : 4;
+                    ret = bmcv_image_convert_to_(handle, num, convert_to_attr, input + i * 4, output + i * 4);
+                    if (ret != BM_SUCCESS) return ret;
+                }
+            } else{
+                ret = bm_vpss_convert_to(handle, input_num, convert_to_attr, input, output);
             }
-        } else{
-            ret = bm_vpss_convert_to(handle, input_num, convert_to_attr, input, output);
-        }
-        break;
-      }
-      default:
-        ret = BM_NOT_SUPPORTED;
-        break;
-      }
+            break;
+        default:
+            ret = BM_NOT_SUPPORTED;
+            break;
+    }
 
     return ret;
 }

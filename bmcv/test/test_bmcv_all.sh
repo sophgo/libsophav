@@ -97,7 +97,7 @@ run_tpu(){
   run_command "test_cv_calc_hist 3 1"
   run_command "test_cv_calc_hist 1 1 512 512 1 0 1 0"
   run_command "test_cv_cmulp"
-  run_command "test_cv_cmulp 1 256 20"
+  run_command "test_cv_cmulp 1 1 256 20"
   run_command "test_cv_convert_to"
   run_command "test_cv_copy_to"
   run_command "test_cv_distance"
@@ -106,9 +106,13 @@ run_tpu(){
   run_command "test_cv_draw_lines 1 1 1080 1920 0 /opt/sophon/libsophon-current/bin/res/1920x1080_yuv420.bin out/output_draw_lines.bin"
   run_command "test_cv_feature_match"
   run_command "test_cv_feature_match 1 1 2 100 1000 5 0"
+  run_command "test_cv_fft 1 1 100 100 0 0"
+  run_command "test_cv_fft 1 1 100 100 0 1"
+  run_command "test_cv_fft 1 1 100 100 1 0"
+  run_command "test_cv_fft 1 1 100 100 1 1"
   run_command "test_cv_gaussian_blur"
-  run_command "test_cv_gaussian_blur 2 1 0 512 512 8 0.5 0.5"
-  run_command "test_cv_gaussian_blur 1 1 1 1080 1920 10 2 0 /opt/sophon/libsophon-current/bin/res/1920x1080_rgb.bin out/out_gaussian_blur.bin"
+  run_command "test_cv_gaussian_blur 2 1 1 512 512 8 3 0.5 0.5"
+  run_command "test_cv_gaussian_blur 1 1 0 1920 1080 10 3 0.5 0.5 /opt/sophon/libsophon-current/bin/res/1920x1080_rgb.bin out/out_gaussian_blur.bin"
   run_command "test_cv_gemm"
   run_command "test_cv_gemm 2"
   run_command "test_cv_hist_balance"
@@ -124,6 +128,8 @@ run_tpu(){
   run_command "test_cv_matmul 1 1 1 1 1 2 5 50 100"
   run_command "test_cv_min_max"
   run_command "test_cv_min_max 2 1 512"
+  run_command "test_cv_nms 2 1 100 0.7"
+  run_command "test_cv_nms 1 1 100 0.7"
   run_command "test_cv_put_text"
   run_command "test_cv_put_text 1 1 1080 1920 0 /opt/sophon/libsophon-current/bin/res/1920x1080_yuv420.bin out/output_put_text.bin"
   run_command "test_cv_pyramid"
@@ -135,6 +141,10 @@ run_tpu(){
   run_command "test_cv_sort"
   run_command "test_cv_sort 2"
   run_command "test_cv_sort 1 1 1000 1000"
+  run_command "test_cv_stft 1"
+  run_command "test_cv_stft 1 1 4096 1 1 1 1 1 4096 1024"
+  run_command "test_cv_istft 1"
+  run_command "test_cv_istft 1 1 4096 1 1 1 1 1 4096 1024"
   run_command "test_cv_threshold"
   run_command "test_cv_threshold 2"
   run_command "test_cv_threshold 1 1 1 1920 1080 2 /opt/sophon/libsophon-current/bin/res/1920x1080_gray.bin out/threshold_output.bin"
@@ -143,6 +153,8 @@ run_tpu(){
   run_command "test_cv_transpose 1 1 1 4 1 1080 1920 /opt/sophon/libsophon-current/bin/res/1920x1080_gray.bin out/transpose_output.bin"
   run_command "test_cv_warp_affine"
   run_command "test_cv_warp_perspective"
+  run_command "test_faiss_indexflatIP"
+  run_command "test_faiss_indexflatL2"
 }
 
 run_dpu(){
@@ -247,6 +259,10 @@ run_ive(){
   run_command "test_ive_csc_thread 352 288 4 1 10 ive_data/00_352x288_SP420.yuv ive_data/result/sample_CSC_YUV2RGB.rgb"
   run_command "test_ive_csc_thread 480 480 2 0 16 ive_data/lena_480x480_planar.yuv ive_data/result/sample_CSC_BT601_YUV2HSV_480x480.vsh"
   run_command "test_ive_csc_thread 480 480 2 3 16 ive_data/lena_480x480_planar.yuv ive_data/result/sample_CSC_BT709_YUV2HSV_480x480.vsh"
+  run_command "test_ive_csc_thread 352 288 10 2 2 ive_data/dst0_2_10.rgb ive_data/result/dst2_2_10.yuv 0 1 1"
+  run_command "test_ive_csc_thread 352 288 10 4 2 ive_data/dst1_2_10.rgb ive_data/result/dst4_2_10.yuv 0 1 1"
+  run_command "test_ive_csc_thread 352 288 10 5 2 ive_data/dst3_2_10.rgb ive_data/result/dst5_2_10.yuv 0 1 1"
+  run_command "test_ive_csc_thread 352 288 10 7 2 ive_data/dst6_2_10.rgb ive_data/result/dst7_2_10.yuv 0 1 1"
   run_command "test_ive_resize_thread 1 ive_data/result/sample_Resize_Bilinear_rgb.rgb ive_data/result/sample_Resize_Bilinear_gray.yuv ive_data/result/sample_Resize_Bilinear_240p.rgb"
   run_command "test_ive_resize_thread 3 ive_data/result/sample_Resize_Area_rgb.rgb ive_data/result/sample_Resize_Area_gray.yuv ive_data/result/sample_Resize_Area_240p.rgb"
   run_command "test_ive_stcandicorner_thread 352 288 25 ive_data/penguin_352x288.gray.shitomasi.raw ive_data/result/sample_Shitomasi_CandiCorner.yuv 0 1 1"
@@ -357,21 +373,28 @@ run_dwa(){
   run_command "test_dwa_gdc_thread 1920 1080 0 dwa_data/1920x1080_pincushion_0.3.yuv dwa_data/out_pincushion_0.yuv 1 0 0 0 0 0 400 1 1 6c05d5765415b17a3a458e2c08758ebf"
   run_command "test_dwa_gdc_thread 1920 1080 0 dwa_data/1920x1080_pincushion_0.3.yuv dwa_data/out_pincushion_100.yuv 1 0 0 100 0 0 400 1 1 88ed7cebe4d5598a0659806bb10d3298"
   run_command "test_dwa_affine_thread 1920 1080 128 1152 0 dwa_data/girls_1920x1080.yuv dwa_data/out_affine.yuv 9 128 128 1 1 4bda32574cf6e2c01251a8b806dc89d1"
-  run_command "test_dwa_fisheye_thread 1024 1024 1280 720 0 dwa_data/fisheye_floor_1024x1024.yuv dwa_data/out_fisheye_PANORAMA_360.yuv 1 1 0 128 128 512 512 0 0 0 1 0 1 1 1 3aecb97ec9360bbeb828d408f7b1621f"
+  run_command "test_dwa_fisheye_thread 1024 1024 1280 720 0 dwa_data/fisheye_floor_1024x1024.yuv dwa_data/out_fisheye_PANORAMA_360.yuv 1 1 0 128 128 512 512 0 0 0 1 0 1 1 1 5b8eeb161048799dccaff3ebd50e9679"
   run_command "test_dwa_fisheye_thread 1024 1024 1280 720 0 dwa_data/fisheye_floor_1024x1024.yuv dwa_data/out_fisheye_PANORAMA_180.yuv 1 1 0 128 128 512 512 0 0 2 2 1 1 1 1 72c42538b8dca6404ef1fb54fbc99e73"
-  run_command "test_dwa_fisheye_thread 1024 1024 1280 720 0 dwa_data/fisheye_floor_1024x1024.yuv dwa_data/out_fisheye_02_1O4R.yuv 1 1 0 128 128 512 512 0 0 0 4 0 1 1 1 d731d25f6b5377b1074e6d270fbd51af"
+  run_command "test_dwa_fisheye_thread 1024 1024 1280 720 0 dwa_data/fisheye_floor_1024x1024.yuv dwa_data/out_fisheye_02_1O4R.yuv 1 1 0 128 128 512 512 0 0 0 4 0 1 1 1 de7ef304d723597dbdc51786a6ba40a5"
   run_command "test_dwa_fisheye_thread 1024 1024 1280 720 0 dwa_data/fisheye_floor_1024x1024.yuv dwa_data/out_fisheye_03_4R.yuv 1 1 0 128 128 512 512 0 0 0 5 0 1 1 1 65a0113738a9ef1edd1a70103e5aedf7"
   run_command "test_dwa_fisheye_thread 1024 1024 1280 720 0 dwa_data/fisheye_floor_1024x1024.yuv dwa_data/out_fisheye_04_1P2R.yuv 1 1 0 128 128 512 512 0 0 2 6 1 1 1 1 6476ecf48455a3aff7c2790ed062c8a3"
   run_command "test_dwa_fisheye_thread 1024 1024 1280 720 0 dwa_data/fisheye_floor_1024x1024.yuv dwa_data/out_fisheye_05_1P2R.yuv 1 1 0 128 128 512 512 0 0 2 7 1 1 1 1 aa5cc391a234ad7b9a58c6bf9859af3b"
   run_command "test_dwa_fisheye_thread 1024 1024 1280 720 0 dwa_data/fisheye_floor_1024x1024.yuv dwa_data/out_fisheye_06_1P.yuv 1 1 0 128 128 512 512 0 0 2 8 1 1 1 1 0164d0e050b7e8bdb3d7e88ee5d5e32e"
   run_command "test_dwa_fisheye_thread 1024 1024 1280 720 0 dwa_data/fisheye_floor_1024x1024.yuv dwa_data/out_fisheye_07_2P.yuv 1 1 0 128 128 512 512 0 0 0 9 0 1 1 1 0e93ac36d589e50e9fa84522605ee8bf"
   # grid_info
-  run_command "test_dwa_gdc_grid_info_thread 1280 720 14 dwa_data/imgL_1280X720.yonly.yuv dwa_data/out_gdc_grid_L.yuv dwa_data/grid_info_79_43_3397_80_45_1280x720.dat 328480 1 1 2add6555ae97969211608655ab440d32"
-  run_command "test_dwa_gdc_grid_info_thread 1280 720 14 dwa_data/imgR_1280X720.yonly.yuv dwa_data/out_gdc_grid_R.yuv dwa_data/grid_info_79_44_3476_80_45_1280x720.dat 336080 1 1 562d0c6e4622f8e66920d35ab5e90881"
-  run_command "test_dwa_dewarp_grid_info_thread 1280 720 14 dwa_data/imgL_1280X720.yonly.yuv dwa_data/out_dewarp_grid_L.yuv dwa_data/grid_info_79_43_3397_80_45_1280x720.dat 328480 1 1 2add6555ae97969211608655ab440d32"
-  run_command "test_dwa_dewarp_grid_info_thread 1280 720 14 dwa_data/imgR_1280X720.yonly.yuv dwa_data/out_dewarp_grid_R.yuv dwa_data/grid_info_79_44_3476_80_45_1280x720.dat 336080 1 1 562d0c6e4622f8e66920d35ab5e90881"
-  run_command "test_dwa_fisheye_grid_info_thread 2240 2240 0 dwa_data/dc_src_2240x2240_L.yuv dwa_data/out_fisheye_grid_L.yuv 1 dwa_data/L_grid_info_68_68_4624_70_70_dst_2240x2240_src_2240x2240.dat 446496 1 1 0820daea4ead2344e5ae4c1f7165abfa"
-  run_command "test_dwa_fisheye_grid_info_thread 2240 2240 0 dwa_data/dc_src_2240x2240_R.yuv dwa_data/out_fisheye_grid_R.yuv 1 dwa_data/R_grid_info_68_68_4624_70_70_dst_2240x2240_src_2240x2240.dat 446496 1 1 a2909b4a63dc9ce529a35e73c172d908"
+  run_command "test_dwa_gdc_grid_info_thread 1280 720 14 dwa_data/imgL_1280X720.yonly.yuv dwa_data/out_gdc_grid_L.yuv dwa_data/grid_info_79_43_3397_80_45_1280x720.dat 328480 1 1 2c7b7d382222b0e91c1cf778db875d01"
+  run_command "test_dwa_gdc_grid_info_thread 1280 720 14 dwa_data/imgR_1280X720.yonly.yuv dwa_data/out_gdc_grid_R.yuv dwa_data/grid_info_79_44_3476_80_45_1280x720.dat 336080 1 1 c35ea9e07bdae46fbeae554133ff70b1"
+  run_command "test_dwa_dewarp_grid_info_thread 1280 720 14 dwa_data/imgL_1280X720.yonly.yuv dwa_data/out_dewarp_grid_L.yuv dwa_data/grid_info_79_43_3397_80_45_1280x720.dat 328480 1 1 2c7b7d382222b0e91c1cf778db875d01"
+  run_command "test_dwa_dewarp_grid_info_thread 1280 720 14 dwa_data/imgR_1280X720.yonly.yuv dwa_data/out_dewarp_grid_R.yuv dwa_data/grid_info_79_44_3476_80_45_1280x720.dat 336080 1 1 c35ea9e07bdae46fbeae554133ff70b1"
+  run_command "test_dwa_fisheye_grid_info_thread 2240 2240 0 dwa_data/dc_src_2240x2240_L.yuv dwa_data/out_fisheye_grid_L.yuv 1 dwa_data/L_grid_info_68_68_4624_70_70_dst_2240x2240_src_2240x2240.dat 446496 1 1 be161e6ff1ec06494f949862aaa62bc9"
+  run_command "test_dwa_fisheye_grid_info_thread 2240 2240 0 dwa_data/dc_src_2240x2240_R.yuv dwa_data/out_fisheye_grid_R.yuv 1 dwa_data/R_grid_info_68_68_4624_70_70_dst_2240x2240_src_2240x2240.dat 446496 1 1 9afd789c7940e50cfdd57718a3f0a001"
+  # multi-thread
+  run_command "test_dwa_rot_thread 128 128 14 dwa_data/128x128_sophgo.bin dwa_data/out_128x128_rot0.bin 0 8 1000 e001fc14213febf4751fbd8d739d8f28"
+  run_command "test_dwa_gdc_thread 1920 1080 0 dwa_data/1920x1080_barrel_0.3.yuv dwa_data/out_barrel_100.yuv 1 0 0 100 0 0 -200 8 1000 6fb920bfec14140d4bcc48571b051ff9"
+  run_command "test_dwa_affine_thread 1920 1080 128 1152 0 dwa_data/girls_1920x1080.yuv dwa_data/out_affine.yuv 9 128 128 8 1000 4bda32574cf6e2c01251a8b806dc89d1"
+  run_command "test_dwa_fisheye_thread 1024 1024 1280 720 0 dwa_data/fisheye_floor_1024x1024.yuv dwa_data/out_fisheye_PANORAMA_360.yuv 1 1 0 128 128 512 512 0 0 0 1 0 1 8 1000 5b8eeb161048799dccaff3ebd50e9679"
+  run_command "test_dwa_gdc_grid_info_thread 1280 720 14 dwa_data/imgL_1280X720.yonly.yuv dwa_data/out_gdc_grid_L.yuv dwa_data/grid_info_79_43_3397_80_45_1280x720.dat 328480 8 1000 2c7b7d382222b0e91c1cf778db875d01"
+  run_command "test_dwa_fisheye_grid_info_thread 2240 2240 0 dwa_data/dc_src_2240x2240_L.yuv dwa_data/out_fisheye_grid_L.yuv 1 dwa_data/L_grid_info_68_68_4624_70_70_dst_2240x2240_src_2240x2240.dat 446496 8 1000 be161e6ff1ec06494f949862aaa62bc9"
   # parameters loop test
   # run_command "test_dwa_rot_thread 1 1 32 32"
   # run_command "test_dwa_gdc_thread 1 1 32 32"
@@ -402,7 +425,7 @@ run_all(){
   run_kill_ldc
   run_kill_dwa
   run_kill_ive
-#  run_kill_blend
+  run_kill_blend
 }
 
 run_kill(){
@@ -412,7 +435,7 @@ run_kill(){
   run_kill_ldc
   run_kill_dwa
   run_kill_ive
-#  run_kill_blend
+  run_kill_blend
 }
 
 run_kill_vpss(){
@@ -701,45 +724,45 @@ run_kill_ive(){
   kill_processes
 }
 
-#run_kill_blend(){
-#  COMMAND1="test_2way_blending -a stitch/c01_lft__1536x384_pure_color.yuv -b stitch/c01_rht__1088x384_pure_color.yuv -c 1536 -d 384 -e 1088 -f 384 -g 0 -h out/2way-2400x384.yuv420p -i 2400 -j 384 -k 0 -l 1312 -m 1535 -r stitch/c01_alpha_m2__384x224_short.bin -s stitch/c01_beta_m2__384x224_short.bin -z stitch/c01_result_c2_2400x384_pure_color1.yuv &
-#            test_2way_blending -a stitch/c01_lft__1536x384_pure_color.yuv -b stitch/c01_rht__1088x384_pure_color.yuv -c 1536 -d 384 -e 1088 -f 384 -g 0 -h out/2way-2400x384.yuv420p -i 2400 -j 384 -k 0 -l 1312 -m 1535 -r stitch/c01_alpha_m2__384x224_short.bin -s stitch/c01_beta_m2__384x224_short.bin -z stitch/c01_result_c2_2400x384_pure_color1.yuv &
-#            test_2way_blending -a stitch/c01_lft__1536x384_pure_color.yuv -b stitch/c01_rht__1088x384_pure_color.yuv -c 1536 -d 384 -e 1088 -f 384 -g 0 -h out/2way-2400x384.yuv420p -i 2400 -j 384 -k 0 -l 1312 -m 1535 -r stitch/c01_alpha_m2__384x224_short.bin -s stitch/c01_beta_m2__384x224_short.bin -z stitch/c01_result_c2_2400x384_pure_color1.yuv &
-#            test_2way_blending -a stitch/c01_lft__1536x384_pure_color.yuv -b stitch/c01_rht__1088x384_pure_color.yuv -c 1536 -d 384 -e 1088 -f 384 -g 0 -h out/2way-2400x384.yuv420p -i 2400 -j 384 -k 0 -l 1312 -m 1535 -r stitch/c01_alpha_m2__384x224_short.bin -s stitch/c01_beta_m2__384x224_short.bin -z stitch/c01_result_c2_2400x384_pure_color1.yuv &
-#            "
-#  COMMAND2="test_4way_blending -N 2 -a stitch/c01_lft__128x128.yuv -b stitch/c01_rht__128x128.yuv -e 128 -f 128 -g 0 -h out/2way-192x128.yuv420p -i 192 -j 128 -k 0 -l 64 -m 127 -r stitch/c01_alpha_444p_m2__0_128x64.bin -s stitch/c01_beta_444p_m2__0_128x64.bin -z stitch/c01_result_c2_192x128.yuv & \
-#            test_4way_blending -N 2 -a stitch/c01_lft__128x128.yuv -b stitch/c01_rht__128x128.yuv -e 128 -f 128 -g 0 -h out/2way-192x128.yuv420p -i 192 -j 128 -k 0 -l 64 -m 127 -r stitch/c01_alpha_444p_m2__0_128x64.bin -s stitch/c01_beta_444p_m2__0_128x64.bin -z stitch/c01_result_c2_192x128.yuv &
-#            "
-#  start_command1() {
-#    if ! pgrep -f "test_2way_blending" >/dev/null; then
-#      eval "$COMMAND1" &
-#      eval "$COMMAND1" &
-#    fi
-#  }
+run_kill_blend(){
+ COMMAND1="test_2way_blending -a stitch/c01_lft__1536x384_pure_color.yuv -b stitch/c01_rht__1088x384_pure_color.yuv -c 1536 -d 384 -e 1088 -f 384 -g 0 -h out/2way-2400x384.yuv420p -i 2400 -j 384 -k 0 -l 1312 -m 1535 -r stitch/c01_alpha_m2__384x224_short.bin -s stitch/c01_beta_m2__384x224_short.bin -z stitch/c01_result_c2_2400x384_pure_color1.yuv &
+           test_2way_blending -a stitch/c01_lft__1536x384_pure_color.yuv -b stitch/c01_rht__1088x384_pure_color.yuv -c 1536 -d 384 -e 1088 -f 384 -g 0 -h out/2way-2400x384.yuv420p -i 2400 -j 384 -k 0 -l 1312 -m 1535 -r stitch/c01_alpha_m2__384x224_short.bin -s stitch/c01_beta_m2__384x224_short.bin -z stitch/c01_result_c2_2400x384_pure_color1.yuv &
+           test_2way_blending -a stitch/c01_lft__1536x384_pure_color.yuv -b stitch/c01_rht__1088x384_pure_color.yuv -c 1536 -d 384 -e 1088 -f 384 -g 0 -h out/2way-2400x384.yuv420p -i 2400 -j 384 -k 0 -l 1312 -m 1535 -r stitch/c01_alpha_m2__384x224_short.bin -s stitch/c01_beta_m2__384x224_short.bin -z stitch/c01_result_c2_2400x384_pure_color1.yuv &
+           test_2way_blending -a stitch/c01_lft__1536x384_pure_color.yuv -b stitch/c01_rht__1088x384_pure_color.yuv -c 1536 -d 384 -e 1088 -f 384 -g 0 -h out/2way-2400x384.yuv420p -i 2400 -j 384 -k 0 -l 1312 -m 1535 -r stitch/c01_alpha_m2__384x224_short.bin -s stitch/c01_beta_m2__384x224_short.bin -z stitch/c01_result_c2_2400x384_pure_color1.yuv &
+           "
+ COMMAND2="test_4way_blending -N 2 -a stitch/c01_lft__128x128.yuv -b stitch/c01_rht__128x128.yuv -e 128 -f 128 -g 0 -h out/2way-192x128.yuv420p -i 192 -j 128 -k 0 -l 64 -m 127 -r stitch/c01_alpha_444p_m2__0_128x64.bin -s stitch/c01_beta_444p_m2__0_128x64.bin -z stitch/c01_result_c2_192x128.yuv & \
+           test_4way_blending -N 2 -a stitch/c01_lft__128x128.yuv -b stitch/c01_rht__128x128.yuv -e 128 -f 128 -g 0 -h out/2way-192x128.yuv420p -i 192 -j 128 -k 0 -l 64 -m 127 -r stitch/c01_alpha_444p_m2__0_128x64.bin -s stitch/c01_beta_444p_m2__0_128x64.bin -z stitch/c01_result_c2_192x128.yuv &
+           "
+ start_command1() {
+   if ! pgrep -f "test_2way_blending" >/dev/null; then
+     eval "$COMMAND1" &
+     eval "$COMMAND1" &
+   fi
+ }
 
-#  start_command2() {
-#    eval "$COMMAND2" &
-#    eval "$COMMAND2" &
-#  }
+ start_command2() {
+   eval "$COMMAND2" &
+   eval "$COMMAND2" &
+ }
 
-#  kill_processes() {
-#      pkill -9 -f "test_2way_blending"
-#  }
+ kill_processes() {
+     pkill -9 -f "test_2way_blending"
+ }
 
-#  END=$(( $(date +%s) + 5*60 ))
+ END=$(( $(date +%s) + 5*60 ))
 
-#  while [ $(date +%s) -lt $END ]; do
-#    start_command1
-#    start_command2
+ while [ $(date +%s) -lt $END ]; do
+   start_command1
+   start_command2
 
-#    if [ $(( $(date +%s) % 20 )) -lt 2 ]; then
-#      kill_processes
-#    fi
+   if [ $(( $(date +%s) % 20 )) -lt 2 ]; then
+     kill_processes
+   fi
 
-#    sleep 10
-#  done
-#  kill_processes
-#}
+   sleep 10
+ done
+ kill_processes
+}
 
 if [ $bmcv_case = "all" ]; then
   eval "mkdir -p out"
@@ -885,14 +908,14 @@ if [ $bmcv_case = "kill_ive" ]; then
   done
 fi
 
-#if [ $bmcv_case = "kill_blend" ]; then
-#  eval "mkdir -p out"
-#  while [ $count -le $loop ]
-#  do
-#      run_kill_blend
-#      ((count++))
-#  done
-#fi
+if [ $bmcv_case = "kill_blend" ]; then
+ eval "mkdir -p out"
+ while [ $count -le $loop ]
+ do
+     run_kill_blend
+     ((count++))
+ done
+fi
 
 if [ $failed_count -gt 0 ]; then
   echo "Total failed commands: $failed_count"

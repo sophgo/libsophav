@@ -128,7 +128,7 @@ bm_status_t vpss_fill_rectangle(unsigned char *src_data,
     }
 
     bm_image_create(handle, in_height, in_width, src_format, DATA_TYPE_EXT_1N_BYTE, &src, NULL);
-    bm_image_alloc_dev_mem(src, BMCV_HEAP_ANY);
+    bm_image_alloc_dev_mem(src, BMCV_HEAP1_ID);
 
     int src_image_byte_size[4] = {0};
     bm_image_get_byte_size(src, src_image_byte_size);
@@ -418,11 +418,11 @@ int main(int argc, char **argv) {
     b = atoi(argv[11]);
     use_real_img = atoi(argv[12]);
     if (argc == 14) {
-        strncpy(filename_src, argv[13], sizeof(filename_src));
+        memcpy(filename_src, argv[13], sizeof(filename_src));
     }
     if (argc == 15) {
-        strncpy(filename_src, argv[13], sizeof(filename_src));
-        strncpy(filename_dst, argv[14], sizeof(filename_dst));
+        memcpy(filename_src, argv[13], sizeof(filename_src));
+        memcpy(filename_dst, argv[14], sizeof(filename_dst));
     }
     bm_status_t ret = vpss_fill_rectangle_cmp(use_real_img, filename_src, filename_dst, in_width, in_height, src_format, rect_num, &crop_attr, r, g, b);
 

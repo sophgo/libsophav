@@ -8,7 +8,7 @@
 #include <setjmp.h>
 #include "jpeglib.h"
 
-#include "bm_jpeg_logging.h"
+#include "bm_jpeg_interface.h"
 
 #define JPEG_DEC_LOG_TAG "JPEG-DEC"
 
@@ -18,27 +18,32 @@ typedef struct bmcv_jpeg_decoder_struct {
 } bmcv_jpeg_decoder_t;
 
 static int format_switch(BmJpuJPEGDecInfo info) {
-    BmJpuColorFormat jpu_format = info.color_format;
-    int chroma_itlv = info.chroma_interleave;
+    BmJpuImageFormat jpu_format = info.image_format;
+    //int chroma_itlv = info.chroma_interleave;
     int bmcv_fmt = -1;
     switch(jpu_format) {
-        case BM_JPU_COLOR_FORMAT_YUV420:
-            bmcv_fmt = (chroma_itlv == 0) ? FORMAT_YUV420P :
-                       ((chroma_itlv == 1) ? FORMAT_NV12 :
-                        ((chroma_itlv == 2) ? FORMAT_NV21 : -1));
+        case BM_JPU_IMAGE_FORMAT_YUV420P:
+            bmcv_fmt = FORMAT_YUV420P;
             break;
-        case BM_JPU_COLOR_FORMAT_YUV422_HORIZONTAL:
-            bmcv_fmt = (chroma_itlv == 0) ? FORMAT_YUV422P :
-                       ((chroma_itlv == 1) ? FORMAT_NV16 :
-                        ((chroma_itlv == 2) ? FORMAT_NV61 : -1));
+        case BM_JPU_IMAGE_FORMAT_NV12:
+            bmcv_fmt = FORMAT_NV12;
             break;
-        case BM_JPU_COLOR_FORMAT_YUV422_VERTICAL:
-            bmcv_fmt = -1;
+        case BM_JPU_IMAGE_FORMAT_NV21:
+            bmcv_fmt = FORMAT_NV21;
             break;
-        case BM_JPU_COLOR_FORMAT_YUV400:
+        case BM_JPU_IMAGE_FORMAT_YUV422P:
+            bmcv_fmt = FORMAT_YUV422P;
+            break;
+        case BM_JPU_IMAGE_FORMAT_NV16:
+            bmcv_fmt = FORMAT_NV16;
+            break;
+        case BM_JPU_IMAGE_FORMAT_NV61:
+            bmcv_fmt = FORMAT_NV61;
+            break;
+        case BM_JPU_IMAGE_FORMAT_GRAY:
             bmcv_fmt = FORMAT_GRAY;
             break;
-        case BM_JPU_COLOR_FORMAT_YUV444:
+        case BM_JPU_IMAGE_FORMAT_YUV444P:
             bmcv_fmt = FORMAT_YUV444P;
             break;
         default:
@@ -137,9 +142,7 @@ static int bmcv_jpeg_decoder_create(bmcv_jpeg_decoder_t** p_jpeg_decoder,
 
     /* Open the JPEG decoder */
     memset(&open_params, 0, sizeof(BmJpuDecOpenParams));
-    open_params.frame_width  = 0;
-    open_params.frame_height = 0;
-    open_params.chroma_interleave = CBCR_SEPARATED;
+    open_params.chroma_interleave = BM_JPU_CHROMA_FORMAT_CBCR_SEPARATED;
     /* avoid the false alarm that bs buffer is empty */
     open_params.bs_buffer_size = (bs_size + 256);
     open_params.device_index = devid;
@@ -150,22 +153,22 @@ static int bmcv_jpeg_decoder_create(bmcv_jpeg_decoder_t** p_jpeg_decoder,
             break;
         case FORMAT_NV12:
             open_params.color_format = BM_JPU_COLOR_FORMAT_YUV420;
-            open_params.chroma_interleave = CBCR_INTERLEAVE;
+            open_params.chroma_interleave = BM_JPU_CHROMA_FORMAT_CBCR_INTERLEAVE;
             break;
         case FORMAT_NV21:
             open_params.color_format = BM_JPU_COLOR_FORMAT_YUV420;
-            open_params.chroma_interleave = CRCB_INTERLEAVE;
+            open_params.chroma_interleave = BM_JPU_CHROMA_FORMAT_CRCB_INTERLEAVE;
             break;
         case FORMAT_YUV422P:
             open_params.color_format = BM_JPU_COLOR_FORMAT_YUV422_HORIZONTAL;
             break;
         case FORMAT_NV16:
             open_params.color_format = BM_JPU_COLOR_FORMAT_YUV422_HORIZONTAL;
-            open_params.chroma_interleave = CBCR_INTERLEAVE;
+            open_params.chroma_interleave = BM_JPU_CHROMA_FORMAT_CBCR_INTERLEAVE;
             break;
         case FORMAT_NV61:
             open_params.color_format = BM_JPU_COLOR_FORMAT_YUV422_HORIZONTAL;
-            open_params.chroma_interleave = CRCB_INTERLEAVE;
+            open_params.chroma_interleave = BM_JPU_CHROMA_FORMAT_CRCB_INTERLEAVE;
             break;
         case FORMAT_GRAY:
             open_params.color_format = BM_JPU_COLOR_FORMAT_YUV400;
@@ -614,7 +617,7 @@ bm_status_t bmcv_jpeg_dec_one_image(bm_handle_t          handle,
     BmJpuDecReturnCodes ret;
     BmJpuJPEGDecInfo info;
 
-    ret = bm_jpu_jpeg_dec_decode(jpeg_dec->decoder_, (const unsigned char*)buf, in_size);
+    ret = bm_jpu_jpeg_dec_decode(jpeg_dec->decoder_, (const unsigned char*)buf, in_size, 0, 0);
     if (ret != BM_JPU_DEC_RETURN_CODE_OK)
     {
         bmlib_log(JPEG_DEC_LOG_TAG, BMLIB_LOG_ERROR, "jpeg decode failed!\r\n");
@@ -630,15 +633,13 @@ bm_status_t bmcv_jpeg_dec_one_image(bm_handle_t          handle,
            "pixel Y/Cb/Cr stride: %u/%u/%u\n"
            "pixel Y/Cb/Cr size: %u/%u/%u\n"
            "pixel Y/Cb/Cr offset: %u/%u/%u\n"
-           "color format: %s\n"
-           "chroma interleave: %d\n",
+           "image format: %s\n",
            info.aligned_frame_width, info.aligned_frame_height,
            info.actual_frame_width, info.actual_frame_height,
            info.y_stride, info.cbcr_stride, info.cbcr_stride,
            info.y_size, info.cbcr_size, info.cbcr_size,
            info.y_offset, info.cb_offset, info.cr_offset,
-           bm_jpu_color_format_string(info.color_format),
-           info.chroma_interleave);
+           bm_jpu_image_format_string(info.image_format));
 
     if (info.framebuffer == NULL)
     {
