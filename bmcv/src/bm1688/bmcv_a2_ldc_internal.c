@@ -2339,14 +2339,15 @@ bm_status_t bm_ldc_basic(bm_handle_t handle,
     }
 
 fail2:
-    ret = bm_ldc_free_cur_task_mesh(param->stTask.name);
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "name in bm_ldc_free_cur_task_mesh = %s\n", param->stTask.name);
-    if (ret != BM_SUCCESS) {
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "bm_ldc_free_cur_task_mesh failed!\n");
+    if (param->op == BM_LDC_GDC || param->op == BM_LDC_GDC_LOAD_MESH) {
+        ret = bm_ldc_free_cur_task_mesh(param->stTask.name);
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "name in bm_ldc_free_cur_task_mesh = %s\n", param->stTask.name);
+        if (ret != BM_SUCCESS) {
+            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "bm_ldc_free_cur_task_mesh failed!\n");
+        }
     }
 fail1:
-    if (param->op == BM_LDC_GDC || param->op == BM_LDC_GDC_LOAD_MESH)
-    {
+    if (param->op == BM_LDC_GDC || param->op == BM_LDC_GDC_LOAD_MESH) {
         bm_free_device(handle, mid_mem);
     }
 
