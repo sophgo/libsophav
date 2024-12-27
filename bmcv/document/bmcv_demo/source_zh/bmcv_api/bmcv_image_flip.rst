@@ -72,27 +72,69 @@ NO_FLIP 表示不做处理，HORIZONTAL_FLIP 表示水平翻转，VERTICAL_FLIP 
 
 .. code-block:: c++
 
-        bm_handle_t handle;
-        int src_h = 1080, src_w = 1920, dst_w = 1920, dst_h = 1080, dev_id = 0;
-        bm_image_format_ext src_fmt = FORMAT_YUV420P, dst_fmt = FORMAT_YUV420P;
-        bmcv_flip_mode flip_mode = HORIZONTAL_FLIP;
-        char *src_name = "1920x1080_yuv420.bin", *dst_name = "dst.bin";
+  #include <stdio.h>
+  #include <stdlib.h>
+  #include <string.h>
+  #include "bmcv_api_ext_c.h"
+  #include <unistd.h>
 
-        bm_dev_request(&handle, 0);
+  int readBin(const char * path, unsigned char* input_data, int size) {
+      FILE *fp_src = fopen(path, "rb");
+      if (fread((void *)input_data, 1, size, fp_src) < (unsigned int)size){
+          printf("file size is less than %d required bytes\n", size);
+  };
 
-        bm_image_create(handle, src_h, src_w, src_fmt, DATA_TYPE_EXT_1N_BYTE, &src, NULL);
-        bm_image_create(handle, dst_h, dst_w, dst_fmt, DATA_TYPE_EXT_1N_BYTE, &dst, NULL);
+      fclose(fp_src);
+      return 0;
+  }
 
-        bm_image_alloc_dev_mem(src,BMCV_HEAP_ANY);
-        bm_image_alloc_dev_mem(dst,BMCV_HEAP_ANY);
+  int writeBin(const char * path, unsigned char* input_data, int size) {
+      FILE *fp_dst = fopen(path, "wb");
+      if (fwrite((void *)input_data, 1, size, fp_dst) < (unsigned int)size){
+          printf("file size is less than %d required bytes\n", size);
+      };
 
-        bm_read_bin(src,src_name);
+      fclose(fp_dst);
+      return 0;
+  }
 
-        bmcv_image_flip(handle, src, dst, flip_mode);
+  int main() {
+      int src_h = 1080;
+      int src_w = 1920;
+      int dst_w = 1920;
+      int dst_h = 1080;
+      bm_image_format_ext src_fmt = FORMAT_GRAY;
+      bm_image_format_ext dst_fmt = 14;
+      char *src_name = "path/to/src";
+      char *dst_name = "path/to/dst";
+      bmcv_flip_mode flip_mode = HORIZONTAL_FLIP;
+      bm_handle_t handle;
+      bm_status_t ret = 0;
+      bm_image src, dst;
+      unsigned char* data_tpu = (unsigned char*)malloc(src_w * src_h * sizeof(unsigned char));
+      ret = bm_dev_request(&handle, 0);
 
-        bm_write_bin(dst, dst_name);
+      ret = readBin(src_name, data_tpu, src_h * src_w);
 
-        bm_image_destroy(&src);
-        bm_image_destroy(&dst);
+      bm_image_create(handle, src_h, src_w, src_fmt, DATA_TYPE_EXT_1N_BYTE, &src, NULL);
+      bm_image_create(handle, dst_h, dst_w, dst_fmt, DATA_TYPE_EXT_1N_BYTE, &dst, NULL);
 
-        bm_dev_free(handle);
+      ret = bm_image_alloc_dev_mem(src,BMCV_HEAP1_ID);
+      ret = bm_image_alloc_dev_mem(dst,BMCV_HEAP1_ID);
+
+      unsigned char* in_ptr[1] = {0};
+
+      in_ptr[0] = data_tpu;
+
+      ret = bm_image_copy_host_to_device(src, (void**)in_ptr);
+      bmcv_image_flip(handle, src, dst, flip_mode);
+      ret = bm_image_copy_device_to_host(dst, (void**)in_ptr);
+      bm_image_destroy(&src);
+      bm_image_destroy(&dst);
+
+      ret = writeBin(dst_name, data_tpu, src_w * src_h);
+
+
+      return ret;
+  }
+

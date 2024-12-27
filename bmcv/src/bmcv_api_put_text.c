@@ -6,7 +6,11 @@
 #include "bmcv_api_ext_c.h"
 #include "hershey_fronts.h"
 #include <string.h>
+#include <stdlib.h>
+#include <locale.h>
+#include <fontdata.h>
 
+#define ALIGN_TO(size, align) (((size) + (align) - 1) & ~((align) - 1))
 #define SATURATE(a, s, e) ((a) > (e) ? (e) : ((a) < (s) ? (s) : (a)))
 #define IS_CS_YUV(a) (a == FORMAT_NV12 || a == FORMAT_NV21 || a == FORMAT_NV16 \
                     || a == FORMAT_NV61 || a == FORMAT_NV24 || a == FORMAT_YUV420P \
@@ -546,18 +550,132 @@ void put_text(bmMat mat, const char* text, bmcv_point_t org, int fontFace, float
     return;
 }
 
+static void paint_mat(unsigned char* font_buff, unsigned long offset, int idx, int stride, unsigned char* vir_addr, bmcv_color_t color,
+    unsigned char fontScale, unsigned char is_ascii){
+
+    unsigned char *buff = font_buff + offset;
+    unsigned char *mat = vir_addr;
+    unsigned char bit = 3;
+    int i, j, k, sw, sh;
+    if(is_ascii)
+        bit = 2; //16bit for ascii
+    for (i = 0; i < 24; i++)
+        for (j = 0; j < bit; j++)
+            for (k = 0; k < 8; k++)
+                for(sw = 0; sw < fontScale; sw++)
+                    for(sh = 0; sh < fontScale; sh++) {
+                        if (buff[i * bit + j] & (0x80 >> k)){
+                            mat[(i * fontScale + sh) * stride + ((j * 8 + k) * fontScale + sw) * 4] = color.b;
+                            mat[(i * fontScale + sh) * stride + ((j * 8 + k) * fontScale + sw) * 4 + 1] = color.g;
+                            mat[(i * fontScale + sh) * stride + ((j * 8 + k) * fontScale + sw) * 4 + 2] = color.r;
+                            mat[(i * fontScale + sh) * stride + ((j * 8 + k) * fontScale + sw) * 4 + 3] = 255;
+                        } else
+                            mat[(i * fontScale + sh) * stride + ((j * 8 + k) * fontScale + sw) * 4 + 3] = 0;
+                    }
+    return;
+}
+
+bm_status_t bmcv_gen_text_bitmap(
+    bm_handle_t handle,
+    bm_image *bitmap,
+    const wchar_t* hexcode,
+    bmcv_color_t color,
+    float fontScale){
+
+    bm_status_t ret = BM_SUCCESS;
+    int hz_num = 0, en_num = 0, stride_w, bitmap_w;
+    unsigned long offset; int idx = 0;
+    bm_device_mem_t pmem;
+    unsigned long long virt_addr = 0;
+    unsigned char fontscale_u8 = (unsigned char)fontScale;
+
+    fontscale_u8 = fontscale_u8 > 10 ? 10 : fontscale_u8;
+    fontscale_u8 = fontscale_u8 < 1 ? 1 : fontscale_u8;
+    for (int m = 0; hexcode[m] != 0; m++){
+        if (hexcode[m] > 0x3400)
+            hz_num++;
+        else
+            en_num++;
+    }
+
+    bitmap_w = ALIGN_TO((hz_num * 24 + en_num * 16) * fontscale_u8, 4);
+    stride_w = bitmap_w * 4;
+
+    if (bitmap_w <= 0) {
+        printf("hexcode(%ls) is null, bitmap_w(%d)\n", hexcode, bitmap_w);
+        return BM_ERR_PARAM;
+    }
+
+    ret = bm_image_create(handle, 24 * fontscale_u8, bitmap_w, FORMAT_ARGB_PACKED, DATA_TYPE_EXT_1N_BYTE, bitmap, NULL);
+    if (ret != BM_SUCCESS)
+        return ret;
+    ret = bm_image_dev_mem_alloc(bitmap[0], BMCV_HEAP1_ID);
+    if (ret != BM_SUCCESS)
+        goto fail;
+    ret = bm_image_get_device_mem(bitmap[0], &pmem);
+    if (ret != BM_SUCCESS)
+        goto fail;
+    ret = bm_mem_mmap_device_mem_no_cache(handle, &pmem, &virt_addr);
+    if (ret != BM_SUCCESS) {
+        printf("bm_mem_mmap_device_mem_no_cache fail, paddr(0x%lx)\n", pmem.u.device.device_addr);
+        goto fail;
+    }
+
+    unsigned char *ASCII = bmcv_test_res_1624_ez;
+    unsigned char *HZK = bmcv_test_res_2424_unicode_1;
+
+    for (int m = 0; m < hz_num + en_num; m++){
+        if (hexcode[m] > 0x3400){ //zh start 0x3400
+            // zh 72 byte store
+            offset = (hexcode[m] - 13312) * 72;
+            paint_mat(HZK, offset, idx, stride_w, (unsigned char*)virt_addr + idx * 4, color, fontscale_u8, false);
+            idx += 24 * fontscale_u8;
+        } else { // en 48 byte store, ASCll start 32
+            offset = (hexcode[m] - 32) * 48;
+            paint_mat(ASCII, offset, idx, stride_w, (unsigned char*)virt_addr + idx * 4, color, fontscale_u8, true);
+            idx += 11 * fontscale_u8;
+        }
+    }
+
+    ret = bm_mem_unmap_device_mem(handle, (void *)virt_addr, stride_w * 24 * fontscale_u8);
+    if (ret != BM_SUCCESS) {
+        printf("bm_mem_unmap_device_mem fail, vaddr(0x%llx)\n", virt_addr);
+        goto fail;
+    }
+    bitmap->width = idx;
+    return ret;
+fail:
+    bm_image_destroy(bitmap);
+    return ret;
+}
+
+static bm_status_t bmcv_overlay_put_text(bm_handle_t handle, bm_image image, const wchar_t* hexcode, bmcv_point_t org,
+                                bmcv_color_t color, float fontScale){
+    bm_status_t ret = BM_SUCCESS;
+    bm_image bitmap;
+    ret = bmcv_gen_text_bitmap(handle, &bitmap, hexcode, color, fontScale);
+    if (ret != BM_SUCCESS)
+        return ret;
+
+    bmcv_rect_t rect = {.start_x = org.x, .start_y = org.y, .crop_w = bitmap.width, .crop_h = bitmap.height};
+    ret = bmcv_image_overlay(handle, image, 1, &rect, &bitmap);
+
+    bm_image_destroy(&bitmap);
+    return ret;
+}
+
 static bm_status_t bmcv_put_text_check(bm_handle_t handle, bm_image image, int thickness)
 {
     if (handle == NULL) {
         bmlib_log("PUT_TEXT", BMLIB_LOG_ERROR, "Can not get handle!\r\n");
         return BM_ERR_PARAM;
     }
-    if (thickness <= 0) {
+    if (thickness < 0) {
         bmlib_log("PUT_TEXT", BMLIB_LOG_ERROR, "thickness should greater than 0!\r\n");
         return BM_ERR_PARAM;
     }
-    if (!IS_CS_YUV(image.image_format) && image.image_format != FORMAT_GRAY) {
-        bmlib_log("PUT_TEXT", BMLIB_LOG_ERROR, "image format not supported %d !\r\n", image.image_format);
+    if (!IS_CS_YUV(image.image_format) && image.image_format != FORMAT_GRAY && thickness != 0) {
+        bmlib_log("PUT_TEXT", BMLIB_LOG_ERROR, "image format not supported %d!\r\n", image.image_format);
         return BM_ERR_PARAM;
     }
 
@@ -575,39 +693,57 @@ bm_status_t bmcv_image_put_text(bm_handle_t handle, bm_image image, const char* 
         return ret;
     }
 
-    int w = image.width;
-    int h = image.height;
-    int str[3];
-    bmMat mat;
-    unsigned char* host_buf = (unsigned char*)malloc(w * h * 3 * sizeof(unsigned char));
-    unsigned char* in_ptr[3] = {host_buf, host_buf + w * h, host_buf + w * h * 2};
-
-    ret = bm_image_copy_device_to_host(image, (void **)in_ptr);
-    if (ret != BM_SUCCESS) {
-        printf("bm_image_copy_device_to_host failed!\n");
-        goto exit;
+    if(thickness == 0){
+        setlocale(LC_ALL, "");
+        size_t len = mbstowcs(NULL, text, 0); // 获取转换后宽字符字符串的长度
+        wchar_t wideStr[len + 1]; // 分配宽字符字符串的内存
+        mbstowcs(wideStr, text, len + 1); // 进行转换
+        ret = bmcv_overlay_put_text(handle, image, wideStr, org, color, fontScale);
+        return ret;
     }
 
-    ret = bm_image_get_stride(image, str);
+    int strides[3];
+    bmMat mat;
+    bm_device_mem_t dmem;
+    unsigned char *in_ptr[3];
+    unsigned long long virt_addr  = 0;
+    unsigned long long size[3] = {0};
+    unsigned long long total_size = 0;
+
+    for (int i = 0; i < image.image_private->plane_num; i++) {
+        size[i] = image.image_private->memory_layout[i].size;
+        total_size += size[i];
+    }
+    dmem = image.image_private->data[0];
+    bm_set_device_mem(&dmem, total_size, dmem.u.device.device_addr);
+    ret = bm_mem_mmap_device_mem_no_cache(image.image_private->handle, &dmem, &virt_addr);
+    if (ret != BM_SUCCESS) {
+        bmlib_log("PUT_TEXT", BMLIB_LOG_ERROR, "bm_mem_mmap_device_mem failed with error code %d\r\n", ret);
+        return ret;
+    }
+
+    in_ptr[0] = (unsigned char *)virt_addr;
+    in_ptr[1] = in_ptr[0] + size[0];
+    in_ptr[2] = in_ptr[1] + size[1];
+
+    ret = bm_image_get_stride(image, strides);
     if (ret != BM_SUCCESS) {
         printf("bm_image_get_stride failed!\n");
-        goto exit;
+        return ret;
     }
     mat.width = image.width;
     mat.height = image.height;
     mat.format = image.image_format;
-    mat.step = &str[0];
+    mat.step = &strides[0];
     mat.data = (void**)in_ptr;
 
     put_text(mat, text, org, FONT_HERSHEY_SIMPLEX, fontScale, color, thickness);
 
-    ret = bm_image_copy_host_to_device(image, (void **)in_ptr);
+    ret = bm_mem_unmap_device_mem(image.image_private->handle, (void *)virt_addr, total_size);
     if (ret != BM_SUCCESS) {
-        printf("bm_image_copy_host_to_device failed!\n");
-        goto exit;
+        bmlib_log("PUT_TEXT", BMLIB_LOG_ERROR, "bm_mem_unmap_device_mem failed with error code %d\r\n", ret);
+        return ret;
     }
 
-exit:
-    free(host_buf);
     return ret;
 }

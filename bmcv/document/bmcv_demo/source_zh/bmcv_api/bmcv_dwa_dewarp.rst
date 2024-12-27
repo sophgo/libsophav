@@ -84,58 +84,89 @@ bmcv_dwa_dewarp
     #include <stdio.h>
     #include <stdlib.h>
     #include <string.h>
-    #include <pthread.h>
-    #include <sys/time.h>
     #include "bmcv_api_ext_c.h"
     #include <unistd.h>
 
     typedef unsigned int u32;
 
-    extern void bm_read_bin(bm_image src, const char *input_name);
-    extern void bm_write_bin(bm_image dst, const char *output_name);
-    extern int md5_cmp(unsigned char* got, unsigned char* exp ,int size);
-
-    int main(int argc, char **argv) {
-        bm_status_t ret = BM_SUCCESS;
-        bm_handle_t handle = NULL;
+    int main() {
+        int src_h = 1080, src_w = 1920, dst_w = 1920, dst_h = 1080;
         int dev_id = 0;
-        char *src_name = "imgL_1280X720.yonly.yuv";
-        char *dst_name = "out_dewarp_grid_L.yuv";
-        char *grid_name = "grid_info_79_43_3397_80_45_1280x720.dat";
-        int src_h = 720, src_w = 1280;
-        int dst_h = 720, dst_w = 1280;
-        bm_image src, dst;
-        bm_image_format_ext fmt = FORMAT_YUV420P;
+        bm_image_format_ext fmt = FORMAT_GRAY;
+        char *src_name = "path/to/src";
+        char *dst_name = "path/to/dst";
+        char *grid_name = "path/to/grid_info";
+        bm_handle_t handle = NULL;
+        u32 grid_size = 0;
         int ret = (int)bm_dev_request(&handle, dev_id);
-        bm_device_mem_t dmem;
-        dmem.size = 328480;     // 注意：用户需根据实际的Grid_Info文件大小（字节数）进行输入设置
-        // create bm image
-        bm_image_create(handle, src_h, src_w, fmt, DATA_TYPE_EXT_1N_BYTE, &src, NULL);
-        bm_image_create(handle, dst_h, dst_w, fmt, DATA_TYPE_EXT_1N_BYTE, &dst, NULL);
-        ret = bm_image_alloc_dev_mem(src, BMCV_HEAP_ANY);
-        ret = bm_image_alloc_dev_mem(dst, BMCV_HEAP_ANY);
-        // read image data from input files
-        bm_read_bin(src, src_name);
-        // read grid_info data
-        char *buffer = (char *)malloc(dmem.size);
-        if (buffer == NULL) {
-            printf("malloc buffer for grid_info failed!\n");
-            goto fail;
+        if (ret != 0) {
+            printf("Create bm handle failed. ret = %d\n", ret);
+            exit(-1);
         }
-        memset(buffer, 0, dmem.size);
-
         FILE *fp = fopen(grid_name, "rb");
         if (!fp) {
             printf("open file:%s failed.\n", grid_name);
-            goto fail;
+            exit(-1);
         }
-        fread(buffer, 1, dmem.size, fp);
+        char *grid_data = (char *)malloc(grid_size);
+        fread(grid_data, 1, grid_size, fp);
+
         fclose(fp);
-        dmem.u.system.system_addr = (void *)buffer;
+
+        bm_image src, dst;
+
+        dst_w = src_w;
+        dst_h = src_h;
+        bm_image_create(handle, src_h, src_w, fmt, DATA_TYPE_EXT_1N_BYTE, &src, NULL);
+        bm_image_create(handle, dst_h, dst_w, fmt, DATA_TYPE_EXT_1N_BYTE, &dst, NULL);
+
+        ret = bm_image_alloc_dev_mem(src, BMCV_HEAP1_ID);
+        ret = bm_image_alloc_dev_mem(dst, BMCV_HEAP1_ID);
+
+        int image_byte_size[4] = {0};
+        bm_image_get_byte_size(src, image_byte_size);
+        int byte_size  = image_byte_size[0] + image_byte_size[1] + image_byte_size[2] + image_byte_size[3];
+        unsigned char *input_data = (unsigned char *)malloc(byte_size);
+        FILE *fp_src = fopen(src_name, "rb");
+        if (fread((void *)input_data, 1, byte_size, fp_src) < (unsigned int)byte_size) {
+        printf("file size is less than required bytes%d\n", byte_size);
+        };
+        fclose(fp_src);
+        void* in_ptr[4] = {(void *)input_data,
+                            (void *)((unsigned char*)input_data + image_byte_size[0]),
+                            (void *)((unsigned char*)input_data + image_byte_size[0] + image_byte_size[1]),
+                            (void *)((unsigned char*)input_data + image_byte_size[0] + image_byte_size[1] + image_byte_size[2])};
+        bm_image_copy_host_to_device(src, in_ptr);
+
+        bm_device_mem_t dmem;
+        dmem.u.system.system_addr = (void *)grid_data;
+        dmem.size = grid_size;
 
         bmcv_dwa_dewarp(handle, src, dst, dmem);
-        bm_write_bin(dst, dst_name);
-        free(buffer);
+
+        bm_image_get_byte_size(dst, image_byte_size);
+        byte_size = image_byte_size[0] + image_byte_size[1] + image_byte_size[2] + image_byte_size[3];
+        unsigned char* output_ptr = (unsigned char*)malloc(byte_size);
+        void* out_ptr[4] = {(void*)output_ptr,
+                            (void*)((unsigned char*)output_ptr + image_byte_size[0]),
+                            (void*)((unsigned char*)output_ptr + image_byte_size[0] + image_byte_size[1]),
+                            (void*)((unsigned char*)output_ptr + image_byte_size[0] + image_byte_size[1] + image_byte_size[2])};
+        bm_image_copy_device_to_host(dst, (void **)out_ptr);
+
+        FILE *fp_dst = fopen(dst_name, "wb");
+        if (fwrite((void *)output_ptr, 1, byte_size, fp_dst) < (unsigned int)byte_size){
+            printf("file size is less than %d required bytes\n", byte_size);
+        };
+        fclose(fp_dst);
+
+        free(grid_data);
+        free(input_data);
+        free(output_ptr);
+        bm_image_destroy(&src);
+        bm_image_destroy(&dst);
+
+        bm_dev_free(handle);
 
         return 0;
     }
+

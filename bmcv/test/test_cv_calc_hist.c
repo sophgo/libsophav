@@ -15,6 +15,17 @@ const int channels[CHN_NUM_MAX] = {0, 1, 2};
 const int histSizes[CHN_NUM_MAX] = {32, 32, 32};
 const float ranges[CHN_NUM_MAX * 2] = {0, 256, 0, 256, 0, 256};
 
+typedef struct {
+    int loop;
+    int height;
+    int width;
+    int chn_num;
+    int data_type;
+    int out_dim;
+    int op;
+    bm_handle_t handle;
+} cv_calc_hist_thread_arg_t;
+
 struct frame_size {
     int height;
     int width;
@@ -27,16 +38,8 @@ struct hist_para {
     int op; /* 0 is no weighted, 1 is weighted */
 };
 
-typedef struct {
-    int loop;
-    int height;
-    int width;
-    int chn_num;
-    int data_type;
-    int out_dim;
-    int op;
-    bm_handle_t handle;
-} cv_calc_hist_thread_arg_t;
+extern int cpu_calc_hist(void* input_host, float* output_cpu, struct frame_size* frame,
+                        struct hist_para* para, const float* weighted);
 
 static int parameters_check(struct frame_size frame, struct hist_para para)
 {
@@ -195,212 +198,6 @@ static int tpu_calc_hist(void* input_host, float* output_tpu, struct frame_size*
 
     bm_free_device(handle, input);
     bm_free_device(handle, output);
-    return 0;
-}
-
-static int cpu_calc_Hist_1d(void* input_host, struct frame_size* frame, struct hist_para* para, \
-                            float* out_put, const float* weighted)
-{
-    int H = frame->height;
-    int W = frame->width;
-    int data_type = para->data_type; /* 0 is fp32, 1 is u8 */
-    int HistSize_1D = histSizes[0];
-    float binX_len = (float)(HistSize_1D / (ranges[1] - ranges[0]));
-    int op = para->op;
-    int binX;
-    int i;
-
-    if (input_host == NULL || frame == NULL || para == NULL || weighted == NULL) {
-        printf("cpu_calc_hist 1d param error!\n");
-        return -1;
-    }
-
-    if (data_type == 0) {
-        float* input = (float*)input_host;
-
-        for (i = 0; i < W * H; ++i) {
-
-            binX = (int)(input[i] * binX_len);
-
-            if (binX >= 0 && binX < HistSize_1D ) {
-                if (op == 0) {
-                    out_put[binX]++;
-                } else {
-                    out_put[binX] += weighted[i];
-                }
-
-            }
-        }
-    } else {
-        uint8_t* input = (uint8_t*)input_host;
-
-        for (i = 0; i < W * H; ++i) {
-            binX = (int)(input[i] * binX_len);
-
-            if (binX >= 0 && binX < HistSize_1D ) {
-                if (op == 0) {
-                    out_put[binX]++;
-                } else {
-                    out_put[binX] += weighted[i];
-                }
-            }
-        }
-    }
-
-    return 0;
-
-}
-
-static int cpu_calc_Hist_2d(void* input_host, struct frame_size* frame, struct hist_para* para,
-                            float* out_put, const float* weighted)
-{
-    int H = frame->height;
-    int W = frame->width;
-    int data_type = para->data_type; /* 0 is fp32, 1 is u8 */
-    int HistSize_1D = histSizes[0];
-    int HistSize_2D = histSizes[1];
-    float binX_len = (float)(HistSize_1D / (ranges[1] - ranges[0]));
-    float binY_len = (float)(HistSize_2D / (ranges[3] - ranges[2]));
-    int binX, binY;
-    int op = para->op;
-    int i;
-
-    if (input_host == NULL || frame == NULL || para == NULL || weighted == NULL) {
-        printf("cpu_calc_hist 2d param error!\n");
-        return -1;
-    }
-
-    if (data_type == 0) {
-        float* input = (float*)input_host;
-
-        for (i = 0; i < W * H; ++i) {
-            binX = (int)(input[i] * binX_len);
-            binY = (int)(input[i + W * H] * binY_len);
-
-            if (binX >= 0 && binX < HistSize_1D && binY >= 0 && binY < HistSize_2D) {
-                if (op == 0) {
-                    out_put[binX * HistSize_2D + binY]++;
-                } else {
-                    out_put[binX * HistSize_2D + binY] += weighted[i];
-                }
-            }
-        }
-    } else {
-        uint8_t* input = (uint8_t*)input_host;
-
-        for (i = 0; i < W * H; ++i) {
-            binX = (int)(input[i] * binX_len);
-            binY = (int)(input[i + W * H] * binY_len);
-            if (binX >= 0 && binX < HistSize_1D && binY >= 0 && binY < HistSize_2D) {
-                if (op == 0) {
-                    out_put[binX * HistSize_2D + binY]++;
-                } else {
-                    out_put[binX * HistSize_2D + binY] += weighted[i];
-                }
-            }
-        }
-    }
-    return 0;
-}
-
-static int cpu_calc_Hist_3d(void* input_host, struct frame_size* frame, struct hist_para* para,
-                            float* out_put, const float* weighted)
-{
-    int H = frame->height;
-    int W = frame->width;
-    int data_type = para->data_type; /* 0 is fp32, 1 is u8 */
-    int HistSize_1D = histSizes[0];
-    int HistSize_2D = histSizes[1];
-    int HistSize_3D = histSizes[2];
-    float binX_len = (float)(HistSize_1D / (ranges[1] - ranges[0]));
-    float binY_len = (float)(HistSize_2D / (ranges[3] - ranges[2]));
-    float binZ_len = (float)(HistSize_3D / (ranges[5] - ranges[4]));
-    int op = para->op;
-    int binX, binY, binZ;
-    int i;
-
-    if (input_host == NULL || frame == NULL || para == NULL || weighted == NULL) {
-        printf("cpu_calc_hist 3d param error!\n");
-        return -1;
-    }
-
-    if (data_type == 0) {
-        float* input = (float*)input_host;
-
-        for (i = 0; i < W * H; ++i) {
-            binX = (int)(input[i] * binX_len);
-            binY = (int)(input[i + W * H] * binY_len);
-            binZ = (int)(input[i + 2 * W * H] * binZ_len);
-
-            if (binX >= 0 && binX < HistSize_1D && binY >= 0 &&
-                binY < HistSize_2D && binZ >= 0 && binZ < HistSize_3D) {
-                if (op == 0) {
-                    out_put[binX * (HistSize_2D * HistSize_3D) + binY * HistSize_3D + binZ]++;
-                } else {
-                    out_put[binX * (HistSize_2D * HistSize_3D) + binY * HistSize_3D + binZ] += weighted[i];
-                }
-            }
-        }
-    } else {
-        uint8_t* input = (uint8_t*)input_host;
-
-        for (i = 0; i < W * H; ++i) {
-            binX = (int)(input[i] * binX_len);
-            binY = (int)(input[i + W * H] * binY_len);
-            binZ = (int)(input[i + 2 * W * H] * binZ_len);
-            if (binX >= 0 && binX < HistSize_1D && binY >= 0 &&
-                binY < HistSize_2D && binZ >= 0 && binZ < HistSize_3D) {
-                if (op == 0) {
-                    out_put[binX * (HistSize_2D * HistSize_3D) + binY * HistSize_3D + binZ]++;
-                } else {
-                    out_put[binX * (HistSize_2D * HistSize_3D) + binY * HistSize_3D + binZ] += weighted[i];
-                }
-            }
-        }
-    }
-    return 0;
-}
-
-static int cpu_calc_hist(void* input_host, float* output_cpu, struct frame_size* frame,
-                        struct hist_para* para, const float* weighted)
-{
-    int dim = para->out_dim;
-    int ret = 0;
-
-    if (input_host == NULL || output_cpu == NULL || frame == NULL \
-        || para == NULL || weighted == NULL) {
-        printf("cpu_calc_hist param error!\n");
-        return -1;
-    }
-
-    switch (dim) {
-        case 1: {
-            ret = cpu_calc_Hist_1d(input_host, frame, para, output_cpu, weighted);
-            if (ret) {
-                printf("cpu_calc_Hist_1d failed!\n");
-                return -1;
-            }
-            break;
-        }
-        case 2: {
-            ret = cpu_calc_Hist_2d(input_host, frame, para, output_cpu, weighted);
-            if (ret) {
-                printf("cpu_calc_Hist_2d failed!\n");
-                return -1;
-            }
-            break;
-        }
-        case 3: {
-
-            ret = cpu_calc_Hist_3d(input_host, frame, para, output_cpu, weighted);
-            if (ret) {
-                printf("cpu_calc_Hist_3d failed!\n");
-                return -1;
-            }
-            break;
-        }
-    }
-
     return 0;
 }
 

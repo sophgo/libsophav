@@ -28,6 +28,7 @@
 #include <sys/time.h>
 #include <getopt.h>
 #include <signal.h>
+#include <execinfo.h>
 
 
 #include "bmvpuenc.h"
@@ -339,9 +340,8 @@ static int run_once(InputParameter* par)
 
 
     EncParameter* enc_par = &(par->enc);
-    char output_filename[256] = {0};
+    char output_filename[512] = {0};
     FILE *fin, *fout;
-    int frm_cnt = 0;
     int l, i, ret = 0;
     int send_frame_status = 0;
     int tid = par->thread_id;
@@ -450,7 +450,7 @@ static int run_once(InputParameter* par)
     BBBBBBBB 8          12              8
     P        9          1               1
     */
-    unsigned int bs_buffer_arry[12] = {0, 7, 7, 7, 10, 13, 7, 7, 18, 7 };
+    unsigned int bs_buffer_arry[12] = {0, 7, 7, 7, 10, 13, 7, 7, 18, 7};
     /* in unit of 4k bytes */
     ctx->bs_buffer_size = ((ctx->bs_buffer_size +(4*1024-1)) & (~(4*1024-1))) * bs_buffer_arry[eop->gop_preset];
 
@@ -518,7 +518,7 @@ static int run_once(InputParameter* par)
             fprintf(stderr, "bm_mem_mmap_device_mem_no_cache failed\n");
             return -1;
         }
-        memset(ctx->src_fb_dmabuffers[i].virt_addr, 0, ctx->src_fb_dmabuffers[i].size);
+        memset((void *)ctx->src_fb_dmabuffers[i].virt_addr, 0, ctx->src_fb_dmabuffers[i].size);
         bmvpu_dma_buffer_unmap(0, &ctx->src_fb_dmabuffers[i]);
     }
 
@@ -582,7 +582,6 @@ static int run_once(InputParameter* par)
         gettimeofday(&(ctx->tv_beg), NULL);
         for (i=0; i<par->frame_number; i++)
         {
-            uint32_t output_code;
             if (g_exit_flag) break;
             /* Stop encoding if EOF was reached */
             if (feof(fin))
@@ -603,7 +602,6 @@ static int run_once(InputParameter* par)
             }
 
             /* Read uncompressed pixels into the input DMA buffer */
-            unsigned long long tmp_va;
             ret = bmvpu_dma_buffer_map(0, (ctx->src_fb->dma_buffer), BM_VPU_ENC_MAPPING_FLAG_READ|BM_VPU_ENC_MAPPING_FLAG_WRITE);
             if (ret != BM_VPU_ENC_RETURN_CODE_OK) {
                 break;
@@ -695,14 +693,11 @@ get_stream:
     {
         if (g_exit_flag) break;
         // void *output_block;
-        uint32_t output_code;
-
 
         ctx->input_frame.framebuffer = NULL;
         ctx->input_frame.context = NULL;
         ctx->input_frame.pts = 0L;
         ctx->input_frame.dts = 0L;
-
 
         send_frame_status = bmvpu_enc_send_frame(ctx->video_encoder, &(ctx->input_frame), &(ctx->enc_params));
         ret = bmvpu_enc_get_stream(ctx->video_encoder, &(ctx->output_frame), &(ctx->enc_params));
@@ -1188,12 +1183,12 @@ static int read_yuv_source(uint8_t* dst_va, int dst_stride_y, int dst_stride_c, 
         return -1;
     }
 
-    int dst_frame_size = 0;
-    if (pix_format == BM_VPU_ENC_PIX_FORMAT_YUV420P) {
-        dst_frame_size = dst_size_y + dst_size_c*2;
-    } else if (pix_format == BM_VPU_ENC_PIX_FORMAT_NV12) {
-        dst_frame_size = dst_size_y + dst_size_c;
-    }
+    //int dst_frame_size = 0;
+    //if (pix_format == BM_VPU_ENC_PIX_FORMAT_YUV420P) {
+    //    dst_frame_size = dst_size_y + dst_size_c*2;
+    //} else if (pix_format == BM_VPU_ENC_PIX_FORMAT_NV12) {
+    //    dst_frame_size = dst_size_y + dst_size_c;
+    //}
 
     if (dst_stride_y == src_stride_y &&
         dst_stride_c == src_stride_c &&
@@ -1308,7 +1303,7 @@ static BmVpuFramebuffer* get_src_framebuffer(VpuEncContext *ctx)
     }
 
     BmVpuFramebuffer *fb = *((BmVpuFramebuffer**)bm_queue_pop(ctx->frame_unused_queue));
-    int log_level;
+    //int log_level;
     int i;
 
     if (fb==NULL)
@@ -1317,7 +1312,7 @@ static BmVpuFramebuffer* get_src_framebuffer(VpuEncContext *ctx)
         return NULL;
     }
 
-    log_level = bmvpu_enc_get_logging_threshold();
+    //log_level = bmvpu_enc_get_logging_threshold();
 //     if (log_level > BMVPU_ENC_LOG_LEVEL_INFO)
 //     {
 // #ifdef __linux__
@@ -1348,11 +1343,11 @@ static void* sigmgr_thread(void* argument)
             if (info.si_signo == SIGINT || info.si_signo == SIGTERM) {
                 for (i=0; i<threads->number; i++) {
                     pthread_t ptid = threads->handles[i];
-                    if (ptid != NULL)
+                    if (ptid != 0)
                     {
                         printf("Thread 0x%lx is canceling...\n", ptid);
                         pthread_cancel(ptid);
-                        threads->handles[i] = NULL;
+                        threads->handles[i] = 0;
                     }
                 }
             }
@@ -1436,8 +1431,8 @@ int main(int argc, char *argv[])
             snprintf(tmp, 256, "Failed to join pthread #%d\n", i);
             handle_error(tmp);
         }
-        thread_handle[i] = NULL;
-        threads.handles[i] = NULL;
+        thread_handle[i] = 0;
+        threads.handles[i] = 0;
     }
     printf("All threads have done, set g_exit_flag = 1 \n");
     g_exit_flag = 1;

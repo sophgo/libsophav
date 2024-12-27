@@ -9,17 +9,6 @@
 
 #define TIME_COST_US(start, end) ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec))
 
-enum operation{
-    AND = 7,
-    OR = 8,
-    XOR = 9,
-};
-
-struct frame_size {
-    int height;
-    int width;
-};
-
 typedef struct {
     int loop;
     int if_use_img;
@@ -32,6 +21,20 @@ typedef struct {
     char* dst_name;
     bm_handle_t handle;
 } cv_bitwise_thread_arg_t;
+
+enum operation{
+    AND = 7,
+    OR = 8,
+    XOR = 9,
+};
+
+struct frame_size {
+    int height;
+    int width;
+};
+
+extern int cpu_bitwise(unsigned char* input1, unsigned char* input2, unsigned char* output,
+                        int len, int op);
 
 static void readBin(const char* path, unsigned char* input_data, int size)
 {
@@ -77,31 +80,6 @@ static int parameters_check(int height, int width, enum operation op)
     return error;
 }
 
-static int cpu_bitwise(unsigned char* input1, unsigned char* input2, unsigned char* output,
-                        int len, int op)
-{
-    int ret = 0;
-
-    switch (op) {
-        case AND:
-            for (int i = 0; i < len; ++i) {
-                output[i] = input1[i] & input2[i];
-            }
-            break;
-        case OR:
-            for (int i = 0; i < len; ++i) {
-                output[i] = input1[i] | input2[i];
-            }
-            break;
-        case XOR:
-            for (int i = 0; i < len; ++i) {
-                output[i] = input1[i] ^ input2[i];
-            }
-            break;
-    }
-
-    return ret;
-}
 
 static int tpu_bitwise(unsigned char* input1, unsigned char* input2, unsigned char* output,
                         int height, int width, int format, int op, bm_handle_t handle)

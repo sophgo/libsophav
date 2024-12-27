@@ -27,6 +27,9 @@ BMCV API
    bmcv_api/bmcv_istft.rst
    bmcv_api/bmcv_faiss_indexflatIP.rst
    bmcv_api/bmcv_faiss_indexflatL2.rst
+   bmcv_api/bmcv_faiss_indexPQ_adc.rst
+   bmcv_api/bmcv_faiss_indexPQ_sdc.rst
+   bmcv_api/bmcv_faiss_indexPQ_encode.rst
    bmcv_api/bmcv_ldc_rot.rst
    bmcv_api/bmcv_ldc_gdc.rst
    bmcv_api/bmcv_ldc_gdc_load_mesh.rst
@@ -64,6 +67,7 @@ BMCV API
    bmcv_api/bmcv_image_storage_convert.rst
    bmcv_api/bmcv_image_threshold.rst
    bmcv_api/bmcv_image_transpose.rst
+   bmcv_api/bmcv_image_rotate_trans.rst
    bmcv_api/bmcv_image_rotate.rst
    bmcv_api/bmcv_image_vpp_basic.rst
    bmcv_api/bmcv_image_vpp_convert.rst

@@ -69,76 +69,69 @@ bmcv_ive_hist
 
     .. code-block:: c
 
-        #include <stdio.h>
-        #include <stdlib.h>
-        #include <string.h>
-        #include <pthread.h>
-        #include <sys/time.h>
-        #include "bmcv_api_ext_c.h"
-        #include <unistd.h>
-        extern void bm_ive_read_bin(bm_image src, const char *input_name);
-        extern bm_status_t bm_ive_image_calc_stride(bm_handle_t handle, int img_h, int img_w,
-            bm_image_format_ext image_format, bm_image_data_format_ext data_type, int *stride);
-        int dev_id = 0;
-        int height = 288, width = 352;
-        bm_image_format_ext src_fmt = FORMAT_GRAY;
-        char * src_name = "./data/00_352x288_y.yuv", *dst_name = "./hist_result.bin";
-        bm_handle_t handle = NULL;
-        int ret = (int)bm_dev_request(&handle, dev_id);
-        if (ret != 0) {
-            printf("Create bm handle failed. ret = %d\n", ret);
-            exit(-1);
-        }
-        bm_image src;
-        bm_device_mem_t dst;
-        int src_stride[4];
-        unsigned int i = 0, loop_time = 0;
-        unsigned long long time_single, time_total = 0, time_avg = 0;
-        unsigned long long time_max = 0, time_min = 10000, fps_actual = 0;
-        struct timeval tv_start;
-        struct timeval tv_end;
-        struct timeval timediff;
+      #include <stdio.h>
+      #include <stdlib.h>
+      #include <string.h>
+      #include "bmcv_api_ext_c.h"
+      #include <unistd.h>
 
-        // calc ive image stride && create bm image struct
-        bm_ive_image_calc_stride(handle, height, width, src_fmt, DATA_TYPE_EXT_1N_BYTE, src_stride);
-        bm_image_create(handle, height, width, src_fmt, DATA_TYPE_EXT_1N_BYTE, &src, src_stride);
-        ret = bm_image_alloc_dev_mem(src, BMCV_HEAP_ANY);
-        if (ret != BM_SUCCESS) {
-            printf("bm_image_alloc_dev_mem_src. ret = %d\n", ret);
-            exit(-1);
-        }
-        bm_ive_read_bin(src, src_name);
+      #define align_up(num, align) (((num) + ((align) - 1)) & ~((align) - 1))
 
-        // create result
-        ret = bm_malloc_device_byte(handle, &dst, 1024);
-        if (ret != BM_SUCCESS) {
-            printf("bm_malloc_device_byte failed. ret = %d\n", ret);
-            exit(-1);
-        }
+      int main(){
+          int dev_id = 0;
+          int height = 1080, width = 1920;
+          bm_image_format_ext src_fmt = FORMAT_GRAY;
+          char * src_name = "path/to/src", *dst_name = "path/to/dst";
+          bm_handle_t handle = NULL;
+          int ret = (int)bm_dev_request(&handle, dev_id);
+          if (ret != 0) {
+              printf("Create bm handle failed. ret = %d\n", ret);
+              exit(-1);
+          }
 
-        for (i = 0; i < loop_time; i++) {
-            gettimeofday(&tv_start, NULL);
-            ret = bmcv_ive_hist(handle, src, dst);
-            gettimeofday(&tv_end, NULL);
-            timediff.tv_sec  = tv_end.tv_sec - tv_start.tv_sec;
-            timediff.tv_usec = tv_end.tv_usec - tv_start.tv_usec;
-            time_single = (unsigned int)(timediff.tv_sec * 1000000 + timediff.tv_usec);
+          bm_image src;
+          bm_device_mem_t dst;
+          int src_stride[4];
 
-            if(time_single>time_max){time_max = time_single;}
-            if(time_single<time_min){time_min = time_single;}
-            time_total = time_total + time_single;
+          // calc ive image stride && create bm image struct
+          int data_size = 1;
+          src_stride[0] = align_up(width, 16) * data_size;
+          bm_image_create(handle, height, width, src_fmt, DATA_TYPE_EXT_1N_BYTE, &src, src_stride);
+          ret = bm_image_alloc_dev_mem(src, BMCV_HEAP1_ID);
 
-            if(ret != BM_SUCCESS){
-                printf("bmcv_image_ive_hist failed. ret = %d\n", ret);
-                exit(-1);
-            }
-        }
-        time_avg = time_total / loop_time;
-        fps_actual = 1000000 / time_avg;
-        bm_image_destroy(&src);
-        bm_free_device(handle, dst);
-        printf("bmcv_ive_hist: loop %d cycles, time_max = %llu, time_avg = %llu, fps %llu \n",
-            loop_time, time_max, time_avg, fps_actual);
-        printf("bmcv ive hist successful \n");
-        return 0;
+          int image_byte_size[4] = {0};
+          bm_image_get_byte_size(src, image_byte_size);
+          int byte_size  = image_byte_size[0] + image_byte_size[1] + image_byte_size[2] + image_byte_size[3];
+          unsigned char *input_data = (unsigned char *)malloc(byte_size);
+          FILE *fp_src = fopen(src_name, "rb");
+          if (fread((void *)input_data, 1, byte_size, fp_src) < (unsigned int)byte_size) {
+            printf("file size is less than required bytes%d\n", byte_size);
+          };
+          fclose(fp_src);
+          void* in_ptr[4] = {(void *)input_data,
+                              (void *)((unsigned char*)input_data + image_byte_size[0]),
+                              (void *)((unsigned char*)input_data + image_byte_size[0] + image_byte_size[1]),
+                              (void *)((unsigned char*)input_data + image_byte_size[0] + image_byte_size[1] + image_byte_size[2])};
+          bm_image_copy_host_to_device(src, in_ptr);
+          // create result
+          ret = bm_malloc_device_byte(handle, &dst, 1024);
+          ret = bmcv_ive_hist(handle, src, dst);
+
+          unsigned char *dst_hist_result = malloc(dst.size);
+
+          ret = bm_memcpy_d2s(handle, dst_hist_result, dst);
+
+          FILE *hist_result_fp = fopen(dst_name, "wb");
+          fwrite((void *)dst_hist_result, 1, dst.size, hist_result_fp);
+          fclose(hist_result_fp);
+
+          free(input_data);
+          free(dst_hist_result);
+
+          bm_image_destroy(&src);
+          bm_free_device(handle, dst);
+
+          bm_dev_free(handle);
+
+          return 0;
       }

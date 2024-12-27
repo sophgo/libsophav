@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
+
 #ifdef __linux__
 #include <sys/time.h>
 #include <time.h>
@@ -31,6 +32,11 @@ typedef struct {
     bm_handle_t handle;
 } cv_pt_thread_arg_t;
 
+extern int get_image_offset(int format, int width, int height, int* offset_list);
+extern int put_text_cpu(unsigned char* input, int height, int width, const char* text,
+                        bmcv_point_t org, int fontFace, float fontScale, int format,
+                        unsigned char color[3], int thickness);
+
 static void fill_img(unsigned char* input, int width, int height)
 {
     int i, j;
@@ -40,90 +46,6 @@ static void fill_img(unsigned char* input, int width, int height)
             input[i * width + j] = rand() % 256;
         }
     }
-}
-
-static int get_image_offset(int format, int width, int height, int* offset_list)
-{
-    int ret = 0;
-
-    switch (format) {
-        case FORMAT_YUV420P:
-            offset_list[0] = width * height;
-            offset_list[1] = ALIGN(width, 2) * ALIGN(height, 2) >> 2;
-            offset_list[2] = ALIGN(width, 2) * ALIGN(height, 2) >> 2;
-            break;
-        case FORMAT_YUV422P:
-            offset_list[0] = width * height;
-            offset_list[1] = ALIGN(width, 2) * height >> 1;
-            offset_list[2] = ALIGN(width, 2) * height >> 1;
-            break;
-        case FORMAT_YUV444P:
-        case FORMAT_RGB_PLANAR:
-        case FORMAT_BGR_PLANAR:
-        case FORMAT_RGB_PACKED:
-        case FORMAT_BGR_PACKED:
-        case FORMAT_RGBP_SEPARATE:
-        case FORMAT_BGRP_SEPARATE:
-            offset_list[0] = width * height;
-            offset_list[1] = width * height;
-            offset_list[2] = width * height;
-            break;
-        case FORMAT_NV12:
-        case FORMAT_NV21:
-            offset_list[0] = width * height;
-            offset_list[1] = ALIGN(width, 2) * ALIGN(height, 2) >> 1;
-            break;
-        case FORMAT_NV16:
-        case FORMAT_NV61:
-        case FORMAT_NV24:
-            offset_list[0] = width * height;
-            offset_list[1] = ALIGN(width, 2) * height;
-            break;
-        case FORMAT_GRAY:
-            offset_list[0] = width * height;
-            break;
-        default:
-            printf("image format error!\n");
-            ret = -1;
-            break;
-    }
-
-    return ret;
-}
-
-static int get_image_default_step(int format, int width, int* step)
-{
-    int ret = 0;
-
-    switch (format) {
-        case FORMAT_GRAY:
-            step[0] = width;
-            break;
-        case FORMAT_YUV420P:
-        case FORMAT_YUV422P:
-            step[0] = width;
-            step[1] = ALIGN(width, 2) >> 1;
-            step[2] = ALIGN(width, 2) >> 1;
-            break;
-        case FORMAT_YUV444P:
-            step[0] = width;
-            step[1] = width;
-            step[2] = width;
-            break;
-        case FORMAT_NV12:
-        case FORMAT_NV21:
-        case FORMAT_NV16:
-        case FORMAT_NV61:
-            step[0] = width;
-            step[1] = ALIGN(width, 2);
-            break;
-        default:
-            printf("not support format!\n");
-            ret = -1;
-            break;
-    }
-
-    return ret;
 }
 
 static int cmp_result(unsigned char* got, unsigned char* exp, int len)
@@ -183,48 +105,6 @@ static int readBin(const char* path, void* input_data)
 
     fclose(fp_src);
     return 0;
-}
-
-static int put_text_cpu(unsigned char* input, int height, int width, const char* text,
-                        bmcv_point_t org, int fontFace, float fontScale, int format,
-                        unsigned char color[3], int thickness)
-{
-    int offset_list[IMAGE_CHN_NUM_MAX] = {0};
-    unsigned char* in_ptr[IMAGE_CHN_NUM_MAX] = {0};
-    bmcv_color_t rgb = {color[0], color[1], color[2]};
-    int step[IMAGE_CHN_NUM_MAX];
-    int ret = 0;
-    struct timeval t1, t2;
-    bmMat mat;
-
-    ret = get_image_offset(format, width, height, offset_list);
-    if (ret != 0) {
-        printf("get_image_offset failed!\n");
-        return ret;
-    }
-
-    in_ptr[0] = input;
-    in_ptr[1] = input + offset_list[0];
-    in_ptr[2] = input + offset_list[0] + offset_list[1];
-
-    ret = get_image_default_step(format, width, step);
-    if (ret != 0) {
-        printf("get_image_default_step failed!\n");
-        return ret;
-    }
-
-    mat.width = width;
-    mat.height = height;
-    mat.format = (bm_image_format_ext)format;
-    mat.step = step;
-    mat.data = (void**)in_ptr;
-
-    gettimeofday(&t1, NULL);
-    put_text(mat, text, org, fontFace, fontScale, rgb, thickness);
-    gettimeofday(&t2, NULL);
-    printf("Put_text CPU using time: %ld(us)\n", TIME_COST_US(t1, t2));
-
-    return ret;
 }
 
 static bm_status_t put_text_tpu(unsigned char* input,  int height, int width, const char* text,

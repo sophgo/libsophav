@@ -153,10 +153,10 @@ bm_image_format_ext 有以下枚举类型。
      - 表示预创建一个HSV planar格式的图片，H 的范围为 0~180，有三个 plane。
    * - 18
      - FORMAT_ARGB_PACKED
-     - 表示预创建一个ARGB 格式的图片，该图片仅有一个 plane，并且像素值以 RGBA 顺序交错连续排列，即 RGBARGBA。
+     - 表示预创建一个ARGB 格式的图片，该图片仅有一个 plane，并且像素值以 BGRA 顺序交错连续排列，即 BGRABGRA。
    * - 19
      - FORMAT_ABGR_PACKED
-     - 表示预创建一个ABGR 格式的图片，该图片仅有一个 plane，并且像素值以 BGRA 顺序交错连续排列，即 BGRABGRA。
+     - 表示预创建一个ABGR 格式的图片，该图片仅有一个 plane，并且像素值以 RGBA 顺序交错连续排列，即 RGBARGBA。
    * - 20
      - FORMAT_YUV444_PACKED
      - 表示预创建一个YUV444 格式的图片，YUV 交错排列，有一个 plane。

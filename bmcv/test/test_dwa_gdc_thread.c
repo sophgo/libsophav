@@ -28,7 +28,7 @@ int loop_mode = 0;
 int rand_input_width = 0, rand_input_height = 0;
 int test_loop_times  = 1;
 int test_threads_num = 1;
-int src_h = 1080, src_w = 1920, dev_id = 0;
+int src_h = 1080, src_w = 1920, dev_id = 0, dst_w = 1920, dst_h = 1080;
 bm_image_format_ext fmt = FORMAT_YUV420P;
 char *src_name = "/opt/sophon/libsophon-current/bin/res/1920x1080_yuv420.bin", *dst_name = "dst.bin";
 bm_handle_t handle = NULL;
@@ -74,7 +74,6 @@ static void * dwa_gdc(void* arg) {
     bm_status_t ret;
     convert_ctx ctx = *(convert_ctx*)arg;
     bm_image src, dst;
-    int dst_w, dst_h;
     unsigned int i = 0, loop_time = 0;
     unsigned long long time_single, time_total = 0, time_avg = 0;
     unsigned long long time_max = 0, time_min = 10000, fps_actual = 0, pixel_per_sec = 0;
@@ -90,9 +89,6 @@ static void * dwa_gdc(void* arg) {
     loop_time = ctx.loop;
 
     bm_image_create(handle, src_h, src_w, fmt, DATA_TYPE_EXT_1N_BYTE, &src, NULL);
-
-    dst_w = src_w;
-    dst_h = src_h;
     bm_image_create(handle, dst_h, dst_w, fmt, DATA_TYPE_EXT_1N_BYTE, &dst, NULL);
 
     ret = bm_image_alloc_dev_mem(src, BMCV_HEAP1_ID);
@@ -200,43 +196,45 @@ static void * dwa_gdc(void* arg) {
 
 static void print_help(char **argv){
     printf("please follow this order:\n \
-        %s src_w src_h src_fmt src_name dst_name bAspect s32XRatio s32YRatio s32XYRatio s32CenterXOffset s32CenterYOffset s32DistortionRatio thread_num loop_num md5\n \
+        %s src_w src_h src_fmt src_name dst_w dst_h dst_name bAspect s32XRatio s32YRatio s32XYRatio s32CenterXOffset s32CenterYOffset s32DistortionRatio thread_num loop_num md5\n \
         %s rand_mode(1) thread_num loop_num         /*For random size test*/\n \
         %s loop_mode(1) rand_mode(1) width height   /*For size loop test*/\n", argv[0], argv[0], argv[0]);
 };
 
 int main(int argc, char **argv) {
-    if (argc >= 16) {
-        md5 = argv[15];
+    if (argc >= 18) {
+        md5 = argv[17];
     } else if(argc > 3){
         md5 = NULL;
     }
-    if (argc >= 15) {
-        test_threads_num = atoi(argv[13]);
-        test_loop_times  = atoi(argv[14]);
+    if (argc >= 17) {
+        test_threads_num = atoi(argv[15]);
+        test_loop_times  = atoi(argv[16]);
     }
-    if (argc >= 13) {
+    if (argc >= 15) {
         src_w = atoi(argv[1]);
         src_h = atoi(argv[2]);
         fmt = (bm_image_format_ext)atoi(argv[3]);
         src_name = argv[4];
-        dst_name = argv[5];
-        ldc_attr.bAspect = atoi(argv[6]);
+        dst_w = atoi(argv[5]);
+        dst_h = atoi(argv[6]);
+        dst_name = argv[7];
+        ldc_attr.bAspect = atoi(argv[8]);
         if (ldc_attr.bAspect == 0) {
-            ldc_attr.s32XRatio = atoi(argv[7]);
-            ldc_attr.s32YRatio = atoi(argv[8]);
-            ldc_attr.s32XYRatio = atoi(argv[9]);
+            ldc_attr.s32XRatio = atoi(argv[9]);
+            ldc_attr.s32YRatio = atoi(argv[10]);
+            ldc_attr.s32XYRatio = atoi(argv[11]);
             ldc_attr.s32XYRatio = 0;
         } else {
-            ldc_attr.s32XRatio = atoi(argv[7]);
+            ldc_attr.s32XRatio = atoi(argv[9]);
             ldc_attr.s32XRatio = 0;
-            ldc_attr.s32YRatio = atoi(argv[8]);
+            ldc_attr.s32YRatio = atoi(argv[10]);
             ldc_attr.s32YRatio = 0;
-            ldc_attr.s32XYRatio = atoi(argv[9]);
+            ldc_attr.s32XYRatio = atoi(argv[11]);
         }
-        ldc_attr.s32CenterXOffset = atoi(argv[10]);
-        ldc_attr.s32CenterYOffset = atoi(argv[11]);
-        ldc_attr.s32DistortionRatio = atoi(argv[12]);
+        ldc_attr.s32CenterXOffset = atoi(argv[12]);
+        ldc_attr.s32CenterYOffset = atoi(argv[13]);
+        ldc_attr.s32DistortionRatio = atoi(argv[14]);
         ldc_attr.grid_info.u.system.system_addr = NULL;
         ldc_attr.grid_info.size = 0;
     }
@@ -271,6 +269,8 @@ int main(int argc, char **argv) {
                 ldc_attr.s32DistortionRatio = -200;
                 ldc_attr.grid_info.size = 0;
                 ldc_attr.grid_info.u.system.system_addr = NULL;
+                dst_w = src_w;
+                dst_h = src_h;
                 dst_name = "dwa_gdc_output_rand.yuv";
                 printf("Size loop mode for gdc: width = %d, height = %d, fmt = %d\n", src_w, src_h, fmt);
                 test_threads_num = 1;
@@ -282,12 +282,11 @@ int main(int argc, char **argv) {
                 }
                 convert_ctx ctx[test_threads_num];
 #ifdef __linux__
-                pthread_t *          pid = (pthread_t *)malloc(sizeof(pthread_t)*test_threads_num);
+                pthread_t* pid = (pthread_t *)malloc(sizeof(pthread_t)*test_threads_num);
                 for (int i = 0; i < test_threads_num; i++) {
                     ctx[i].i = i;
                     ctx[i].loop = test_loop_times;
-                    if (pthread_create(
-                            &pid[i], NULL, dwa_gdc, (void *)(ctx + i))) {
+                    if (pthread_create(&pid[i], NULL, dwa_gdc, (void *)(ctx + i))) {
                         free(pid);
                         perror("create thread failed\n");
                         exit(-1);
@@ -310,7 +309,7 @@ int main(int argc, char **argv) {
             }
             rand_input_height = 32;
         }
-    } else if (argc == 1 || (argc > 6 && argc < 14)) {
+    } else if (argc == 1 || (argc > 6 && argc < 16)) {
         printf("command input error\n");
         print_help(argv);
         exit(-1);
@@ -327,6 +326,8 @@ int main(int argc, char **argv) {
         src_w = rand() % (IMG_MAX_WIDTH - IMG_MIN_WIDTH + 1) + IMG_MIN_WIDTH;
         src_h = ALIGN(src_h, DWA_ALIGN);
         src_w = ALIGN(src_w, DWA_ALIGN);
+        dst_w = src_w;
+        dst_h = src_h;
         int rand_fmt = rand() % 4;
         switch (rand_fmt) {
             case 0:
@@ -360,12 +361,11 @@ int main(int argc, char **argv) {
 
     convert_ctx ctx[test_threads_num];
 #ifdef __linux__
-    pthread_t *          pid = (pthread_t *)malloc(sizeof(pthread_t)*test_threads_num);
+    pthread_t* pid = (pthread_t *)malloc(sizeof(pthread_t)*test_threads_num);
     for (int i = 0; i < test_threads_num; i++) {
         ctx[i].i = i;
         ctx[i].loop = test_loop_times;
-        if (pthread_create(
-                &pid[i], NULL, dwa_gdc, (void *)(ctx + i))) {
+        if (pthread_create(&pid[i], NULL, dwa_gdc, (void *)(ctx + i))) {
             free(pid);
             perror("create thread failed\n");
             exit(-1);

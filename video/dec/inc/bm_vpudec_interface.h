@@ -35,47 +35,68 @@ typedef unsigned long long u64;
 typedef unsigned long u64;
 #endif
 
+#ifndef BOOL
+typedef int     BOOL;
+#endif
+
+#ifndef TRUE
+# define TRUE    1
+#endif
+
+#ifndef FALSE
+# define FALSE   0
+#endif
+
+#ifdef _WIN32
+typedef unsigned long long u64;
+#else
+typedef unsigned long u64;
+#endif
+
+#define MAX_FILE_PATH               256
+
 typedef enum
 {
     BMVPU_DEC_LOG_LEVEL_NONE =0,
-    BM_VPU_LOG_LEVEL_ERROR,
-    BM_VPU_LOG_LEVEL_WARNING,
-    BM_VPU_LOG_LEVEL_INFO,
-    BM_VPU_LOG_LEVEL_DEBUG,
-    BM_VPU_LOG_LEVEL_LOG,
-    BM_VPU_LOG_LEVEL_TRACE,
+    BMVPU_DEC_LOG_LEVEL_ERR,
+    BMVPU_DEC_LOG_LEVEL_WARN,
+    BMVPU_DEC_LOG_LEVEL_INFO,
+    BMVPU_DEC_LOG_LEVEL_DEBUG,
+    BMVPU_DEC_LOG_LEVEL_LOG,
+    BMVPU_DEC_LOG_LEVEL_TRACE,
     BMVPU_DEC_LOG_LEVEL_MAX_LOG_LEVEL
 } BmVpuDecLogLevel;
 typedef enum
 {
     BM_ERR_VDEC_SEQ_CHANGE = -28,
     BM_ERR_VDEC_INVALID_CHNID,
-	BM_ERR_VDEC_ILLEGAL_PARAM,
-	BM_ERR_VDEC_EXIST,
-	BM_ERR_VDEC_UNEXIST,
-	BM_ERR_VDEC_NULL_PTR,
-	BM_ERR_VDEC_NOT_CONFIG,
-	BM_ERR_VDEC_NOT_SUPPORT,
-	BM_ERR_VDEC_NOT_PERM,
-	BM_ERR_VDEC_INVALID_PIPEID,
-	BM_ERR_VDEC_INVALID_GRPID,
-	BM_ERR_VDEC_NOMEM,
-	BM_ERR_VDEC_NOBUF,
-	BM_ERR_VDEC_BUF_EMPTY,
-	BM_ERR_VDEC_BUF_FULL,
-	BM_ERR_VDEC_SYS_NOTREADY,
-	BM_ERR_VDEC_BADADDR,
-	BM_ERR_VDEC_BUSY,
-	BM_ERR_VDEC_SIZE_NOT_ENOUGH,
-	BM_ERR_VDEC_INVALID_VB,
-	BM_ERR_VDEC_ERR_INIT,
-	BM_ERR_VDEC_ERR_INVALID_RET,
-	BM_ERR_VDEC_ERR_SEQ_OPER,
-	BM_ERR_VDEC_ERR_VDEC_MUTEX,
-	BM_ERR_VDEC_ERR_SEND_FAILED,
-	BM_ERR_VDEC_ERR_GET_FAILED,
-	BM_ERR_VDEC_BUTT,
-    BM_ERR_VDEC_FAILURE
+    BM_ERR_VDEC_ILLEGAL_PARAM,
+    BM_ERR_VDEC_EXIST,
+    BM_ERR_VDEC_UNEXIST,
+    BM_ERR_VDEC_NULL_PTR,
+    BM_ERR_VDEC_NOT_CONFIG,
+    BM_ERR_VDEC_NOT_SUPPORT,
+    BM_ERR_VDEC_NOT_PERM,
+    BM_ERR_VDEC_INVALID_PIPEID,
+    BM_ERR_VDEC_INVALID_GRPID,
+    BM_ERR_VDEC_NOMEM,
+    BM_ERR_VDEC_NOBUF,
+    BM_ERR_VDEC_BUF_EMPTY,
+    BM_ERR_VDEC_BUF_FULL,
+    BM_ERR_VDEC_SYS_NOTREADY,
+    BM_ERR_VDEC_BADADDR,
+    BM_ERR_VDEC_BUSY,
+    BM_ERR_VDEC_SIZE_NOT_ENOUGH,
+    BM_ERR_VDEC_INVALID_VB,
+    BM_ERR_VDEC_ERR_INIT,
+    BM_ERR_VDEC_ERR_INVALID_RET,
+    BM_ERR_VDEC_ERR_SEQ_OPER,
+    BM_ERR_VDEC_ERR_VDEC_MUTEX,
+    BM_ERR_VDEC_ERR_SEND_FAILED,
+    BM_ERR_VDEC_ERR_GET_FAILED,
+    BM_ERR_VDEC_BUTT,
+    BM_ERR_VDEC_FAILURE,
+    BM_ERR_VDEC_SUCCESS,
 }BMVidDecRetStatus;
 
 
@@ -85,7 +106,7 @@ typedef enum{
 }BmVpuDecStreamFormat;
 
 typedef enum  {
-    BMDEC_FRAME_SKIP_MODE	    = 0,     // disable skip mode,decode normally
+    BMDEC_FRAME_SKIP_MODE        = 0,     // disable skip mode,decode normally
     BMDEC_SKIP_NON_REF_NON_I    = 1,     // Skip non-reference non-intra frames
     BMDEC_SKIP_NON_I            = 2,     // Skip non-intra frames
 }BmVpuDecSkipMode;
@@ -149,10 +170,13 @@ typedef struct {
     int                         perf;
     int                         core_idx;
     int                         cmd_queue_depth;
-    int                         reorder_disable;
+    int                         decode_order;
 
     int                         picWidth;
     int                         picHeight;
+
+    int                         timeout;
+    int                         timeout_count;
 
     int                         extraFrameBufferNum;
     int                         min_framebuf_cnt;
@@ -171,6 +195,7 @@ typedef enum {
     BMDEC_UNINIT,
     BMDEC_INITING,
     BMDEC_WRONG_RESOLUTION,
+    BMDEC_FRAMEBUFFER_NOTENOUGH,
     BMDEC_DECODING,
     BMDEC_FRAME_BUF_FULL,
     BMDEC_ENDOF,
@@ -258,7 +283,7 @@ The size and position of cropping window in full frame buffer is presented
 by using this structure.
 @endverbatim
 */
-    CropRect         picCropRect;
+    CropRect      picCropRect;
     int           mp4DataPartitionEnable; /**< data_partitioned syntax value in MPEG4 VOL header */
     int           mp4ReversibleVlcEnable; /**< reversible_vlc syntax value in MPEG4 VOL header */
 /**
@@ -485,6 +510,9 @@ typedef void* BMVidCodHandle;
 
 DECL_EXPORT void bmvpu_dec_set_logging_threshold(BmVpuDecLogLevel log_level);
 DECL_EXPORT BMVidDecRetStatus bmvpu_dec_create(BMVidCodHandle* pVidCodHandle, BMVidDecParam decParam);
+#ifdef BM_PCIE_MODE
+DECL_EXPORT BMVidDecRetStatus bmvpu_dec_read_memory(BMVidCodHandle vidCodHandle, u64 src_addr, u64 dst_addr, int size);
+#endif
 DECL_EXPORT BMVidDecRetStatus bmvpu_dec_get_caps(BMVidCodHandle vidCodHandle, BMVidStreamInfo* streamInfo);
 DECL_EXPORT BMVidDecRetStatus bmvpu_dec_decode(BMVidCodHandle vidCodHandle, BMVidStream vidStream);
 DECL_EXPORT BMVidDecRetStatus bmvpu_dec_get_output(BMVidCodHandle vidCodHandle, BMVidFrame *bmFrame);

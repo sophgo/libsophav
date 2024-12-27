@@ -27,11 +27,11 @@ char *error_type[] =
         goto ErrorHandler; \
     }
 static int   fb_width = 400, fb_height = 400;
-static float fb_scale = 1.0f;
+//static float fb_scale = 1.0f;
 
 static vg_lite_buffer_t buffer;     //offscreen framebuffer object for rendering.
-static vg_lite_buffer_t * sys_fb;   //system framebuffer object to show the rendering result.
-static vg_lite_buffer_t * fb;
+//static vg_lite_buffer_t * sys_fb;   //system framebuffer object to show the rendering result.
+//static vg_lite_buffer_t * fb;
 
 vg_lite_matrix_t matrix;
 

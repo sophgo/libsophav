@@ -43,8 +43,9 @@ ErrorHandler:
 vg_lite_error_t Free(vg_lite_buffer_t * buffer)
 {
     vg_lite_error_t error = VG_LITE_SUCCESS;
-    if(buffer->handle != NULL)
+    if(buffer->handle != NULL) {
         CHECK_ERROR(vg_lite_free(buffer));
+    }
 
 ErrorHandler:
     return error;

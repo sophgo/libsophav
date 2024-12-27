@@ -97,41 +97,51 @@ nms_proposal_t 描述了输出物体框的信息。
 
     .. code-block:: c
 
-        struct face_rect_t* proposal_rand = (struct face_rect_t*)malloc(sizeof(struct face_rect_t) * MAX_PROPOSAL_NUM);
-        struct nms_proposal_t* output_proposal = (struct nms_proposal_t*)malloc(struct nms_proposal_t);
-        int proposal_size = 32;
-        float nms_threshold = 0.2;
-        int i;
-        bm_status_t ret = BM_SUCCESS;
-        bm_handle_t handle = NULL;
+        #include "bmcv_api_ext_c.h"
+        #include <stdio.h>
+        #include <stdlib.h>
+        #include <math.h>
+        #include <string.h>
+        #include "test_misc.h"
 
-        for (i = 0; i < proposal_size; i++) {
-            proposal_rand[i].x1 = 200;
-            proposal_rand[i].x2 = 210;
-            proposal_rand[i].y1 = 200;
-            proposal_rand[i].y2 = 210;
-            proposal_rand[i].score = 0.23;
+        #define SCORE_RAND_LEN_MAX 50000
+
+        int main()
+        {
+            int num = rand() % SCORE_RAND_LEN_MAX + 1;
+            int i;
+            int ret = 0;
+            float nms_threshold = 0.7;
+            bm_handle_t handle;
+            ret = bm_dev_request(&handle, 0);
+
+            if (ret != BM_SUCCESS) {
+                printf("Create bm handle failed. ret = %d\n", ret);
+                return -1;
+            }
+
+            face_rect_t* input = (face_rect_t*)malloc(num * sizeof(face_rect_t));
+            nms_proposal_t tpu_out[1];
+
+            for (i = 0; i < num; ++i) {
+                input[i].x1 = ((float)(rand() % 100)) / 10;
+                input[i].x2 = input[i].x1 + ((float)(rand() % 100)) / 10;
+                input[i].y1 = ((float)(rand() % 100)) / 10;
+                input[i].y2 = input[i].y1 + ((float)(rand() % 100)) / 10;
+                input[i].score = (float)rand() / (float)RAND_MAX;
+            }
+
+            ret = bmcv_nms(handle, bm_mem_from_system(input), num, nms_threshold, bm_mem_from_system(tpu_out));
+            if (ret != BM_SUCCESS) {
+                printf("Calculate bm_nms failed.\n");
+                bm_dev_free(handle);
+                return -1;
+            }
+
+            free(input);
+            bm_dev_free(handle);
+            return ret;
         }
-
-        ret = bm_dev_request(&handle, 0);
-        if (ret != BM_SUCCESS) {
-            printf("Create bm handle failed.\n");
-            goto exit0;
-        }
-
-        ret = bmcv_nms(handle, bm_mem_from_system(proposal_rand), proposal_size, nms_threshold, \
-                    bm_mem_from_system(output_proposal));
-        if (ret != BM_SUCCESS) {
-            printf("the bmcv_nms failed!, the ret = %d\n", ret);
-            goto exit1;
-        }
-
-        exit1:
-        bm_dev_free(handle);
-        exit0:
-        free(proposal_rand);
-        free(output_proposal);
-        return ret;
 
 **注意事项:**
 

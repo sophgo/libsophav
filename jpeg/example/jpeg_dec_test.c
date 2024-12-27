@@ -329,7 +329,7 @@ int main(int argc, char *argv[])
                 goto cleanup;
             }
             frame_buffer_phys_addr = frame_buffer.u.device.device_addr;
-            printf("external fb: %lx\n", frame_buffer_phys_addr);
+            printf("external fb: %llx\n", frame_buffer_phys_addr);
         }
     }
 

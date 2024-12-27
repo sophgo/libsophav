@@ -19,11 +19,11 @@ vg_lite_error_t Matrix_Operation(int32_t pathdata[],int32_t length,function_t fu
     vg_lite_buffer_t src_buf,dst_buf;
     int32_t    src_width, src_height, dst_width, dst_height;
     vg_lite_error_t error = VG_LITE_SUCCESS;
-    vg_lite_color_t color;
+    vg_lite_color_t color=0;
     uint8_t    r, g, b, a;
     vg_lite_path_t path;
     vg_lite_matrix_t matrix,*matrix1;
-    vg_lite_float_t sx, sy, tx, ty, degrees, w0, w1;
+    vg_lite_float_t sx=0, sy=0, tx=0, ty=0, degrees=0, w0=0, w1=0;
     vg_lite_point4_t src;
     vg_lite_point4_t dst;
 
@@ -220,7 +220,7 @@ vg_lite_error_t Path_Matrix_Operation()
 {
     vg_lite_error_t error = VG_LITE_SUCCESS;
     int i;
-    int flag;
+    int flag=0;
     flag |= TRANSLATE_FLAG;
     flag |= ROTATE_FLAG;
     flag |= SCALE_FLAG;
@@ -237,13 +237,13 @@ vg_lite_error_t Blit_Matrix_Operation()
 {
     vg_lite_error_t error = VG_LITE_SUCCESS;
     int i;
-    int flag;
+    int flag=0;
     flag |= TRANSLATE_FLAG;
     flag |= ROTATE_FLAG;
     flag |= SCALE_FLAG;
     flag |= PERSPECTIVE_FLAG;
     for (i = 0; i < OPERATE_COUNT; i++) {
-        CHECK_ERROR(Matrix_Operation((int32_t*)NULL,(int32_t)NULL,blit,flag));
+        CHECK_ERROR(Matrix_Operation(NULL,0,blit,flag));
     }
 
 ErrorHandler:
@@ -255,7 +255,7 @@ vg_lite_error_t Gradient_Matrix_Operation()
 {
     vg_lite_error_t error = VG_LITE_SUCCESS;
     int i;
-    int flag;
+    int flag=0;
     flag |= TRANSLATE_FLAG;
     flag |= ROTATE_FLAG;
     flag |= SCALE_FLAG;
@@ -273,7 +273,7 @@ vg_lite_error_t Pattern_Matrix_Operation()
 {
     vg_lite_error_t error = VG_LITE_SUCCESS;
     int i;
-    int flag;
+    int flag=0;
     flag |= TRANSLATE_FLAG;
     flag |= ROTATE_FLAG;
     flag |= SCALE_FLAG;

@@ -279,7 +279,7 @@ int main(int argc, char *argv[])
 
     if (input_params.enc_params.external_memory) {
         ret = bm_dev_request(&bm_handle, 0);
-        if (ret != BM_SUCCESS) {
+        if (ret != (BmJpuEncReturnCodes)BM_SUCCESS) {
             fprintf(stderr, "failed to request device 0\n");
             ret = -1;
             goto cleanup;
@@ -287,7 +287,7 @@ int main(int argc, char *argv[])
 
         bs_buffer = (bm_device_mem_t*)malloc(input_params.enc_params.bitstream_size);
         ret = bm_malloc_device_byte_heap(bm_handle, bs_buffer, 1, input_params.enc_params.bitstream_size);
-        if (ret != BM_SUCCESS) {
+        if (ret != (BmJpuEncReturnCodes)BM_SUCCESS) {
             fprintf(stderr, "failed to malloc bitstream buffer, size=%d\n", input_params.enc_params.bitstream_size);
             ret = -1;
             goto cleanup;

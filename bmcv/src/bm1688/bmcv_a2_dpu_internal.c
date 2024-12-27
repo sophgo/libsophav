@@ -1,3 +1,4 @@
+#ifndef BM_PCIE_MODE
 #include <memory.h>
 #include <pthread.h>
 #include <stdlib.h>
@@ -693,3 +694,4 @@ bm_status_t bm_dpu_online_disp_internal( bm_handle_t             handle,
     }
     return ret;
 }
+#endif

@@ -8,10 +8,6 @@
 
 #define TIME_COST_US(start, end) ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec))
 
-typedef struct {
-    int first;
-    float second;
-} Pair;
 
 typedef struct {
     int loop_num;
@@ -24,6 +20,9 @@ typedef struct {
     bm_handle_t handle;
 } batch_topk_thread_arg_t;
 
+extern void topk_reference(int k, int batch, int batch_num, int batch_stride, int descending, bool bottom_index_valid,
+                    float* bottom_data, int* bottom_index, float* top_data_ref, int* top_index_ref);
+
 static int parameters_check(int k)
 {
     if (k > 100){
@@ -33,88 +32,6 @@ static int parameters_check(int k)
     return 0;
 }
 
-static void merge_ascend(Pair ref_res[], int left, int mid, int right) {
-    int n1 = mid - left + 1;
-    int n2 = right - mid;
-    Pair L[n1], R[n2];
-
-    for (int i = 0; i < n1; i++) {
-        L[i] = ref_res[left + i];
-    }
-    for (int j = 0; j < n2; j++) {
-        R[j] = ref_res[mid + 1 + j];
-    }
-
-    int i = 0, j = 0, k = left;
-    while (i < n1 && j < n2) {
-        if (L[i].second <= R[j].second) {
-            ref_res[k] = L[i];
-            i++;
-        } else {
-        ref_res[k] = R[j];
-        j++;
-        }
-        k++;
-    }
-    while (i < n1) {
-        ref_res[k] = L[i];
-        i++;
-        k++;
-    }
-    while (j < n2) {
-        ref_res[k] = R[j];
-        j++;
-        k++;
-    }
-}
-
-static void merge_descend(Pair ref_res[], int left, int mid, int right) {
-  int n1 = mid - left + 1;
-  int n2 = right - mid;
-  Pair L[n1], R[n2];
-
-  for (int i = 0; i < n1; i++) {
-    L[i] = ref_res[left + i];
-  }
-  for (int j = 0; j < n2; j++) {
-    R[j] = ref_res[mid + 1 + j];
-  }
-
-  int i = 0, j = 0, k = left;
-  while (i < n1 && j < n2) {
-    if (L[i].second >= R[j].second) {
-      ref_res[k] = L[i];
-      i++;
-    } else {
-      ref_res[k] = R[j];
-      j++;
-    }
-    k++;
-  }
-  while (i < n1) {
-    ref_res[k] = L[i];
-    i++;
-    k++;
-  }
-  while (j < n2) {
-    ref_res[k] = R[j];
-    j++;
-    k++;
-  }
-}
-
-static void merge_sort(Pair ref_res[], int left, int right, bool is_ascend) {
-  if (left < right) {
-    int mid = left + (right - left) / 2;
-    merge_sort(ref_res, left, mid, is_ascend);
-    merge_sort(ref_res, mid + 1, right, is_ascend);
-    if (is_ascend) {
-      merge_ascend(ref_res, left, mid, right);
-    }else{
-      merge_descend(ref_res, left, mid, right);
-    }
-  }
-}
 
 void fill(float* data, int* index, int batch, int batch_num, int batch_stride){
   for(int i = 0; i < batch; i++){
@@ -122,36 +39,6 @@ void fill(float* data, int* index, int batch, int batch_num, int batch_stride){
       data[i * batch_stride + j] = rand() % 10000 * 1.0f;
       index[i * batch_stride + j] = i * batch_stride + j;
     }
-  }
-}
-
-void topk_reference(int k, int batch, int batch_num, int batch_stride, int descending, bool bottom_index_valid,
-                    float* bottom_data, int* bottom_index, float* top_data_ref, int* top_index_ref) {
-  for (int b = 0; b < batch; b++) {
-    Pair* bottom_vec = (Pair*)malloc(batch_num * sizeof(Pair));
-    for (int i = 0; i < batch_num; i++) {
-      int offset = b * batch_stride + i;
-      float data = bottom_data[offset];
-      if (bottom_index_valid) {
-        bottom_vec[i].first = bottom_index[offset];
-        bottom_vec[i].second = data;
-      } else {
-        bottom_vec[i].first = i;
-        bottom_vec[i].second = data;
-      }
-    }
-
-    if (descending) {
-      merge_sort(bottom_vec, 0, batch_num - 1, 0);
-    } else {
-      merge_sort(bottom_vec, 0, batch_num - 1, 1);
-    }
-
-    for (int i = 0; i < k; i++) {
-      top_index_ref[b * k + i] = bottom_vec[i].first;
-      top_data_ref[b * k + i] = bottom_vec[i].second;
-    }
-    free(bottom_vec);
   }
 }
 

@@ -218,44 +218,95 @@ bmcv_dwa_fisheye
     #include <stdio.h>
     #include <stdlib.h>
     #include <string.h>
-    #include <pthread.h>
-    #include <sys/time.h>
     #include "bmcv_api_ext_c.h"
     #include <unistd.h>
 
     #define YUV_8BIT(y, u, v) ((((y)&0xff) << 16) | (((u)&0xff) << 8) | ((v)&0xff))
 
-    extern void bm_read_bin(bm_image src, const char *input_name);
-    extern void bm_write_bin(bm_image dst, const char *output_name);
-    extern int md5_cmp(unsigned char* got, unsigned char* exp ,int size);
+    int main() {
+      int src_h = 1024, src_w = 1024, dst_w = 1280, dst_h = 720, dev_id = 0;
+      int yuv_8bit_y = 0, yuv_8bit_u = 0, yuv_8bit_v = 0;
+      bm_image_format_ext fmt = FORMAT_YUV420P;
+      char *src_name = "path/to/src", *dst_name = "path/to/dst";
+      bm_handle_t handle = NULL;
+      bmcv_fisheye_attr_s fisheye_attr = {0};
+      dst_w = 1280;
+      dst_h = 720;
+      fmt = FORMAT_RGB_PLANAR;
+      fisheye_attr.bEnable = 1;
+      fisheye_attr.bBgColor = 1;
+      yuv_8bit_y = 0;
+      yuv_8bit_u = 128;
+      yuv_8bit_v = 128;
+      fisheye_attr.u32BgColor = YUV_8BIT(yuv_8bit_y, yuv_8bit_u, yuv_8bit_v);
+      fisheye_attr.s32HorOffset = src_w / 2;
+      fisheye_attr.s32VerOffset = src_h / 2;
+      fisheye_attr.u32TrapezoidCoef = 0;
+      fisheye_attr.s32FanStrength = 0;
+      fisheye_attr.enMountMode = 0;
+      fisheye_attr.enUseMode = 1;
+      fisheye_attr.enViewMode = 0;
+      fisheye_attr.u32RegionNum = 1;
+      fisheye_attr.grid_info.u.system.system_addr = NULL;
+      fisheye_attr.grid_info.size = 0;
+      dst_name = "dwa_fisheye_output_rand.yuv";
+      // rand_mode = 1;
+      int ret = (int)bm_dev_request(&handle, dev_id);
+      if (ret != 0) {
+          printf("Create bm handle failed. ret = %d\n", ret);
+          exit(-1);
+      }
+      bm_image src, dst;
 
-    int main(int argc, char **argv) {
-        bm_status_t ret = BM_SUCCESS;
-        bm_handle_t handle = NULL;
-        int dev_id = 0;
-        char *src_name = "fisheye_floor_1024x1024.yuv";
-        char *dst_name = "out_fisheye_PANORAMA_360.yuv";
-        int src_h = 1024, src_w = 1024;
-        int dst_h = 720,  dst_w = 1280;
-        bm_image src, dst;
-        bm_image_format_ext fmt = FORMAT_YUV420P;
-        int ret = (int)bm_dev_request(&handle, dev_id);
-        bmcv_fisheye_attr_s fisheye_attr = {true, true, YUV_8BIT(0, 128, 128), 512, 512, 0, 0, 0, 1, 0, 1, NULL, };
-        fisheye_attr.grid_info.u.system.system_addr = NULL;
-        fisheye_attr.grid_info.size = 0;
+      bm_image_create(handle, src_h, src_w, fmt, DATA_TYPE_EXT_1N_BYTE, &src, NULL);
+      bm_image_create(handle, dst_h, dst_w, fmt, DATA_TYPE_EXT_1N_BYTE, &dst, NULL);
 
-        // create bm image
-        bm_image_create(handle, src_h, src_w, fmt, DATA_TYPE_EXT_1N_BYTE, &src, NULL);
-        bm_image_create(handle, dst_h, dst_w, fmt, DATA_TYPE_EXT_1N_BYTE, &dst, NULL);
-        ret = bm_image_alloc_dev_mem(src, BMCV_HEAP_ANY);
-        ret = bm_image_alloc_dev_mem(dst, BMCV_HEAP_ANY);
-        // read image data from input files
-        bm_read_bin(src, src_name);
-        bmcv_dwa_fisheye(handle, src, dst, fisheye_attr);
-        bm_write_bin(dst, dst_name);
+      ret = bm_image_alloc_dev_mem(src, BMCV_HEAP1_ID);
+      ret = bm_image_alloc_dev_mem(dst, BMCV_HEAP1_ID);
 
-        return 0;
+      int image_byte_size[4] = {0};
+      bm_image_get_byte_size(src, image_byte_size);
+      int byte_size  = image_byte_size[0] + image_byte_size[1] + image_byte_size[2] + image_byte_size[3];
+      unsigned char *input_data = (unsigned char *)malloc(byte_size);
+      FILE *fp_src = fopen(src_name, "rb");
+      if (fread((void *)input_data, 1, byte_size, fp_src) < (unsigned int)byte_size) {
+        printf("file size is less than required bytes%d\n", byte_size);
+      };
+      fclose(fp_src);
+      void* in_ptr[4] = {(void *)input_data,
+                          (void *)((unsigned char*)input_data + image_byte_size[0]),
+                          (void *)((unsigned char*)input_data + image_byte_size[0] + image_byte_size[1]),
+                          (void *)((unsigned char*)input_data + image_byte_size[0] + image_byte_size[1] + image_byte_size[2])};
+      bm_image_copy_host_to_device(src, in_ptr);
+
+      bmcv_dwa_fisheye(handle, src, dst, fisheye_attr);
+
+      bm_image_get_byte_size(src, image_byte_size);
+      byte_size = image_byte_size[0] + image_byte_size[1] + image_byte_size[2] + image_byte_size[3];
+      unsigned char* output_ptr = (unsigned char*)malloc(byte_size);
+      void* out_ptr[4] = {(void*)output_ptr,
+                          (void*)((unsigned char*)output_ptr + image_byte_size[0]),
+                          (void*)((unsigned char*)output_ptr + image_byte_size[0] + image_byte_size[1]),
+                          (void*)((unsigned char*)output_ptr + image_byte_size[0] + image_byte_size[1] + image_byte_size[2])};
+      bm_image_copy_device_to_host(src, (void **)out_ptr);
+
+      FILE *fp_dst = fopen(dst_name, "wb");
+      if (fwrite((void *)input_data, 1, byte_size, fp_dst) < (unsigned int)byte_size){
+          printf("file size is less than %d required bytes\n", byte_size);
+      };
+      fclose(fp_dst);
+
+      free(input_data);
+      free(output_ptr);
+      bm_image_destroy(&src);
+      bm_image_destroy(&dst);
+
+      bm_dev_free(handle);
+
+      return 0;
     }
+
+
 
 | 2. 通过 Grid_Info 文件进行图像校正
 
@@ -267,29 +318,21 @@ bmcv_dwa_fisheye
     #include <stdio.h>
     #include <stdlib.h>
     #include <string.h>
-    #include <pthread.h>
-    #include <sys/time.h>
     #include "bmcv_api_ext_c.h"
     #include <unistd.h>
 
-    typedef unsigned int u32;
-
-    extern void bm_read_bin(bm_image src, const char *input_name);
-    extern void bm_write_bin(bm_image dst, const char *output_name);
-    extern int md5_cmp(unsigned char* got, unsigned char* exp ,int size);
-
-    int main(int argc, char **argv) {
+    int main() {
         bm_status_t ret = BM_SUCCESS;
         bm_handle_t handle = NULL;
         int dev_id = 0;
-        char *src_name = "dc_src_2240x2240_L.yuv";
-        char *dst_name = "out_fisheye_grid_info_L.yuv";
-        char *grid_name = "L_grid_info_68_68_4624_70_70_dst_2240x2240_src_2240x2240.dat";
+
+        char *src_name = "path/to/src", *dst_name = "path/to/dst", *grid_name = "path/to/grid_info_dat";
+
         int src_h = 2240, src_w = 2240;
         int dst_w = 2240, dst_h = 2240;
         bm_image src, dst;
         bm_image_format_ext fmt = FORMAT_YUV420P;
-        int ret = (int)bm_dev_request(&handle, dev_id);
+        ret = (int)bm_dev_request(&handle, dev_id);
         bmcv_fisheye_attr_s fisheye_attr = {0};
         fisheye_attr.grid_info.size = 446496;     // 注意：用户需根据实际的Grid_Info文件大小（字节数）进行设置
         fisheye_attr.bEnable = true;
@@ -300,27 +343,36 @@ bmcv_dwa_fisheye
         ret = bm_image_alloc_dev_mem(src, BMCV_HEAP_ANY);
         ret = bm_image_alloc_dev_mem(dst, BMCV_HEAP_ANY);
         // read image data from input files
-        bm_read_bin(src, src_name);
-
+        int image_byte_size[4] = {0};
+        bm_image_get_byte_size(src, image_byte_size);
+        int byte_size = src_w * src_h * 3 / 2;
+        unsigned char *input_data = (unsigned char *)malloc(byte_size);
+        FILE *fp_src = fopen(src_name, "rb");
+        if (fread((void *)input_data, 1, byte_size, fp_src) < (unsigned int)byte_size) {
+          printf("file size is less than required bytes%d\n", byte_size);
+        };
+        fclose(fp_src);
+        void* in_ptr[3] = {(void *)input_data, (void *)((unsigned char*)input_data + src_w * src_h), (void *)((unsigned char*)input_data + 5 / 4 * src_w * src_h)};
+        bm_image_copy_host_to_device(src, in_ptr);
         // read grid_info data
         char *buffer = (char *)malloc(fisheye_attr.grid_info.size);
-        if (buffer == NULL) {
-            printf("malloc buffer for grid_info failed!\n");
-            goto fail;
-        }
         memset(buffer, 0, fisheye_attr.grid_info.size);
 
         FILE *fp = fopen(grid_name, "rb");
-        if (!fp) {
-            printf("open file:%s failed.\n", grid_name);
-            goto fail;
-        }
         fread(buffer, 1, fisheye_attr.grid_info.size, fp);
         fclose(fp);
         fisheye_attr.grid_info.u.system.system_addr = (void *)buffer;
 
         bmcv_dwa_fisheye(handle, src, dst, fisheye_attr);
-        bm_write_bin(dst, dst_name);
+        bm_image_get_byte_size(dst, image_byte_size);
+        unsigned char* output_ptr = (unsigned char*)malloc(byte_size);
+        void* out_ptr[3] = {(void*)output_ptr, (void*)((unsigned char*)output_ptr + dst_w * dst_h), (void*)((unsigned char*)output_ptr + 5 / 4 * dst_w * dst_h)};
+        bm_image_copy_device_to_host(dst, (void **)out_ptr);
 
-        return 0;
+        FILE *fp_dst = fopen(dst_name, "wb");
+        if (fwrite((void *)output_ptr, 1, byte_size, fp_dst) < (unsigned int)byte_size){
+            printf("file size is less than %d required bytes\n", byte_size);
+        };
+        fclose(fp_dst);
+        return ret;
     }

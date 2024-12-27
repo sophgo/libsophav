@@ -9,12 +9,13 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include "vg_lite.h"
 #include "vg_lite_util.h"
 
 #define DEFAULT_SIZE   256.0f;
 #define __func__ __FUNCTION__
-char *error_type[] = 
+char *error_type[] =
 {
     "VG_LITE_SUCCESS",
     "VG_LITE_INVALID_ARGUMENT",

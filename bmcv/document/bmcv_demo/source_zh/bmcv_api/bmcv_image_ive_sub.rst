@@ -150,110 +150,88 @@ bmcv_ive_sub
       #include <stdio.h>
       #include <stdlib.h>
       #include <string.h>
-      #include <pthread.h>
-      #include <sys/time.h>
       #include "bmcv_api_ext_c.h"
       #include <unistd.h>
-      extern void bm_ive_read_bin(bm_image src, const char *input_name);
-      extern void bm_ive_write_bin(bm_image dst, const char *output_name);
-      extern bm_status_t bm_ive_image_calc_stride(bm_handle_t handle, int img_h, int img_w,
-      bm_image_format_ext image_format, bm_image_data_format_ext data_type, int *stride);
 
-      int main(){
-        int dev_id = 0;int height = 288, width = 352;
-        bmcv_ive_sub_mode sub_mode = IVE_SUB_ABS; /* IVE_SUB_MODE_ABS */
-        bm_image_format_ext src_fmt = FORMAT_GRAY, dst_fmt = FORMAT_GRAY;
-        char *src1_name = "./ive_data/00_352x288_y.yuv", *src2_name = "./ive_data/01_352x288_y.yuv";
-        char *dst_name = "ive_sample_Sub.yuv";
-        bm_handle_t handle = NULL;
-        int ret = (int)bm_dev_request(&handle, dev_id);
-        if (ret != 0) {
-            printf("Create bm handle failed. ret = %d\n", ret);
-            exit(-1);
-        }
-        bmcv_ive_sub_attr sub_attr;
-        bm_image src1, src2, dst;
-        int src_stride[4];
-        int dst_stride[4];
-        unsigned int i = 0, loop_time = 0;
-        unsigned long long time_single, time_total = 0, time_avg = 0;
-        unsigned long long time_max = 0, time_min = 10000, fps_actual = 0, pixel_per_sec = 0;
-        struct timeval tv_start;
-        struct timeval tv_end;
-        struct timeval timediff;
-        // set ive sub params
-        memset(&sub_attr, 0, sizeof(bmcv_ive_sub_attr));
-        sub_attr.en_mode = sub_mode;
+      #define align_up(num, align) (((num) + ((align) - 1)) & ~((align) - 1))
 
-        // calc ive image stride
-        bm_ive_image_calc_stride(handle, height, width, src_fmt, DATA_TYPE_EXT_1N_BYTE, src_stride);
-        bm_ive_image_calc_stride(handle, height, width, dst_fmt, DATA_TYPE_EXT_1N_BYTE, dst_stride);
+      int main() {
+          int dev_id = 0;
+          int height = 1080, width = 1920;
+          bmcv_ive_sub_mode sub_mode = IVE_SUB_ABS; /* IVE_SUB_MODE_ABS */
+          bm_image_format_ext src_fmt = FORMAT_GRAY, dst_fmt = FORMAT_GRAY;
+          char *src1_name = "path/to/src1", *src2_name = "path/to/src2";
+          char *dst_name = "path/to/dst";
+          bm_handle_t handle = NULL;
+          int ret = (int)bm_dev_request(&handle, dev_id);
+          if (ret != 0) {
+              printf("Create bm handle failed. ret = %d\n", ret);
+              exit(-1);
+          }
 
-        // create bm image struct
-        bm_image_create(handle, height, width, src_fmt, DATA_TYPE_EXT_1N_BYTE, &src1, src_stride);
-        bm_image_create(handle, height, width, src_fmt, DATA_TYPE_EXT_1N_BYTE, &src2, src_stride);
-        bm_image_create(handle, height, width, dst_fmt, DATA_TYPE_EXT_1N_BYTE, &dst, dst_stride);
+          bmcv_ive_sub_attr sub_attr;
+          bm_image src1, src2, dst;
+          int src_stride[4];
+          int dst_stride[4];
 
-        // alloc bm image memory
-        ret = bm_image_alloc_dev_mem(src1, BMCV_HEAP_ANY);
-        if (ret != BM_SUCCESS) {
-            printf("bm_image_alloc_dev_mem_src. ret = %d\n", ret);
-            exit(-1);
-        }
-        ret = bm_image_alloc_dev_mem(src2, BMCV_HEAP_ANY);
-        if (ret != BM_SUCCESS) {
-            printf("bm_image_alloc_dev_mem_src. ret = %d\n", ret);
-            exit(-1);
-        }
-        ret = bm_image_alloc_dev_mem(dst, BMCV_HEAP_ANY);
-        if (ret != BM_SUCCESS) {
-            printf("bm_image_alloc_dev_mem_dst. ret = %d\n", ret);
-            exit(-1);
-        }
+          // set ive sub params
+          memset(&sub_attr, 0, sizeof(bmcv_ive_sub_attr));
+          sub_attr.en_mode = sub_mode;
 
-        // read image data from input files
-        bm_ive_read_bin(src1, src1_name);
-        bm_ive_read_bin(src2, src2_name);
-        for (i = 0; i < loop_time; i++) {
-            gettimeofday(&tv_start, NULL);
+          // calc ive image stride
+          int data_size = 1;
+          src_stride[0] = align_up(width, 16) * data_size;
+          dst_stride[0] = align_up(width, 16) * data_size;
+          // create bm image struct
+          bm_image_create(handle, height, width, src_fmt, DATA_TYPE_EXT_1N_BYTE, &src1, src_stride);
+          bm_image_create(handle, height, width, src_fmt, DATA_TYPE_EXT_1N_BYTE, &src2, src_stride);
+          bm_image_create(handle, height, width, dst_fmt, DATA_TYPE_EXT_1N_BYTE, &dst, dst_stride);
 
-            ret = bmcv_ive_sub(handle, src1, src2, dst, sub_attr);
+          // alloc bm image memory
+          ret = bm_image_alloc_dev_mem(src1, BMCV_HEAP1_ID);
+          ret = bm_image_alloc_dev_mem(src2, BMCV_HEAP1_ID);
+          ret = bm_image_alloc_dev_mem(dst, BMCV_HEAP1_ID);
 
-            gettimeofday(&tv_end, NULL);
-            timediff.tv_sec  = tv_end.tv_sec - tv_start.tv_sec;
-            timediff.tv_usec = tv_end.tv_usec - tv_start.tv_usec;
-            time_single = (unsigned int)(timediff.tv_sec * 1000000 + timediff.tv_usec);
+          // read image data from input files
+          int byte_size;
+          unsigned char *input_data;
+          int image_byte_size[4] = {0};
+          char *filename[] = {src1_name, src2_name};
+          bm_image src_images[] = {src1, src2};
+          for (int i = 0; i < 2; i++) {
+              bm_image_get_byte_size(src_images[i], image_byte_size);
+              byte_size = image_byte_size[0] + image_byte_size[1] + image_byte_size[2] + image_byte_size[3];
+              input_data = (unsigned char *)malloc(byte_size);
+              FILE *fp_src = fopen(filename[i], "rb");
+              if (fread((void *)input_data, 1, byte_size, fp_src) < (unsigned int)byte_size) {
+              printf("file size is less than required bytes%d\n", byte_size);
+              };
+              fclose(fp_src);
+              void* in_ptr[4] = {(void *)input_data,
+                                  (void *)((unsigned char*)input_data + image_byte_size[0]),
+                                  (void *)((unsigned char*)input_data + image_byte_size[0] + image_byte_size[1]),
+                                  (void *)((unsigned char*)input_data + image_byte_size[0] + image_byte_size[1] + image_byte_size[2])};
+              bm_image_copy_host_to_device(src_images[i], in_ptr);
+          }
 
-            if(time_single>time_max){time_max = time_single;}
-            if(time_single<time_min){time_min = time_single;}
-            time_total = time_total + time_single;
+          ret = bmcv_ive_sub(handle, src1, src2, dst, sub_attr);
 
-            if(ret != BM_SUCCESS){
-                printf("[bmcv_ive_sub] is failed \n");
-                exit(-1);
-            }
-        }
-        time_avg = time_total / loop_time;
-        fps_actual = 1000000 / time_avg;
-        pixel_per_sec = width * height * fps_actual/1024/1024;
+          unsigned char* ive_sub_res = (unsigned char*)malloc(width * height * sizeof(unsigned char));
+          memset(ive_sub_res, 0, width * height * sizeof(unsigned char));
 
-        bm_image_destroy(&src1);
-        bm_image_destroy(&src2);
-        bm_image_destroy(&dst);
-        printf("bm_ive_sub: loop %d cycles, time_max = %llu, time_avg = %llu, fps %llu, %lluM pps\n",
-            loop_time, time_max, time_avg, fps_actual, pixel_per_sec);
+          ret = bm_image_copy_device_to_host(dst, (void **)&ive_sub_res);
 
-        return 0;
+          FILE *fp = fopen(dst_name, "wb");
+          fwrite((void *)ive_sub_res, 1, width * height * sizeof(unsigned char), fp);
+          fclose(fp);
+
+          free(input_data);
+          free(ive_sub_res);
+
+          bm_image_destroy(&src1);
+          bm_image_destroy(&src2);
+          bm_image_destroy(&dst);
+
+          bm_dev_free(handle);
+          return 0;
       }
-
-
-
-
-
-
-
-
-
-
-
-

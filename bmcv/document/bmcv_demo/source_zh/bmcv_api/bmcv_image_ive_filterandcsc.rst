@@ -135,119 +135,86 @@ bmcv_ive_filter_and_csc
       #include <stdio.h>
       #include <stdlib.h>
       #include <string.h>
-      #include <pthread.h>
-      #include <sys/time.h>
       #include "bmcv_api_ext_c.h"
       #include <unistd.h>
-      extern void bm_ive_read_bin(bm_image src, const char *input_name);
-      extern bm_status_t bm_ive_image_calc_stride(bm_handle_t handle, int img_h, int img_w,
-          bm_image_format_ext image_format, bm_image_data_format_ext data_type, int *stride);
-      int main(){
-        int dev_id = 0;
-        int thrSize = 0; //0 -> 3x3; 1 -> 5x5
-        unsigned char u8Norm = 4;
-        int height = 288, width = 352;
-        csc_type_t csc_type = CSC_MAX_ENUM;
-        bm_image_format_ext src_fmt = FORMAT_NV21, dst_fmt = FORMAT_RGB_PLANAR;
-        char *src_name = "ive_data/00_352x288_SP420.yuv";
-        bm_handle_t handle = NULL;
-        int ret = (int)bm_dev_request(&handle, dev_id);
-        if (ret != 0) {
-            printf("Create bm handle failed. ret = %d\n", ret);
-            exit(-1);
-        }
-        bm_image src, dst;
-        int src_stride[4], dst_stride[4];
-        unsigned int i = 0, loop_time = 0;
-        unsigned long long time_single, time_total = 0, time_avg = 0;
-        unsigned long long time_max = 0, time_min = 10000, fps_actual = 0, pixel_per_sec = 0;
-        struct timeval tv_start;
-        struct timeval tv_end;
-        struct timeval timediff;
-        // filter data
-        signed char arr3by3[25] = {0, 0, 0, 0, 0, 0, 1, 2, 1, 0, 0, 2,
-                            4, 2, 0, 0, 1, 2, 1, 0, 0, 0, 0, 0, 0};
 
-        signed char arr5by5[25] = {1, 2, 3, 2, 1, 2, 5, 6, 5, 2, 3, 6,
-                            8, 6, 3, 2, 5, 6, 5, 2, 1, 2, 3, 2, 1};
+      #define align_up(num, align) (((num) + ((align) - 1)) & ~((align) - 1))
 
-        // config setting
-        bmcv_ive_filter_ctrl filterAttr;
+      int main() {
+          int dev_id = 0;
+          unsigned char u8Norm = 4;
+          int height = 1080, width = 1920;
+          csc_type_t csc_type = CSC_YCbCr2RGB_BT601;
+          bm_image_format_ext src_fmt = 2, dst_fmt = 10; // FORMAT_NV21: 4; yuv444p : 2 FORMAT_RGB_PACKED: 10
+          char *src_name = "path/to/src";
+          char *dst_name = "path/to/dst";
+          bm_handle_t handle = NULL;
+          int ret = (int)bm_dev_request(&handle, dev_id);
+          if (ret != 0) {
+              printf("Create bm handle failed. ret = %d\n", ret);
+              exit(-1);
+          }
+          bm_image src, dst;
+          int src_stride[4], dst_stride[4];
 
-        filterAttr.u8_norm = u8Norm;
-        (thrSize == 0) ? memcpy(filterAttr.as8_mask, arr3by3, 5 * 5 * sizeof(signed char)) :
-                          memcpy(filterAttr.as8_mask, arr5by5, 5 * 5 * sizeof(signed char)) ;
+          // filter data
+          signed char arr3by3[25] = {0, 0, 0, 0, 0, 0, 1, 2, 1, 0, 0, 2,
+                              4, 2, 0, 0, 1, 2, 1, 0, 0, 0, 0, 0, 0};
 
-        // calc ive image stride && create bm image struct
-        bm_ive_image_calc_stride(handle, height, width, src_fmt, DATA_TYPE_EXT_1N_BYTE, src_stride);
-        bm_ive_image_calc_stride(handle, height, width, dst_fmt, DATA_TYPE_EXT_1N_BYTE, dst_stride);
+          // config setting
+          bmcv_ive_filter_ctrl filterAttr;
 
-        bm_image_create(handle, height, width, src_fmt, DATA_TYPE_EXT_1N_BYTE, &src, src_stride);
-        bm_image_create(handle, height, width, dst_fmt, DATA_TYPE_EXT_1N_BYTE, &dst, dst_stride);
+          filterAttr.u8_norm = u8Norm;
+          memcpy(filterAttr.as8_mask, arr3by3, 5 * 5 * sizeof(signed char));
 
-        ret = bm_image_alloc_dev_mem(src, BMCV_HEAP_ANY);
-        if (ret != BM_SUCCESS) {
-            printf("src bm_image_alloc_dev_mem failed. ret = %d\n", ret);
-            exit(-1);
-        }
+          // calc ive image stride && create bm image struct
+          int data_size = 1;
+          src_stride[0] = align_up(width, 16) * data_size;
+          src_stride[1] = align_up(width, 16) * data_size;
+          src_stride[2] = align_up(width, 16) * data_size;
+          dst_stride[0] = align_up(width*3, 16) * data_size;
 
-        ret = bm_image_alloc_dev_mem(dst, BMCV_HEAP_ANY);
-        if (ret != BM_SUCCESS) {
-            printf("src bm_image_alloc_dev_mem failed. ret = %d\n", ret);
-            exit(-1);
-        }
+          bm_image_create(handle, height, width, src_fmt, DATA_TYPE_EXT_1N_BYTE, &src, src_stride);
+          bm_image_create(handle, height, width, dst_fmt, DATA_TYPE_EXT_1N_BYTE, &dst, dst_stride);
 
-        // read image data from input files
-        bm_ive_read_bin(src, src_name);
+          ret = bm_image_alloc_dev_mem(src, BMCV_HEAP1_ID);
+          ret = bm_image_alloc_dev_mem(dst, BMCV_HEAP1_ID);
 
-        for(i = 0; i < loop_time; i++)
-        {
-            gettimeofday(&tv_start, NULL);
-            ret = bmcv_ive_filter_and_csc(handle, src, dst, filterAttr, csc_type);
-            gettimeofday(&tv_end, NULL);
-            timediff.tv_sec  = tv_end.tv_sec - tv_start.tv_sec;
-            timediff.tv_usec = tv_end.tv_usec - tv_start.tv_usec;
-            time_single = (unsigned int)(timediff.tv_sec * 1000000 + timediff.tv_usec);
+          int byte_size = width * height * 3;
+          unsigned char *input_data = (unsigned char *)malloc(byte_size);
+          FILE *fp_src = fopen(src_name, "rb");
+          if (fread((void *)input_data, 1, byte_size, fp_src) < (unsigned int)byte_size) {
+            printf("file size is less than required bytes%d\n", byte_size);
+          };
+          fclose(fp_src);
+          void* in_ptr[3] = {(void *)input_data,
+                              (void *)((unsigned char*)input_data + width * height),
+                              (void *)((unsigned char*)input_data + 2 * width * height)};
+          bm_image_copy_host_to_device(src, in_ptr);
 
-            if(time_single>time_max){time_max = time_single;}
-            if(time_single<time_min){time_min = time_single;}
-            time_total = time_total + time_single;
+          ret = bmcv_ive_filter_and_csc(handle, src, dst, filterAttr, csc_type);
 
-            if(ret != BM_SUCCESS){
-                printf("bmcv_image_ive_filterAndCsc is failed \n");
-                exit(-1);
-            }
-        }
+          unsigned char* output_ptr = (unsigned char *)malloc(byte_size);
+          memset(output_ptr, 0, sizeof(byte_size));
 
-        time_avg = time_total / loop_time;
-        fps_actual = 1000000 / time_avg;
-        pixel_per_sec = width * height * fps_actual/1024/1024;
+          void* out_ptr[3] = {(void*)output_ptr,
+                              (void*)((char*)output_ptr + width * height),
+                              (void*)((char*)output_ptr + 2 * width * height)};
 
-        bm_image_destroy(&src);
-        bm_image_destroy(&dst);
-        printf("bm_ive_filterAndCsc: loop %d cycles, time_max = %llu, time_avg = %llu, fps %llu, %lluM pps\n",
-            loop_time, time_max, time_avg, fps_actual, pixel_per_sec);
+          ret = bm_image_copy_device_to_host(dst, (void **)out_ptr);
+          FILE *fp_dst = fopen(dst_name, "wb");
+          if (fwrite((void *)output_ptr, 1, byte_size, fp_dst) < (unsigned int)byte_size){
+              printf("file size is less than %d required bytes\n", byte_size);
+          };
+          fclose(fp_dst);
 
+          free(input_data);
+          free(output_ptr);
 
-        return 0;
+          bm_image_destroy(&src);
+          bm_image_destroy(&dst);
+
+          bm_dev_free(handle);
+
+          return ret;
       }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

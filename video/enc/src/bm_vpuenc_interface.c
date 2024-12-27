@@ -130,7 +130,7 @@ typedef struct _BM_VPUENC_CTX {
 } BM_VPUENC_CTX;
 
 BM_VPUENC_CTX g_enc_chn[VENC_MAX_SOC_NUM] = {0};  // 0: no use  1: is using
-unsigned int g_vpu_ext_addr = 0x0;
+int g_vpu_ext_addr = 0x0;
 
 bm_handle_t bmvpu_enc_get_bmlib_handle(int soc_idx);
 int bmvpu_enc_get_initial_info(BmVpuEncoder *encoder, BmVpuEncInitialInfo *info, unsigned int *min_bs_buf_size);
@@ -328,7 +328,7 @@ char const * bmvpu_enc_error_string(BmVpuEncReturnCodes code)
 }
 
 #ifdef __linux__
-static int bmve_atomic_lock = 0;
+//static int bmve_atomic_lock = 0;
 static int bmhandle_atomic_lock = 0; /* atomic lock for bmlib_handle */
 #elif _WIN32
 static  volatile long bmve_atomic_lock = 0;
@@ -362,15 +362,17 @@ static void bm_handle_unlock()
 #endif
 }
 
-static int bmvpu_enc_alloc_proc(void *enc_ctx,
+static int __attribute__((unused)) bmvpu_enc_alloc_proc(void *enc_ctx,
                                 int vpu_core_idx, BmVpuEncDMABuffer *buf, unsigned int size)
 {
     BmVpuEncoderCtx *video_enc_ctx = enc_ctx;
     int ret = 0;
+	void *alloc_ret = NULL;
 
     if (video_enc_ctx->buffer_alloc_func) {
-        ret = video_enc_ctx->buffer_alloc_func(video_enc_ctx->buffer_context
+        alloc_ret = video_enc_ctx->buffer_alloc_func(video_enc_ctx->buffer_context
                                             , vpu_core_idx, buf, size);
+        ret = (alloc_ret != NULL) ? 0 : -1;
     } else {
         ret = bmvpu_enc_dma_buffer_allocate(vpu_core_idx, buf, size);
     }
@@ -378,15 +380,17 @@ static int bmvpu_enc_alloc_proc(void *enc_ctx,
     return ret;
 }
 
-static int bmvpu_enc_free_proc(void *enc_ctx,
+static int __attribute__((unused)) bmvpu_enc_free_proc(void *enc_ctx,
                                 int vpu_core_idx, BmVpuEncDMABuffer *buf)
 {
     BmVpuEncoderCtx *video_enc_ctx = enc_ctx;
     int ret = 0;
+	void *free_ret = NULL;
 
     if (video_enc_ctx->buffer_free_func) {
-        ret = video_enc_ctx->buffer_free_func(video_enc_ctx->buffer_context
+        free_ret = video_enc_ctx->buffer_free_func(video_enc_ctx->buffer_context
                                             , vpu_core_idx, buf);
+		ret = (free_ret != NULL) ? 0 : -1;
     } else {
         ret = bmvpu_enc_dma_buffer_deallocate(vpu_core_idx, buf);
     }
@@ -483,7 +487,7 @@ static int bmvpu_malloc_device_byte_heap(bm_handle_t bm_handle,
 {
     int ret = 0;
     int i = 0;
-    int heap_num = 0;
+    unsigned int heap_num = 0;
     ret = bm_get_gmem_total_heap_num(bm_handle, &heap_num);
     if (ret != 0)
     {
@@ -549,12 +553,12 @@ static void* bmvpu_enc_bmlib_mmap(int soc_idx, uint64_t phy_addr, size_t len)
         BMVPU_ENC_ERROR("bm_mem_mmap_device_mem_no_cache failed: 0x%x\n", ret);
         return NULL;
     }
-    return vmem;
+    return (void *)vmem;
 }
 
 static void bmvpu_enc_bmlib_munmap(int soc_idx, uint64_t vir_addr, size_t len)
 {
-    bm_mem_unmap_device_mem(bmvpu_enc_get_bmlib_handle(soc_idx), vir_addr, len);
+    bm_mem_unmap_device_mem(bmvpu_enc_get_bmlib_handle(soc_idx), (void *)vir_addr, len);
     return;
 }
 
@@ -885,7 +889,6 @@ int bmvpu_enc_open(BmVpuEncoder **encoder,
                    BmVpuEncInitialInfo *initial_info)
 {
     int ret = 0;
-    int i = 0;
     venc_chn VeChn = 0;
     venc_chn_attr_s stAttr = {0};
     venc_recv_pic_param_s stRecvParam = {0};
@@ -963,7 +966,7 @@ int bmvpu_enc_open(BmVpuEncoder **encoder,
 
     /* Set default encoder values */
     memset(*encoder, 0, sizeof(BmVpuEncoder));
-    (*encoder)->handle = (void*)VeChn;
+    (*encoder)->handle = (void*)(intptr_t)VeChn;
 
 
     // 1.4 alloc video enc ctx
@@ -1155,7 +1158,7 @@ int bmvpu_enc_open(BmVpuEncoder **encoder,
             BMVPU_ENC_ERROR("bmenc open input bs_dma_buf size(%d) is small than min_bs_buf_size(%d). \n", bs_dmabuffer->size, min_bs_buf_size);
             return BM_VPU_ENC_RETURN_CODE_ERROR;
         }
-    
+
         venc_extern_buf_s extern_buf;
         extern_buf.bs_phys_addr  = bs_dmabuffer->phys_addr;
         extern_buf.bs_buf_size   = bs_dmabuffer->size;
@@ -1163,7 +1166,7 @@ int bmvpu_enc_open(BmVpuEncoder **encoder,
         if (ret != BM_VPU_ENC_RETURN_CODE_OK) {
             bmvpu_enc_close(*encoder);
             g_enc_chn[VeChn].is_used = 0;
-            BMVPU_ENC_ERROR("bmenc open set bs buff addr faile.\n");
+            BMVPU_ENC_ERROR("bmenc open set bs buff addr failed.\n");
             return BM_VPU_ENC_RETURN_CODE_ERROR;
         }
     }
@@ -1176,7 +1179,7 @@ int bmvpu_enc_open(BmVpuEncoder **encoder,
 int bmvpu_enc_close(BmVpuEncoder *encoder)
 {
     int ret = 0;
-    HANDLE VeChn = (HANDLE)encoder->handle;
+    HANDLE VeChn = (HANDLE)(intptr_t)encoder->handle;
     pthread_mutex_lock(&enc_chn_mutex);
     if (g_enc_chn[VeChn].is_used == 0) {
         pthread_mutex_unlock(&enc_chn_mutex);
@@ -1184,6 +1187,10 @@ int bmvpu_enc_close(BmVpuEncoder *encoder)
     }
 
     ret = bmenc_ioctl_destroy_chn(g_enc_chn[VeChn].chn_fd);
+	if (ret != BM_VPU_ENC_RETURN_CODE_OK) {
+        BMVPU_ENC_ERROR("bmenc destroy chn failed.\n");
+        return BM_VPU_ENC_RETURN_CODE_ERROR;
+    }
 
     if (g_enc_chn[VeChn].stStream.pstPack != NULL) {
         free(g_enc_chn[VeChn].stStream.pstPack);
@@ -1230,7 +1237,7 @@ int bmvpu_enc_get_initial_info(BmVpuEncoder *encoder, BmVpuEncInitialInfo *info,
 {
     venc_chn_attr_s stAttr;
     HANDLE VeChn = -1;
-    VeChn = (HANDLE)encoder->handle;
+    VeChn = (HANDLE)(intptr_t)encoder->handle;
     if (g_enc_chn[VeChn].is_used == 0) {
         return BM_VPU_ENC_RETURN_CODE_INVALID_HANDLE;
     }
@@ -1307,7 +1314,7 @@ int bmvpu_enc_encode_header(BmVpuEncoder *encoder)
         return BM_VPU_ENC_RETURN_CODE_INVALID_PARAMS;
     }
 
-    VeChn = (HANDLE)encoder->handle;
+    VeChn = (HANDLE)(intptr_t)encoder->handle;
     if (g_enc_chn[VeChn].is_used == 0) {
         BMVPU_ENC_ERROR("bmvpu_enc_encode_header chn is not ready.\n");
         return BM_VPU_ENC_RETURN_CODE_INVALID_PARAMS;
@@ -1348,9 +1355,8 @@ int bmvpu_enc_send_frame(BmVpuEncoder *encoder,
     int s32MilliSec = 0;
     video_frame_info_s stFrame = {0};
     venc_chn_attr_s stAttr;
-    venc_stream_s stStream = {0};
 
-    VeChn = (HANDLE)encoder->handle;
+    VeChn = (HANDLE)(intptr_t)encoder->handle;
     if (g_enc_chn[VeChn].is_used == 0) {
         BMVPU_ENC_ERROR("bmvpu_enc_send_frame line=%d \n", __LINE__);
         return BM_VPU_ENC_RETURN_CODE_INVALID_PARAMS;   // 0 or -1
@@ -1462,7 +1468,7 @@ int bmvpu_enc_get_stream(BmVpuEncoder *encoder,
     HANDLE VeChn = -1;
     int s32MilliSec = 0;
 
-    VeChn = (HANDLE)encoder->handle;
+    VeChn = (HANDLE)(intptr_t)encoder->handle;
     if (g_enc_chn[VeChn].is_used == 0) {
         BMVPU_ENC_ERROR("cur channel is using. \n");
         return BM_VPU_ENC_RETURN_CODE_ERROR;
@@ -1515,7 +1521,7 @@ int bmvpu_enc_get_stream(BmVpuEncoder *encoder,
         if (ret != BM_VPU_ENC_RETURN_CODE_OK) {
             continue;
         }
-        pkt_drv->pu8Addr = dma_buf.virt_addr;
+        pkt_drv->pu8Addr = (unsigned char *)dma_buf.virt_addr;
         if (pkt_drv->pu8Addr == NULL) {
             BMVPU_ENC_DEBUG("bmenc get stream map fiaile.\n");
             continue;
@@ -1622,7 +1628,7 @@ int bmvpu_enc_set_roiinfo(BmVpuEncoder *encoder)
     if (encoder == NULL) {
         return -1;
     }
-    VeChn = (HANDLE)encoder->handle;
+    VeChn = (HANDLE)(intptr_t)encoder->handle;
     if (g_enc_chn[VeChn].is_used == 0) {
         return -1;
     }
@@ -1770,8 +1776,8 @@ int bmvpu_dma_buffer_map(int vpu_core_idx, BmVpuEncDMABuffer* buf, int port_flag
         BMVPU_ENC_ERROR("bmvpu_dma_buffer_map params err. buf=0X%lx . \n", buf);
         return BM_VPU_ENC_RETURN_CODE_INVALID_HANDLE;
     }
-    buf->virt_addr = bmvpu_enc_bmlib_mmap(vpu_core_idx, buf->phys_addr, buf->size);
-    if (buf->virt_addr == NULL) {
+    buf->virt_addr = (uint64_t)bmvpu_enc_bmlib_mmap(vpu_core_idx, buf->phys_addr, buf->size);
+    if (buf->virt_addr == 0) {
         return BM_VPU_ENC_RETURN_CODE_ERROR;
     }
     return BM_VPU_ENC_RETURN_CODE_OK;
@@ -1780,7 +1786,7 @@ int bmvpu_dma_buffer_map(int vpu_core_idx, BmVpuEncDMABuffer* buf, int port_flag
 int bmvpu_dma_buffer_unmap(int vpu_core_idx, BmVpuEncDMABuffer* buf)
 {
     if (buf == NULL) return -1;
-    if (buf->virt_addr == NULL) return -1;
+    if (buf->virt_addr == 0) return -1;
     bmvpu_enc_bmlib_munmap(vpu_core_idx, buf->virt_addr, buf->size);
 
     // munmap((void *)(uintptr_t)buf->virt_addr, buf->size);

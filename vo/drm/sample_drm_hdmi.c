@@ -50,7 +50,7 @@ int main(int argc, char *argv[])
 		print_usage(argv[0]);
 		return 0;
 	} else {
-		sscanf(argv[1], "%s", &filename);
+		sscanf(argv[1], "%s", filename);
 		sscanf(argv[2], "%u", &crtc_id);
 		sscanf(argv[3], "%u", &conn_id);
 		sscanf(argv[4], "%u", &mode_id);

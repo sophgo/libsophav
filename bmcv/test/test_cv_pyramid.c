@@ -22,6 +22,9 @@ typedef struct {
     bm_handle_t handle;
 } cv_pyramid_thread_arg_t;
 
+extern int cpu_pyramid_down(unsigned char* input, unsigned char* output,
+                            int height, int width, int oh, int ow);
+
 static void readBin(const char* path, unsigned char* input_data, int size)
 {
     FILE *fp_src = fopen(path, "rb");
@@ -156,114 +159,6 @@ static int tpu_pyramid_down(unsigned char* input, unsigned char* output,
     bm_image_destroy(&img_i);
     bm_image_destroy(&img_o);
 
-    return 0;
-}
-
-void cpu_padding_img(unsigned char* padded_img, unsigned char* input_img, int padded_width,
-                    int padded_height, int input_width, int input_height)
-{
-    int i, j;
-    int originalX, originalY;
-
-    for (i = 2; i < padded_height - 2; i++) {
-        for (j = 2; j < padded_width - 2; j++) {
-            originalX = j - 2;
-            originalY = i - 2;
-            padded_img[i * padded_width + j] = input_img[originalY * input_width + originalX];
-        }
-    }
-
-    for (j = 2; j < padded_width - 2; j++) {
-        for (i = 0; i < 2; i++) {
-            padded_img[i * padded_width + j] = input_img[(2 - i) * input_width + (j - 2)];
-        }
-
-        for (i = padded_height - 2; i < padded_height; i++) {
-            padded_img[i * padded_width + j] = input_img[(2 * input_height- i) * \
-                                            input_width + (j - 2)];
-        }
-    }
-
-    for (i = 2; i < padded_height - 2; i++) {
-        for (j = 0; j < 2; j++) {
-            padded_img[i * padded_width + j] = input_img[(i - 2) * input_width + (2 - j)];
-        }
-
-        for (j = padded_width - 2; j < padded_width; j++) {
-            padded_img[i * padded_width + j] = input_img[(i - 2) * input_width + \
-                                            (2 * input_width- j)];
-        }
-    }
-
-    for (i = 0; i < 2; i++) {
-        for (j = 0; j < 2; j++) {
-            padded_img[i * padded_width + j] = padded_img[i * padded_width + (2 * 2 - j)];
-        }
-        for (j = padded_width - 2; j < padded_width; j++) {
-            padded_img[i * padded_width + j] = padded_img[i * padded_width + \
-                                            (2 * (padded_width - 2 - 1) - j)];
-        }
-    }
-
-    for (i = padded_height - 2; i < padded_height; i++) {
-        for (j = 0; j < 2; j++) {
-            padded_img[i * padded_width + j] = padded_img[i * padded_width + (2 * 2 - j)];
-        }
-        for (j = padded_width - 2; j < padded_width; j++) {
-            padded_img[i * padded_width + j] = padded_img[i * padded_width + \
-                                            (2 * (padded_width - 2 - 1) - j)];
-        }
-    }
-}
-
-static unsigned char customRound(float num)
-{
-    float decimalPart = num - floor(num);
-    if (decimalPart < 0.5) {
-        return (unsigned char)floor(num);
-    } else {
-        return (unsigned char)ceil(num);
-    }
-}
-
-static int cpu_pyramid_down(unsigned char* input, unsigned char* output,
-                            int height, int width, int oh, int ow)
-{
-    int i, j, y, x;
-    int inputX, inputY;
-    int kw = 5, kh = 5;
-    int new_height = height + kh - 1;
-    int new_width = width + kw - 1;
-    float sum;
-    float kernel[KERNEL_SIZE] = {1, 4, 6, 4, 1, 4, 16, 24, 16, 4, 6, 24, 36, 24, 6, \
-                                4, 16, 24, 16, 4, 1, 4, 6, 4, 1};
-    unsigned char* new_img = (unsigned char*)malloc(new_height * new_width * sizeof(unsigned char));
-
-
-    if(input == NULL || output == NULL) {
-        printf("the cpu_pyramid param is error!\n");
-        free(new_img);
-        return -1;
-    }
-
-    cpu_padding_img(new_img, input, new_width, new_height, width, height);
-
-    for (y = 0; y < oh; y++) {
-        for (x = 0; x < ow; x++) {
-            sum = 0.0f;
-            for (i = 0; i < kh; i++) {
-                for (j = 0; j < kw; j++) {
-                    inputX = 2 * x + j;
-                    inputY = 2 * y + i;
-                    sum += kernel[i * kw + j] * new_img[inputY * new_width + inputX];
-                }
-            }
-            sum = sum / 256;
-            output[y * ow + x] = customRound(sum);
-        }
-    }
-
-    free(new_img);
     return 0;
 }
 

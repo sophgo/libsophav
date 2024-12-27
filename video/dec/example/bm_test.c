@@ -8,6 +8,7 @@
  *****************************************************************************/
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #ifdef __linux__
 #include <unistd.h>
@@ -42,6 +43,7 @@ uint64_t count_dec[MAX_NUM_INSTANCE * MAX_NUM_VPU_CORE];
 double fps_dec[MAX_NUM_INSTANCE * MAX_NUM_VPU_CORE];
 int g_exit_flag = 0;
 
+extern uint8_t* MD5 (const uint8_t* d, size_t n, uint8_t* md);
 typedef struct BMTestConfig_struct {
     int streamFormat;
     int compareType;
@@ -51,9 +53,9 @@ typedef struct BMTestConfig_struct {
 
     int cbcr_interleave;
     int nv21;
-	int wirteYuv;
+    int wirteYuv;
 
-#ifdef	BM_PCIE_MODE
+#ifdef    BM_PCIE_MODE
     int pcie_board_id;
 #endif
     BOOL result;
@@ -80,7 +82,7 @@ typedef struct BMTestConfig_struct {
 
 static int write_yuv(BMVidCodHandle vidCodHandle, BMVidFrame *stVFrame, int frame_idx)
 {
-	unsigned int i = 0;
+    unsigned int i = 0;
     int core_idx, inst_idx;
 
     core_idx = bmvpu_dec_get_core_idx(vidCodHandle);
@@ -149,14 +151,14 @@ static int write_yuv(BMVidCodHandle vidCodHandle, BMVidFrame *stVFrame, int fram
             fclose(fbc_fp[i]);
     }
 
-	return 0;
+    return 0;
 }
 
 int global_ret = 0;
 
 static int parse_args(int argc, char **argv, BMTestConfig* par);
 
-static void stat_pthread(void *arg)
+static void *stat_pthread(void *arg)
 {
     int thread_num = *(int*)arg;
     int i = 0;
@@ -192,10 +194,10 @@ static void stat_pthread(void *arg)
         }
     }
     VLOG(INFO, "stat_pthread over.\n");
-    return;
+    return NULL;
 }
 
-static void process_output(void* arg)
+static void *process_output(void* arg)
 {
     int Ret = 0;
     BMTestConfig *testConfigPara = (BMTestConfig *)arg;
@@ -205,12 +207,12 @@ static void process_output(void* arg)
     fd_set read_fds;
     int fd;
 #ifdef BM_PCIE_MODE
-    DecHandle decHandle = vidHandle->codecInst;
-    int coreIdx = decHandle->coreIdx;
+    // DecHandle decHandle = vidHandle->codecInst;
+    // int coreIdx = decHandle->coreIdx;
 #endif
     BMVidFrame *pFrame=NULL;
     BOOL match, alloced = FALSE, result = TRUE;
-    FILE* fpRef;
+    FILE* fpRef = NULL;
     uint8_t* pRefMem = NULL;
     int32_t readLen = -1, compare = 0, compareNum = 1;
     uint32_t frameSize = 0, ySize = 0, allocedSize = 0;
@@ -218,7 +220,7 @@ static void process_output(void* arg)
     uint64_t start_time, dec_time;
     VLOG(INFO, "Enter process_output!\n");
 
-    FILE *fpOut = NULL;
+    //FILE *fpOut = NULL;
     int frame_write_num = testConfigPara->wirteYuv;
     int writeYuv = 0;
     writeYuv = testConfigPara->wirteYuv;
@@ -339,7 +341,9 @@ static void process_output(void* arg)
                             result = FALSE;
                             break;
                         }
-                        vdi_read_memory(coreIdx, (u64)(pFrame->buf[4]), buf0, pFrame->size,   VDI_LITTLE_ENDIAN);
+                        // TODO A2没有现成接口，需要重新实现
+                        // vdi_read_memory(coreIdx, (u64)(pFrame->buf[4]), buf0, pFrame->size,   VDI_LITTLE_ENDIAN);
+                        bmvpu_dec_read_memory(vidCodHandle, (u64)(pFrame->buf[4]), (u64)buf0, pFrame->size);
 #else
                         buf0 = pFrame->buf[0];
                         buf1 = pFrame->buf[1];
@@ -427,7 +431,9 @@ static void process_output(void* arg)
                         result = FALSE;
                         break;
                     }
-                    vdi_read_memory(coreIdx, (u64)(pFrame->buf[4]), buf0, pFrame->size,   VDI_LITTLE_ENDIAN);
+                    // TODO A2没有现成接口，需要重新实现
+                    // vdi_read_memory(coreIdx, (u64)(pFrame->buf[4]), buf0, pFrame->size,   VDI_LITTLE_ENDIAN);
+                    bmvpu_dec_read_memory(vidCodHandle, (u64)(pFrame->buf[4]), (u64)buf0, pFrame->size);
 
                     MD5(buf0, ySize, yMd);
                     MD5(buf1, ySize/4, uMd);
@@ -482,13 +488,13 @@ static void process_output(void* arg)
                     }
                 }
                 if(result == FALSE && testConfigPara->result == TRUE) {
-                    int stream_size = 0x700000;
-                    int len = 0;
+                    //int stream_size = 0x700000;
+                    //int len = 0;
 
                     int core_idx = bmvpu_dec_get_core_idx(vidCodHandle);
                     int inst_idx = bmvpu_dec_get_inst_idx(vidCodHandle);
 
-                    unsigned char *p_stream = malloc(stream_size);
+                    //unsigned char *p_stream = malloc(stream_size);
                     if(ySize != 0) {
                         char yuv_filename[256]={0};
                         FILE *fp = NULL;
@@ -513,9 +519,13 @@ static void process_output(void* arg)
                             uint8_t *buf1 = malloc(ySize/4);
                             uint8_t *buf2 = malloc(ySize/4);
 
-                            vdi_read_memory(coreIdx, (u64)(pFrame->buf[4]), buf0, ySize,   VDI_LITTLE_ENDIAN);
-                            vdi_read_memory(coreIdx, (u64)(pFrame->buf[5]), buf1, ySize/4, VDI_LITTLE_ENDIAN);
-                            vdi_read_memory(coreIdx, (u64)(pFrame->buf[6]), buf2, ySize/4, VDI_LITTLE_ENDIAN);
+                            // TODO A2没有现成接口，需要重新实现
+                            // vdi_read_memory(coreIdx, (u64)(pFrame->buf[4]), buf0, ySize,   VDI_LITTLE_ENDIAN);
+                            // vdi_read_memory(coreIdx, (u64)(pFrame->buf[5]), buf1, ySize/4, VDI_LITTLE_ENDIAN);
+                            // vdi_read_memory(coreIdx, (u64)(pFrame->buf[6]), buf2, ySize/4, VDI_LITTLE_ENDIAN);
+                            bmvpu_dec_read_memory(vidCodHandle, (u64)(pFrame->buf[4]), (u64)buf0, ySize);
+                            bmvpu_dec_read_memory(vidCodHandle, (u64)(pFrame->buf[5]), (u64)buf1, ySize/4);
+                            bmvpu_dec_read_memory(vidCodHandle, (u64)(pFrame->buf[6]), (u64)buf2, ySize/4);
 
                             fwrite(buf0, 1, ySize, fp);
                             fwrite(buf1, 1, ySize/4, fp);
@@ -588,7 +598,7 @@ static void process_output(void* arg)
                     //result = TRUE;
                     //testConfigPara->result = TRUE;
                     cur_frame_idx += 1;
-                    bmvpu_dec_clear_output(vidHandle, pFrame);
+                    bmvpu_dec_clear_output(vidCodHandle, pFrame);
                     count_dec[testConfigPara->instanceNum]++;
                     continue;
                 }
@@ -610,10 +620,12 @@ static void process_output(void* arg)
                     printf("the frame buffer size maybe error..\n");
                     break;
                 }
-                vdi_read_memory(coreIdx, (u64)(pFrame->buf[4]), buf0, pFrame->size, VDI_LITTLE_ENDIAN);
+                // TODO A2没有现成接口，需要重新实现
+                // vdi_read_memory(coreIdx, (u64)(pFrame->buf[4]), buf0, pFrame->size, VDI_LITTLE_ENDIAN);
+                bmvpu_dec_read_memory(vidCodHandle, (u64)(pFrame->buf[4]), (u64)buf0, pFrame->size);
 
-                int core_idx = bmvpu_dec_get_core_idx(vidHandle);
-                int inst_idx = bmvpu_dec_get_inst_idx(vidHandle);
+                int core_idx = bmvpu_dec_get_core_idx(vidCodHandle);
+                int inst_idx = bmvpu_dec_get_inst_idx(vidCodHandle);
                 sprintf(yuv_filename, "core%d_inst%d_frame%d_dump_%dx%d.yuv", core_idx, inst_idx, cur_frame_idx, pFrame->width, pFrame->height);
                 FILE* fpWriteyuv = NULL;
                 fpWriteyuv = fopen(yuv_filename, "wb+");
@@ -671,8 +683,10 @@ static void process_output(void* arg)
     if(pFrame != NULL)
     {
         free(pFrame);
-        pFrame == NULL;
+        pFrame = NULL;
     }
+
+    return NULL;
 }
 
 static void free_dec_buffer(bm_handle_t bm_handle, bm_device_mem_t *frame_buf, int num)
@@ -683,14 +697,14 @@ static void free_dec_buffer(bm_handle_t bm_handle, bm_device_mem_t *frame_buf, i
 
     for(i=0; i<num; i++)
     {
-        if(frame_buf[i].size > 0 && frame_buf[i].u.device.device_addr != NULL){
+        if(frame_buf[i].size > 0 && frame_buf[i].u.device.device_addr != 0){
             bm_free_device(bm_handle, frame_buf[i]);
         }
     }
     free(frame_buf);
 }
 
-static void dec_test(void* arg)
+static void *dec_test(void* arg)
 {
     FILE* fpIn;
     uint8_t* pInMem;
@@ -705,7 +719,7 @@ static void dec_test(void* arg)
     int compareNum = 1, num = 0, i = 0, j = 0;
     struct timeval tv;
     int wrptr = 0;
-    uint8_t bEndOfStream, bFindStart, bFindEnd;
+    uint8_t bFindStart, bFindEnd;
     int UsedBytes, FreeLen;
     int frame_size_coeff = 1;
     int eof_flag = 0;
@@ -731,13 +745,13 @@ static void dec_test(void* arg)
     {
         VLOG(ERR, "Can't open input file: %s\n", inputPath);
         global_ret = -1;
-        return;
+        return NULL;
     }
 
     if(testConfigPara->streamFormat != BMDEC_AVC && testConfigPara->streamFormat != BMDEC_HEVC) {
         VLOG(ERR, "Error: the stream type is invalid!\n");
         global_ret = -1;
-        return;
+        return NULL;
     }
     param.streamFormat = testConfigPara->streamFormat;
     param.wtlFormat = testConfigPara->wtlFormat;
@@ -765,19 +779,19 @@ static void dec_test(void* arg)
             VLOG(ERR, "invalid buffer count. min frame cnt:%d extra frame:%d command queue dedpth:%d\n",
                 testConfigPara->min_frame_cnt, testConfigPara->extraFrame, testConfigPara->cmd_queue);
             global_ret = -1;
-            return;
+            return NULL;
         }
 
         if(param.picWidth <= 0 || param.picHeight <= 0) {
             printf("invalid buffer size\n");
             global_ret = -1;
-            return;
+            return NULL;
         }
 
         if(bm_dev_request(&bm_handle, 0) != BM_SUCCESS) {
             VLOG(ERR, "failed to open vpu handle\n");
             global_ret = -1;
-            return;
+            return NULL;
         }
 
         /* allocate bitstream buffer */
@@ -905,14 +919,14 @@ static void dec_test(void* arg)
         param.Ctable_buffer = vpu_Ctab_buf;
     }
 
-#ifdef	BM_PCIE_MODE
+#ifdef    BM_PCIE_MODE
     param.pcie_board_id = testConfigPara->pcie_board_id;
 #endif
-    if (bmvpu_dec_create(&vidHandle, param)!=BM_SUCCESS)
+    if (bmvpu_dec_create(&vidHandle, param)!=(BMVidDecRetStatus)BM_SUCCESS)
     {
         VLOG(ERR, "Can't create decoder.\n");
         global_ret = -1;
-        return;
+        return NULL;
     }
 
     VLOG(INFO, "Decoder Create success, chn %d, inputpath %s!\n", (int)*(int *)vidHandle, inputPath);
@@ -922,15 +936,15 @@ static void dec_test(void* arg)
     {
         VLOG(ERR, "Can't get input memory\n");
         global_ret = -1;
-        return;
+        return NULL;
     }
 
     vidStream.buf = pInMem;
     vidStream.header_size = 0;
     vidStream.pts = 0;
 
-    int core_idx = bmvpu_dec_get_core_idx(vidHandle);
-    int inst_idx = bmvpu_dec_get_inst_idx(vidHandle);
+    //int core_idx = bmvpu_dec_get_core_idx(vidHandle);
+    //int inst_idx = bmvpu_dec_get_inst_idx(vidHandle);
     process_output_Para.vidCodHandle = vidHandle;
     process_output_Para.bStop = 0;
 
@@ -1032,7 +1046,6 @@ static void dec_test(void* arg)
 #endif
             }
             else{
-                bEndOfStream = 0;
                 bFindStart = 0;
                 bFindEnd = 0;
                 int i;
@@ -1088,7 +1101,7 @@ GET_BITSTREAM_DATA:
                         int tmp = (pInMem[i + 3] & 0x7E) >> 1;
 
                         bNewPic = (pInMem[i + 0] == 0 && pInMem[i + 1] == 0 && pInMem[i + 2] == 1 &&
-					   (tmp <= 21) && ((pInMem[i + 5] & 0x80) == 0x80));
+                       (tmp <= 21) && ((pInMem[i + 5] & 0x80) == 0x80));
 
                         if (bNewPic) {
                             bFindStart = 1;
@@ -1202,6 +1215,8 @@ OUT3:
         free(vpu_Ctab_buf);
     if(bm_handle != NULL)
         bm_dev_free(bm_handle);
+
+    return NULL;
 }
 
 static void
@@ -1209,7 +1224,7 @@ Help(const char *programName)
 {
     fprintf(stderr, "------------------------------------------------------------------------------\n");
     // fprintf(stderr, "%s(API v%d.%d.%d)\n", programName, API_VERSION_MAJOR, API_VERSION_MINOR, API_VERSION_PATCH);
-    fprintf(stderr, "%s(API v%d.%d.%d)\n", programName);
+    fprintf(stderr, "%s\n", programName);
     fprintf(stderr, "\tAll rights reserved by Bitmain\n");
     fprintf(stderr, "------------------------------------------------------------------------------\n");
     fprintf(stderr, "%s [option] --input bistream\n", programName);
@@ -1238,14 +1253,14 @@ Help(const char *programName)
     fprintf(stderr, "--min_frame_cnt    minimum count of frame buffer use by VPU\n");
     fprintf(stderr, "--frame_delay      minimum count of linear buffer delay.\n");
     fprintf(stderr, "--cmd_queue        command queue deepth. default 4.\n");
-	fprintf(stderr, "--write_yuv        0 no writing , num write frame numbers\n");
+    fprintf(stderr, "--write_yuv        0 no writing , num write frame numbers\n");
     fprintf(stderr, "--wtl-format       yuv format. default 0.\n");
     fprintf(stderr, "--read-block-len      block length of read from file, default is 0x80000\n");
     fprintf(stderr, "--inject-percent      percent of blocks to introduce lost/scramble data, will introduce random length of data at %% of blocks, or the whole block \n");
     fprintf(stderr, "--inject-lost         type of injection, default is 1 for data lost, set to 0 for scramble the data\n");
     fprintf(stderr, "--inject-whole-block  lost the whole block, default is lost part of the block\n");
 
-#ifdef	BM_PCIE_MODE
+#ifdef    BM_PCIE_MODE
     fprintf(stderr, "--pcie_board_id    select pcie card by pci_board_id\n");
 #endif
 }
@@ -1309,7 +1324,7 @@ static struct option   options[] = {
     {"stream-type",           1, NULL, 0},
     {"ref-yuv",               1, NULL, 0},
     {"instance",              1, NULL, 0},
-	{"write_yuv",             1, NULL, 0},
+    {"write_yuv",             1, NULL, 0},
     {"wtl-format",            1, NULL, 0},
     {"comp-skip",             1, NULL, 0},
     {"read-block-len",        1, NULL, 0},
@@ -1325,7 +1340,7 @@ static struct option   options[] = {
     {"frame_delay",           1, NULL, 0},
     {"cmd_queue",             1, NULL, 0},
     {"extraFrame",            1, NULL, 0},
-#ifdef	BM_PCIE_MODE
+#ifdef    BM_PCIE_MODE
     {"pcie_board_id",         1, NULL, 0},
 #endif
     {NULL,                    0, NULL, 0},
@@ -1340,7 +1355,7 @@ static int parse_args(int argc, char **argv, BMTestConfig* par)
     memset(par, 0, sizeof(BMTestConfig));
 
     par->instanceNum = 1;
-    par->log_level = BM_VPU_LOG_LEVEL_ERROR;
+    par->log_level = BMVPU_DEC_LOG_LEVEL_ERR;
     par->streamFormat = 0; // H264   0 264  12 265
     par->bsMode = 0;
     par->cmd_queue = 4;
@@ -1383,7 +1398,7 @@ static int parse_args(int argc, char **argv, BMTestConfig* par)
             {
                 par->instanceNum = atoi(optarg);
             }
-			else if (!strcmp(options[index].name, "write_yuv"))
+            else if (!strcmp(options[index].name, "write_yuv"))
             {
                 par->wirteYuv = atoi(optarg);
             }
@@ -1447,7 +1462,7 @@ static int parse_args(int argc, char **argv, BMTestConfig* par)
             {
                 par->extraFrame = atoi(optarg);
             }
-#ifdef	BM_PCIE_MODE
+#ifdef    BM_PCIE_MODE
             else if (!strcmp(options[index].name, "pcie_board_id")) {
                 par->pcie_board_id = (int)atoi(optarg);
             }
@@ -1475,7 +1490,7 @@ static int parse_args(int argc, char **argv, BMTestConfig* par)
         exit(1);
     }
 
-    if (par->log_level < BMVPU_DEC_LOG_LEVEL_NONE || par->log_level > BM_VPU_LOG_LEVEL_TRACE)
+    if (par->log_level < BMVPU_DEC_LOG_LEVEL_NONE || par->log_level > BMVPU_DEC_LOG_LEVEL_TRACE)
     {
         fprintf(stderr, "Wrong log level: %d\n", par->log_level);
         Help(argv[0]);

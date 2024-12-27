@@ -98,7 +98,7 @@ int main (int argc, char** argv)
     destroy();
 
 ErrorHandler:
-    return;
+    return 0;
 }
 
 

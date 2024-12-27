@@ -1,7 +1,7 @@
 bmcv_image_put_text
 ===================
 
-可以实现在一张图像上写字的功能（英文），并支持指定字的颜色、大小和宽度。
+可以实现在一张图像上写字的功能，并支持指定字的颜色、大小和宽度。
 
 
 **接口形式：**
@@ -41,7 +41,7 @@ bmcv_image_put_text
 
 * const char* text
 
-  输入参数。待写入的文本内容，目前仅支持英文。
+  输入参数。待写入的文本内容。当文本内容中有中文时，thickness请设置为0。
 
 * bmcv_point_t org
 
@@ -57,7 +57,7 @@ bmcv_image_put_text
 
 * int thickness
 
-  输入参数。画线的宽度，对于YUV格式的图像建议设置为偶数。
+  输入参数。画线的宽度，对于YUV格式的图像建议设置为偶数。开启中文字库请将该参数设置为0。
 
 
 **返回值说明：**
@@ -91,6 +91,8 @@ bmcv_image_put_text
 | 8   | FORMAT_NV61            |
 +-----+------------------------+
 
+thickness参数配置为0，即开启中文字库后，image_format 扩展支持 bmcv_image_overlay API 底图支持的格式。
+
 2. 目前支持以下 data_type:
 
 +-----+--------------------------------+
@@ -99,77 +101,117 @@ bmcv_image_put_text
 | 1   | DATA_TYPE_EXT_1N_BYTE          |
 +-----+--------------------------------+
 
+3. 若文字内容不变，推荐使用 bmcv_gen_text_bitmap 与 bmcv_image_overlay 搭配的文字绘制方式，文字生成bitmap图，重复使用bitmap图进行osd叠加，以提高处理效率。示例参见bmcv_image_overlay接口文档。
 
 **示例代码**
 
     .. code-block:: c
 
-        int channel = 1;
-        int width = 1920;
-        int height = 1080;
-        int dev_id = 0;
-        int thickness = 4
-        float fontScale = 4;
-        char text[20] = "hello world";
-        bmcv_point_t org = {100, 100};
-        bmcv_color_t color = {255, 0, 0};
-        bm_handle_t handle;
-        bm_status_t ret = BM_SUCCESS;
-        unsigned char* data_ptr = (unsigned char*)malloc(channel * width * height * sizeof(unsigned char));
-        bm_image img;
-        int i;
+      #include "bmcv_api_ext_c.h"
+      #include <stdio.h>
+      #include <stdlib.h>
 
-        ret = bm_dev_request(&handle, dev_id);
-        if (ret != BM_SUCCESS) {
-            printf("Create bm handle failed. ret = %d\n", ret);
-            free(data_ptr);
-            return -1;
-        }
+      #define IMAGE_CHN_NUM_MAX 3
+      #define __ALIGN_MASK(x, mask) (((x) + (mask)) & ~(mask))
+      #define ALIGN(x, a) __ALIGN_MASK(x, (__typeof__(x))(a)-1)
 
-        for (i = 0; i < channel * width * height; ++i) {
-            data_ptr[i] = rand() % 255;
-        }
-        // calculate res
-        ret = bm_image_create(handle, height, width, FORMAT_GRAY, DATA_TYPE_EXT_1N_BYTE, &img);
-        if (ret != BM_SUCCESS) {
-            printf("bm_image_create failed. ret = %d\n", ret);
-            free(data_ptr);
-            bm_dev_free(handle);
-            return -1;
-        }
-        ret = bm_image_alloc_dev_mem(img);
-        if (ret != BM_SUCCESS) {
-            printf("bm_image_alloc_dev_mem failed. ret = %d\n", ret);
-            free(data_ptr);
-            bm_image_destroy(img);
-            bm_dev_free(handle);
-            return -1;
-        }
-        ret = bm_image_copy_host_to_device(img, (void**)(&data_ptr));
-        if (ret != BM_SUCCESS) {
-            printf("bm_image_copy_host_to_device failed. ret = %d\n", ret);
-            free(data_ptr);
-            bm_image_destroy(img);
-            bm_dev_free(handle);
-            return -1;
-        }
-        ret = bmcv_image_put_text(handle, img, text, org, color, fontScale, thickness);
-        if (ret != BM_SUCCESS) {
-            printf("bmcv_image_put_text failed. ret = %d\n", ret);
-            free(data_ptr);
-            bm_image_destroy(img);
-            bm_dev_free(handle);
-            return -1;
-        }
-        ret = bm_image_copy_device_to_host(img, (void**)(&data_ptr));
-        if (ret != BM_SUCCESS) {
-            printf("bm_image_copy_device_to_host failed. ret = %d\n", ret);
-            free(data_ptr);
-            bm_image_destroy(img);
-            bm_dev_free(handle);
-            return -1;
-        }
+      static bmcv_point_t org = {500, 500};
+      static int fontScale = 5;
+      static const char text[30] = "Hello, world!";
+      static unsigned char color[3] = {255, 0, 0};
+      static int thickness = 2;
 
-        free(data_ptr);
-        bm_image_destroy(img);
-        bm_dev_free(handle);
+
+      static int writeBin(const char* path, void* output_data, int size)
+      {
+          int len = 0;
+          FILE* fp_dst = fopen(path, "wb+");
+
+          if (fp_dst == NULL) {
+              perror("Error opening file\n");
+              return -1;
+          }
+
+          len = fwrite((void*)output_data, 1, size, fp_dst);
+          if (len < size) {
+              printf("file size = %d is less than required bytes = %d\n", len, size);
+              return -1;
+          }
+
+          fclose(fp_dst);
+          return 0;
+      }
+
+      static int readBin(const char* path, void* input_data)
+      {
+          int len;
+          int size;
+          FILE* fp_src = fopen(path, "rb");
+
+          if (fp_src == NULL) {
+              perror("Error opening file\n");
+              return -1;
+          }
+
+          fseek(fp_src, 0, SEEK_END);
+          size = ftell(fp_src);
+          fseek(fp_src, 0, SEEK_SET);
+
+          len = fread((void*)input_data, 1, size, fp_src);
+          if (len < size) {
+              printf("file size = %d is less than required bytes = %d\n", len, size);
+              return -1;
+          }
+
+          fclose(fp_src);
+          return 0;
+      }
+
+      int main()
+      {
+          int width = 1920;
+          int height = 1080;
+          int format = FORMAT_YUV420P;
+          int ret = 0;
+          char* input_path = "path/to/input";
+          char* output_path = "path/to/output";
+          int i;
+          bm_handle_t handle;
+          ret = bm_dev_request(&handle, 0);
+
+          int offset_list[IMAGE_CHN_NUM_MAX] = {0};
+          offset_list[0] = width * height;
+          offset_list[1] = ALIGN(width, 2) * ALIGN(height, 2) >> 2;
+          offset_list[2] = ALIGN(width, 2) * ALIGN(height, 2) >> 2;
+
+          int total_size = 0;
+          unsigned char* data_tpu = (unsigned char*)malloc(width * height * IMAGE_CHN_NUM_MAX * sizeof(unsigned char));
+
+          ret = readBin(input_path, data_tpu);
+
+          bm_image input_img;
+          unsigned char* in_ptr[IMAGE_CHN_NUM_MAX] = {0};
+          bmcv_color_t rgb = {color[0], color[1], color[2]};
+
+          ret = bm_image_create(handle, height, width, (bm_image_format_ext)format, DATA_TYPE_EXT_1N_BYTE, &input_img, NULL);
+          ret = bm_image_alloc_dev_mem(input_img, BMCV_HEAP1_ID);
+
+          in_ptr[0] = data_tpu;
+          in_ptr[1] = data_tpu + offset_list[0];
+          in_ptr[2] = data_tpu + offset_list[0] + offset_list[1];
+
+          ret = bm_image_copy_host_to_device(input_img, (void**)in_ptr);
+          ret = bmcv_image_put_text(handle, input_img, text, org, rgb, fontScale, thickness);
+          ret = bm_image_copy_device_to_host(input_img, (void**)in_ptr);
+
+          bm_image_destroy(&input_img);
+
+          for (i = 0; i < IMAGE_CHN_NUM_MAX; ++i) {
+              total_size += offset_list[i];
+          }
+          ret = writeBin(output_path, data_tpu, total_size);
+
+          free(data_tpu);
+          bm_dev_free(handle);
+          return ret;
+      }

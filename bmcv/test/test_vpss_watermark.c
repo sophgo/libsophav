@@ -50,7 +50,7 @@ typedef struct border {
     u8 value_r;
     u8 value_g;
     u8 value_b;
-    u8 thickness;
+    u16 thickness;
 } border_t;
 
 typedef struct coverex_cfg {
@@ -145,9 +145,9 @@ bm_status_t bitmap_to_argb8888(
             int pixelIndex = (y * water_width + x) * 4;  // Each pixel is 4 bytes
 
             // Store the ARGB values in the overlay_image array
-            overlay_image[pixelIndex] = red;
+            overlay_image[pixelIndex] = blue;
             overlay_image[pixelIndex + 1] = green;
-            overlay_image[pixelIndex + 2] = blue;
+            overlay_image[pixelIndex + 2] = red;
             overlay_image[pixelIndex + 3] = alpha;
         }
     }

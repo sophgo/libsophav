@@ -58,95 +58,77 @@ bmcv_image_pyramid_down
 
     .. code-block:: c
 
-        int height = 1080;
-        int width = 1920;
-        int ow = height / 2;
-        int oh = width / 2;
-        int channel = 1;
-        unsigned char* input_data = (unsigned char*)malloc(width * height * channel * sizeof(input_data));
-        unsigned char* output = (unsigned char*)malloc(ow * oh * channel * sizeof(input_data));
+        #include <assert.h>
+        #include "bmcv_api_ext_c.h"
+        #include <math.h>
+        #include <stdio.h>
+        #include <stdlib.h>
+        #include <string.h>
 
-        struct timespec tp;
-        clock_gettime(NULL, &tp);
-        srand(tp.tv_nsec);
+        static void readBin(const char* path, unsigned char* input_data, int size)
+        {
+            FILE *fp_src = fopen(path, "rb");
+            if (fread((void *)input_data, 1, size, fp_src) < (unsigned int)size) {
+                printf("file size is less than %d required bytes\n", size);
+            };
 
-        for (int i = 0; i < height * channel; i++) {
-            for (int j = 0; j < width; j++) {
-                input_data[i * width + j] = rand() % 256;
-            }
-        }
-
-        bm_handle_t handle;
-        bm_status_t ret = bm_dev_request(&handle, 0);
-        if (ret != BM_SUCCESS) {
-            printf("Create bm handle failed. ret = %d\n", ret);
-            return -1;
+            fclose(fp_src);
         }
 
-        bm_image_format_ext fmt = FORMAT_GRAY;
-        bm_image img_i, img_o;
-        ret = bm_image_create(handle, height, width, fmt, DATA_TYPE_EXT_1N_BYTE, &img_i, NULL);
-        if (ret != BM_SUCCESS) {
-            printf("bm_image_createe failed. ret = %d\n", ret);
-            bm_dev_free(handle);
-            return ret;
-        }
-        ret = bm_image_create(handle, oh, ow, fmt, DATA_TYPE_EXT_1N_BYTE, &img_o, NULL);
-        if (ret != BM_SUCCESS) {
-            printf("bm_image_create failed. ret = %d\n", ret);
-            bm_image_destroy(&img_i);
-            bm_dev_free(handle);
-            return ret;
-        }
-        ret = bm_image_alloc_dev_mem(img_i, 2);
-        if (ret != BM_SUCCESS) {
-            printf("bm_image_alloc_dev_mem failed. ret = %d\n", ret);
-            bm_image_destroy(&img_i);
-            bm_image_destroy(&img_o);
-            bm_dev_free(handle);
-            return ret;
-        }
-        ret = bm_image_alloc_dev_mem(img_o, 2);
-        if (ret != BM_SUCCESS) {
-            printf("bm_image_alloc_dev_mem failed. ret = %d\n", ret);
-            bm_image_destroy(&img_i);
-            bm_image_destroy(&img_o);
-            bm_dev_free(handle);
-            return ret;
+        static void writeBin(const char * path, unsigned char* input_data, int size)
+        {
+            FILE *fp_dst = fopen(path, "wb");
+            if (fwrite((void *)input_data, 1, size, fp_dst) < (unsigned int)size) {
+                printf("file size is less than %d required bytes\n", size);
+            };
+
+            fclose(fp_dst);
         }
 
-        ret = bm_image_copy_host_to_device(img_i, (void **)(&input));
-        if (ret != BM_SUCCESS) {
-            printf("bm_image_copy_host_to_device failed. ret = %d\n", ret);
-            bm_image_destroy(&img_i);
-            bm_image_destroy(&img_o);
-            bm_dev_free(handle);
-            return ret;
-        }
+        int main()
+        {
+            int height = 1080;
+            int width = 1920;
+            int ret = 0;
+            char* src_name = "path/to/src";
+            char* dst_name = "path/to/dst";
+            bm_handle_t handle;
+            ret = bm_dev_request(&handle, 0);
 
-        struct timeval t1, t2;
-        gettimeofday_(&t1);
-        ret = bmcv_image_pyramid_down(handle, img_i, img_o);
-        gettimeofday_(&t2);
-        printf("bmcv_image_pyramid_down TPU using time= %ld(us)\n", TIME_COST_US(t1, t2));
-        if (ret != BM_SUCCESS) {
-            printf("bmcv_image_pyramid_down failed. ret = %d\n", ret);
+            int ow = width / 2;
+            int oh = height / 2;
+            int channel = 1;
+            unsigned char* input_data = (unsigned char*)malloc(width * height * channel * sizeof(unsigned char));
+            unsigned char* output_tpu = (unsigned char*)malloc(ow * oh * channel * sizeof(unsigned char));
+            unsigned char* output_cpu = (unsigned char*)malloc(ow * oh * channel * sizeof(unsigned char));
+            readBin(src_name, input_data, width * height * channel);
+            memset(output_tpu, 0, ow * oh * channel * sizeof(unsigned char));
+
+            bm_image_format_ext fmt = FORMAT_GRAY;
+            bm_image img_i;
+            bm_image img_o;
+
+            ret = bm_image_create(handle, height, width, fmt, DATA_TYPE_EXT_1N_BYTE, &img_i, NULL);
+            ret = bm_image_create(handle, oh, ow, fmt, DATA_TYPE_EXT_1N_BYTE, &img_o, NULL);
+
+            ret = bm_image_alloc_dev_mem(img_i, BMCV_HEAP1_ID);
+            ret = bm_image_alloc_dev_mem(img_o, BMCV_HEAP1_ID);
+
+            ret = bm_image_copy_host_to_device(img_i, (void **)(&input_data));
+            ret = bmcv_image_pyramid_down(handle, img_i, img_o);
+            ret = bm_image_copy_device_to_host(img_o, (void **)(&output_tpu));
+
             bm_image_destroy(&img_i);
             bm_image_destroy(&img_o);
-            bm_dev_free(handle);
-            return ret;
-        }
-        ret = bm_image_copy_device_to_host(img_o, (void **)(&output));
-        if (ret != BM_SUCCESS) {
-            printf("bm_image_copy_device_to_host failed. ret = %d\n", ret);
-            bm_image_destroy(&img_i);
-            bm_image_destroy(&img_o);
+
+            writeBin(dst_name, output_tpu, ow * oh * channel);
+
+            free(input_data);
+            free(output_tpu);
+            free(output_cpu);
+
+
             bm_dev_free(handle);
             return ret;
         }
 
-        bm_image_destroy(&img_i);
-        bm_image_destroy(&img_o);
-        bm_dev_free(handle);
-        free(input_data);
-        free(output);

@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-#define MD5_DIGEST_LENGTH 16
+#define MD5_DIGEST_LENGTH ((size_t)16)
 #define MD5_STRING_LENGTH (MD5_DIGEST_LENGTH * 2)
 
 /**

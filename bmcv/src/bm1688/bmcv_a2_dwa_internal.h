@@ -8,6 +8,8 @@
 #include <math.h>
 #include "bmcv_a2_common_internal.h"
 
+#define SLICE_W_CNT_MAX (8)
+#define SLICE_H_CNT_MAX (8)
 #define BM_TRUE                1
 #define MAX_REGION_NUM 5
 #define MAX_ION_BUFFER_NAME 32

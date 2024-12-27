@@ -29,11 +29,15 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/libbmcv/include)
 aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/sample/. SRC)
 
 # link_directories(${TDE_path}/lib)
-string(FIND "${CMAKE_C_COMPILER}" "aarch64-linux-gnu-gcc" COMPILER_FOUND)
-if (COMPILER_FOUND GREATER -1)
+#string(FIND "${CMAKE_C_COMPILER}" "aarch64-linux-gnu-gcc" COMPILER_FOUND)
+if ("${CMAKE_C_COMPILER}" MATCHES "aarch64-linux-gnu-gcc$")
     link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/libbmcv/lib/${PLATFORM})
-else ()
+elseif ("${CMAKE_C_COMPILER}" MATCHES "aarch64-linux-gcc$")
     link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/libbmcv/lib930/${PLATFORM})
+elseif ("${CMAKE_C_COMPILER}" MATCHES "aarch64-none-linux-gnu-gcc$")
+    link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/libbmcv/lib1131/${PLATFORM})
+else ()
+    message(FATAL_ERROR "Unsupported compiler: ${CMAKE_C_COMPILER}")
 endif ()
 
 add_executable(${sample_name} ${SRC})
@@ -48,7 +52,7 @@ install(TARGETS ${sample_name}
     PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
     COMPONENT ${component})
 
-install(TARGETS ${TDE_LIB_NAME} 
+install(TARGETS ${TDE_LIB_NAME}
     LIBRARY DESTINATION lib
     PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
     COMPONENT ${component})
@@ -57,7 +61,7 @@ install(TARGETS ${TDE_LIB_NAME}-static
     DESTINATION lib
     PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
     COMPONENT ${component}-dev)
-    
+
 install(FILES ${HEADERS}
     DESTINATION include
     COMPONENT ${component}-dev)

@@ -69,9 +69,9 @@ run_tpu(){
   run_command "test_cv_absdiff 1 1 1 10 1080 1920 /opt/sophon/libsophon-current/bin/res/1920x1080_rgb.bin /opt/sophon/libsophon-current/bin/res/1920x1080_rgb.bin out/asbdiff_output.bin"
   run_command "test_cv_add_weight"
   run_command "test_cv_add_weight 2"
-  run_command "test_cv_add_weight 1 3"
-  run_command "test_cv_add_weight 2 1 0 8 8 12 0.6 0.4 10"
-  run_command "test_cv_add_weight 1 1 1 1080 1920 10 0.5 0.5 10 /opt/sophon/libsophon-current/bin/res/1920x1080_rgb.bin /opt/sophon/libsophon-current/bin/res/1920x1080_rgb.bin out/add_weight_output.bin"
+  run_command "test_cv_add_weight 2 1"
+  run_command "test_cv_add_weight 2 1 0 8 8 12 0 0.6 0.4 10"
+  run_command "test_cv_add_weight 1 1 1 1920 1080 10 0 0.5 0.5 10 /opt/sophon/libsophon-current/bin/res/1920x1080_rgb.bin /opt/sophon/libsophon-current/bin/res/1920x1080_rgb.bin out/add_weight_output.bin"
   run_command "test_cv_as_strided"
   run_command "test_cv_as_strided 2"
   run_command "test_cv_as_strided 1 3"
@@ -155,6 +155,7 @@ run_tpu(){
   run_command "test_cv_warp_perspective"
   run_command "test_faiss_indexflatIP"
   run_command "test_faiss_indexflatL2"
+  run_command "test_faiss_indexPQ"
 }
 
 run_dpu(){
@@ -347,13 +348,13 @@ run_ldc(){
   run_command "test_ldc_gdc_gen_mesh_thread ldc_data/1920x1080_pincushion_0.3.yuv ldc_data/out_pincushion_0.yuv 1920 1080 4 4 1 0 0 0 0 0 400 1 1 fcb419d98eb1e8422bbc81cb9b5a0d6f"
   run_command "test_ldc_gdc_gen_mesh_thread ldc_data/1920x1080_pincushion_0.3.yuv ldc_data/out_pincushion_100.yuv 1920 1080 4 4 1 0 0 100 0 0 400 1 1 af4c825e1cca6b622d4d49476f7184cb"
   # multi-thread
-  run_command "test_ldc_rot_thread ldc_data/1920x1088_nv21.bin ldc_data/out_1920x1088_rot0.yuv 1920 1088 0 4 4 8 5000 03fd51eb71461e1fcc64e072588b5754"
-  run_command "test_ldc_rot_thread ldc_data/1920x1088_nv21.bin ldc_data/out_1920x1088_rot90.yuv 1920 1088 1 4 4 8 5000 03ba2f6618972aa7d7e7194191a274a5"
-  run_command "test_ldc_rot_thread ldc_data/1920x1088_nv21.bin ldc_data/out_1920x1088_rot270.yuv 1920 1088 3 4 4 8 5000 808de3490552a1eedf94bf11a6dccd76"
-  run_command "test_ldc_gdc_load_mesh_thread ldc_data/1920x1080_barrel_0.3.yuv ldc_data/out_load_mesh_barrel_0.yuv 1920 1080 4 4 ldc_data/1920x1080_barrel_0.3_r0_ofst_0_0_d-200.mesh 8 5000 9858d320f4ae52cade10d20ea61473c4"
-  run_command "test_ldc_gdc_load_mesh_thread ldc_data/1920x1080_barrel_0.3.yuv ldc_data/out_load_mesh_barrel_1.yuv 1920 1080 4 4 ldc_data/test_mesh_1920x1080_1_0_0_90_0_0_-200.mesh 8 5000 2da6c1a297a52d0916bec1a7226fed53"
-  run_command "test_ldc_gdc_load_mesh_thread ldc_data/1920x1080_pincushion_0.3.yuv ldc_data/out_load_mesh_pincushion_0.yuv 1920 1080 4 4 ldc_data/1920x1080_pincushion_0.3_r0_ofst_0_0_d400.mesh 8 5000 78acfb91bd08f159623a85fe03a01169"
-  run_command "test_ldc_gdc_load_mesh_thread ldc_data/1920x1080_pincushion_0.3.yuv ldc_data/out_load_mesh_pincushion_1.yuv 1920 1080 4 4 ldc_data/1920x1080_pincushion_0.3_r100_ofst_0_0_d400.mesh 8 5000 8766b0ba7e315e5a8b413f69e0a26127"
+  run_command "test_ldc_rot_thread ldc_data/1920x1088_nv21.bin ldc_data/out_1920x1088_rot0.yuv 1920 1088 0 4 4 8 1000 03fd51eb71461e1fcc64e072588b5754"
+  run_command "test_ldc_rot_thread ldc_data/1920x1088_nv21.bin ldc_data/out_1920x1088_rot90.yuv 1920 1088 1 4 4 8 1000 03ba2f6618972aa7d7e7194191a274a5"
+  run_command "test_ldc_rot_thread ldc_data/1920x1088_nv21.bin ldc_data/out_1920x1088_rot270.yuv 1920 1088 3 4 4 8 1000 808de3490552a1eedf94bf11a6dccd76"
+  run_command "test_ldc_gdc_load_mesh_thread ldc_data/1920x1080_barrel_0.3.yuv ldc_data/out_load_mesh_barrel_0.yuv 1920 1080 4 4 ldc_data/1920x1080_barrel_0.3_r0_ofst_0_0_d-200.mesh 8 1000 9858d320f4ae52cade10d20ea61473c4"
+  run_command "test_ldc_gdc_load_mesh_thread ldc_data/1920x1080_barrel_0.3.yuv ldc_data/out_load_mesh_barrel_1.yuv 1920 1080 4 4 ldc_data/test_mesh_1920x1080_1_0_0_90_0_0_-200.mesh 8 1000 2da6c1a297a52d0916bec1a7226fed53"
+  run_command "test_ldc_gdc_load_mesh_thread ldc_data/1920x1080_pincushion_0.3.yuv ldc_data/out_load_mesh_pincushion_0.yuv 1920 1080 4 4 ldc_data/1920x1080_pincushion_0.3_r0_ofst_0_0_d400.mesh 8 1000 78acfb91bd08f159623a85fe03a01169"
+  run_command "test_ldc_gdc_load_mesh_thread ldc_data/1920x1080_pincushion_0.3.yuv ldc_data/out_load_mesh_pincushion_1.yuv 1920 1080 4 4 ldc_data/1920x1080_pincushion_0.3_r100_ofst_0_0_d400.mesh 8 1000 8766b0ba7e315e5a8b413f69e0a26127"
   # grid_info
   run_command "test_ldc_gdc_grid_info_thread ldc_data/1280x768.yuv ldc_data/out_grid_info.yuv 1280 768 4 4 ldc_data/grid_info_79_44_3476_80_45_1280x720.dat 336080 1 1 9fe88b54ed51a09a9d245b805b346435"
   run_command "test_ldc_gdc_grid_info_thread ldc_data/grid_info_in_nv21/left_00.yuv ldc_data/grid_info_out_nv21/out_left_00.yuv 1280 720 4 4 ldc_data/bianli_grid_info_79_44_3476_80_45_1280x720.dat 336080 1 1 c547898b0af47720760c4ef40145a772"
@@ -365,13 +366,13 @@ run_ldc(){
 }
 
 run_dwa(){
-  run_command "test_dwa_rot_thread 128 128 14 dwa_data/128x128_sophgo.bin dwa_data/out_128x128_rot0.bin 0 1 1 e001fc14213febf4751fbd8d739d8f28"
-  run_command "test_dwa_rot_thread 128 128 14 dwa_data/128x128_sophgo.bin dwa_data/out_128x128_rot90.bin 1 1 1 49361e51b503d001848b769f7dff6e87"
-  run_command "test_dwa_rot_thread 128 128 14 dwa_data/128x128_sophgo.bin dwa_data/out_128x128_rot270.bin 3 1 1 b47f8bc0f5dbf60ff8cbe8fab5ca9cf6"
-  run_command "test_dwa_gdc_thread 1920 1080 0 dwa_data/1920x1080_barrel_0.3.yuv dwa_data/out_barrel_0.yuv 1 0 0 0 0 0 -200 1 1 0b8dfc8c16d1fa8b3024107a49471253"
-  run_command "test_dwa_gdc_thread 1920 1080 0 dwa_data/1920x1080_barrel_0.3.yuv dwa_data/out_barrel_100.yuv 1 0 0 100 0 0 -200 1 1 6fb920bfec14140d4bcc48571b051ff9"
-  run_command "test_dwa_gdc_thread 1920 1080 0 dwa_data/1920x1080_pincushion_0.3.yuv dwa_data/out_pincushion_0.yuv 1 0 0 0 0 0 400 1 1 6c05d5765415b17a3a458e2c08758ebf"
-  run_command "test_dwa_gdc_thread 1920 1080 0 dwa_data/1920x1080_pincushion_0.3.yuv dwa_data/out_pincushion_100.yuv 1 0 0 100 0 0 400 1 1 88ed7cebe4d5598a0659806bb10d3298"
+  run_command "test_dwa_rot_thread 128 128 14 dwa_data/128x128_sophgo.bin 128 128 dwa_data/out_128x128_rot0.bin 0 1 1 e001fc14213febf4751fbd8d739d8f28"
+  run_command "test_dwa_rot_thread 128 128 14 dwa_data/128x128_sophgo.bin 128 128 dwa_data/out_128x128_rot90.bin 1 1 1 49361e51b503d001848b769f7dff6e87"
+  run_command "test_dwa_rot_thread 128 128 14 dwa_data/128x128_sophgo.bin 128 128 dwa_data/out_128x128_rot270.bin 3 1 1 b47f8bc0f5dbf60ff8cbe8fab5ca9cf6"
+  run_command "test_dwa_gdc_thread 1920 1080 0 dwa_data/1920x1080_barrel_0.3.yuv 1920 1080 dwa_data/out_barrel_0.yuv 1 0 0 0 0 0 -200 1 1 0b8dfc8c16d1fa8b3024107a49471253"
+  run_command "test_dwa_gdc_thread 1920 1080 0 dwa_data/1920x1080_barrel_0.3.yuv 1920 1080 dwa_data/out_barrel_100.yuv 1 0 0 100 0 0 -200 1 1 6fb920bfec14140d4bcc48571b051ff9"
+  run_command "test_dwa_gdc_thread 1920 1080 0 dwa_data/1920x1080_pincushion_0.3.yuv 1920 1080 dwa_data/out_pincushion_0.yuv 1 0 0 0 0 0 400 1 1 6c05d5765415b17a3a458e2c08758ebf"
+  run_command "test_dwa_gdc_thread 1920 1080 0 dwa_data/1920x1080_pincushion_0.3.yuv 1920 1080 dwa_data/out_pincushion_100.yuv 1 0 0 100 0 0 400 1 1 88ed7cebe4d5598a0659806bb10d3298"
   run_command "test_dwa_affine_thread 1920 1080 128 1152 0 dwa_data/girls_1920x1080.yuv dwa_data/out_affine.yuv 9 128 128 1 1 4bda32574cf6e2c01251a8b806dc89d1"
   run_command "test_dwa_fisheye_thread 1024 1024 1280 720 0 dwa_data/fisheye_floor_1024x1024.yuv dwa_data/out_fisheye_PANORAMA_360.yuv 1 1 0 128 128 512 512 0 0 0 1 0 1 1 1 5b8eeb161048799dccaff3ebd50e9679"
   run_command "test_dwa_fisheye_thread 1024 1024 1280 720 0 dwa_data/fisheye_floor_1024x1024.yuv dwa_data/out_fisheye_PANORAMA_180.yuv 1 1 0 128 128 512 512 0 0 2 2 1 1 1 1 72c42538b8dca6404ef1fb54fbc99e73"
@@ -382,19 +383,19 @@ run_dwa(){
   run_command "test_dwa_fisheye_thread 1024 1024 1280 720 0 dwa_data/fisheye_floor_1024x1024.yuv dwa_data/out_fisheye_06_1P.yuv 1 1 0 128 128 512 512 0 0 2 8 1 1 1 1 0164d0e050b7e8bdb3d7e88ee5d5e32e"
   run_command "test_dwa_fisheye_thread 1024 1024 1280 720 0 dwa_data/fisheye_floor_1024x1024.yuv dwa_data/out_fisheye_07_2P.yuv 1 1 0 128 128 512 512 0 0 0 9 0 1 1 1 0e93ac36d589e50e9fa84522605ee8bf"
   # grid_info
-  run_command "test_dwa_gdc_grid_info_thread 1280 720 14 dwa_data/imgL_1280X720.yonly.yuv dwa_data/out_gdc_grid_L.yuv dwa_data/grid_info_79_43_3397_80_45_1280x720.dat 328480 1 1 2c7b7d382222b0e91c1cf778db875d01"
-  run_command "test_dwa_gdc_grid_info_thread 1280 720 14 dwa_data/imgR_1280X720.yonly.yuv dwa_data/out_gdc_grid_R.yuv dwa_data/grid_info_79_44_3476_80_45_1280x720.dat 336080 1 1 c35ea9e07bdae46fbeae554133ff70b1"
-  run_command "test_dwa_dewarp_grid_info_thread 1280 720 14 dwa_data/imgL_1280X720.yonly.yuv dwa_data/out_dewarp_grid_L.yuv dwa_data/grid_info_79_43_3397_80_45_1280x720.dat 328480 1 1 2c7b7d382222b0e91c1cf778db875d01"
-  run_command "test_dwa_dewarp_grid_info_thread 1280 720 14 dwa_data/imgR_1280X720.yonly.yuv dwa_data/out_dewarp_grid_R.yuv dwa_data/grid_info_79_44_3476_80_45_1280x720.dat 336080 1 1 c35ea9e07bdae46fbeae554133ff70b1"
-  run_command "test_dwa_fisheye_grid_info_thread 2240 2240 0 dwa_data/dc_src_2240x2240_L.yuv dwa_data/out_fisheye_grid_L.yuv 1 dwa_data/L_grid_info_68_68_4624_70_70_dst_2240x2240_src_2240x2240.dat 446496 1 1 be161e6ff1ec06494f949862aaa62bc9"
-  run_command "test_dwa_fisheye_grid_info_thread 2240 2240 0 dwa_data/dc_src_2240x2240_R.yuv dwa_data/out_fisheye_grid_R.yuv 1 dwa_data/R_grid_info_68_68_4624_70_70_dst_2240x2240_src_2240x2240.dat 446496 1 1 9afd789c7940e50cfdd57718a3f0a001"
+  run_command "test_dwa_gdc_grid_info_thread 1280 720 14 dwa_data/imgL_1280X720.yonly.yuv 1280 720 dwa_data/out_gdc_grid_L.yuv dwa_data/grid_info_79_43_3397_80_45_1280x720.dat 328480 1 1 2c7b7d382222b0e91c1cf778db875d01"
+  run_command "test_dwa_gdc_grid_info_thread 1280 720 14 dwa_data/imgR_1280X720.yonly.yuv 1280 720 dwa_data/out_gdc_grid_R.yuv dwa_data/grid_info_79_44_3476_80_45_1280x720.dat 336080 1 1 c35ea9e07bdae46fbeae554133ff70b1"
+  run_command "test_dwa_dewarp_grid_info_thread 1280 720 14 dwa_data/imgL_1280X720.yonly.yuv 1280 720 dwa_data/out_dewarp_grid_L.yuv dwa_data/grid_info_79_43_3397_80_45_1280x720.dat 328480 1 1 2c7b7d382222b0e91c1cf778db875d01"
+  run_command "test_dwa_dewarp_grid_info_thread 1280 720 14 dwa_data/imgR_1280X720.yonly.yuv 1280 720 dwa_data/out_dewarp_grid_R.yuv dwa_data/grid_info_79_44_3476_80_45_1280x720.dat 336080 1 1 c35ea9e07bdae46fbeae554133ff70b1"
+  run_command "test_dwa_fisheye_grid_info_thread 2240 2240 0 dwa_data/dc_src_2240x2240_L.yuv 2240 2240 dwa_data/out_fisheye_grid_L.yuv 1 dwa_data/L_grid_info_68_68_4624_70_70_dst_2240x2240_src_2240x2240.dat 446496 1 1 be161e6ff1ec06494f949862aaa62bc9"
+  run_command "test_dwa_fisheye_grid_info_thread 2240 2240 0 dwa_data/dc_src_2240x2240_R.yuv 2240 2240 dwa_data/out_fisheye_grid_R.yuv 1 dwa_data/R_grid_info_68_68_4624_70_70_dst_2240x2240_src_2240x2240.dat 446496 1 1 9afd789c7940e50cfdd57718a3f0a001"
   # multi-thread
-  run_command "test_dwa_rot_thread 128 128 14 dwa_data/128x128_sophgo.bin dwa_data/out_128x128_rot0.bin 0 8 1000 e001fc14213febf4751fbd8d739d8f28"
-  run_command "test_dwa_gdc_thread 1920 1080 0 dwa_data/1920x1080_barrel_0.3.yuv dwa_data/out_barrel_100.yuv 1 0 0 100 0 0 -200 8 1000 6fb920bfec14140d4bcc48571b051ff9"
+  run_command "test_dwa_rot_thread 128 128 14 dwa_data/128x128_sophgo.bin 128 128 dwa_data/out_128x128_rot0.bin 0 8 1000 e001fc14213febf4751fbd8d739d8f28"
+  run_command "test_dwa_gdc_thread 1920 1080 0 dwa_data/1920x1080_barrel_0.3.yuv 1920 1080 dwa_data/out_barrel_100.yuv 1 0 0 100 0 0 -200 8 1000 6fb920bfec14140d4bcc48571b051ff9"
   run_command "test_dwa_affine_thread 1920 1080 128 1152 0 dwa_data/girls_1920x1080.yuv dwa_data/out_affine.yuv 9 128 128 8 1000 4bda32574cf6e2c01251a8b806dc89d1"
   run_command "test_dwa_fisheye_thread 1024 1024 1280 720 0 dwa_data/fisheye_floor_1024x1024.yuv dwa_data/out_fisheye_PANORAMA_360.yuv 1 1 0 128 128 512 512 0 0 0 1 0 1 8 1000 5b8eeb161048799dccaff3ebd50e9679"
-  run_command "test_dwa_gdc_grid_info_thread 1280 720 14 dwa_data/imgL_1280X720.yonly.yuv dwa_data/out_gdc_grid_L.yuv dwa_data/grid_info_79_43_3397_80_45_1280x720.dat 328480 8 1000 2c7b7d382222b0e91c1cf778db875d01"
-  run_command "test_dwa_fisheye_grid_info_thread 2240 2240 0 dwa_data/dc_src_2240x2240_L.yuv dwa_data/out_fisheye_grid_L.yuv 1 dwa_data/L_grid_info_68_68_4624_70_70_dst_2240x2240_src_2240x2240.dat 446496 8 1000 be161e6ff1ec06494f949862aaa62bc9"
+  run_command "test_dwa_gdc_grid_info_thread 1280 720 14 dwa_data/imgL_1280X720.yonly.yuv 1280 720 dwa_data/out_gdc_grid_L.yuv dwa_data/grid_info_79_43_3397_80_45_1280x720.dat 328480 8 1000 2c7b7d382222b0e91c1cf778db875d01"
+  run_command "test_dwa_fisheye_grid_info_thread 2240 2240 0 dwa_data/dc_src_2240x2240_L.yuv 2240 2240 dwa_data/out_fisheye_grid_L.yuv 1 dwa_data/L_grid_info_68_68_4624_70_70_dst_2240x2240_src_2240x2240.dat 446496 8 1000 be161e6ff1ec06494f949862aaa62bc9"
   # parameters loop test
   # run_command "test_dwa_rot_thread 1 1 32 32"
   # run_command "test_dwa_gdc_thread 1 1 32 32"
@@ -539,17 +540,11 @@ run_kill_tpu(){
 }
 
 run_kill_dpu(){
-  COMMAND1="test_dpu_sgbm_thread 512 284 3 dpu_data/sofa_left_img_512x284.bin dpu_data/sofa_right_img_512x284.bin dpu_data/205pU8Disp_ref_512x284.bin &
-            test_dpu_sgbm_thread 512 284 3 dpu_data/sofa_left_img_512x284.bin dpu_data/sofa_right_img_512x284.bin dpu_data/205pU8Disp_ref_512x284.bin &
-            test_dpu_sgbm_thread 512 284 3 dpu_data/sofa_left_img_512x284.bin dpu_data/sofa_right_img_512x284.bin dpu_data/205pU8Disp_ref_512x284.bin &
-            test_dpu_sgbm_thread 512 284 3 dpu_data/sofa_left_img_512x284.bin dpu_data/sofa_right_img_512x284.bin dpu_data/205pU8Disp_ref_512x284.bin &
-            test_dpu_sgbm_thread 512 284 3 dpu_data/sofa_left_img_512x284.bin dpu_data/sofa_right_img_512x284.bin dpu_data/205pU8Disp_ref_512x284.bin &
-            test_dpu_sgbm_thread 512 284 3 dpu_data/sofa_left_img_512x284.bin dpu_data/sofa_right_img_512x284.bin dpu_data/205pU8Disp_ref_512x284.bin &
-            test_dpu_sgbm_thread 512 284 3 dpu_data/sofa_left_img_512x284.bin dpu_data/sofa_right_img_512x284.bin dpu_data/205pU8Disp_ref_512x284.bin &
-            test_dpu_sgbm_thread 512 284 3 dpu_data/sofa_left_img_512x284.bin dpu_data/sofa_right_img_512x284.bin dpu_data/205pU8Disp_ref_512x284.bin &
+  COMMAND1="test_dpu_sgbm_thread 512 284 3 dpu_data/sofa_left_img_512x284.bin dpu_data/sofa_right_img_512x284.bin dpu_data/205pU8Disp_ref_512x284.bin 1 0 1 1500 &
+            test_dpu_sgbm_thread 512 284 3 dpu_data/sofa_left_img_512x284.bin dpu_data/sofa_right_img_512x284.bin dpu_data/205pU8Disp_ref_512x284.bin 1 0 1 1500 &
             "
-  COMMAND2="test_dpu_online_thread 512 284 4 dpu_data/sofa_left_img_512x284.bin dpu_data/sofa_right_img_512x284.bin dpu_data/fgs_512x284_res.bin 0 0 1 1 & \
-            test_dpu_online_thread 512 284 4 dpu_data/sofa_left_img_512x284.bin dpu_data/sofa_right_img_512x284.bin dpu_data/fgs_512x284_res.bin 0 0 1 1 &
+  COMMAND2="test_dpu_online_thread 512 284 4 dpu_data/sofa_left_img_512x284.bin dpu_data/sofa_right_img_512x284.bin dpu_data/fgs_512x284_res.bin 0 0 1 600 & \
+            test_dpu_online_thread 512 284 4 dpu_data/sofa_left_img_512x284.bin dpu_data/sofa_right_img_512x284.bin dpu_data/fgs_512x284_res.bin 0 0 1 600 &
             "
 
   start_command1() {

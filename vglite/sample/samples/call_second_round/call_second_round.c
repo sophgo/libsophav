@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "vg_lite.h"
 #include "vg_lite_util.h"
 #include "tiger_paths.h"
@@ -26,7 +27,7 @@ char* error_type[] =
     }
 static int fb_width = 1920, fb_height = 720;
 static vg_lite_buffer_t buffer;     //offscreen framebuffer object for rendering.
-static vg_lite_buffer_t* fb;
+//static vg_lite_buffer_t* fb;
 
 void tiger_sample_1(void)
 {

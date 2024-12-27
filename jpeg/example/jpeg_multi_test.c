@@ -359,7 +359,7 @@ RUN_LAST_ENC_CMD:
                     }
                     multi_lst_lines++;
                     printf("thread%d parameter: %s\n",i, str_line);
-                    sscanf(str_line, "%s %s %s %s", str, skip_str, str_type, str_device_index, str_ref);
+                    sscanf(str_line, "%s %s %s %s %s", str, skip_str, str_type, str_device_index, str_ref);
                     fp_test = fopen(str, "rt");
                     if (fp_test == NULL) {
                         fprintf(stderr, "multi.lst error, no %s file\n", str);
@@ -369,7 +369,7 @@ RUN_LAST_ENC_CMD:
                     {
                         fclose(fp_test);
                     }
-                    if (0 != str_ref[0])
+                    if (strcmp("0", str_ref))
                     {
                         fp_test = fopen(str_ref, "rt");
                         if (fp_test == NULL) {
@@ -409,8 +409,8 @@ RUN_LAST_ENC_CMD:
                             sprintf(str, "dec_out%d.yuv",i);
                             strcpy(multiConfig.decConfig[i].yuvFileName, str);
                         }
-                        if(0 != str_ref[0]){
-
+                        if(strcmp("0", str_ref))
+                        {
                             strcpy(multiConfig.decConfig[i].refFileName, str_ref);
                             memset(str_ref, 0, 128);
                         }

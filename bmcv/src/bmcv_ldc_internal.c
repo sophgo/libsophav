@@ -1,3 +1,4 @@
+#ifndef BM_PCIE_MODE
 #include <stdio.h>
 #include <stdlib.h>
 #include "bmcv_a2_ldc_ext.h"
@@ -301,3 +302,4 @@ bm_status_t bmcv_ldc_gdc_load_mesh(bm_handle_t          handle,
     }
     return ret;
 }
+#endif

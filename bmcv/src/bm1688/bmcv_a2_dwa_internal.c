@@ -1,3 +1,4 @@
+#ifndef BM_PCIE_MODE
 #include <memory.h>
 #include <pthread.h>
 #include <stdlib.h>
@@ -688,7 +689,7 @@ static void dwa_mesh_gen_get_size(size_s in_size, size_s out_size, u32 *mesh_id_
     (void)out_size;
 
     // CVI_GDC_MESH_SIZE_FISHEYE
-    *mesh_tbl_size = 0x60000;
+    *mesh_tbl_size = 0x100000;
     *mesh_id_size = 0x50000;
 }
 
@@ -2811,16 +2812,20 @@ static bm_status_t dwa_mesh_gen_ldc(size_s in_size, size_s out_size, const ldc_a
     bm_ldc_attr_map(pstLDCAttr, out_size, fisheye_config, fisheye_region);
     fisheye_config->rotate_index = rot;
 
-    int X_TILE_NUMBER, Y_TILE_NUMBER;
+    int X_TILE_NUMBER, Y_TILE_NUMBER, TMP_X_TILE_NUMBER, TMP_Y_TILE_NUMBER;
     u32 mesh_id_size;
     u32 mesh_tbl_size;
     u64 mesh_id_phy_addr, mesh_tbl_phy_addr;
 
-    X_TILE_NUMBER = DIV_UP(in_size.width, DWA_MESH_SLICE_BASE_W);
-    Y_TILE_NUMBER = DIV_UP(in_size.height, DWA_MESH_SLICE_BASE_H);
+	X_TILE_NUMBER = DIV_UP(in_size.width, DWA_MESH_SLICE_BASE_W);
+	Y_TILE_NUMBER = DIV_UP(in_size.height, DWA_MESH_SLICE_BASE_H);
+	TMP_X_TILE_NUMBER = DIV_UP(out_size.width, DWA_MESH_SLICE_BASE_W);
+	TMP_Y_TILE_NUMBER = DIV_UP(out_size.height, DWA_MESH_SLICE_BASE_H);
+	X_TILE_NUMBER = MAX(X_TILE_NUMBER, TMP_X_TILE_NUMBER);
+	Y_TILE_NUMBER = MAX(Y_TILE_NUMBER, TMP_Y_TILE_NUMBER);
 
     // calculate mesh_id/mesh_tbl's size in bytes.
-    mesh_tbl_size = 0x60000;
+    mesh_tbl_size = 0x100000;
     mesh_id_size = 0x50000;
 
     // Decide the position of mesh in memory.
@@ -2830,7 +2835,7 @@ static bm_status_t dwa_mesh_gen_ldc(size_s in_size, size_s out_size, const ldc_a
                 , mesh_id_phy_addr, mesh_tbl_phy_addr);
     bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "mesh_id_size(%d) mesh_tbl_size(%d)\n", mesh_id_size, mesh_tbl_size);
 
-    int *reorder_mesh_tbl[X_TILE_NUMBER * Y_TILE_NUMBER];
+    int *reorder_mesh_tbl[SLICE_W_CNT_MAX * SLICE_H_CNT_MAX];
 
     // Provide virtual address to write mesh.
     reorder_mesh_tbl[0] = mesh_vir_addr + (mesh_tbl_phy_addr - mesh_id_phy_addr);
@@ -2962,7 +2967,25 @@ static bm_status_t bm_dwa_add_ldc_task(bm_handle_t handle, int fd, GDC_HANDLE hH
         }
         memset(buffer, 0, mesh_1st_size + mesh_2nd_size);
         dwa_mesh_gen_ldc(in_size, out_size, pstLDCAttr, paddr, (void*)buffer, enRotation, grid);
-
+        /*
+        // fwrite mesh_id_table & mesh_table for debug
+        char mesh_name[128];
+        snprintf(mesh_name, 128, "./fwrite_gen_mesh_%d_%d_%d_%d_%d_%d_%d.bin", pstLDCAttr->aspect, pstLDCAttr->x_ratio, pstLDCAttr->y_ratio,
+                 pstLDCAttr->xy_ratio, pstLDCAttr->center_x_offset, pstLDCAttr->center_y_offset, pstLDCAttr->distortion_ratio);
+        FILE *fp = fopen(mesh_name, "wb");
+        if (!fp) {
+            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "open file[%s] failed.\n", mesh_name);
+            free(buffer);
+            fclose(fp);
+            return BM_ERR_FAILURE;
+        }
+        if (fwrite((void *)buffer, 0x150000, 1, fp) != 1) {
+            free(buffer);
+            fclose(fp);
+            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "fwrite data error\n");
+        }
+        fclose(fp);
+        */
         ret = bm_memcpy_s2d(handle, pmem, (void*)buffer);
         if (ret != BM_SUCCESS) {
             bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "bm_memcpy_s2d failed!\n");
@@ -3903,3 +3926,4 @@ bm_status_t bmcv_dwa_dewarp_internel(bm_handle_t          handle,
     }
     return ret;
 }
+#endif

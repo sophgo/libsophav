@@ -184,31 +184,57 @@ bmcv_ive_16bit_to_8bit
       #include <stdio.h>
       #include <stdlib.h>
       #include <string.h>
-      #include <pthread.h>
-      #include <sys/time.h>
       #include "bmcv_api_ext_c.h"
       #include <unistd.h>
-      #define SLEEP_ON 0
-      #define MAX_THREAD_NUM 20
+
+      #define align_up(num, align) (((num) + ((align) - 1)) & ~((align) - 1))
+
+      static int readBin(const char* path, void* input_data)
+      {
+          int len;
+          int size;
+          FILE* fp_src = fopen(path, "rb");
+
+          if (fp_src == NULL) {
+              perror("Error opening file\n");
+              return -1;
+          }
+
+          fseek(fp_src, 0, SEEK_END);
+          size = ftell(fp_src);
+          fseek(fp_src, 0, SEEK_SET);
+
+          len = fread((void*)input_data, 1, size, fp_src);
+          if (len < size) {
+              printf("file size = %d is less than required bytes = %d\n", len, size);
+              return -1;
+          }
+
+          fclose(fp_src);
+          return 0;
+      }
+
+
       int main() {
-          int loop_time = 1;
           int dev_id = 0;
           bmcv_ive_16bit_to_8bit_mode mode = BM_IVE_S16_TO_S8;
           unsigned char u8Numerator = 41;
           unsigned short u16Denominator = 18508;
           signed char s8Bias = 0;
-          int height = xxxx, width = xxxx;
+          int height = 1080, width = 1920;
           bm_image_data_format_ext srcDtype = DATA_TYPE_EXT_S16;
           bm_image_data_format_ext dstDtype = DATA_TYPE_EXT_1N_BYTE_SIGNED;
-          char *src_name = "ive_data/xxxxx";
+          char *src_name = "path/to/src";
+          char *ref_name = "path/to/dst";
           bm_handle_t handle = NULL;
+          int ret = (int)bm_dev_request(&handle, dev_id);
+          if (ret != 0) {
+              printf("Create bm handle failed. ret = %d\n", ret);
+              exit(-1);
+          }
+
           bm_image src, dst;
           int srcStride[4], dstStride[4];
-          unsigned long long time_single, time_total = 0, time_avg = 0;
-          unsigned long long time_max = 0, time_min = 10000, fps_actual = 0, pixel_per_sec = 0;
-          struct timeval tv_start;
-          struct timeval tv_end;
-          struct timeval timediff;
 
           // config setting
           bmcv_ive_16bit_to_8bit_attr attr;
@@ -216,58 +242,47 @@ bmcv_ive_16bit_to_8bit
           attr.u16_denominator = u16Denominator;
           attr.u8_numerator = u8Numerator;
           attr.s8_bias = s8Bias;
-          int ret = (int)bm_dev_request(&handle, dev_id);
-          if (ret != 0) {
-              printf("Create bm handle failed. ret = %d\n", ret);
-              exit(-1);
-          }
-          // calc ive image stride && create bm image struct
-          bm_ive_image_calc_stride(handle, height, width, FORMAT_GRAY, srcDtype, srcStride);
-          bm_ive_image_calc_stride(handle, height, width, FORMAT_GRAY, dstDtype, dstStride);
+
+          int data_size = 1;
+          srcStride[0] = align_up(width, 16) * data_size;
+          dstStride[0] = align_up(width, 16) * data_size;
 
           bm_image_create(handle, height, width, FORMAT_GRAY, srcDtype, &src, srcStride);
           bm_image_create(handle, height, width, FORMAT_GRAY, dstDtype, &dst, dstStride);
 
-          ret = bm_image_alloc_dev_mem(src, BMCV_HEAP_ANY);
-          if (ret != BM_SUCCESS) {
-              printf("src bm_image_alloc_dev_mem failed. ret = %d\n", ret);
-              exit(-1);
-          }
+          ret = bm_image_alloc_dev_mem(src, BMCV_HEAP1_ID);
+          ret = bm_image_alloc_dev_mem(dst, BMCV_HEAP1_ID);
 
-          ret = bm_image_alloc_dev_mem(dst, BMCV_HEAP_ANY);
-          if (ret != BM_SUCCESS) {
-              printf("src bm_image_alloc_dev_mem failed. ret = %d\n", ret);
-              exit(-1);
-          }
+          unsigned char* input_data = (unsigned char*)malloc(height * width * sizeof(unsigned char));
+          readBin(src_name, input_data);
+          bm_image_copy_host_to_device(src, (void **)&input_data);
 
-          // read image data from input files
-          bm_ive_read_bin(src, src_name);
+          ret = bmcv_ive_16bit_to_8bit(handle, src, dst, attr);
 
-          for(i = 0; i < loop_time; i++)
-          {
-              gettimeofday(&tv_start, NULL);
-              ret = bmcv_ive_16bit_to_8bit(handle, src, dst, attr);
-              gettimeofday(&tv_end, NULL);
-              timediff.tv_sec  = tv_end.tv_sec - tv_start.tv_sec;
-              timediff.tv_usec = tv_end.tv_usec - tv_start.tv_usec;
-              time_single = (unsigned int)(timediff.tv_sec * 1000000 + timediff.tv_usec);
-              if(time_single>time_max){time_max = time_single;}
-              if(time_single<time_min){time_min = time_single;}
-              time_total = time_total + time_single;
+          int image_byte_size[4] = {0};
+          bm_image_get_byte_size(dst, image_byte_size);
+          int byte_size = image_byte_size[0] + image_byte_size[1] + image_byte_size[2] + image_byte_size[3];
+          unsigned char* output_ptr = (unsigned char *)malloc(byte_size);
+          memset(output_ptr, 0, sizeof(byte_size));
 
-              if(ret != BM_SUCCESS){
-                  printf("bmcv_ive_16bitto8bit is failed \n");
-                  exit(-1);
-              }
-          }
+          void* out_ptr[4] = {(void*)output_ptr,
+                              (void*)((char*)output_ptr + image_byte_size[0]),
+                              (void*)((char*)output_ptr + image_byte_size[0] + image_byte_size[1]),
+                              (void*)((char*)output_ptr + image_byte_size[0] + image_byte_size[1] + image_byte_size[2])};
 
-          time_avg = time_total / loop_time;
-          fps_actual = 1000000 / time_avg;
-          pixel_per_sec = width * height * fps_actual/1024/1024;
+          ret = bm_image_copy_device_to_host(dst, (void **)out_ptr);
+
+          FILE *fp_dst = fopen(ref_name, "wb");
+          if (fwrite((void *)output_ptr, 1, byte_size, fp_dst) < (unsigned int)byte_size){
+              printf("file size is less than %d required bytes\n", byte_size);
+          };
+          fclose(fp_dst);
+
+          free(input_data);
+          free(output_ptr);
+
           bm_image_destroy(&src);
           bm_image_destroy(&dst);
 
-          printf("ive_16bitTo8bit: loop %d cycles, time_max = %llu, time_avg = %llu, fps %llu, %lluM pps\n",
-                loop_time, time_max, time_avg, fps_actual, pixel_per_sec);
-
+          return 0;
       }

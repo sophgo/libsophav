@@ -27,8 +27,8 @@ int overlay_w = 80, overlay_h = 60;
 int overlay_num = 1;
 int x = 200, y = 200;
 bool bWrite = false;
-char *image_name = "./res/car_rgb888.rgb";
-char *overlay_name = "./res/dog_s_80x60_pngto1555.bin";
+char *image_name = "/opt/sophon/libsophon-current/bin/res/car_rgb888.rgb";
+char *overlay_name = "/opt/sophon/libsophon-current/bin/res/dog_s_80x60_pngto1555.bin";
 char *md5 = "a858701cb01131f1356f80c76e7813c0";    // argb1555
 bm_handle_t handle = NULL;
 

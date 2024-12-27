@@ -55,42 +55,38 @@ bmcv_base64_enc(dec)
 
     .. code-block:: c
 
-        int original_len[2];
-        int encoded_len[2];
-        int original_len[0] = (rand() % 134217728) + 1;
-        int encoded_len[0] = (original_len + 2) / 3 * 4;
-        char *src = (char *)malloc((original_len + 3) * sizeof(char));
-        char *dst = (char *)malloc((encoded_len + 3) * sizeof(char));
-        for (j = 0; j < original_len; j++)
-            a[j] = (char)((rand() % 256) + 1);
+      #include <stdio.h>
+      #include <stdlib.h>
+      #include <string.h>
+      #include <assert.h>
+      #include <math.h>
+      #include "bmcv_api_ext_c.h"
 
-        bm_handle_t handle;
-        ret = bm_dev_request(&handle, 0);
-        if (ret != BM_SUCCESS) {
-            printf("Create bm handle failed. ret = %d\n", ret);
-            exit(-1);
+
+
+      int main() {
+        int original_len = (rand() % 134217728) + 1; //128M
+        int encoded_len = (original_len + 2) / 3 * 4;
+        char* src = (char *)malloc((original_len + 3) * sizeof(char));
+        char* dst = (char *)malloc((encoded_len + 3) * sizeof(char));
+        for (int j = 0; j < original_len; j++){
+          src[j] = (char)((rand() % 256) + 1);
         }
-        bmcv_base64_enc(
-            handle,
-            bm_mem_from_system(src),
-            bm_mem_from_system(dst),
-            original_len);
+        bm_handle_t handle;
+        int ret = bm_dev_request(&handle, 0);
+        if (ret != BM_SUCCESS) {
+          printf("Create bm handle failed. ret = %d\n", ret);
+          exit(-1);
+        }
+        unsigned long lenth[2];
+        lenth[0] = (unsigned long)original_len;
 
-        bmcv_base64_dec(
-            handle,
-            bm_mem_from_system(dst),
-            bm_mem_from_system(src),
-            original_len);
+        bmcv_base64_enc(handle, bm_mem_from_system(src), bm_mem_from_system(dst), lenth);
+        bmcv_base64_dec(handle, bm_mem_from_system(dst), bm_mem_from_system(src), lenth);
 
         bm_dev_free(handle);
         free(src);
         free(dst);
+        return 0;
+      }
 
-
-**注意事项：**
-
-1、该 api 一次最多可对 128MB 的数据进行编解码，即参数 len 不可超过128MB。
-
-2、同时支持传入地址类型为system或device。
-
-3、encoded_len[1]在会给出输出长度，尤其是解码时根据输入的末尾计算需要去掉的位数

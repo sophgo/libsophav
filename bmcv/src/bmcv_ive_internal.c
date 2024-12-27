@@ -1,3 +1,4 @@
+#ifndef BM_PCIE_MODE
 #include <stdio.h>
 #include <stdlib.h>
 #include "bmcv_a2_ive_ext.h"
@@ -1366,3 +1367,4 @@ bm_status_t bmcv_ive_frame_diff_motion(
 
     return ret;
 }
+#endif

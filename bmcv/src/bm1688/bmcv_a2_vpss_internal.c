@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <pthread.h>
 #include "bmcv_a2_vpss_internal.h"
 #ifdef __linux__
 #include <sys/ioctl.h>
@@ -459,8 +460,8 @@ bm_status_t check_bm_vpss_image_param(
 		} else {
 			if ((padding_attr[frame_idx].if_memset != 0) && (padding_attr[frame_idx].if_memset != 1)) {
 				bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
-					"frame [%d], padding_attr if_memset wrong  %s: %s: %d\n",
-					frame_idx, filename(__FILE__), __func__, __LINE__);
+					"frame [%d], padding_attr if_memset(%d) wrong  %s: %s: %d\n",
+					frame_idx, padding_attr[frame_idx].if_memset, filename(__FILE__), __func__, __LINE__);
 				return BM_ERR_PARAM;
 			} else {
 				dst_crop_rect.start_x = padding_attr[frame_idx].dst_crop_stx;
@@ -986,12 +987,13 @@ bm_status_t bm_vpss_asic(
 	bmcv_rgn_cfg*           gop_attr)
 {
 	bm_status_t ret = BM_SUCCESS;
-	int fd = 0;
 	bm_vpss_cfg vpss_cfg;
 	vpss_crop_info_s pstCropInfo;
+#ifndef BM_PCIE_MODE
+	int fd = 0;
 	ret = bm_get_vpss_fd(&fd);
 	if (ret != BM_SUCCESS) return ret;
-
+#endif
 	for (int i = 0; i < frame_number; i++) {
 		memset(&vpss_cfg, 0, sizeof(bm_vpss_cfg));
 
@@ -1096,14 +1098,22 @@ bm_status_t bm_vpss_asic(
 
 		for (int k = 0; k < 3; k++) {
 			bm_send_image_frame(output[i], &vpss_cfg.chn_frm_cfg.video_frame, vpss_cfg.chn_attr.chn_attr.pixel_format);
+#ifndef BM_PCIE_MODE
 			ret = (bm_status_t)ioctl(fd, VPSS_BM_SEND_FRAME, &vpss_cfg);
+#else
+			struct vpp_batch_n batch = {.cmd = &vpss_cfg};
+			if(0 != bm_trigger_vpp(handle, &batch))
+				ret = BM_ERR_TIMEOUT;
+#endif
 			if (ret == BM_SUCCESS) break;
 		}
 		if (ret != BM_SUCCESS) {
 			bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "ret(0x%lx), bm_send_image_frame fail %s: %s: %d\n", (unsigned long)ret, __FILE__, __func__, __LINE__);
 			dump_vpss_param(i, input[i], output[i], input_crop_rect, padding_attr,
 				algorithm, csc_cfg, convert_to_attr, border_param, coverex_param, gop_attr);
+#ifndef BM_PCIE_MODE
 			system("cat /proc/soph/vpss");
+#endif
 			break;
 		}
 	}
@@ -1196,6 +1206,7 @@ bm_status_t bm_vpss_multi_parameter_processing(
 
 	for (i = 0; i < frame_number; i++) {
 		if (is_need_width_align_input(input[i])) {
+#ifndef BM_PCIE_MODE
 			int src_stride[3];
 			int align_stride[3];
 			bm_image_get_stride(input[i], src_stride);
@@ -1220,6 +1231,12 @@ bm_status_t bm_vpss_multi_parameter_processing(
 				bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "bmcv_width_align fail %s: %s: %d\n", __FILE__, __func__, __LINE__);
 				goto fail;
 			}
+#else
+			bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
+				"input fmt(%d) align not support %s: %s: %d\n",
+				input[i].image_format, __FILE__, __func__, __LINE__);
+			goto fail;
+#endif
 		} else
 			input_align[i] = input[i];
 	}
@@ -1702,6 +1719,45 @@ bm_status_t bm_vpss_copy_to(
 	return ret;
 }
 
+static void* stitch_thread(void* arg){
+	stitch_ctx *ctx = (stitch_ctx*)arg;
+	ctx->ret = bm_vpss_multi_input_single_output(
+		ctx->handle, 1, &ctx->input, ctx->output, &ctx->src_crop_rect, &ctx->padding_attr, ctx->algorithm, CSC_MAX_ENUM, NULL);
+	if(ctx->ret)
+		bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, \
+			"stitch_thread idx(%d) err\n", ctx->idx);
+	return 0;
+}
+
+int rectangles_overlap(bmcv_rect_t r1, bmcv_rect_t r2) {
+	// check if there is no overlap
+	if ((r1.start_x >= r2.start_x + r2.crop_w) ||
+		r1.start_x + r1.crop_w <= r2.start_x ||
+		r1.start_y >= r2.start_y + r2.crop_h ||
+		r1.start_y + r1.crop_h <= r2.start_y) {
+		return BM_SUCCESS; // no overlap
+	}
+	return BM_ERR_PARAM; // overlap
+}
+
+// determine if multiple rectangles overlap
+int check_stitch_any_overlap(int count, bmcv_rect_t *rectangles) {
+	for (int i = 0; i < count; i++) {
+		for (int j = i + 1; j < count; j++) {
+			if (rectangles_overlap(rectangles[i], rectangles[j])) {
+				bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, \
+					"stitch dst_rect overlap err.\n"
+					"idx(%d) stx(%d) sty(%d) w(%d) h(%d)\n"
+					"idx(%d) stx(%d) sty(%d) w(%d) h(%d)\n", \
+					i, rectangles[i].start_x, rectangles[i].start_y, rectangles[i].crop_w, rectangles[i].crop_h,
+					j, rectangles[j].start_x, rectangles[j].start_y, rectangles[j].crop_w, rectangles[j].crop_h);
+				return BM_ERR_PARAM; // overlap
+			}
+		}
+	}
+	return BM_SUCCESS; // no overlap
+}
+
 bm_status_t bm_vpss_stitch(
 	bm_handle_t             handle,
 	int                     input_num,
@@ -1718,24 +1774,46 @@ bm_status_t bm_vpss_stitch(
 	if (ret != BM_SUCCESS)
 		return ret;
 
+	ret = check_stitch_any_overlap(input_num, dst_crop_rect);
+	if (ret != BM_SUCCESS)
+		return ret;
+
 	if (dst_crop_rect == NULL) {
 		bmlib_log("VPP-STITCH", BMLIB_LOG_ERROR, "dst_crop_rect is nullptr");
 		return BM_ERR_PARAM;
 	}
-
-	bmcv_padding_attr_t *padding_attr = (bmcv_padding_attr_t *)malloc(sizeof(bmcv_padding_attr_t) * input_num);
-
-	memset(padding_attr, 0, input_num *sizeof(bmcv_padding_attr_t));
+	pthread_t pid[input_num];
+	stitch_ctx ctx[input_num];
 	for (i = 0; i < input_num; i++) {
-		padding_attr[i].dst_crop_stx = dst_crop_rect[i].start_x;
-		padding_attr[i].dst_crop_sty = dst_crop_rect[i].start_y;
-		padding_attr[i].dst_crop_w   = dst_crop_rect[i].crop_w;
-		padding_attr[i].dst_crop_h   = dst_crop_rect[i].crop_h;
+		ctx[i].padding_attr.dst_crop_stx = dst_crop_rect[i].start_x;
+		ctx[i].padding_attr.dst_crop_sty = dst_crop_rect[i].start_y;
+		ctx[i].padding_attr.dst_crop_w   = dst_crop_rect[i].crop_w;
+		ctx[i].padding_attr.dst_crop_h   = dst_crop_rect[i].crop_h;
+		ctx[i].padding_attr.if_memset = 0;
+		ctx[i].idx = i;
+		ctx[i].handle = handle;
+		ctx[i].input = input[i];
+		ctx[i].output = output;
+		ctx[i].src_crop_rect = src_crop_rect[i];
+		ctx[i].algorithm = algorithm;
+		if (pthread_create(
+				&pid[i], NULL, stitch_thread, (void *)(ctx + i))) {
+			bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "create thread failed\n");
+			return BM_ERR_PARAM;
+		}
 	}
-	ret = bm_vpss_multi_input_single_output(
-		handle, input_num, input, output, src_crop_rect, padding_attr, algorithm, CSC_MAX_ENUM, NULL);
+	for (int i = 0; i < input_num; i++) {
+		ret = pthread_join(pid[i], NULL);
+		if (ret != 0) {
+			bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "Thread join failed\n");
+			return BM_ERR_PARAM;
+		}
+	}
 
-	free(padding_attr);
+	for (int i = 0; i < input_num; i++) {
+		ret |= ctx[i].ret;
+	}
+
 	return ret;
 }
 
@@ -1942,6 +2020,50 @@ bm_status_t bm_vpss_fill_rectangle(
 	return ret;
 }
 
+bm_status_t bm_vpss_quick_overlay(
+  bm_handle_t          handle,
+  bm_image             image,
+  bmcv_rect_t          rects,
+  bm_image             overlay_image)
+{
+	bm_status_t ret = BM_SUCCESS;
+	struct rgn_param gop_cfg;
+	bmcv_rgn_cfg gop_attr;
+	bmcv_padding_attr_t padding_attr = {
+		.if_memset = 0,
+		.dst_crop_stx = rects.start_x,
+		.dst_crop_sty = rects.start_y,
+		.dst_crop_w = rects.crop_w,
+		.dst_crop_h = rects.crop_h};
+	switch(overlay_image.image_format) {
+		case FORMAT_ARGB_PACKED:
+			gop_cfg.fmt = RGN_FMT_ARGB8888;
+			break;
+		case FORMAT_ARGB4444_PACKED:
+			gop_cfg.fmt = RGN_FMT_ARGB4444;
+			break;
+		case FORMAT_ARGB1555_PACKED:
+			gop_cfg.fmt = RGN_FMT_ARGB1555;
+			break;
+		default:
+			printf("image format not supported \n");
+			ret = BM_ERR_DATA;
+			return ret;
+	}
+	gop_cfg.phy_addr = overlay_image.image_private->data[0].u.device.device_addr;
+	gop_cfg.rect.left = 0;
+	gop_cfg.rect.top = 0;
+	gop_cfg.rect.width = overlay_image.width;
+	gop_cfg.rect.height = overlay_image.height;
+	gop_cfg.stride = overlay_image.image_private->memory_layout[0].pitch_stride;
+	gop_attr.rgn_num = 1;
+	gop_attr.param = &gop_cfg;
+	ret = bm_vpss_multi_parameter_processing(
+		handle, 1, &image, &image, &rects, &padding_attr, BMCV_INTER_LINEAR,
+		CSC_MAX_ENUM, NULL, NULL, NULL, NULL, &gop_attr, NO_FLIP);
+	return ret;
+}
+
 bm_status_t bm_vpss_overlay(
   bm_handle_t          handle,
   bm_image             image,
@@ -1950,6 +2072,10 @@ bm_status_t bm_vpss_overlay(
   bm_image *           overlay_image)
 {
 	bm_status_t ret = BM_SUCCESS;
+	if(rect_num == 1){
+		ret = bm_vpss_quick_overlay(handle, image, rects[0], overlay_image[0]);
+		return ret;
+	}
 	unsigned char overlay_time = (rect_num + 15) >> 4;
 	unsigned char overlay_num = 0;
 	bmcv_rgn_cfg gop_attr;

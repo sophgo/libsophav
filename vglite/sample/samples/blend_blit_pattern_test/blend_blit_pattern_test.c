@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "vg_lite.h"
 #include "vg_lite_util.h"
 #include "hmi_res_sprite.h"
@@ -182,8 +183,6 @@ static void gpu_vg_lite_startup(void)
 
 void cleanup(void)
 {
-    int32_t i;
-
     if (buffer1.handle != NULL) {
         // Free the buffer memory.
         vg_lite_free(&buffer1);
@@ -199,15 +198,11 @@ void cleanup(void)
 
 int main(int argc, const char* argv[])
 {
-    int i;
-    vg_lite_filter_t filter;
-    vg_lite_matrix_t matrix;
-
     /* Initialize vglite. */
     gpu_vg_lite_startup();
     double_buffer_display();
 
-ErrorHandler:
+//ErrorHandler:
     // Cleanup.
     cleanup();
     return 0;

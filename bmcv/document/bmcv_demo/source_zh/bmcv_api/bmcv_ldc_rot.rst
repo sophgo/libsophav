@@ -104,60 +104,80 @@ bmcv_ldc_rot
     #include <stdio.h>
     #include <stdlib.h>
     #include <string.h>
-    #include <pthread.h>
-    #include <sys/time.h>
     #include "bmcv_api_ext_c.h"
     #include <unistd.h>
 
     #define LDC_ALIGN 64
+    #define align_up(num, align) (((num) + ((align) - 1)) & ~((align) - 1))
 
-    extern void bm_read_bin(bm_image src, const char *input_name);
-    extern void bm_write_bin(bm_image dst, const char *output_name);
-    extern int md5_cmp(unsigned char* got, unsigned char* exp ,int size);
-    extern bm_status_t bm_ldc_image_calc_stride(bm_handle_t handle,
-                                                int img_h,
-                                                int img_w,
-                                                bm_image_format_ext image_format,
-                                                bm_image_data_format_ext data_type,
-                                                int *stride);
-    int main(int argc, char **argv) {
-        bm_status_t ret = BM_SUCCESS;
-        bm_handle_t handle = NULL;
+    int main() {
         int dev_id = 0;
-        char *src_name = "1920x1088_nv21.bin";
-        char *dst_name = "out_1920x1088_rot0.yuv";
-        int width = 1920;
-        int height = 1088;
-        bm_image src, dst;
+        int height = 1080, width = 1920;
+        bm_image_format_ext src_fmt = FORMAT_GRAY, dst_fmt = FORMAT_GRAY;
         bmcv_rot_mode rot_mode = BMCV_ROTATION_0;
-        bm_image_format_ext src_fmt = FORMAT_NV21;
-        bm_image_format_ext dst_fmt = FORMAT_NV21;
+        char *src_name = "path/to/src", *dst_name = "path/to/dst";
+        bm_handle_t handle = NULL;
+        int ret = (int)bm_dev_request(&handle, dev_id);
+        if (ret != 0) {
+            printf("Create bm handle failed. ret = %d\n", ret);
+            exit(-1);
+        }
+
+        bm_image src, dst;
         int src_stride[4];
         int dst_stride[4];
-        int ret = (int)bm_dev_request(&handle, dev_id);
+
         // align
-        int align_height = (height + (LDC_ALIGN - 1)) & ~(LDC_ALIGN - 1);
         int align_width  = (width  + (LDC_ALIGN - 1)) & ~(LDC_ALIGN - 1);
-        // calc image stride
-        bm_ldc_image_calc_stride(handle, height, width, src_fmt, DATA_TYPE_EXT_1N_BYTE, src_stride);
-        if (rot_mode == BMCV_ROTATION_90 || rot_mode == BMCV_ROTATION_270) {
-            bm_ldc_image_calc_stride(handle, align_width, align_height, dst_fmt, DATA_TYPE_EXT_1N_BYTE, dst_stride);
-        } else {
-            bm_ldc_image_calc_stride(handle, align_height, align_width, dst_fmt, DATA_TYPE_EXT_1N_BYTE, dst_stride);
-        }
+
+        int data_size = 1;
+        src_stride[0] = align_up(width, 16) * data_size;
+        dst_stride[0] = align_up(align_width, 16) * data_size;
         // create bm image
         bm_image_create(handle, height, width, src_fmt, DATA_TYPE_EXT_1N_BYTE, &src, src_stride);
-        if (rot_mode == BMCV_ROTATION_90 || rot_mode == BMCV_ROTATION_270) {
-            bm_image_create(handle, width, height, dst_fmt, DATA_TYPE_EXT_1N_BYTE, &dst, dst_stride);
-        } else {
-            bm_image_create(handle, height, width, dst_fmt, DATA_TYPE_EXT_1N_BYTE, &dst, dst_stride);
-        }
-        ret = bm_image_alloc_dev_mem(src, BMCV_HEAP_ANY);
-        ret = bm_image_alloc_dev_mem(dst, BMCV_HEAP_ANY);
-        // read image data from input files
-        bm_read_bin(src, src_name);
-        bmcv_ldc_rot(handle, src, dst, rot_mode);
-        bm_write_bin(dst, dst_name);
+        bm_image_create(handle, height, width, dst_fmt, DATA_TYPE_EXT_1N_BYTE, &dst, dst_stride);
 
+        ret = bm_image_alloc_dev_mem(src, BMCV_HEAP1_ID);
+        ret = bm_image_alloc_dev_mem(dst, BMCV_HEAP1_ID);
+
+        int image_byte_size[4] = {0};
+        bm_image_get_byte_size(src, image_byte_size);
+        int byte_size  = image_byte_size[0] + image_byte_size[1] + image_byte_size[2] + image_byte_size[3];
+        unsigned char *input_data = (unsigned char *)malloc(byte_size);
+        FILE *fp_src = fopen(src_name, "rb");
+        if (fread((void *)input_data, 1, byte_size, fp_src) < (unsigned int)byte_size) {
+            printf("file size is less than required bytes%d\n", byte_size);
+        };
+        fclose(fp_src);
+        void* in_ptr[4] = {(void *)input_data,
+                            (void *)((unsigned char*)input_data + image_byte_size[0]),
+                            (void *)((unsigned char*)input_data + image_byte_size[0] + image_byte_size[1]),
+                            (void *)((unsigned char*)input_data + image_byte_size[0] + image_byte_size[1] + image_byte_size[2])};
+        bm_image_copy_host_to_device(src, in_ptr);
+
+        ret = bmcv_ldc_rot(handle, src, dst, rot_mode);
+
+        bm_image_get_byte_size(dst, image_byte_size);
+        byte_size = image_byte_size[0] + image_byte_size[1] + image_byte_size[2] + image_byte_size[3];
+        unsigned char* output_ptr = (unsigned char*)malloc(byte_size);
+        void* out_ptr[4] = {(void*)output_ptr,
+                            (void*)((unsigned char*)output_ptr + image_byte_size[0]),
+                            (void*)((unsigned char*)output_ptr + image_byte_size[0] + image_byte_size[1]),
+                            (void*)((unsigned char*)output_ptr + image_byte_size[0] + image_byte_size[1] + image_byte_size[2])};
+        bm_image_copy_device_to_host(src, (void **)out_ptr);
+
+        FILE *fp_dst = fopen(dst_name, "wb");
+        if (fwrite((void *)input_data, 1, byte_size, fp_dst) < (unsigned int)byte_size){
+            printf("file size is less than %d required bytes\n", byte_size);
+        };
+        fclose(fp_dst);
+
+        free(input_data);
+        free(output_ptr);
+
+        bm_image_destroy(&src);
+        bm_image_destroy(&dst);
+
+        bm_dev_free(handle);
         return 0;
     }

@@ -581,9 +581,9 @@ bm_status_t vpss_gop(unsigned char *src, int in_w, int in_h, bmcv_rgn_cfg *gop_a
                 alpha = alpha < 0 ? 0 : (alpha > 255 ? 255 : alpha);
                 int inv_alpha = 255 - alpha;
 
-                src_pixel[0] = (src_pixel[0] * inv_alpha + overlay_pixel[0] * alpha) / 255;
+                src_pixel[0] = (src_pixel[0] * inv_alpha + overlay_pixel[2] * alpha) / 255;
                 src_pixel[1] = (src_pixel[1] * inv_alpha + overlay_pixel[1] * alpha) / 255;
-                src_pixel[2] = (src_pixel[2] * inv_alpha + overlay_pixel[2] * alpha) / 255;
+                src_pixel[2] = (src_pixel[2] * inv_alpha + overlay_pixel[0] * alpha) / 255;
             }
         }
     }

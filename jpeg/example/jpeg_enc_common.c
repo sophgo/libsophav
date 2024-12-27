@@ -37,10 +37,10 @@ void ConvertToImageFormat(BmJpuImageFormat *image_format, BmJpuColorFormat color
     }
 }
 
-void* acquire_output_buffer(void *context, unsigned int size, void **acquired_handle)
+void* acquire_output_buffer(void *context, size_t size, void **acquired_handle)
 {
-    printf("acquire_output_buffer callback line = %d, size = %u.\n", __LINE__, size);
-    
+    printf("acquire_output_buffer callback line = %d, size = %lu.\n", __LINE__, size);
+
     void *mem;
 
     UNUSED(context);
@@ -163,11 +163,11 @@ BmJpuEncReturnCodes start_encode(BmJpuJPEGEncoder *jpeg_encoder, EncParam *enc_p
     jpu_enc_params.output_buffer_context = NULL;
     jpu_enc_params.timeout = enc_params->timeout;
     jpu_enc_params.timeout_count = enc_params->timeout_count;
- 
+
     if (enc_params->bs_set_on_process) {
         bitstream_buffer = (bm_device_mem_t*)malloc(sizeof(bm_device_mem_t));
         ret = bm_malloc_device_byte_heap(bm_handle, bitstream_buffer, 1, enc_params->bitstream_size);
-        if (ret != BM_SUCCESS) {
+        if (ret != (BmJpuEncReturnCodes)BM_SUCCESS) {
             fprintf(stderr, "malloc device memory size = %d failed, ret = %d\n", enc_params->bitstream_size, ret);
             if (bitstream_buffer != NULL) {
                 free(bitstream_buffer);
@@ -227,9 +227,9 @@ BmJpuEncReturnCodes start_encode(BmJpuJPEGEncoder *jpeg_encoder, EncParam *enc_p
         MD5(acquired_handle, output_buffer_size, out_md5);
 
         /* convert md5 value to md5 string */
-        char md5_str[MD5_STRING_LENGTH + 1]; 
+        char md5_str[MD5_STRING_LENGTH + 1];
         for (i = 0; i < MD5_DIGEST_LENGTH; i++) {
-            snprintf(md5_str + i*2, 3, "%02x", out_md5 + i);
+            snprintf(md5_str + i*2, 3, "%02x", out_md5[i]);
         }
         fprintf(stdout, "output file md5: %s\n", md5_str);
 

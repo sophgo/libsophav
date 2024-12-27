@@ -44,7 +44,7 @@ int main(int argc, const char* argv[])
 {
     vg_lite_filter_t filter;
     vg_lite_matrix_t matrix;
-    uint32_t feature_check = 0;
+    //uint32_t feature_check = 0;
 
     /* Initialize vg_lite engine. */
     vg_lite_error_t error = VG_LITE_SUCCESS;

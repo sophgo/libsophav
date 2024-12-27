@@ -28,7 +28,7 @@ int loop_mode = 0;
 int rand_input_width = 0, rand_input_height = 0;
 int test_loop_times  = 1;
 int test_threads_num = 1;
-int src_h = 1080, src_w = 1920, dev_id = 0;
+int src_h = 1080, src_w = 1920, dev_id = 0, dst_h = 1080, dst_w = 1920;
 bm_image_format_ext fmt = FORMAT_YUV420P;
 char *src_name = "/opt/sophon/libsophon-current/bin/res/1920x1080_yuv420.bin", *dst_name = "dst.bin";
 bm_handle_t handle = NULL;
@@ -74,7 +74,6 @@ static void * dwa_rot(void* arg) {
     bm_status_t ret;
     convert_ctx ctx = *(convert_ctx*)arg;
     bm_image src, dst;
-    int dst_w, dst_h;
     unsigned int i = 0, loop_time = 0;
     unsigned long long time_single, time_total = 0, time_avg = 0;
     unsigned long long time_max = 0, time_min = 10000, fps_actual = 0, pixel_per_sec = 0;
@@ -205,28 +204,30 @@ static void * dwa_rot(void* arg) {
 
 static void print_help(char **argv){
     printf("please follow this order:\n \
-        %s src_w src_h src_fmt src_name dst_name rot_mode thread_num loop_num md5 /*For user input test*/\n \
+        %s src_w src_h src_fmt src_name dst_w dst_h dst_name rot_mode thread_num loop_num md5 /*For user input test*/\n \
         %s rand_mode(1) thread_num loop_num         /*For random size test*/\n \
         %s loop_mode(1) rand_mode(1) width height   /*For size loop test*/\n", argv[0], argv[0], argv[0]);
 };
 
 int main(int argc, char **argv) {
-    if (argc >= 10) {
-        md5 = argv[9];
-    } else if(argc > 3){
+    if (argc >= 12) {
+        md5 = argv[11];
+    } else if(argc > 3) {
         md5 = NULL;
     }
-    if (argc >= 9) {
-        test_threads_num = atoi(argv[7]);
-        test_loop_times  = atoi(argv[8]);
+    if (argc >= 11) {
+        test_threads_num = atoi(argv[9]);
+        test_loop_times  = atoi(argv[10]);
     }
-    if (argc >= 7) {
+    if (argc >= 9) {
         src_w = atoi(argv[1]);
         src_h = atoi(argv[2]);
         fmt = (bm_image_format_ext)atoi(argv[3]);
         src_name = argv[4];
-        dst_name = argv[5];
-        rot_mode = (bmcv_rot_mode)(atoi(argv[6]));
+        dst_w = atoi(argv[5]);
+        dst_h = atoi(argv[6]);
+        dst_name = argv[7];
+        rot_mode = (bmcv_rot_mode)(atoi(argv[8]));
     }
     if (argc == 2) {
         if (atoi(argv[1]) < 0){
@@ -250,6 +251,8 @@ int main(int argc, char **argv) {
             for (src_h = rand_input_height; src_h <= IMG_MAX_HEIGHT; src_h += 32) {
                 rot_mode = BMCV_ROTATION_0;
                 fmt = FORMAT_RGB_PLANAR;
+                dst_w = src_w;
+                dst_w = src_h;
                 printf("Size loop mode for rot: width = %d, height = %d, rot_mode = %d, fmt = %d\n", src_w, src_h, rot_mode, fmt);
                 test_threads_num = 1;
                 test_loop_times  = 1;
@@ -260,12 +263,11 @@ int main(int argc, char **argv) {
                 }
                 convert_ctx ctx[test_threads_num];
 #ifdef __linux__
-                pthread_t *          pid = (pthread_t *)malloc(sizeof(pthread_t)*test_threads_num);
+                pthread_t* pid = (pthread_t *)malloc(sizeof(pthread_t)*test_threads_num);
                 for (int i = 0; i < test_threads_num; i++) {
                     ctx[i].i = i;
                     ctx[i].loop = test_loop_times;
-                    if (pthread_create(
-                            &pid[i], NULL, dwa_rot, (void *)(ctx + i))) {
+                    if (pthread_create(&pid[i], NULL, dwa_rot, (void *)(ctx + i))) {
                         free(pid);
                         perror("create thread failed\n");
                         exit(-1);
@@ -288,7 +290,7 @@ int main(int argc, char **argv) {
             }
             rand_input_height = 32;
         }
-    } else if (argc == 1 || (argc > 6 && argc < 9)) {
+    } else if (argc == 1 || (argc > 5 && argc < 9)) {
         printf("command input error\n");
         print_help(argv);
         exit(-1);
@@ -342,12 +344,11 @@ int main(int argc, char **argv) {
     }
     convert_ctx ctx[test_threads_num];
 #ifdef __linux__
-    pthread_t *          pid = (pthread_t *)malloc(sizeof(pthread_t)*test_threads_num);
+    pthread_t * pid = (pthread_t *)malloc(sizeof(pthread_t)*test_threads_num);
     for (int i = 0; i < test_threads_num; i++) {
         ctx[i].i = i;
         ctx[i].loop = test_loop_times;
-        if (pthread_create(
-                &pid[i], NULL, dwa_rot, (void *)(ctx + i))) {
+        if (pthread_create(&pid[i], NULL, dwa_rot, (void *)(ctx + i))) {
             free(pid);
             perror("create thread failed\n");
             exit(-1);

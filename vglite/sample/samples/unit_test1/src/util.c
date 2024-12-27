@@ -505,7 +505,7 @@ int InitBMP(int width, int height)
     if(image_data == NULL)
         return 1;
 
-    readpixel_data = (unsigned char *)(((unsigned int)image_data + sizeof(BITMAPINFOHEADER) + sizeof(BITMAPFILEHEADER) + 3) & (~0x3));
+    readpixel_data = (unsigned char *)(((uintptr_t)image_data + sizeof(BITMAPINFOHEADER) + sizeof(BITMAPFILEHEADER) + 3) & (~0x3));
 
     return 0;
 }
@@ -543,11 +543,11 @@ int SaveBMP(char *image_name, unsigned char* p, int width, int height,
 
     /* infoHeader. */
     *(char *)&infoHeader->biSize = sizeof(BITMAPINFOHEADER);
-    *(short *)&infoHeader->biWidth = (short)width;
-    *(short *)&infoHeader->biHeight = (short)height;
+    infoHeader->biWidth = (short)width;
+    infoHeader->biHeight = (short)height;
     infoHeader->biPlanes = 1;
     infoHeader->biBitCount = 24;
-    *(short *)&infoHeader->biCompression = BI_RGB;
+    infoHeader->biCompression = BI_RGB;
 
     data_size = width * height * 3;
 
@@ -902,26 +902,24 @@ static int read_long(FILE *fp)
     b1 = getc(fp);
     b2 = getc(fp);
     b3 = getc(fp);
-    
+
     return ((int)(((((b3 << 8) | b2) << 8) | b1) << 8) | b0);
 }
 int vg_lite_load_raw_to_point(uint8_t ** data, uint32_t *stride,const char * name)
 {
     FILE * fp;
-    
+
     /* Set status. */
     int status = 1;
-    int width,height,format,str;
+    int height=0, str=0;
     /* Check the result with golden. */
     fp = fopen(name, "rb");
     if (fp != NULL) {
         int flag;
-        
+
         /* Get width, height, stride and format info. */
-        width  = read_long(fp);
         height = read_long(fp);
         str = read_long(fp);
-        format = read_long(fp);
 
         *data = (uint8_t*)malloc(height * str);
 

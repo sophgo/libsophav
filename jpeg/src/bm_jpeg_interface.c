@@ -32,6 +32,7 @@
 #define FRAME_HEIGHT_ALIGN 8
 #define MAX_NUM_DEV 64
 #define JPEG_CHN_START 64
+#define VDEC_MAX_CHN_NUM_INF    64
 
 
 BmJpuDecReturnCodes bm_jpu_calc_framebuffer_sizes(unsigned int frame_width,
@@ -136,7 +137,7 @@ typedef struct _BM_JPEG_CTX {
 /* decode */
 #define VC_DRV_DECODER_DEV_NAME "soph_vc_dec"
 static pthread_mutex_t g_jpeg_dec_lock = PTHREAD_MUTEX_INITIALIZER;
-static BM_JPEG_CTX g_jpeg_dec_chn[VDEC_MAX_CHN_NUM] = { 0 };
+static BM_JPEG_CTX g_jpeg_dec_chn[VDEC_MAX_CHN_NUM_INF] = { 0 };
 static bm_handle_t g_jpeg_dec_bm_handle[MAX_NUM_DEV] = { 0 };
 static int g_jpeg_dec_load_cnt[MAX_NUM_DEV] = { 0 };
 
@@ -376,7 +377,7 @@ BmJpuDecReturnCodes bm_jpu_jpeg_dec_open(BmJpuJPEGDecoder **jpeg_decoder,
     }
 
     chn_id -= JPEG_CHN_START;
-    if (chn_id < 0 || chn_id >= VDEC_MAX_CHN_NUM) {
+    if (chn_id < 0 || chn_id >= VDEC_MAX_CHN_NUM_INF) {
         close(chn_fd);
         pthread_mutex_unlock(&g_jpeg_dec_lock);
         BM_JPU_ERROR("invalid chn id %d", chn_id);
@@ -531,7 +532,7 @@ BmJpuDecReturnCodes bm_jpu_jpeg_dec_close(BmJpuJPEGDecoder *jpeg_decoder)
     release_fb_node(jpeg_decoder->decoder->fb_list_head);
 
     chn_id = jpeg_decoder->decoder->channel_id;
-    if (chn_id < 0 || chn_id >= VDEC_MAX_CHN_NUM) {
+    if (chn_id < 0 || chn_id >= VDEC_MAX_CHN_NUM_INF) {
         BM_JPU_ERROR("invalid channel id: %d", chn_id);
         return BM_JPU_DEC_RETURN_CODE_ERROR;
     }
@@ -586,7 +587,7 @@ BmJpuDecReturnCodes bm_jpu_jpeg_dec_decode(BmJpuJPEGDecoder *jpeg_decoder, uint8
     bm_jpu_dec_set_interrupt_timeout(jpeg_decoder->decoder, timeout);
 
     chn_id = jpeg_decoder->decoder->channel_id;
-    if (chn_id < 0 || chn_id >= VDEC_MAX_CHN_NUM) {
+    if (chn_id < 0 || chn_id >= VDEC_MAX_CHN_NUM_INF) {
         BM_JPU_ERROR("invalid channel id: %d", chn_id);
         return BM_JPU_DEC_RETURN_CODE_ERROR;
     }
@@ -635,7 +636,7 @@ BmJpuDecReturnCodes bm_jpu_jpeg_dec_get_info(BmJpuJPEGDecoder *jpeg_decoder, BmJ
     }
 
     chn_id = jpeg_decoder->decoder->channel_id;
-    if (chn_id < 0 || chn_id >= VDEC_MAX_CHN_NUM) {
+    if (chn_id < 0 || chn_id >= VDEC_MAX_CHN_NUM_INF) {
         BM_JPU_ERROR("invalid channel id: %d", chn_id);
         return BM_JPU_DEC_RETURN_CODE_INVALID_PARAMS;
     }
@@ -767,7 +768,7 @@ BmJpuDecReturnCodes bm_jpu_jpeg_dec_frame_finished(BmJpuJPEGDecoder *jpeg_decode
     FramebufferList *list_curr = NULL;
 
     chn_id = jpeg_decoder->decoder->channel_id;
-    if (chn_id < 0 || chn_id >= VDEC_MAX_CHN_NUM) {
+    if (chn_id < 0 || chn_id >= VDEC_MAX_CHN_NUM_INF) {
         BM_JPU_ERROR("invalid channel id: %d", chn_id);
         return BM_JPU_DEC_RETURN_CODE_ERROR;
     }
@@ -1135,6 +1136,11 @@ BmJpuEncReturnCodes bm_jpu_jpeg_enc_encode(BmJpuJPEGEncoder *jpeg_encoder,
     pstJpegAttr->bSupportDCF = 0;
     pstJpegAttr->stMPFCfg.u8LargeThumbNailNum = 0;
     pstJpegAttr->enReceiveMode = VENC_PIC_RECEIVE_SINGLE;
+
+    if (params->quality_factor > 0) {
+        stAttr.stRcAttr.enRcMode = VENC_RC_MODE_MJPEGFIXQP;
+        stAttr.stRcAttr.stMjpegFixQp.u32Qfactor = params->quality_factor;
+    }
 
     stAttr.stGopAttr.enGopMode = VENC_GOPMODE_NORMALP;
     stAttr.stGopAttr.stNormalP.s32IPQpDelta = 0;

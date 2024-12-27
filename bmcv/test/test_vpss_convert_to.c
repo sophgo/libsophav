@@ -34,7 +34,7 @@ typedef struct border {
     u8 value_r;
     u8 value_g;
     u8 value_b;
-    u8 thickness;
+    u16 thickness;
 } border_t;
 
 typedef struct coverex_cfg {

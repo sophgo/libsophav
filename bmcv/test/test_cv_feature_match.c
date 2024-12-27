@@ -10,7 +10,6 @@
 
 #define ERR_THRESHOLD 1e-2
 #define CMP_ERR_THRESHOLD 1e-6
-#define ALIGN(x, align) (((x) + (align - 1)) & ~(align - 1))
 #define TIME_COST_US(start, end) ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec))
 
 struct cv_fm_thread_arg_t {
@@ -23,140 +22,12 @@ struct cv_fm_thread_arg_t {
     bm_handle_t handle;
 };
 
-static float calc_sqrt(const float* feature, int feature_size)
-{
-    float a = 0.f;
-    int i;
-
-    for (i = 0; i < feature_size; ++i) {
-        a += feature[i] * feature[i];
-    }
-
-    return 1.f / sqrt(a);
-}
-
-static int calc_sqrt_transposed(float** feature, int rows, int cols, float* db_feature)
-{
-    int i, j;
-    float tmp;
-    float result;
-
-    for (i = 0; i < cols; ++i) {
-        tmp = 0.f;
-        for (j = 0; j < rows; ++j) {
-            tmp += feature[j][i] * feature[j][i];
-        }
-        result = 1.f / sqrt(tmp);
-        db_feature[i] = result;
-    }
-
-    return 0;
-}
-
-static int transpose(float** origin, int rows, int cols, float** trans)
-{
-    if (rows == 0 || cols == 0) {
-        return BM_ERR_FAILURE;
-    }
-
-    int i, j;
-
-    for (i = 0; i < rows; i++) {
-        for (j = 0; j < cols; j++) {
-            trans[j][i] = origin[i][j];
-        }
-    }
-
-    return 0;
-}
-
-static int compare_float(const void *a, const void *b)
-{
-    const float epsilon = CMP_ERR_THRESHOLD;
-    float diff = *(float *)b - *(float *)a;
-    return (diff > epsilon) ? 1 : ((diff < -epsilon) ? -1 : 0);
-}
-
-static void sort_cpu_float(float** match_res, int batch_size, int db_size)
-{
-    int i;
-
-    for (i = 0; i < batch_size; ++i) {
-        qsort(match_res[i], db_size, sizeof(float), compare_float);
-    }
-}
-
-static int cpu_feature_match(float** input_data, int batch_size, int feature_size, float** db_data,
-                            int db_size, float** match_res)
-{
-    int i, j, k;
-    float a, b;
-    int ret = 0;
-    float** trans_vec = (float**)malloc(db_size * sizeof(float*));
-    for (i = 0; i < db_size; i++) {
-        trans_vec[i] = (float*)malloc(feature_size * sizeof(float));
-    }
-
-    ret = transpose(db_data, feature_size, db_size, trans_vec); /*trans_vec row = db_size col = feature_size*/
-
-    for (i = 0; i < batch_size; ++i) {
-        for (j = 0; j < db_size; ++j) {
-            a = 0.f;
-            for (k = 0; k < feature_size; ++k) {
-                a += input_data[i][k] * trans_vec[j][k];
-            }
-            b = calc_sqrt(input_data[i], feature_size) * calc_sqrt(trans_vec[j], feature_size);
-            match_res[i][j] = a * b;
-        }
-    }
-
-    sort_cpu_float(match_res, batch_size, db_size);
-
-    for (i = 0; i < db_size; ++i) {
-        free(trans_vec[i]);
-    }
-    free(trans_vec);
-
-    return ret;
-}
-
-static int compare_short(const void *a, const void *b) {
-    return (*(short*)b - *(short*)a);
-}
-
-static void sort_cpu_fix8b(short** match_res, int batch_size, int db_size) {
-    int i;
-
-    for (i = 0; i < batch_size; ++i) {
-        qsort(match_res[i], db_size, sizeof(short), compare_short);
-    }
-}
-
-static int cpu_feature_match_fix8b(int8_t** input_data, int batch_size, int feature_size,
+extern int calc_sqrt_transposed(float** feature, int rows, int cols, float* db_feature);
+extern int cpu_feature_match(float** input_data, int batch_size, int feature_size, float** db_data,
+                            int db_size, float** match_res);
+extern int cpu_feature_match_fix8b(int8_t** input_data, int batch_size, int feature_size,
                                     int8_t** db_data, int db_size, int rshiftbits,
-                                    short** match_res)
-{
-    int tmp = 0;
-    int i, j, k;
-
-    for (i = 0; i < batch_size; ++i) {
-        for (j = 0; j < db_size; ++j) {
-            tmp = 0;
-            for (k = 0; k < feature_size; ++k) {
-                tmp += db_data[k][j] * input_data[i][k];
-            }
-            tmp = tmp > 0x7fff ? 0x7fff : tmp;
-            tmp = tmp < -0x8000 ? -0x8000 : tmp;
-            if (rshiftbits != 0) {
-                tmp = ((tmp >> (rshiftbits - 1)) + 1) >> 1;
-            }
-            match_res[i][j] = (short)tmp;
-        }
-    }
-    sort_cpu_fix8b(match_res, batch_size, db_size);
-
-    return 0;
-}
+                                    short** match_res);
 
 static int res_compare_short(short* tpu_res_similarity, int* tpu_res_index, short** ref_res,
                             int batch_size, int db_size, int sort_cnt)

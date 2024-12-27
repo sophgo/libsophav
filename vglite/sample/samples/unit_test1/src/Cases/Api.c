@@ -32,6 +32,13 @@ vg_lite_error_t API_Run(api_t api,uint32_t rect[])
     uint32_t chip_id;
     uint32_t chip_rev;
     vg_lite_info_t info;
+    vg_lite_rectangle_t rect_value = {0};
+	if(rect != NULL) {
+		rect_value.x = rect[0];
+		rect_value.y = rect[1];
+		rect_value.width = rect[3];
+		rect_value.height = rect[4];
+	}
 
     memset(&buffer,0,sizeof(vg_lite_buffer_t));
     memset(&dst_buf,0,sizeof(vg_lite_buffer_t));
@@ -72,10 +79,10 @@ vg_lite_error_t API_Run(api_t api,uint32_t rect[])
         dst_height = WINDSIZEY;
         CHECK_ERROR(Allocate_Buffer(&dst_buf,VG_LITE_RGBA8888,dst_width,dst_height));
         vg_lite_identity(&matrix);
-        
+
         CHECK_ERROR(vg_lite_clear(&dst_buf, NULL, 0xffffffff));
         if(api == blit_rect) {
-            error = (vg_lite_blit_rect(&dst_buf, &buffer, rect, &matrix,VG_LITE_BLEND_NONE, 0, VG_LITE_FILTER_POINT));
+            error = (vg_lite_blit_rect(&dst_buf, &buffer, &rect_value, &matrix,VG_LITE_BLEND_NONE, 0, VG_LITE_FILTER_POINT));
             if (error != VG_LITE_SUCCESS)
             {
                 if(error == VG_LITE_INVALID_ARGUMENT) {

@@ -219,11 +219,13 @@ bm_status_t bmcv_image_draw_lines(bm_handle_t handle, bm_image image, const bmcv
     bmcv_point_t* sp = (bmcv_point_t*)malloc(line_num * sizeof(bmcv_point_t));
     bmcv_point_t* ep = (bmcv_point_t*)malloc(line_num * sizeof(bmcv_point_t));
     int i;
-    unsigned char* host_buf;
-    int str[3];
-    unsigned char* in_ptr[3];
-    int w, h;
+    int strides[3];
     bmMat mat;
+    bm_device_mem_t dmem;
+    unsigned char *in_ptr[3];
+    unsigned long long virt_addr  = 0;
+    unsigned long long size[3] = {0};
+    unsigned long long total_size = 0;
 
     for (i = 0; i < line_num; i++) {
         sp[i].x = SATURATE(start[i].x, 0, image.width - 1);
@@ -235,19 +237,24 @@ bm_status_t bmcv_image_draw_lines(bm_handle_t handle, bm_image image, const bmcv
             swap(&(sp[i].y), &(ep[i].y));
         }
     }
-    w = image.width;
-    h = image.height;
-    host_buf = (unsigned char*)malloc(w * h * 3 * sizeof(unsigned char));
-    in_ptr[0] = host_buf;
-    in_ptr[1] = host_buf + w * h;
-    in_ptr[2] = host_buf + w * h * 2;
-    ret = bm_image_copy_device_to_host(image, (void**)in_ptr);
+
+    for (int i = 0; i < image.image_private->plane_num; i++) {
+        size[i] = image.image_private->memory_layout[i].size;
+        total_size += size[i];
+    }
+    dmem = image.image_private->data[0];
+    bm_set_device_mem(&dmem, total_size, dmem.u.device.device_addr);
+    ret = bm_mem_mmap_device_mem_no_cache(image.image_private->handle, &dmem, &virt_addr);
     if (ret != BM_SUCCESS) {
-        printf("the bm_image_copy_device_to_host failed!\n");
+        bmlib_log("DRAW_LINE", BMLIB_LOG_ERROR, "bm_mem_mmap_device_mem failed with error code %d\r\n", ret);
         goto exit;
     }
 
-    ret = bm_image_get_stride(image, str);
+    in_ptr[0] = (unsigned char *)virt_addr;
+    in_ptr[1] = in_ptr[0] + size[0];
+    in_ptr[2] = in_ptr[1] + size[1];
+
+    ret = bm_image_get_stride(image, strides);
     if (ret != BM_SUCCESS) {
         printf("the bm_image_get_stride failed!\n");
         goto exit;
@@ -256,21 +263,20 @@ bm_status_t bmcv_image_draw_lines(bm_handle_t handle, bm_image image, const bmcv
     mat.width = image.width;
     mat.height = image.height;
     mat.format = image.image_format;
-    mat.step = &str[0];
+    mat.step = &strides[0];
     mat.data = (void**)in_ptr;
 
     for (i = 0; i < line_num; i++) {
         draw_line(&mat, sp[i], ep[i], color, thickness);
     }
 
-    ret = bm_image_copy_host_to_device(image, (void**)in_ptr);
+    ret = bm_mem_unmap_device_mem(image.image_private->handle, (void *)&virt_addr, total_size);
     if (ret != BM_SUCCESS) {
-        printf("bm_image_copy_host_to_device failed!\n");
+        bmlib_log("DRAW_LINE", BMLIB_LOG_ERROR, "bm_mem_unmap_device_mem failed with error code %d\r\n", ret);
         goto exit;
     }
 
 exit:
-    free(host_buf);
     free(sp);
     free(ep);
     return ret;

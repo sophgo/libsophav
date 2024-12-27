@@ -5,11 +5,23 @@
 #include <string.h>
 #include <sys/time.h>
 #include <time.h>
+
 #include <pthread.h>
 
 #define ERR_MAX 1e-6
 #define DIV_UP(a, b) ( ((a) + (b) - 1) / (b) )
 #define TIME_COST_US(start, end) ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec))
+
+typedef struct {
+    int loop_num;
+    int input_row;
+    int input_col;
+    int output_row;
+    int output_col;
+    int row_stride;
+    int col_stride;
+    bm_handle_t handle;
+} cv_as_strided_thread_arg_t;
 
 struct row_para {
     int input_row;
@@ -28,16 +40,7 @@ struct row_col_para {
     struct col_para col;
 };
 
-typedef struct {
-    int loop_num;
-    int input_row;
-    int input_col;
-    int output_row;
-    int output_col;
-    int row_stride;
-    int col_stride;
-    bm_handle_t handle;
-} cv_as_strided_thread_arg_t;
+extern int cpu_as_strided(float* input, float* output, struct row_col_para row_col);
 
 static int parameters_check(struct row_col_para row_col)
 {
@@ -114,37 +117,6 @@ static int cmp_result(float* tpu_out, float* cpu_out, int n_Rows, int n_Cols)
     return 0;
 }
 
-static int cpu_as_strided(float* input, float* output, struct row_col_para row_col)
-{
-    int input_row = row_col.row.input_row;
-    int output_row = row_col.row.output_row;
-    int row_stride = row_col.row.row_stride;
-    int input_col = row_col.col.input_col;
-    int output_col = row_col.col.output_col;
-    int col_stride = row_col.col.col_stride;
-    int i, j;
-    int input_size = input_row * input_col;
-    int start = 0;
-    int cur = start;
-
-    if (input == NULL || output == NULL) {
-        printf("the cpu input or output is null!\n");
-        return -1;
-    }
-
-    for(i = 0; i < output_row; i++) {
-        cur = start;
-        for(j = 0; j < output_col; j++) {
-            output[i * output_col + j] = input[cur];
-            cur += col_stride;
-            cur %= input_size;
-        }
-        start += row_stride;
-        start %= input_size;
-    }
-
-    return 0;
-}
 
 static int tpu_as_strided(float* input, float* output, struct row_col_para row_col, int crit_val, bm_handle_t handle)
 {

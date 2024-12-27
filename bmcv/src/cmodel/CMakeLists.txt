@@ -20,13 +20,8 @@ set(CMODEL_LIB_NAME cmodel CACHE INTERNAL "cmodel library name")
 
 add_library(${CMODEL_LIB_NAME} SHARED ${SRCS})
 
-string(FIND "${CMAKE_C_COMPILER}" "aarch64-linux-gnu-gcc" COMPILER_FOUND)
-
-if (COMPILER_FOUND GREATER -1)
-    set(MY_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/../../../../../libsophav/3rdparty/libbmcv/lib/soc")
-else ()
-    set(MY_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/../../../../../libsophav/3rdparty/libbmcv/lib930/soc")
-endif ()
+#string(FIND "${CMAKE_C_COMPILER}" "aarch64-linux-gnu-gcc" COMPILER_FOUND)
+set(MY_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/../../../../../libsophav/3rdparty/libbmcv/${LIB_VERSION}/${PLATFORM}")
 
 add_custom_command(TARGET ${CMODEL_LIB_NAME} POST_BUILD
                    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:${CMODEL_LIB_NAME}> ${MY_OUTPUT_DIR}

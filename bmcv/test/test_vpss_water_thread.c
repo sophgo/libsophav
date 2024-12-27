@@ -35,7 +35,7 @@ bmcv_rect_t rect[9] = {{.start_x = 0, .start_y = 0, .crop_w = 128, .crop_h = 128
 int rect_num = 9;
 bmcv_resize_algorithm algorithm = BMCV_INTER_LINEAR;
 bm_handle_t handle = NULL;
-char *md5 = "0d5b1d52a7ca5140f0460a572b561261";
+char *md5 = "fac0fda8e2c577167f70d066e892c8a0";
 
 static void * water(void* arg) {
     bm_status_t ret;

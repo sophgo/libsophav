@@ -72,7 +72,7 @@ void cleanup(void)
 
 int main(int argc, const char * argv[])
 {
-    vg_lite_filter_t filter;
+    //vg_lite_filter_t filter;
     vg_lite_linear_gradient_t grad;
     uint32_t ramps[] = { 0xffeeaa00, 0xffff0000, 0xff00ff00, 0xff0000ff, 0xff00ffaa, 0xff00ffee};
     uint32_t stops[] = { 28, 86, 142, 220, 270, 300};
@@ -84,7 +84,7 @@ int main(int argc, const char * argv[])
     vg_lite_error_t error = VG_LITE_SUCCESS;
     CHECK_ERROR(vg_lite_init(fb_width, fb_height));
 
-    filter = VG_LITE_FILTER_POINT;
+    //filter = VG_LITE_FILTER_POINT;
 
     /* Allocate the off-screen buffer. */
     buffer.width  = fb_width;

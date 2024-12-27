@@ -14,6 +14,9 @@ typedef struct {
 
 #define TIME_COST_US(start, end) ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec))
 
+extern int cpu_cmul(float* XRHost, float* XIHost, float* PRHost, float* PIHost,
+                    float* cpu_YR, float* cpu_YI, int L, int batch);
+
 static int parameters_check(int len, int batch)
 {
     if (len > 4096 || batch > 1980){
@@ -21,30 +24,6 @@ static int parameters_check(int len, int batch)
         return -1;
     }
     return 0;
-}
-
-static int cpu_cmul(float* XRHost, float* XIHost, float* PRHost, float* PIHost,
-                    float* cpu_YR, float* cpu_YI, int L, int batch)
-{
-    int ret = 0;
-    int i, j;
-
-    if (XRHost == NULL || XIHost == NULL|| PRHost == NULL ||
-        PIHost == NULL || cpu_YR == NULL || cpu_YI == NULL) {
-        printf("the param is null!\n");
-        return -1;
-    }
-
-    for (i = 0; i < batch; ++i) {
-        for (j = 0; j < L; ++j) {
-            cpu_YR[i * L + j] = XRHost[i * L + j] * PRHost[j] - \
-                                XIHost[i * L + j] * PIHost[j]; /* x = a * c - b * d; */
-            cpu_YI[i * L + j] = XRHost[i * L + j] * PIHost[j] + \
-                                XIHost[i * L + j] * PRHost[j]; /* y = a * d + b * c; */
-        }
-    }
-
-    return ret;
 }
 
 static int tpu_cmul(float* XRHost, float* XIHost, float* PRHost, float* PIHost,

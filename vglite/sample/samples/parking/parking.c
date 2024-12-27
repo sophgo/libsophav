@@ -52,8 +52,8 @@ static int   render_width = BASE_DIM_X, render_height = BASE_DIM_Y;
 static vg_lite_buffer_t * fb;
 static vg_lite_buffer_t buffer;
 static int has_blitter = 0;
-static vg_lite_buffer_t * sys_fb;
-static int has_fb = 0;
+//static vg_lite_buffer_t * sys_fb;
+//static int has_fb = 0;
 int show = 3;   //Frame to show.
 int frames = 1; //Frames to render
 
@@ -339,7 +339,7 @@ static int32_t get_data_count(uint8_t cmd)
         6,
         6
     };
-    
+
     if ((cmd < VLC_OP_END) || (cmd > VLC_OP_CUBIC_REL)) {
         return -1;
     }
@@ -348,15 +348,15 @@ static int32_t get_data_count(uint8_t cmd)
     }
 }
 
-static int32_t calc_path_size(uint8_t *cmd, uint32_t count)
+static int32_t __attribute__((unused)) calc_path_size(uint8_t *cmd, uint32_t count)
 {
     int32_t size = 0;
     int32_t dCount = 0;
     uint32_t i = 0;
-    
+
     for (i = 0; i < count; i++) {
         size++;     //OP CODE.
-        
+
         dCount = get_data_count(cmd[i]);
         if (dCount > 0) {
             size = CDALIGN(size);

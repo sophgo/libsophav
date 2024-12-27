@@ -16,6 +16,8 @@ typedef struct {
 
 #define TIME_COST_US(start, end) ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec))
 
+extern int cpu_min_max(float* XHost, int L, float* min_cpu, float* max_cpu);
+
 static int parameters_check(int len)
 {
     if (len < 50 || len > 260144){
@@ -58,41 +60,6 @@ static int tpu_min_max(float* XHost, int L, float* min_tpu, float* max_tpu, bm_h
     bm_free_device(handle, XDev);
     return 0;
 
-}
-
-static int cpu_min_max(float* XHost, int L, float* min_cpu, float* max_cpu)
-{
-    int ret = 0;
-    float min_value = 0;
-    float max_value = 0;
-
-    if (XHost == NULL) {
-        printf("the param Xhost or min_cpu or nax_cpu is null\n");
-        return -1;
-    }
-
-    if (min_cpu == NULL && max_cpu == NULL) {
-        printf("Do Not Calculate Min & Max.\n");
-        return ret;
-    }
-
-    if (min_cpu != NULL) {
-        min_value = XHost[0];
-        for (int i = 1; i < L; ++i) {
-            min_value = min_value < XHost[i] ? min_value : XHost[i];
-        }
-        *min_cpu = min_value;
-    }
-
-    if (max_cpu != NULL) {
-        max_value = XHost[0];
-        for (int i = 1; i < L; ++i) {
-            max_value = max_value > XHost[i] ? max_value : XHost[i];
-        }
-        *max_cpu = max_value;
-    }
-
-    return ret;
 }
 
 static int test_min_max(int len, bm_handle_t handle)

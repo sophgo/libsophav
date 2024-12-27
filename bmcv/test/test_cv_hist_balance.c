@@ -6,6 +6,7 @@
 #include <time.h>
 #include "bmcv_api_ext_c.h"
 #include <pthread.h>
+
 #ifdef __linux__
 #include <sys/time.h>
 #include "time.h"
@@ -30,61 +31,7 @@ struct cv_hb_thread_arg_t {
     bm_handle_t handle;
 };
 
-static float get_cdf_min(float* cdf, int len)
-{
-    int i;
-
-    for(i = 0; i < len; ++i) {
-        if (cdf[i] != 0) {
-            return cdf[i];
-        }
-    }
-    return 0.f;
-}
-
-static int cpu_hist_balance(uint8_t* input_host, uint8_t* output_cpu, int height, int width)
-{
-    int H = height;
-    int W = width;
-    int binX;
-    int i;
-    float gray_tmp;
-    uint8_t gray_index_tmp;
-    float cdf_min;
-    float cdf_max;
-    float* cpu_cdf;
-
-    if (input_host == NULL || output_cpu == NULL) {
-        printf("cpu_calc_hist param error!\n");
-        return -1;
-    }
-
-    cpu_cdf = (float*)malloc(GRAY_SERIES * sizeof(float));
-    memset(cpu_cdf, 0.f, GRAY_SERIES * sizeof(float));
-
-    for (i = 0; i < W * H; ++i) {
-        binX = input_host[i];
-        if (binX >= 0 && binX < GRAY_SERIES) {
-            cpu_cdf[binX]++;
-        }
-    }
-
-    for (i = 1; i < GRAY_SERIES ; ++i) {
-        cpu_cdf[i] += cpu_cdf[i - 1];
-    }
-
-    cdf_min = get_cdf_min(cpu_cdf, GRAY_SERIES);
-    cdf_max = W * H;
-
-    for(i = 0; i < H * W; ++i) {
-        gray_index_tmp = input_host[i];
-        gray_tmp = round((cpu_cdf[gray_index_tmp] - cdf_min) * (GRAY_SERIES - 1) / (cdf_max - cdf_min));
-        output_cpu[i] = (uint8_t)gray_tmp;
-    }
-
-    free(cpu_cdf);
-    return 0;
-}
+extern int cpu_hist_balance(uint8_t* input_host, uint8_t* output_cpu, int height, int width);
 
 static int tpu_hist_balance(uint8_t* input_host, uint8_t* output_tpu, int height, int width, bm_handle_t handle)
 {

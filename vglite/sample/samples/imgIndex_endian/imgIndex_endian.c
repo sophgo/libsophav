@@ -35,17 +35,17 @@ static vg_lite_buffer_t * sys_fb;   //system framebuffer object to show the rend
 static vg_lite_buffer_t * fb;
 static int has_fb = 0;
 
-static vg_lite_buffer_t image[3];
+static vg_lite_buffer_t image[4];
 
 void cleanup(void)
 {
     int32_t i;
-    
+
     if (has_fb) {
         // Close the framebuffer.
         vg_lite_fb_close(sys_fb);
     }
-    
+
     if (buffer.handle != NULL) {
         // Free the buffer memory.
         vg_lite_free(&buffer);
@@ -181,11 +181,11 @@ int main(int argc, const char * argv[])
                             "imgIndex1_littleEndian.png", "imgIndex2_littleEndian.png", "imgIndex4_littleEndian.png"};
 
     enum vg_lite_index_endian endian_mode[2] = {VG_LITE_INDEX_BIG_ENDIAN, VG_LITE_INDEX_LITTLE_ENDIAN};
-    
+
     // Initialize vg_lite engine.
     vg_lite_error_t error = VG_LITE_SUCCESS;
     CHECK_ERROR(vg_lite_init(0, 0));
-    
+
     filter = VG_LITE_FILTER_BI_LINEAR;
 
     feature_check = vg_lite_query_feature(gcFEATURE_BIT_VG_INDEX_ENDIAN);
@@ -193,7 +193,7 @@ int main(int argc, const char * argv[])
         printf("imgIndex_endian is not supported.\n");
         cleanup();
         return -1;
-    }  
+    }
 
     for (j = 0; j < 2; j++)
     {

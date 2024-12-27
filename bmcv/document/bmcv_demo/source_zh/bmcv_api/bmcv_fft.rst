@@ -159,38 +159,64 @@ ___________
 
     .. code-block:: c
 
-        bool realInput = false;
-        bool forward = true;
-        int i;
-        float* XRHost = (float*)malloc(M * N * sizeof(float));
-        float* XIHost = (float*)malloc(M * N * sizeof(float));
-        float* YRHost = (float*)malloc(M * N * sizeof(float));
-        float* YIHost = (float*)malloc(M * N * sizeof(float));
+      #include "bmcv_api_ext_c.h"
+      #include <stdint.h>
+      #include <stdio.h>
+      #include <stdlib.h>
+      #include <math.h>
+      #include <string.h>
 
-        for (i = 0; i < M * N; ++i) {
-            XRHost[i] = rand() % 5 - 2;
-            XIHost[i] = realInput ? 0 : rand() % 5 - 2;
-        }
-        bm_handle_t handle = nullptr;
-        bm_dev_request(&handle, 0);
-        bm_device_mem_t XRDev, XIDev, YRDev, YIDev;
-        bm_malloc_device_byte(handle, &XRDev, M * N * 4);
-        bm_malloc_device_byte(handle, &XIDev, M * N * 4);
-        bm_malloc_device_byte(handle, &YRDev, M * N * 4);
-        bm_malloc_device_byte(handle, &YIDev, M * N * 4);
-        bm_memcpy_s2d(handle, XRDev, XRHost);
-        bm_memcpy_s2d(handle, XIDev, XIHost);
-        void *plan = nullptr;
-        bmcv_fft_2d_create_plan(handle, M, N, forward, &plan);
-        if (realInput)
-            bmcv_fft_execute_real_input(handle, XRDev, YRDev, YIDev, plan);
-        else
-            bmcv_fft_execute(handle, XRDev, XIDev, YRDev, YIDev, plan);
-        bmcv_fft_destroy_plan(handle, plan);
-        bm_memcpy_d2s(handle, YRHost, YRDev);
-        bm_memcpy_d2s(handle, YIHost, YIDev);
-        bm_free_device(handle, XRDev);
-        bm_free_device(handle, XIDev);
-        bm_free_device(handle, YRDev);
-        bm_free_device(handle, YIDev);
-        bm_dev_free(handle);
+      int main()
+      {
+          bm_handle_t handle;
+          int ret = 0;
+          int i;
+          int L = 100;
+          int batch = 100;
+          bool forward = true;
+          bool realInput = false;
+
+          ret = (int)bm_dev_request(&handle, 0);
+          if (ret) {
+              printf("Create bm handle failed. ret = %d\n", ret);
+              return ret;
+          }
+
+          float* XRHost = (float*)malloc(L * batch * sizeof(float));
+          float* XIHost = (float*)malloc(L * batch * sizeof(float));
+          float* YRHost_tpu = (float*)malloc(L * batch * sizeof(float));
+          float* YIHost_tpu = (float*)malloc(L * batch * sizeof(float));
+
+          for (i = 0; i < L * batch; ++i) {
+              XRHost[i] = (float)rand() / RAND_MAX;
+              XIHost[i] = realInput ? 0 : ((float)rand() / RAND_MAX);
+          }
+
+          bm_device_mem_t XRDev, XIDev, YRDev, YIDev;
+          void* plan = NULL;
+
+          ret = bm_malloc_device_byte(handle, &XRDev, L * batch * sizeof(float));
+          ret = bm_malloc_device_byte(handle, &XIDev, L * batch * sizeof(float));
+          ret = bm_malloc_device_byte(handle, &YRDev, L * batch * sizeof(float));
+          ret = bm_malloc_device_byte(handle, &YIDev, L * batch * sizeof(float));
+
+          ret = bm_memcpy_s2d(handle, XRDev, XRHost);
+          ret = bm_memcpy_s2d(handle, XIDev, XIHost);
+
+          ret = bmcv_fft_2d_create_plan(handle, L, batch, forward, &plan);
+
+          ret = bm_memcpy_d2s(handle, (void*)YRHost_tpu, YRDev);
+          ret = bm_memcpy_d2s(handle, (void*)YIHost_tpu, YIDev);
+
+          if (plan != NULL) {
+              bmcv_fft_destroy_plan(handle, plan);
+          }
+
+          free(XRHost);
+          free(XIHost);
+          free(YRHost_tpu);
+          free(YIHost_tpu);
+
+          bm_dev_free(handle);
+          return ret;
+      }

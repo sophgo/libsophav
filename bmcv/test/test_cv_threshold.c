@@ -21,6 +21,15 @@ typedef struct {
     bm_handle_t handle;
 } cv_threshold_thread_arg_t;
 
+extern int threshold_cpu(
+        unsigned char* input,
+        unsigned char* output,
+        int height,
+        int width,
+        unsigned char threshold,
+        unsigned char max_val,
+        int type);
+
 static int parameters_check(int height, int width)
 {
     if (height > 8192 || width > 8192){
@@ -110,67 +119,6 @@ static int threshold_opencv(
     return 0;
 }
 #endif
-
-static int threshold_cpu(
-        unsigned char* input,
-        unsigned char* output,
-        int height,
-        int width,
-        unsigned char threshold,
-        unsigned char max_val,
-        int type) {
-    switch (type) {
-        case 0:
-            for(int i = 0; i < width * height; i++){
-                if (input[i] > threshold) {
-                    output[i] = max_val;
-                } else {
-                    output[i] = 0;
-                }
-            }
-            break;
-        case 1:
-            for(int i = 0; i < width * height; i++){
-                if (input[i] > threshold) {
-                    output[i] = 0;
-                } else {
-                    output[i] = max_val;
-                }
-            }
-            break;
-        case 2:
-            for(int i = 0; i < width * height; i++){
-                if (input[i] > threshold) {
-                    output[i] = threshold;
-                } else {
-                    output[i] = input[i];
-                }
-            }
-            break;
-        case 3:
-            for(int i = 0; i < width * height; i++){
-                if (input[i] > threshold) {
-                    output[i] = input[i];
-                } else {
-                    output[i] = 0;
-                }
-            }
-            break;
-        case 4:
-            for(int i = 0; i < width * height; i++){
-                if (input[i] > threshold) {
-                    output[i] = 0;
-                } else {
-                    output[i] = input[i];
-                }
-            }
-            break;
-        default:
-            printf("threshold type is illegal!\n");
-            return -1;
-    }
-    return 0;
-}
 
 static int threshold_tpu(
         unsigned char* input,

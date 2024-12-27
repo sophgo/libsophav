@@ -32,9 +32,13 @@ bm_status_t bmcv_faiss_indexflatL2(bm_handle_t handle,
     api.transpose = is_transpose;
     api.input_dtype = input_dtype;
     api.output_dtype = output_dtype;
-
     if(database_vecs_num < sort_cnt){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "faiss_api_indexflatL2 database_vecs_num(%d) < sort_cnt(%d), %s: %s: %d\n",
+                                        database_vecs_num, sort_cnt, filename(__FILE__), __func__, __LINE__);
+        return BM_NOT_SUPPORTED;
+    }
+    if(database_vecs_num < query_vecs_num){
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "faiss_api_indexflatL2 database_vecs_num(%d) < query_vecs_num(%d), %s: %s: %d\n",
                                         database_vecs_num, sort_cnt, filename(__FILE__), __func__, __LINE__);
         return BM_NOT_SUPPORTED;
     }

@@ -32,14 +32,14 @@ typedef struct _BMLIB_HANDLE{
 static BMLIB_HANDLE g_bmlib_handle[MAX_SOC_NUM] = { {0, 0} };
 
 #ifdef __linux__
-static int bmve_atomic_lock = 0;
+//static int bmve_atomic_lock = 0;
 static int bmhandle_atomic_lock = 0; /* atomic lock for bmlib_handle */
 #elif _WIN32
 static  volatile long bmve_atomic_lock = 0;
 static  volatile long bmhandle_atomic_lock = 0;
 #endif
 static int bmlib_init_flag = 0;
-BmVpuDecLogLevel bm_vpu_log_level_threshold = BM_VPU_LOG_LEVEL_ERROR;
+BmVpuDecLogLevel bm_vpu_log_level_threshold = BMVPU_DEC_LOG_LEVEL_ERR;
 
 void bm_vpu_set_logging_threshold(BmVpuDecLogLevel threshold)
 {
@@ -53,12 +53,12 @@ void logging_fn(BmVpuDecLogLevel level, char const *file, int const line, char c
     char const *lvlstr = "";
     switch (level)
     {
-        case BM_VPU_LOG_LEVEL_ERROR:   lvlstr = "ERROR";   break;
-        case BM_VPU_LOG_LEVEL_WARNING: lvlstr = "WARNING"; break;
-        case BM_VPU_LOG_LEVEL_INFO:    lvlstr = "INFO";    break;
-        case BM_VPU_LOG_LEVEL_DEBUG:   lvlstr = "DEBUG";   break;
-        case BM_VPU_LOG_LEVEL_TRACE:   lvlstr = "TRACE";   break;
-        case BM_VPU_LOG_LEVEL_LOG:     lvlstr = "LOG";     break;
+        case BMVPU_DEC_LOG_LEVEL_ERR:   lvlstr = "ERROR";   break;
+        case BMVPU_DEC_LOG_LEVEL_WARN: lvlstr = "WARNING"; break;
+        case BMVPU_DEC_LOG_LEVEL_INFO:    lvlstr = "INFO";    break;
+        case BMVPU_DEC_LOG_LEVEL_DEBUG:   lvlstr = "DEBUG";   break;
+        case BMVPU_DEC_LOG_LEVEL_TRACE:   lvlstr = "TRACE";   break;
+        case BMVPU_DEC_LOG_LEVEL_LOG:     lvlstr = "LOG";     break;
         default: break;
     }
 
@@ -289,12 +289,12 @@ static void* bmvpu_dec_bmlib_mmap(int soc_idx, uint64_t phy_addr, size_t len)
     if (ret != BM_SUCCESS) {
         BMVPU_DEC_ERROR("bm_mem_mmap_device_mem_no_cache failed: 0x%x\n", ret);
     }
-    return vmem;
+    return (void*)vmem;
 }
 
 static void bmvpu_dec_bmlib_munmap(int soc_idx, uint64_t vir_addr, size_t len)
 {
-    bm_mem_unmap_device_mem(bmvpu_dec_get_bmlib_handle(soc_idx), vir_addr, len);
+    bm_mem_unmap_device_mem(bmvpu_dec_get_bmlib_handle(soc_idx), (void *)vir_addr, len);
     return;
 }
 
@@ -336,7 +336,7 @@ int bmdec_chn_open(char* dev_name, int soc_idx) {
 }
 
 int bmdec_chn_close(int soc_idx) {
-    int ret;
+    int ret = 0;
 
     if(bmlib_init_flag == 1) {
         ret = bmvpu_dec_unload(soc_idx);
@@ -408,8 +408,7 @@ int bmdec_ioctl_send_stream(int chn_fd, vdec_stream_ex_s* pstStreamEx)
 int bmdec_ioctl_get_frame(int chn_fd, video_frame_info_ex_s* pstFrameInfoEx, vdec_chn_status_s* stChnStatus)
 {
     int ret = 0;
-    int i = 0;
-    int align_width, align_height, size = 0;
+    int size = 0;
     int bm_ret;
 
     ret = ioctl(chn_fd, DRV_VC_VDEC_GET_FRAME, pstFrameInfoEx);
@@ -477,30 +476,30 @@ int bmdec_ioctl_get_frame(int chn_fd, video_frame_info_ex_s* pstFrameInfoEx, vde
     return bm_ret;
 }
 
-int bmdec_ioctl_release_frame(int chn_fd, const video_frame_info_s *pstFrameInfo, int size)
+int bmdec_ioctl_release_frame(int chn_fd, video_frame_info_s *pstFrameInfo, int size)
 {
     int ret = 0;
     if(pstFrameInfo->video_frame.compress_mode != COMPRESS_MODE_FRAME) {
         if (pstFrameInfo->video_frame.viraddr[0] && pstFrameInfo->video_frame.length[0]) {
-            bmvpu_dec_bmlib_munmap(0, pstFrameInfo->video_frame.viraddr[0], size);
+            bmvpu_dec_bmlib_munmap(0, (uint64_t)pstFrameInfo->video_frame.viraddr[0], size);
         }
     }
     else {
         if(getenv("BMVPU_DEC_DUMP_FBC_NUM") != NULL) {
             if (pstFrameInfo->video_frame.viraddr[0] && pstFrameInfo->video_frame.length[0]) {
-                bmvpu_dec_bmlib_munmap(0, pstFrameInfo->video_frame.viraddr[0], pstFrameInfo->video_frame.length[0]);
+                bmvpu_dec_bmlib_munmap(0, (uint64_t)pstFrameInfo->video_frame.viraddr[0], pstFrameInfo->video_frame.length[0]);
             }
 
             if (pstFrameInfo->video_frame.viraddr[1] && pstFrameInfo->video_frame.length[1]) {
-                bmvpu_dec_bmlib_munmap(0, pstFrameInfo->video_frame.viraddr[1], pstFrameInfo->video_frame.length[1]);
+                bmvpu_dec_bmlib_munmap(0, (uint64_t)pstFrameInfo->video_frame.viraddr[1], pstFrameInfo->video_frame.length[1]);
             }
 
             if (pstFrameInfo->video_frame.viraddr[2] && pstFrameInfo->video_frame.length[2]) {
-                bmvpu_dec_bmlib_munmap(0, pstFrameInfo->video_frame.viraddr[2], pstFrameInfo->video_frame.length[2]);
+                bmvpu_dec_bmlib_munmap(0, (uint64_t)pstFrameInfo->video_frame.viraddr[2], pstFrameInfo->video_frame.length[2]);
             }
 
             if(pstFrameInfo->video_frame.ext_virt_addr && pstFrameInfo->video_frame.ext_length) {
-                bmvpu_dec_bmlib_munmap(0, pstFrameInfo->video_frame.ext_virt_addr, pstFrameInfo->video_frame.ext_length);
+                bmvpu_dec_bmlib_munmap(0, (uint64_t)pstFrameInfo->video_frame.ext_virt_addr, pstFrameInfo->video_frame.ext_length);
             }
         }
     }

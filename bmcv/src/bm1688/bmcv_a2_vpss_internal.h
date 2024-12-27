@@ -43,19 +43,19 @@ typedef struct bmcv_vpss_csc_matrix {
 } bmcv_vpss_csc_matrix;
 
 typedef enum bmcv_vpss_csc_type {
-    VPSS_CSC_YCbCr2RGB_BT601 = 0,
-    VPSS_CSC_YPbPr2RGB_BT601,
-    VPSS_CSC_RGB2YCbCr_BT601,
-    VPSS_CSC_YCbCr2RGB_BT709,
-    VPSS_CSC_RGB2YCbCr_BT709,
-    VPSS_CSC_RGB2YPbPr_BT601,
-    VPSS_CSC_YPbPr2RGB_BT709,
-    VPSS_CSC_RGB2YPbPr_BT709,
-    VPSS_CSC_YPbPr2YPbPr_BT601,
-    VPSS_CSC_YCbCr2YCbCr_BT601,
-    VPSS_CSC_YPbPr2YPbPr_BT709,
-    VPSS_CSC_YCbCr2YCbCr_BT709,
-    VPSS_CSC_RGB2RGB,
+	VPSS_CSC_YCbCr2RGB_BT601 = 0,
+	VPSS_CSC_YPbPr2RGB_BT601,
+	VPSS_CSC_RGB2YCbCr_BT601,
+	VPSS_CSC_YCbCr2RGB_BT709,
+	VPSS_CSC_RGB2YCbCr_BT709,
+	VPSS_CSC_RGB2YPbPr_BT601,
+	VPSS_CSC_YPbPr2RGB_BT709,
+	VPSS_CSC_RGB2YPbPr_BT709,
+	VPSS_CSC_YPbPr2YPbPr_BT601,
+	VPSS_CSC_YCbCr2YCbCr_BT601,
+	VPSS_CSC_YPbPr2YPbPr_BT709,
+	VPSS_CSC_YCbCr2YCbCr_BT709,
+	VPSS_CSC_RGB2RGB,
 } bmcv_vpss_csc_type;
 
 typedef struct bmcv_csc_cfg {
@@ -65,3 +65,21 @@ typedef struct bmcv_csc_cfg {
 	bmcv_vpss_csc_type csc_type;
 	bmcv_vpss_csc_matrix csc_matrix;
 } bmcv_csc_cfg;
+
+typedef struct stitch_ctx_{
+	u16 idx;
+	bm_status_t ret;
+	bm_handle_t handle;
+	bm_image input;
+	bm_image output;
+	bmcv_rect_t src_crop_rect;
+	bmcv_resize_algorithm algorithm;
+	bmcv_padding_attr_t padding_attr;
+} stitch_ctx;
+
+#ifdef BM_PCIE_MODE
+struct vpp_batch_n {
+	bm_vpss_cfg *cmd;
+};
+DECL_EXPORT bm_status_t bm_trigger_vpp(bm_handle_t handle, struct vpp_batch_n* batch);
+#endif

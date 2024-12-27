@@ -12,7 +12,7 @@ char *error_type[] =
     "VG_LITE_SUCCESS",
     "VG_LITE_INVALID_ARGUMENT",
     "VG_LITE_OUT_OF_MEMORY",
-    "VG_LITE_NO_CONTEXT",      
+    "VG_LITE_NO_CONTEXT",
     "VG_LITE_TIMEOUT",
     "VG_LITE_OUT_OF_RESOURCES",
     "VG_LITE_GENERIC_IO",
@@ -31,7 +31,7 @@ static float fb_scale = 1.0f;
 
 static vg_lite_buffer_t buffer;     //offscreen framebuffer object for rendering.
 static vg_lite_buffer_t * fb;
-static vg_lite_buffer_t raw;
+//static vg_lite_buffer_t raw;
 
 #define ICON_COUNT 6
 static vg_lite_buffer_t icons[ICON_COUNT];

@@ -81,7 +81,7 @@ bmcv_image_rotate
 
 #. 输入输出图像的data_type、image_format必须相同。
 
-#. 支持图像的分辨率为64x64~4608x4608，且要求64位对齐。
+#. 支持图像的分辨率为64x64~4608x4608。
 
 | 【代码示例】
 
@@ -90,47 +90,91 @@ bmcv_image_rotate
     :lineno-start: 1
     :force:
 
+    #include "bmcv_api_ext_c.h"
     #include <stdio.h>
     #include <stdlib.h>
     #include <string.h>
-    #include <pthread.h>
-    #include <sys/time.h>
-    #include "bmcv_api_ext_c.h"
     #include <unistd.h>
 
-    #define LDC_ALIGN 64
+    static int writeBin(const char* path, void* output_data, int size)
+    {
+        int len = 0;
+        FILE* fp_dst = fopen(path, "wb+");
 
-    extern void bm_read_bin(bm_image src, const char *input_name);
-    extern void bm_write_bin(bm_image dst, const char *output_name);
+        if (fp_dst == NULL) {
+            perror("Error opening file\n");
+            return -1;
+        }
 
-    int main(int argc, char **argv) {
-        bm_status_t ret = BM_SUCCESS;
-        bm_handle_t handle = NULL;
-        int dev_id = 0;
-        char *src_name = "1920x1088_nv21.bin";
-        char *dst_name = "out_1920x1088_rot90.yuv";
-        int width = 1920;
-        int height = 1088;
+        len = fwrite((void*)output_data, 1, size, fp_dst);
+        if (len < size) {
+            printf("file size = %d is less than required bytes = %d\n", len, size);
+            return -1;
+        }
+
+        fclose(fp_dst);
+        return 0;
+    }
+
+    static int readBin(const char* path, void* input_data)
+    {
+        int len;
+        int size;
+        FILE* fp_src = fopen(path, "rb");
+
+        if (fp_src == NULL) {
+            perror("Error opening file\n");
+            return -1;
+        }
+
+        fseek(fp_src, 0, SEEK_END);
+        size = ftell(fp_src);
+        fseek(fp_src, 0, SEEK_SET);
+
+        len = fread((void*)input_data, 1, size, fp_src);
+        if (len < size) {
+            printf("file size = %d is less than required bytes = %d\n", len, size);
+            return -1;
+        }
+
+        fclose(fp_src);
+        return 0;
+    }
+
+
+
+
+    int main() {
         int rot_angle = 90;
+        int src_w = 1920, src_h = 1080, dst_w = 1080, dst_h = 1920, dev_id = 0;
+        bm_image_format_ext src_fmt = FORMAT_RGB_PLANAR, dst_fmt = FORMAT_RGB_PLANAR;
+        char *src_name = "/path/to/src";
+        char *dst_name = "path/to/dst";
+        bm_handle_t handle = NULL;
+        bm_status_t ret;
+        ret = bm_dev_request(&handle, dev_id);
         bm_image src, dst;
-        bm_image_format_ext src_fmt = FORMAT_NV21;
-        bm_image_format_ext dst_fmt = FORMAT_NV21;
+
         bm_image_create(handle, src_h, src_w, src_fmt, DATA_TYPE_EXT_1N_BYTE, &src, NULL);
         bm_image_create(handle, dst_h, dst_w, dst_fmt, DATA_TYPE_EXT_1N_BYTE, &dst, NULL);
 
         ret = bm_image_alloc_dev_mem(src, BMCV_HEAP1_ID);
-        if (ret != BM_SUCCESS) {
-            printf("bm_image_alloc_dev_mem_src. ret = %d\n", ret);
-            exit(-1);
-        }
         ret = bm_image_alloc_dev_mem(dst, BMCV_HEAP1_ID);
-        if (ret != BM_SUCCESS) {
-            printf("bm_image_alloc_dev_mem_dst. ret = %d\n", ret);
-            exit(-1);
-        }
-        bm_read_bin(src, src_name);
-        bmcv_image_rotate(handle, src, dst, rot_angle);
-        bm_write_bin(dst, dst_name);
 
-        return 0;
+        unsigned char* input_data = malloc(src_w * src_h * 3);
+        unsigned char* in_ptr[3] = {input_data, input_data + src_w * src_h, input_data + src_w * src_h * 2};
+        readBin(src_name, input_data);
+        bm_image_copy_host_to_device(src, (void **)in_ptr);
+        bmcv_image_rotate(handle, src, dst, rot_angle);
+        bm_image_copy_device_to_host(dst, (void **)in_ptr);
+
+        writeBin(dst_name, input_data, src_w * src_h * 3);
+
+        bm_image_destroy(&src);
+        bm_image_destroy(&dst);
+
+        free(input_data);
+        bm_dev_free(handle);
+
+        return ret;
     }

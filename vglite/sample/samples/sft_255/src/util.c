@@ -450,7 +450,7 @@ int InitBMP()
     if(image_data == NULL)
         return 1;
 
-    readpixel_data = (unsigned char *)(((unsigned int)image_data + sizeof(BITMAPINFOHEADER) + sizeof(BITMAPFILEHEADER) + 3) & (~0x3));
+    readpixel_data = (unsigned char *)(((uintptr_t)image_data + sizeof(BITMAPINFOHEADER) + sizeof(BITMAPFILEHEADER) + 3) & (~0x3));
 
     return 0;
 }
@@ -488,11 +488,11 @@ int SaveBMP(char *image_name, unsigned char* p, int width, int height,
 
     //infoHeader.
     *(char *)&infoHeader->biSize = sizeof(BITMAPINFOHEADER);
-    *(short *)&infoHeader->biWidth = (short)width;
-    *(short *)&infoHeader->biHeight = (short)height;
+    infoHeader->biWidth = (short)width;
+    infoHeader->biHeight = (short)height;
     infoHeader->biPlanes = 1;
     infoHeader->biBitCount = 24;
-    *(short *)&infoHeader->biCompression = BI_RGB;
+    infoHeader->biCompression = BI_RGB;
 
     //data
     data_size = width * height * 3;

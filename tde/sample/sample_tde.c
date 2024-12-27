@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include "bmlib_runtime.h"
 #include "tde.h"
 #include "vg_lite.h"

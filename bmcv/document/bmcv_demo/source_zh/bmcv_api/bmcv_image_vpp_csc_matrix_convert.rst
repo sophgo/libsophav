@@ -128,56 +128,92 @@ bmcv_image_vpp_csc_matrix_convert
     :lineno-start: 1
     :force:
 
-    #include <iostream>
-    #include <vector>
-    #include "bmcv_api_ext.h"
-    #include "bmlib_runtime.h"
-    #include "common.h"
-    #include <memory>
-    #include "stdio.h"
-    #include "stdlib.h"
+    #include <limits.h>
     #include <stdio.h>
     #include <stdlib.h>
+    #include <string.h>
 
-    int main(int argc, char *argv[]) {
-        bm_handle_t handle;
-        int            image_h     = 1080;
-        int            image_w     = 1920;
-        bm_image       src, dst[4];
-        bm_dev_request(&handle, 0);
-        bm_image_create(handle, image_h, image_w, FORMAT_NV12,
-                DATA_TYPE_EXT_1N_BYTE, &src);
-        bm_image_alloc_dev_mem(src, 1);
-        for (int i = 0; i < 4; i++) {
-            bm_image_create(handle,
-                image_h / 2,
-                image_w / 2,
-                FORMAT_BGR_PACKED,
-                DATA_TYPE_EXT_1N_BYTE,
-                dst + i);
-            bm_image_alloc_dev_mem(dst[i]);
+    #include "bmcv_api_ext_c.h"
+
+    int main() {
+        char* filename_src = "path/to/src_file";
+        char* filename_dst = "path/to/dst_file";
+        int in_width = 1920;
+        int in_height = 1080;
+        int out_width = 1920;
+        int out_height = 1080;
+        // int use_real_img = 1;
+        bm_image_format_ext src_format = 0;
+        bm_image_format_ext dst_format = 0;
+        bmcv_rect_t crop_rect = {
+            .start_x = 0,
+            .start_y = 0,
+            .crop_w = 200,
+            .crop_h = 200};
+        bmcv_resize_algorithm algorithm = BMCV_INTER_LINEAR;
+        bm_image_data_format_ext data_format = 1;
+
+        bm_status_t ret = BM_SUCCESS;
+
+        int src_size = in_width * in_height * 3 / 2;
+        int dst_size = out_width * out_height * 3 / 2;
+        unsigned char *src_data = (unsigned char *)malloc(src_size);
+        unsigned char *dst_data = (unsigned char *)malloc(dst_size);
+
+        FILE *file;
+        file = fopen(filename_src, "rb");
+        fread(src_data, sizeof(unsigned char), src_size, file);
+        fclose(file);
+
+        bm_handle_t handle = NULL;
+        int dev_id = 0;
+        bm_image src, dst;
+
+        ret = bm_dev_request(&handle, dev_id);
+        if (ret != BM_SUCCESS) {
+            printf("Create bm handle failed. ret = %d\n", ret);
+            return ret;
         }
-        std::unique_ptr<u8 []> y_ptr(new u8[image_h * image_w]);
-        std::unique_ptr<u8 []> uv_ptr(new u8[image_h * image_w / 2]);
-        memset((void *)(y_ptr.get()), 148, image_h * image_w);
-        memset((void *)(uv_ptr.get()), 158, image_h * image_w / 2);
-        u8 *host_ptr[] = {y_ptr.get(), uv_ptr.get()};
-        bm_image_copy_host_to_device(src, (void **)host_ptr);
 
-        bmcv_rect_t rect[] = {{0, 0, image_w / 2, image_h / 2},
-                {0, image_h / 2, image_w / 2, image_h / 2},
-                {image_w / 2, 0, image_w / 2, image_h / 2},
-                {image_w / 2, image_h / 2, image_w / 2, image_h / 2}};
+        bm_image_create(handle, in_height, in_width, src_format, DATA_TYPE_EXT_1N_BYTE, &src, NULL);
+        bm_image_create(handle, out_height, out_width, dst_format, data_format, &dst, NULL);
+        bm_image_alloc_dev_mem(src, BMCV_HEAP1_ID);
+        bm_image_alloc_dev_mem(dst, BMCV_HEAP1_ID);
 
-        bmcv_image_vpp_csc_matrix_convert(handle, 4, src, dst, CSC_YCbCr2RGB_BT601);
+        int src_image_byte_size[4] = {0};
+        bm_image_get_byte_size(src, src_image_byte_size);
 
-        for (int i = 0; i < 4; i++) {
-            bm_image_destroy(dst + i);
-        }
+        void *src_in_ptr[4] = {(void *)src_data,
+                              (void *)((char *)src_data + src_image_byte_size[0]),
+                              (void *)((char *)src_data + src_image_byte_size[0] + src_image_byte_size[1]),
+                              (void *)((char *)src_data + src_image_byte_size[0] + src_image_byte_size[1] + src_image_byte_size[2])};
+
+        bm_image_copy_host_to_device(src, (void **)src_in_ptr);
+
+        // ret = bmcv_image_vpp_convert(handle, 1, src, &dst, crop_rect, algorithm);
+        ret = bmcv_image_vpp_csc_matrix_convert(handle, 1, src, &dst, CSC_MAX_ENUM, NULL, algorithm, &crop_rect);
+
+        int dst_image_byte_size[4] = {0};
+        bm_image_get_byte_size(dst, dst_image_byte_size);
+
+        void *dst_in_ptr[4] = {(void *)dst_data,
+                              (void *)((char *)dst_data + dst_image_byte_size[0]),
+                              (void *)((char *)dst_data + dst_image_byte_size[0] + dst_image_byte_size[1]),
+                              (void *)((char *)dst_data + dst_image_byte_size[0] + dst_image_byte_size[1] + dst_image_byte_size[2])};
+
+        bm_image_copy_device_to_host(dst, (void **)dst_in_ptr);
 
         bm_image_destroy(&src);
+        bm_image_destroy(&dst);
         bm_dev_free(handle);
-        return 0;
+
+        file = fopen(filename_dst, "wb");
+        fwrite(dst_data, sizeof(unsigned char), dst_size, file);
+        fclose(file);
+
+
+        free(src_data);
+        free(dst_data);
+
+        return ret;
     }
-
-
