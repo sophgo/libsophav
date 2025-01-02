@@ -10,7 +10,8 @@
 #include <pthread.h>
 
 #define TIME_COST_US(start, end) ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec))
-
+#define __ALIGN_MASK(x, mask) (((x) + (mask)) & ~(mask))
+#define ALIGN(x, a) __ALIGN_MASK(x, (__typeof__(x))(a)-1)
 
 typedef struct {
     int loop;
@@ -304,8 +305,8 @@ static int test_add_weighted_random(int if_use_img, void* frame, int format, int
 {
     int img_size = 0;
     struct frame_size* frame_random = (struct frame_size*)frame;
-    int width = frame_random->width;
-    int height = frame_random->height;
+    int width = ALIGN(frame_random->width, 2);
+    int height = ALIGN(frame_random->height, 2);
     int ret = 0;
     struct timeval t1, t2;
 

@@ -101,7 +101,7 @@ thickness参数配置为0，即开启中文字库后，image_format 扩展支持
 | 1   | DATA_TYPE_EXT_1N_BYTE          |
 +-----+--------------------------------+
 
-3. 若文字内容不变，推荐使用 bmcv_gen_text_bitmap 与 bmcv_image_overlay 搭配的文字绘制方式，文字生成bitmap图，重复使用bitmap图进行osd叠加，以提高处理效率。示例参见bmcv_image_overlay接口文档。
+3. 若文字内容不变，推荐使用 bmcv_gen_text_watermask 与 bmcv_image_overlay 搭配的文字绘制方式，文字生成水印图，重复使用水印图进行osd叠加，以提高处理效率。示例参见bmcv_image_overlay接口文档。
 
 **示例代码**
 

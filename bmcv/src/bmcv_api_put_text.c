@@ -550,8 +550,8 @@ void put_text(bmMat mat, const char* text, bmcv_point_t org, int fontFace, float
     return;
 }
 
-static void paint_mat(unsigned char* font_buff, unsigned long offset, int idx, int stride, unsigned char* vir_addr, bmcv_color_t color,
-    unsigned char fontScale, unsigned char is_ascii){
+static void paint_mat(unsigned char* font_buff, unsigned long offset, int datasize, int stride,
+    unsigned char* vir_addr, bmcv_color_t color, unsigned char fontScale, unsigned char is_ascii){
 
     unsigned char *buff = font_buff + offset;
     unsigned char *mat = vir_addr;
@@ -563,31 +563,41 @@ static void paint_mat(unsigned char* font_buff, unsigned long offset, int idx, i
         for (j = 0; j < bit; j++)
             for (k = 0; k < 8; k++)
                 for(sw = 0; sw < fontScale; sw++)
-                    for(sh = 0; sh < fontScale; sh++) {
-                        if (buff[i * bit + j] & (0x80 >> k)){
-                            mat[(i * fontScale + sh) * stride + ((j * 8 + k) * fontScale + sw) * 4] = color.b;
-                            mat[(i * fontScale + sh) * stride + ((j * 8 + k) * fontScale + sw) * 4 + 1] = color.g;
-                            mat[(i * fontScale + sh) * stride + ((j * 8 + k) * fontScale + sw) * 4 + 2] = color.r;
-                            mat[(i * fontScale + sh) * stride + ((j * 8 + k) * fontScale + sw) * 4 + 3] = 255;
-                        } else
-                            mat[(i * fontScale + sh) * stride + ((j * 8 + k) * fontScale + sw) * 4 + 3] = 0;
-                    }
+                    for(sh = 0; sh < fontScale; sh++)
+                        if (buff[i * bit + j] & (0x80 >> k)) {
+                            if (datasize == 4) {
+                                mat[(i * fontScale + sh) * stride + ((j * 8 + k) * fontScale + sw) * 4] = color.b;
+                                mat[(i * fontScale + sh) * stride + ((j * 8 + k) * fontScale + sw) * 4 + 1] = color.g;
+                                mat[(i * fontScale + sh) * stride + ((j * 8 + k) * fontScale + sw) * 4 + 2] = color.r;
+                                mat[(i * fontScale + sh) * stride + ((j * 8 + k) * fontScale + sw) * 4 + 3] = 255;
+                            } else
+                                mat[(i * fontScale + sh) * stride + (j * 8 + k) * fontScale + sw] = 255;
+                        }
     return;
 }
 
-bm_status_t bmcv_gen_text_bitmap(
+bm_status_t bmcv_gen_text_watermask(
     bm_handle_t handle,
-    bm_image *bitmap,
     const wchar_t* hexcode,
     bmcv_color_t color,
-    float fontScale){
+    float fontscale,
+    bm_image_format_ext format,
+    bm_image *output){
 
     bm_status_t ret = BM_SUCCESS;
-    int hz_num = 0, en_num = 0, stride_w, bitmap_w;
+    int hz_num = 0, en_num = 0, stride_w, output_w, datasize = 1;
     unsigned long offset; int idx = 0;
-    bm_device_mem_t pmem;
     unsigned long long virt_addr = 0;
-    unsigned char fontscale_u8 = (unsigned char)fontScale;
+    unsigned char fontscale_u8 = (unsigned char)fontscale;
+    unsigned char *ASCII = bmcv_test_res_1624_ez;
+    unsigned char *HZK = bmcv_test_res_2424_unicode_1;
+    bm_device_mem_t pmem;
+
+    if (format != FORMAT_GRAY && format != FORMAT_ARGB_PACKED) {
+        printf("format(%d) is not supported\n", format);
+        return BM_ERR_PARAM;
+    } else if (format == FORMAT_ARGB_PACKED)
+        datasize = 4;
 
     fontscale_u8 = fontscale_u8 > 10 ? 10 : fontscale_u8;
     fontscale_u8 = fontscale_u8 < 1 ? 1 : fontscale_u8;
@@ -598,21 +608,22 @@ bm_status_t bmcv_gen_text_bitmap(
             en_num++;
     }
 
-    bitmap_w = ALIGN_TO((hz_num * 24 + en_num * 16) * fontscale_u8, 4);
-    stride_w = bitmap_w * 4;
+    output_w = ALIGN_TO((hz_num * 24 + en_num * 11) * fontscale_u8, 4);
 
-    if (bitmap_w <= 0) {
-        printf("hexcode(%ls) is null, bitmap_w(%d)\n", hexcode, bitmap_w);
+    if (output_w <= 0) {
+        printf("hexcode(%ls) is null, output_w(%d)\n", hexcode, output_w);
         return BM_ERR_PARAM;
     }
 
-    ret = bm_image_create(handle, 24 * fontscale_u8, bitmap_w, FORMAT_ARGB_PACKED, DATA_TYPE_EXT_1N_BYTE, bitmap, NULL);
+    ret = bm_image_create(handle, 24 * fontscale_u8, output_w, format, DATA_TYPE_EXT_1N_BYTE, output, NULL);
     if (ret != BM_SUCCESS)
         return ret;
-    ret = bm_image_dev_mem_alloc(bitmap[0], BMCV_HEAP1_ID);
+
+    stride_w = output->image_private->memory_layout[0].pitch_stride;
+    ret = bm_image_dev_mem_alloc(output[0], BMCV_HEAP1_ID);
     if (ret != BM_SUCCESS)
         goto fail;
-    ret = bm_image_get_device_mem(bitmap[0], &pmem);
+    ret = bm_image_get_device_mem(output[0], &pmem);
     if (ret != BM_SUCCESS)
         goto fail;
     ret = bm_mem_mmap_device_mem_no_cache(handle, &pmem, &virt_addr);
@@ -620,19 +631,19 @@ bm_status_t bmcv_gen_text_bitmap(
         printf("bm_mem_mmap_device_mem_no_cache fail, paddr(0x%lx)\n", pmem.u.device.device_addr);
         goto fail;
     }
-
-    unsigned char *ASCII = bmcv_test_res_1624_ez;
-    unsigned char *HZK = bmcv_test_res_2424_unicode_1;
+    memset((void*)virt_addr, 0, 24 * fontscale_u8 * stride_w);
 
     for (int m = 0; m < hz_num + en_num; m++){
         if (hexcode[m] > 0x3400){ //zh start 0x3400
             // zh 72 byte store
             offset = (hexcode[m] - 13312) * 72;
-            paint_mat(HZK, offset, idx, stride_w, (unsigned char*)virt_addr + idx * 4, color, fontscale_u8, false);
+            paint_mat(HZK, offset, datasize, stride_w, (unsigned char*)virt_addr + idx * datasize,
+                color, fontscale_u8, false);
             idx += 24 * fontscale_u8;
         } else { // en 48 byte store, ASCll start 32
             offset = (hexcode[m] - 32) * 48;
-            paint_mat(ASCII, offset, idx, stride_w, (unsigned char*)virt_addr + idx * 4, color, fontscale_u8, true);
+            paint_mat(ASCII, offset, datasize, stride_w, (unsigned char*)virt_addr + idx * datasize,
+                color, fontscale_u8, true);
             idx += 11 * fontscale_u8;
         }
     }
@@ -642,25 +653,25 @@ bm_status_t bmcv_gen_text_bitmap(
         printf("bm_mem_unmap_device_mem fail, vaddr(0x%llx)\n", virt_addr);
         goto fail;
     }
-    bitmap->width = idx;
-    return ret;
+    output->width = idx;
 fail:
-    bm_image_destroy(bitmap);
+    if (ret != BM_SUCCESS)
+        bm_image_destroy(output);
     return ret;
 }
 
 static bm_status_t bmcv_overlay_put_text(bm_handle_t handle, bm_image image, const wchar_t* hexcode, bmcv_point_t org,
                                 bmcv_color_t color, float fontScale){
     bm_status_t ret = BM_SUCCESS;
-    bm_image bitmap;
-    ret = bmcv_gen_text_bitmap(handle, &bitmap, hexcode, color, fontScale);
+    bm_image watermark;
+    ret = bmcv_gen_text_watermask(handle, hexcode, color, fontScale, FORMAT_ARGB_PACKED, &watermark);
     if (ret != BM_SUCCESS)
         return ret;
 
-    bmcv_rect_t rect = {.start_x = org.x, .start_y = org.y, .crop_w = bitmap.width, .crop_h = bitmap.height};
-    ret = bmcv_image_overlay(handle, image, 1, &rect, &bitmap);
+    bmcv_rect_t rect = {.start_x = org.x, .start_y = org.y, .crop_w = watermark.width, .crop_h = watermark.height};
+    ret = bmcv_image_overlay(handle, image, 1, &rect, &watermark);
 
-    bm_image_destroy(&bitmap);
+    bm_image_destroy(&watermark);
     return ret;
 }
 

@@ -2020,12 +2020,13 @@ DECL_EXPORT bm_status_t bmcv_image_overlay(
     bmcv_rect_t*        overlay_info,
     bm_image*           overlay_image);
 
-DECL_EXPORT bm_status_t bmcv_gen_text_bitmap(
+DECL_EXPORT bm_status_t bmcv_gen_text_watermask(
     bm_handle_t         handle,
-    bm_image*           bitmap,
     const wchar_t*      hexcode,
     bmcv_color_t        color,
-    float               fontScale);
+    float               fontscale,
+    bm_image_format_ext format,
+    bm_image*           output);
 
 /*
 * The input image is flipped horizontally, flipped vertically, or rotated 180 degrees
