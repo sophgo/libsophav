@@ -27,7 +27,7 @@ bmcv_base64_enc(dec)
 
 | 【参数】
 
-.. list-table:: bmcv_ive_add 参数表
+.. list-table:: bmcv_base64 参数表
     :widths: 15 15 35
 
     * - **参数名称**

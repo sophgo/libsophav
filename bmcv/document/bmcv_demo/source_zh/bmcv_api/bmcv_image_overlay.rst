@@ -3,7 +3,7 @@ bmcv_image_overlay
 
 | 【描述】
 
-| 该 API 实现在图片上叠加带透明通道的水印图。该接口可搭配bmcv_gen_text_watermask接口实现绘制中英文的功能，参照代码示例2。
+| 该 API 实现在图片上叠加带透明通道的水印图。该接口可搭配bmcv_gen_text_watermark接口实现绘制中英文的功能，参照代码示例2。
 
 | 【语法】
 
@@ -211,15 +211,15 @@ start_x、start_y、crop_w、crop_h 分别表示输入水印图对象在输入�
         bmcv_point_t org = {.x = 0, .y = 500};
         bmcv_color_t color = {.r = r, .g = g, .b = b};
 
-        bm_image watermask;
-        ret = bmcv_gen_text_watermask(handle, hexcode, color, fontScale, FORMAT_ARGB_PACKED, &watermask);
+        bm_image watermark;
+        ret = bmcv_gen_text_watermark(handle, hexcode, color, fontScale, FORMAT_ARGB_PACKED, &watermark);
         if (ret != BM_SUCCESS) {
-            printf("bmcv_gen_text_watermask fail\n");
+            printf("bmcv_gen_text_watermark fail\n");
             goto fail1;
         }
 
-        bmcv_rect_t rect = {.start_x = org.x, .start_y = org.y, .crop_w = watermask.width, .crop_h = watermask.height};
-        ret = bmcv_image_overlay(handle, image, 1, &rect, &watermask);
+        bmcv_rect_t rect = {.start_x = org.x, .start_y = org.y, .crop_w = watermark.width, .crop_h = watermark.height};
+        ret = bmcv_image_overlay(handle, image, 1, &rect, &watermark);
         if (ret != BM_SUCCESS) {
             printf("bmcv_image_overlay fail\n");
             goto fail2;
@@ -227,7 +227,7 @@ start_x、start_y、crop_w、crop_h 分别表示输入水印图对象在输入�
         bm_image_write_to_bmp(image, output_path);
 
     fail2:
-        bm_image_destroy(&watermask);
+        bm_image_destroy(&watermark);
     fail1:
         bm_image_destroy(&image);
         bm_dev_free(handle);

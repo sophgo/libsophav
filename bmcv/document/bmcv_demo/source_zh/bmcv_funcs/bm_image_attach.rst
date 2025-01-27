@@ -2,7 +2,7 @@ bm_image_attach
 ---------------
 
 | 【描述】
-| 如果用户希望自己管理 device memory，或者 device memory 由外部组件 (VPU/VPP 等)产生，则可以调用以下 API 将这块 device memory 与 bm_image 相关联。
+| 如果用户希望自己管理 device memory，或者 device memory 由外部组件（VPU/VPP 等）产生，则可以调用以下 API 将这块 device memory 与 bm_image 相关联。
 
 | 【语法】
 

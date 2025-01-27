@@ -29,7 +29,7 @@ bm_image_is_attached
 
 若目标 bm_image 已经 attach 存储空间则返回 true，否则返回 false。
 
-【注意事项】
+| 【注意事项】
 
 1. 一般情况而言，调用 bmcv api 要求输入 bm_image 对象关联 device memory，否则返回失败。而输出 bm_image 对象如果未关联 device memory，则会在内部调用 bm_image_alloc_dev_mem 函数，内部申请内存。
 

@@ -943,9 +943,9 @@ bm_status_t open_binary_to_alpha(
     fclose(fp_src);
 
     for(int i=0; i<(src_size * 8); i++){
-        int watermask_idx = i / 8;
+        int watermark_idx = i / 8;
         int binary_idx = (i % 8);
-        dst_addr[i] = ((src[watermask_idx] >> binary_idx) & 1) * transparency;
+        dst_addr[i] = ((src[watermark_idx] >> binary_idx) & 1) * transparency;
     }
 #ifdef _FPGA
     ret = bm_memcpy_s2d_fpga(handle, dst[0], (void*)dst_addr);

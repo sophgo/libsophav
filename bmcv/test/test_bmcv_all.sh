@@ -626,19 +626,19 @@ run_kill_ldc(){
 }
 
 run_kill_dwa(){
-  COMMAND1="test_dwa_rot_thread 128 128 14 dwa_data/128x128_sophgo.bin dwa_data/out_128x128_rot0.bin 0 1 1 e001fc14213febf4751fbd8d739d8f28 &
-            test_dwa_rot_thread 128 128 14 dwa_data/128x128_sophgo.bin dwa_data/out_128x128_rot0.bin 0 1 1 e001fc14213febf4751fbd8d739d8f28 &
-            test_dwa_rot_thread 128 128 14 dwa_data/128x128_sophgo.bin dwa_data/out_128x128_rot0.bin 0 1 1 e001fc14213febf4751fbd8d739d8f28 &
-            test_dwa_rot_thread 128 128 14 dwa_data/128x128_sophgo.bin dwa_data/out_128x128_rot0.bin 0 1 1 e001fc14213febf4751fbd8d739d8f28 &
-            test_dwa_rot_thread 128 128 14 dwa_data/128x128_sophgo.bin dwa_data/out_128x128_rot0.bin 0 1 1 e001fc14213febf4751fbd8d739d8f28 &
-            test_dwa_rot_thread 128 128 14 dwa_data/128x128_sophgo.bin dwa_data/out_128x128_rot0.bin 0 1 1 e001fc14213febf4751fbd8d739d8f28 &
-            test_dwa_rot_thread 128 128 14 dwa_data/128x128_sophgo.bin dwa_data/out_128x128_rot0.bin 0 1 1 e001fc14213febf4751fbd8d739d8f28 &
-            test_dwa_rot_thread 128 128 14 dwa_data/128x128_sophgo.bin dwa_data/out_128x128_rot0.bin 0 1 1 e001fc14213febf4751fbd8d739d8f28 &
+  COMMAND1="test_dwa_rot_thread 128 128 14 dwa_data/128x128_sophgo.bin 128 128 dwa_data/out_128x128_rot0.bin 0 1 1 e001fc14213febf4751fbd8d739d8f28 &
+            test_dwa_rot_thread 128 128 14 dwa_data/128x128_sophgo.bin 128 128 dwa_data/out_128x128_rot0.bin 0 1 1 e001fc14213febf4751fbd8d739d8f28 &
+            test_dwa_rot_thread 128 128 14 dwa_data/128x128_sophgo.bin 128 128 dwa_data/out_128x128_rot0.bin 0 1 1 e001fc14213febf4751fbd8d739d8f28 &
+            test_dwa_rot_thread 128 128 14 dwa_data/128x128_sophgo.bin 128 128 dwa_data/out_128x128_rot0.bin 0 1 1 e001fc14213febf4751fbd8d739d8f28 &
+            test_dwa_rot_thread 128 128 14 dwa_data/128x128_sophgo.bin 128 128 dwa_data/out_128x128_rot0.bin 0 1 1 e001fc14213febf4751fbd8d739d8f28 &
+            test_dwa_rot_thread 128 128 14 dwa_data/128x128_sophgo.bin 128 128 dwa_data/out_128x128_rot0.bin 0 1 1 e001fc14213febf4751fbd8d739d8f28 &
+            test_dwa_rot_thread 128 128 14 dwa_data/128x128_sophgo.bin 128 128 dwa_data/out_128x128_rot0.bin 0 1 1 e001fc14213febf4751fbd8d739d8f28 &
+            test_dwa_rot_thread 128 128 14 dwa_data/128x128_sophgo.bin 128 128 dwa_data/out_128x128_rot0.bin 0 1 1 e001fc14213febf4751fbd8d739d8f28 &
             "
-  COMMAND2="test_dwa_gdc_thread 1920 1080 0 dwa_data/1920x1080_barrel_0.3.yuv dwa_data/out_barrel_0.yuv 1 0 0 0 0 0 -200 1 1 0b8dfc8c16d1fa8b3024107a49471253 & \
-            test_dwa_gdc_thread 1920 1080 0 dwa_data/1920x1080_barrel_0.3.yuv dwa_data/out_barrel_0.yuv 1 0 0 0 0 0 -200 1 1 0b8dfc8c16d1fa8b3024107a49471253 & \
-            test_dwa_gdc_thread 1920 1080 0 dwa_data/1920x1080_barrel_0.3.yuv dwa_data/out_barrel_0.yuv 1 0 0 0 0 0 -200 1 1 0b8dfc8c16d1fa8b3024107a49471253 & \
-            test_dwa_gdc_thread 1920 1080 0 dwa_data/1920x1080_barrel_0.3.yuv dwa_data/out_barrel_0.yuv 1 0 0 0 0 0 -200 1 1 0b8dfc8c16d1fa8b3024107a49471253 &
+  COMMAND2="test_dwa_gdc_thread 1920 1080 0 dwa_data/1920x1080_barrel_0.3.yuv 1920 1080 dwa_data/out_barrel_0.yuv 1 0 0 0 0 0 -200 1 1 0b8dfc8c16d1fa8b3024107a49471253 & \
+            test_dwa_gdc_thread 1920 1080 0 dwa_data/1920x1080_barrel_0.3.yuv 1920 1080 dwa_data/out_barrel_0.yuv 1 0 0 0 0 0 -200 1 1 0b8dfc8c16d1fa8b3024107a49471253 & \
+            test_dwa_gdc_thread 1920 1080 0 dwa_data/1920x1080_barrel_0.3.yuv 1920 1080 dwa_data/out_barrel_0.yuv 1 0 0 0 0 0 -200 1 1 0b8dfc8c16d1fa8b3024107a49471253 & \
+            test_dwa_gdc_thread 1920 1080 0 dwa_data/1920x1080_barrel_0.3.yuv 1920 1080 dwa_data/out_barrel_0.yuv 1 0 0 0 0 0 -200 1 1 0b8dfc8c16d1fa8b3024107a49471253 &
             "
 
   start_command1() {

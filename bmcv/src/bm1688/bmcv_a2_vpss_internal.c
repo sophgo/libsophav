@@ -192,7 +192,7 @@ bm_status_t simple_check_bm_vpss_input_param(
 		bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "input or output is nullptr");
 		return BM_ERR_DATA;
 	}
-	if ((frame_number > VPSS_MAX_GRP_NUM) || (frame_number <= 0)) {
+	if ((frame_number > VPSS_MAX_NUM) || (frame_number <= 0)) {
 		bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "input num should less than 512");
 		return BM_ERR_PARAM;
 	}
@@ -437,10 +437,10 @@ bm_status_t check_bm_vpss_image_param(
 	bmcv_rect_t  src_crop_rect, dst_crop_rect;
 
 
-	if ((frame_number > VPSS_MAX_GRP_NUM) || (frame_number <= 0)) {
+	if ((frame_number > VPSS_MAX_NUM) || (frame_number <= 0)) {
 		bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
 			" input num should less than %d  %s: %s: %d\n",
-			VPSS_MAX_GRP_NUM, filename(__FILE__), __func__, __LINE__);
+			VPSS_MAX_NUM, filename(__FILE__), __func__, __LINE__);
 		return BM_ERR_PARAM;
 	}
 	for (frame_idx = 0; frame_idx < frame_number; frame_idx++) {

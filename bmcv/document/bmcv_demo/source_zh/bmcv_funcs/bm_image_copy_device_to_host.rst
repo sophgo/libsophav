@@ -46,4 +46,6 @@ bm_image_copy_device_to_host
 
     3. 数据传输失败的话，API 将调用失败。
 
-    4. 如果该函数成功返回,会将所关联的 device memory 中的数据拷贝到 host 端 buffers 中。
+    4. 如果该函数成功返回，会将所关联的 device memory 中的数据拷贝到 host 端 buffers 中。
+
+    5. 调用之前，请为 buffers 中的各指针提前分配虚拟内存，内存大小应为每个 plane 需要传输的数据量。

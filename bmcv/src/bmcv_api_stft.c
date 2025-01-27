@@ -34,7 +34,7 @@ static bm_status_t bmcv_win(bm_device_mem_t XR, bm_device_mem_t XI, bm_device_me
     bm_status_t ret = BM_SUCCESS;
 
     api.XR = bm_mem_get_device_addr(XR);
-    api.XI = bm_mem_get_device_addr(XI);
+    api.XI =  real_input ? 0 : bm_mem_get_device_addr(XI);
     api.window = bm_mem_get_device_addr(WinDev);
     api.batch = num_frm;
     api.L = n_fft;

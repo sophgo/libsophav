@@ -8,6 +8,7 @@
 #define VPSS_MAX_H 8192
 #define VPSS_MIN_W 16
 #define VPSS_MIN_H 16
+#define VPSS_MAX_NUM 512
 
 typedef struct border {
 	bool rect_border_enable;

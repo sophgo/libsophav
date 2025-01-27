@@ -33,7 +33,7 @@ bm_image_alloc_contiguous_mem_heap_mask
       - 待分配内存的 image 的指针。
     * - heap_mask
       - 输入
-      - 选择一个或多个 heap id 的掩码，每一个 bit 表示一个 heap id 的是否有效, 1 表示可以在该 heap 上分配，0 则表示不可以在该 heap 上分配，最低位表示 heap0，以此类推。比如 heap_mask=2 则表示指定在 heap1 上分配空间，heap_mask=5 则表示指定在 heap0 或者 heap2 上分配空间。
+      - 选择一个或多个 heap id 的掩码，每一个 bit 表示一个 heap id 的是否有效, 1 表示可以在该 heap 上分配，0 则表示不可以在该 heap 上分配，最低位表示 heap0，以此类推。比如 heap_mask=0x10 则表示指定在 heap1 上分配空间，heap_mask=0x101 则表示指定在 heap0 或者 heap2 上分配空间。
 
 | 【返回值】
 

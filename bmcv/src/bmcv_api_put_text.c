@@ -576,7 +576,7 @@ static void paint_mat(unsigned char* font_buff, unsigned long offset, int datasi
     return;
 }
 
-bm_status_t bmcv_gen_text_watermask(
+bm_status_t bmcv_gen_text_watermark(
     bm_handle_t handle,
     const wchar_t* hexcode,
     bmcv_color_t color,
@@ -664,7 +664,7 @@ static bm_status_t bmcv_overlay_put_text(bm_handle_t handle, bm_image image, con
                                 bmcv_color_t color, float fontScale){
     bm_status_t ret = BM_SUCCESS;
     bm_image watermark;
-    ret = bmcv_gen_text_watermask(handle, hexcode, color, fontScale, FORMAT_ARGB_PACKED, &watermark);
+    ret = bmcv_gen_text_watermark(handle, hexcode, color, fontScale, FORMAT_ARGB_PACKED, &watermark);
     if (ret != BM_SUCCESS)
         return ret;
 

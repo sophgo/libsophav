@@ -32,92 +32,96 @@ bm_image_copy_host_to_device
       - 输入
       - host 端指针，buffers 为指向不同 plane 数据的指针。
 
-其中，buffers[]的数组长度由创建 bm_image 结构时 image_format 对应的 plane 数所决定。每个 plane 的数据量会由创建 bm_image 时的图片宽高、stride、image_format、data_type 决定。具体的计算方法如下：
+其中，buffers[]的数组长度应等于创建 bm_image 结构时 image_format 对应的 plane 数。每个 plane 数据量的具体计算方法如下（以紧凑排列的默认stride为例）:
 
 .. code-block:: c++
     :linenos:
     :lineno-start: 1
     :force:
 
-    switch (res->image_format) {
+    switch (image_format) {
         case FORMAT_YUV420P: {
-            width[0]  = res->width;
-            width[1]  = ALIGN(res->width, 2) / 2;
-            width[2]  = width[1];
-            height[0] = res->height;
-            height[1] = ALIGN(res->height, 2) / 2;
-            height[2] = height[1];
+            size[0] = width * height * data_size;
+            size[1] = ALIGN(width, 2) * ALIGN(height, 2) / 4 * data_size;
+            size[2] = ALIGN(width, 2) * ALIGN(height, 2) / 4 * data_size;
             break;
         }
         case FORMAT_YUV422P: {
-            width[0]  = res->width;
-            width[1]  = ALIGN(res->width, 2) / 2;
-            width[2]  = width[1];
-            height[0] = res->height;
-            height[1] = height[0];
-            height[2] = height[1];
+            size[0] = width * height * data_size;
+            size[1] = ALIGN(width, 2) * ALIGN(height, 2) / 2 * data_size;
+            size[2] = ALIGN(width, 2) * ALIGN(height, 2) / 2 * data_size;
             break;
         }
-        case FORMAT_YUV444P: {
-            width[0]  = res->width;
-            width[1]  = width[0];
-            width[2]  = width[1];
-            height[0] = res->height;
-            height[1] = height[0];
-            height[2] = height[1];
+        case FORMAT_YUV444P:
+        case FORMAT_BGRP_SEPARATE:
+        case FORMAT_RGBP_SEPARATE:
+        case FORMAT_HSV_PLANAR: {
+            size[0] = width * height * data_size;
+            size[1] = width * height * data_size;
+            size[2] = width * height * data_size;
+            break;
+        }
+        case FORMAT_NV24: {
+            size[0] = width * height * data_size;
+            size[1] = width * 2 * height * data_size;
             break;
         }
         case FORMAT_NV12:
         case FORMAT_NV21: {
-            width[0]  = res->width;
-            width[1]  = ALIGN(res->width, 2);
-            height[0] = res->height;
-            height[1] = ALIGN(res->height, 2) / 2;
+            size[0] = width * height * data_size;
+            size[1] = ALIGN(width, 2) * ALIGN(height, 2) / 2 * data_size;
             break;
         }
         case FORMAT_NV16:
         case FORMAT_NV61: {
-            width[0]  = res->width;
-            width[1]  = ALIGN(res->width, 2);
-            height[0] = res->height;
-            height[1] = res->height;
+            size[0] = width * height * data_size;
+            size[1] = ALIGN(width, 2) * height * data_size;
             break;
         }
-        case FORMAT_GRAY: {
-            width[0]  = res->width;
-            height[0] = res->height;
+        case FORMAT_GRAY:
+        case FORMAT_BAYER:
+        case FORMAT_BAYER_RG8: {
+            size[0] = width * height * data_size;
             break;
         }
         case FORMAT_COMPRESSED: {
-            width[0]  = res->width;
-            height[0] = res->height;
             break;
         }
+        case FORMAT_YUV444_PACKED:
+        case FORMAT_YVU444_PACKED:
+        case FORMAT_HSV180_PACKED:
+        case FORMAT_HSV256_PACKED:
         case FORMAT_BGR_PACKED:
         case FORMAT_RGB_PACKED: {
-            width[0]  = res->width * 3;
-            height[0] = res->height;
+            size[0] = width * 3 * height * data_size;
+            break;
+        }
+        case FORMAT_ABGR_PACKED:
+        case FORMAT_ARGB_PACKED: {
+            size[0] = width * 4 * height * data_size;
             break;
         }
         case FORMAT_BGR_PLANAR:
         case FORMAT_RGB_PLANAR: {
-            width[0]  = res->width;
-            height[0] = res->height * 3;
+            size[0] = width * height * 3 * data_size;
             break;
         }
-        case FORMAT_RGBP_SEPARATE:
-        case FORMAT_BGRP_SEPARATE: {
-            width[0]  = res->width;
-            width[1]  = width[0];
-            width[2]  = width[1];
-            height[0] = res->height;
-            height[1] = height[0];
-            height[2] = height[1];
+        case FORMAT_RGBYP_PLANAR: {
+            size[0] = width * height * data_size;
+            size[1] = width * height * data_size;
+            size[2] = width * height * data_size;
+            size[3] = width * height * data_size;
             break;
         }
-        case FORMAT_BAYER: {
-            width[0]  = res->width * 2;
-            height[0] = res->height * 2;
+        case FORMAT_YUV422_YUYV:
+        case FORMAT_YUV422_YVYU:
+        case FORMAT_YUV422_UYVY:
+        case FORMAT_YUV422_VYUY:
+        case FORMAT_ARGB4444_PACKED:
+        case FORMAT_ABGR4444_PACKED:
+        case FORMAT_ARGB1555_PACKED:
+        case FORMAT_ABGR1555_PACKED: {
+            size[0] = width * 2 * height * data_size;
             break;
         }
     }

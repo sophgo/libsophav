@@ -551,12 +551,12 @@ static bm_status_t bmcv_vpss_bitmap_mem_to_argb8888(
 		for (int j = 0; j < overlay_height; j++) {
 			for (int k = 0; k < pitch; k++) {
 				int idx = j*pitch+k;
-				int watermask_idx = idx / 8;
+				int watermark_idx = idx / 8;
 				int binary_idx = (idx % 8);
 				overlay_mem[((j*pitch*4)+k*4)] = color.b; //FORMAT_ARGB_PACKED排列方式为BGRABGRA
 				overlay_mem[((j*pitch*4)+k*4+1)] = color.g;
 				overlay_mem[((j*pitch*4)+k*4+2)] = color.r;
-				overlay_mem[((j*pitch*4)+k*4+3)] = ((bitmap_buffer[watermask_idx] >> binary_idx) & 1) * 255;
+				overlay_mem[((j*pitch*4)+k*4+3)] = ((bitmap_buffer[watermark_idx] >> binary_idx) & 1) * 255;
 			}
 		}
 	} else {

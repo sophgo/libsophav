@@ -65,7 +65,7 @@ bmcv_image_copy_to
 * padding_g 表示当 input 的图像要小于输出图像的情况下，多出来的图像 g 通道上被填充的值。
 * start_x 描述了 copy_to 拷贝到输出图像所在的起始横坐标。
 * start_y 描述了 copy_to 拷贝到输出图像所在的起始纵坐标。
-* if_padding 表示当 input 的图像要小于输出图像的情况下，是否需要对多余的图像区域填充特定颜色，0表示不需要，1表示需要。当该值填0时，padding_r，padding_g，padding_b 的设置将无效
+* if_padding 表示当 input 的图像要小于输出图像的情况下，是否需要对多余的图像区域填充特定颜色，0表示不需要，1表示需要。当该值填0时，padding_r，padding_g，padding_b 的设置将无效。
 
 **格式支持：**
 
@@ -108,7 +108,7 @@ bmcv_image_copy_to
 **注意：**
 
 1. 在调用 bmcv_image_copy_to()之前必须确保输入的 image 内存已经申请。
-#. 为了避免内存越界，输入图像width + start_x 必须小于等于输出图像width stride。
+#. 为了避免内存越界，输入图像 width + start_x 必须小于等于输出图像 width stride。
 
 **代码示例：**
 

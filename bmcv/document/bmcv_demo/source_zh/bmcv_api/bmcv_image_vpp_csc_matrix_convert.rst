@@ -3,7 +3,7 @@ bmcv_image_vpp_csc_matrix_convert
 
 | 【描述】
 
-| 默认情况下，bmcv_image_vpp_convert使用的是BT_601标准进行色域转换。有些情况下需要使用其他标准，或者用户自定义csc参数。
+| 默认情况下，bmcv_image_vpp_convert 使用的是 BT_601 标准进行色域转换。有些情况下需要使用其他标准，或者用户自定义 csc 参数。
 
 | 【语法】
 
@@ -44,84 +44,23 @@ bmcv_image_vpp_csc_matrix_convert
       - 输出 bm_image 对象指针。
     * - csc
       - 输入
-      - 色域转换枚举类型，目前可选类型见表： :ref:`csc_type`
+      - 色域转换枚举类型。
     * - \*matrix
       - 输入
-      - 色域转换自定义矩阵，当且仅当csc为CSC_USER_DEFINED_MATRIX时这个值才生效。
+      - 色域转换自定义矩阵，当且仅当 csc 为 CSC_USER_DEFINED_MATRIX 时这个值才生效。
     * - algorithm
       - 输入
-      - resize 算法选择，包括 BMCV_INTER_NEAREST、BMCV_INTER_LINEAR 和 BMCV_INTER_BICUBIC三种，默认情况下是双线性差值。
+      - resize 算法选择，包括 BMCV_INTER_NEAREST、BMCV_INTER_LINEAR 和 BMCV_INTER_BICUBIC 三种，默认情况下是双线性差值。
 
-| 【数据类型说明】
+| 【注意】
 
-.. code-block:: cpp
-    :linenos:
-    :lineno-start: 1
-    :force:
-
-    typedef enum csc_type {
-        CSC_YCbCr2RGB_BT601 = 0,
-        CSC_YPbPr2RGB_BT601,
-        CSC_RGB2YCbCr_BT601,
-        CSC_YCbCr2RGB_BT709,
-        CSC_RGB2YCbCr_BT709,
-        CSC_RGB2YPbPr_BT601,
-        CSC_YPbPr2RGB_BT709,
-        CSC_RGB2YPbPr_BT709,
-        CSC_FANCY_PbPr_BT601 = 100,
-        CSC_FANCY_PbPr_BT709,
-        CSC_USER_DEFINED_MATRIX = 1000,
-        CSC_MAX_ENUM
-    } csc_type_t;
-
-.. code-block:: cpp
-    :linenos:
-    :lineno-start: 1
-    :force:
-
-    typedef struct {
-        short csc_coe00;
-        short csc_coe01;
-        short csc_coe02;
-        unsigned char csc_add0;
-        unsigned char csc_sub0;
-        short csc_coe10;
-        short csc_coe11;
-        short csc_coe12;
-        unsigned char csc_add1;
-        unsigned char csc_sub1;
-        short csc_coe20;
-        short csc_coe21;
-        short csc_coe22;
-        unsigned char csc_add2;
-        unsigned char csc_sub2;
-    } csc_matrix_t;
-
-其中，矩阵变换关系如下：
-
-.. math::
-
-    \left\{
-    \begin{array}{c}
-    dst_0=(coe_{00} * (src_0-sub_0)+coe_{01} * (src_1-sub_1)+coe_{02} * (src_2-sub_2))>>10 + add_0 \\
-    dst_1=(coe_{10} * (src_0-sub_0)+coe_{11} * (src_1-sub_1)+coe_{12} * (src_2-sub_2))>>10 + add_1 \\
-    dst_2=(coe_{20} * (src_0-sub_0)+coe_{21} * (src_1-sub_1)+coe_{22} * (src_2-sub_2))>>10 + add_2 \\
-    \end{array}
-    \right.
+该接口的参数数据类型与注意事项与 bmcv_image_vpp_basic 接口相同。
 
 | 【返回值】
 
 该函数成功调用时, 返回 BM_SUCCESS。
 
-【注意】
-
-1. 该 API 所需要满足的格式以及部分要求与vpp_convert一致
-
-2. 如果色域转换枚举类型与input和output格式不对应，如csc == CSC_YCbCr2RGB_BT601,而input image_format为RGB格式，则返回失败。
-
-3. 如果csc == CSC_USER_DEFINED_MATRIX而matrix为nullptr，则返回失败。
-
-【代码示例】
+| 【代码示例】
 
 .. code-block:: cpp
     :linenos:

@@ -26,7 +26,7 @@ bmcv_image_resize
 
 * int input_num
 
-输入参数。输入图片数，最多支持 4 ，如果 input_num > 1, 那么多个输入图像必须是连续存储的（可以使用 bm_image_alloc_contiguous_mem 给多张图申请连续空间）。
+输入参数。输入图片数，最多支持 4。
 
 * bmcv_resize_image resize_attr [4]
 
@@ -34,11 +34,11 @@ bmcv_image_resize
 
 * bm_image\* input
 
-输入参数。输入 bm_image。每个 bm_image 需要外部调用 bmcv_image _create 创建。image 内存可以使用 bm_image_alloc_dev_mem 或者 bm_image_copy_host_to_device 来开辟新的内存，或者使用 bmcv_image_attach 来 attach 已有的内存。
+输入参数。输入 bm_image。每个 bm_image 需要外部调用 bmcv_image_create 创建。image 内存可以使用 bm_image_alloc_dev_mem 或者 bm_image_copy_host_to_device 来开辟新的内存，或者使用 bmcv_image_attach 来 attach 已有的内存。
 
 * bm_image\* output
 
-输出参数。输出 bm_image。每个 bm_image 需要外部调用 bmcv_image_create 创建，image 内存可以通过 bm_image_alloc_dev_mem 来开辟新的内存，或者使用 bmcv_image_attach 来 attach 已有的内存，如果不主动分配将在 api 内部进行自行分配。
+输出参数。输出 bm_image。每个 bm_image 需要外部调用 bmcv_image_create 创建。image 内存可以通过 bm_image_alloc_dev_mem 来开辟新的内存，或者使用 bmcv_image_attach 来 attach 已有的内存，如果不主动分配将在 api 内部进行自行分配。
 
 
 **返回值说明:**
@@ -85,7 +85,7 @@ bmcv_image_resize
 
 * padding_g 表示当 stretch_fit 设成 0 的情况下，g 通道上被填充的值。
 
-* interpolation表示缩图所使用的算法。BMCV_INTER_NEAREST表示最近邻算法，BMCV_INTER_LINEAR表示线性插值算法。
+* interpolation 表示缩图所使用的算法。BMCV_INTER_NEAREST 表示最近邻算法，BMCV_INTER_LINEAR 表示线性插值算法。
 
 * start_x 描述了 resize 起始横坐标(相对于原图)，常用于抠图功能。
 
@@ -100,22 +100,6 @@ bmcv_image_resize
 * out_height 描述了输出图像的高。
 
 
-**格式支持:**
-
-1. resize 支持下列 image_format 的转化：
-
-* FORMAT_BGR_PLANAR -> FORMAT_BGR_PLANAR
-
-* FORMAT_RGB_PLANAR -> FORMAT_RGB_PLANAR
-
-* FORMAT_BGR_PACKED -> FORMAT_BGR_PLANAR
-
-* FORMAT_RGB_PACKED -> FORMAT_RGB_PLANAR
-
-
-
 **注意事项:**
 
-1. 在调用 bmcv_image_resize()之前必须确保输入的 image 内存已经申请。
-
-2. 支持最大尺寸为8192*8192，最小尺寸为16*16，最大缩放比为128。
+该接口的注意事项与 bmcv_image_vpp_basic 接口相同。

@@ -2,7 +2,7 @@ bm_image_create
 ---------------
 
 | 【描述】
-| 创建一个bm_image结构。
+| 创建一个 bm_image 结构。
 
 | 【语法】
 
@@ -19,7 +19,7 @@ bm_image_create
         bmcv_image_format_ext image_format,
         bmcv_data_format_ext data_type,
         bm_image *image,
-        int* stride);
+        int* stride = NULL);
 
 | 【参数】
 
@@ -49,12 +49,12 @@ bm_image_create
       - 输出填充的 bm_image 结构指针。
     * - \*stride
       - 输入
-      - 所创建 bm_image 将要关联的 device memory 内存布局。在每个plane 的 width stride 值，以 byte 计数。在不填写时候默认为和一行的数据宽度相同(以 byte 计数)。
+      - 所创建 bm_image 将要关联的 device memory 内存布局，即每个 plane 的 width stride 值。在传入NULL时默认与一行的数据宽度相同，以 byte 计数。
 
 
 | 【返回值】
 
-bmcv_image_create 成功调用将返回 BM_SUCCESS，并填充输出的 image 指针结构。这个结构中记录了图片的大小，以及相关格式。但此时并没有与任何 device memory 关联，也没有申请数据对应的 device memory。
+成功调用将返回 BM_SUCCESS，并填充输出的 image 指针结构。这个结构中记录了图片的大小，以及相关格式。但此时并没有与任何 device memory 关联，也没有申请数据对应的 device memory。
 
 | 【注意事项】
 
@@ -73,9 +73,10 @@ bmcv_image_create 成功调用将返回 BM_SUCCESS，并填充输出的 image �
     - FORMAT_NV12
     - FORMAT_NV21
 
-#. FORMAT_COMPRESSED 图片格式的图片创建时需要将 stride 参数的数组设置为各通道的数据长度。
-#. 若 stride 参数设置为 NULL，此时默认各个 plane 的数据是 compact 排列，没有 stride。
-#. 如果 stride 非 NULL，则会检测 stride 中的 width stride 值是否合法。所谓的合法，即 image_format 对应的所有 plane 的 stride 大于默认 stride。默认 stride 值的计算方法如下：
+#. FORMAT_COMPRESSED 图片格式的图片创建时需要将 stride 参数的数组设置为各通道的数据长度。若 stride 设置为 NULL，后续则需要用 bm_image_attach 绑定 device memory。
+#. 若 stride 参数设置为 NULL，此时默认各个 plane 的数据是 compact 排列，stride 被设置为与 image_format 对应的默认值。
+#. 如果 stride 非 NULL，则会检测 stride 中的 width stride 值是否合法。所谓的合法，即 image_format 对应的所有 plane 的 stride 大于默认 stride。
+#. 默认 stride 值的计算方法如下：
 
 .. code-block:: c++
     :linenos:
@@ -86,6 +87,7 @@ bmcv_image_create 成功调用将返回 BM_SUCCESS，并填充输出的 image �
     int data_size = 1;
     switch (data_type) {
         case DATA_TYPE_EXT_FLOAT32:
+        case DATA_TYPE_EXT_U32:
             data_size = 4;
             break;
         case DATA_TYPE_EXT_FP16:
@@ -101,69 +103,100 @@ bmcv_image_create 成功调用将返回 BM_SUCCESS，并填充输出的 image �
     int default_stride[3] = {0};
     switch (image_format) {
         case FORMAT_YUV420P: {
-            image_private->plane_num = 3;
+            plane_num = 3;
             default_stride[0] = width * data_size;
             default_stride[1] = (ALIGN(width, 2) >> 1) * data_size;
             default_stride[2] = default_stride[1];
             break;
         }
         case FORMAT_YUV422P: {
-            default_stride[0] = res->width * data_size;
-            default_stride[1] = (ALIGN(res->width, 2) >> 1) * data_size;
+            plane_num = 3;
+            default_stride[0] = width * data_size;
+            default_stride[1] = (ALIGN(width, 2) >> 1) * data_size;
             default_stride[2] = default_stride[1];
             break;
         }
-        case FORMAT_YUV444P: {
-            default_stride[0] = res->width * data_size;
-            default_stride[1] = res->width * data_size;
+        case FORMAT_YUV444P:
+        case FORMAT_BGRP_SEPARATE:
+        case FORMAT_RGBP_SEPARATE:
+        case FORMAT_HSV_PLANAR: {
+            plane_num = 3;
+            default_stride[0] = width * data_size;
+            default_stride[1] = width * data_size;
             default_stride[2] = default_stride[1];
+            break;
+        }
+        case FORMAT_NV24: {
+            plane_num = 2;
+            default_stride[0] = width * data_size;
+            default_stride[1] = width * 2 * data_size;
             break;
         }
         case FORMAT_NV12:
         case FORMAT_NV21: {
-            image_private->plane_num = 2;
+            plane_num = 2;
             default_stride[0] = width * data_size;
-            default_stride[1] = ALIGN(res->width, 2) * data_size;
+            default_stride[1] = ALIGN(width, 2) * data_size;
             break;
         }
         case FORMAT_NV16:
         case FORMAT_NV61: {
-            image_private->plane_num = 2;
-            default_stride[0] = res->width * data_size;
-            default_stride[1] = ALIGN(res->width, 2) * data_size;
+            plane_num = 2;
+            default_stride[0] = width * data_size;
+            default_stride[1] = ALIGN(width, 2) * data_size;
             break;
         }
-        case FORMAT_GRAY: {
-            image_private->plane_num = 1;
-            default_stride[0] = res->width * data_size;
+        case FORMAT_GRAY:
+        case FORMAT_BAYER:
+        case FORMAT_BAYER_RG8: {
+            plane_num = 1;
+            default_stride[0] = width * data_size;
             break;
         }
         case FORMAT_COMPRESSED: {
-            image_private->plane_num = 4;
+            plane_num = 4;
             break;
         }
+        case FORMAT_YUV444_PACKED:
+        case FORMAT_YVU444_PACKED:
+        case FORMAT_HSV180_PACKED:
+        case FORMAT_HSV256_PACKED:
         case FORMAT_BGR_PACKED:
         case FORMAT_RGB_PACKED: {
-            image_private->plane_num = 1;
-            default_stride[0] = res->width * 3 * data_size;
+            plane_num = 1;
+            default_stride[0] = width * 3 * data_size;
+            break;
+        }
+        case FORMAT_ABGR_PACKED:
+        case FORMAT_ARGB_PACKED: {
+            plane_num = 1;
+            default_stride[0] = width * 4 * data_size;
             break;
         }
         case FORMAT_BGR_PLANAR:
         case FORMAT_RGB_PLANAR: {
-            image_private->plane_num = 1;
-            default_stride[0] = res->width * data_size;
+            plane_num = 1;
+            default_stride[0] = width * data_size;
             break;
         }
-        case FORMAT_BGRP_SEPARATE:
-        case FORMAT_RGBP_SEPARATE: {
-            image_private->plane_num = 3;
-            default_stride[0] = res->width * data_size;
-            default_stride[1] = res->width * data_size;
-            default_stride[2] = res->width * data_size;
+        case FORMAT_RGBYP_PLANAR: {
+            plane_num = 4;
+            default_stride[0] = width * data_size;
+            default_stride[1] = width * data_size;
+            default_stride[2] = width * data_size;
+            default_stride[3] = width * data_size;
             break;
         }
-        case FORMAT_BAYER:
-            image_private->plane_num = 1;
-            default_stride[0] = res->width * 2 * data_size;
+        case FORMAT_YUV422_YUYV:
+        case FORMAT_YUV422_YVYU:
+        case FORMAT_YUV422_UYVY:
+        case FORMAT_YUV422_VYUY:
+        case FORMAT_ARGB4444_PACKED:
+        case FORMAT_ABGR4444_PACKED:
+        case FORMAT_ARGB1555_PACKED:
+        case FORMAT_ABGR1555_PACKED: {
+            plane_num = 1;
+            default_stride[0] = width * 2 * data_size;
             break;
+        }
     }
