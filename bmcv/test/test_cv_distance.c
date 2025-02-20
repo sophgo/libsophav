@@ -26,6 +26,9 @@ typedef struct {
     bm_handle_t handle;
 } cv_distance_thread_arg_t;
 
+extern int cpu_distance_fp32(float* XHost, float* cpu_out, int L, int dim, float pnt32[]);
+extern int cpu_distance_fp16(fp16* XHost16, fp16* cpu_out_fp16, int L,
+                            int dim, fp16 pnt16[]);
 
 static int parameters_check(int len, int dim, enum op op_value)
 {
@@ -43,56 +46,6 @@ static int parameters_check(int len, int dim, enum op op_value)
         error = -1;
     }
     return error;
-}
-
-static int cpu_distance_fp32(float* XHost, float* cpu_out, int L, int dim, float pnt32[])
-{
-    int i, j;
-
-    if (XHost == NULL || cpu_out == NULL || pnt32 == NULL) {
-        printf("cpu_distance the param is null!\n");
-        return -1;
-    }
-
-    for (i = 0; i < L; ++i) {
-        cpu_out[i] = 0.f;
-        for (j = 0; j < dim; ++j) {
-            cpu_out[i] += (XHost[i * dim + j] - pnt32[j]) * (XHost[i * dim + j] - pnt32[j]);
-        }
-        cpu_out[i] = sqrt(cpu_out[i]);
-    }
-
-    return 0;
-}
-
-static int cpu_distance_fp16(fp16* XHost16, fp16* cpu_out_fp16, int L,
-                            int dim, fp16 pnt16[])
-{
-    int i, j;
-    float pnt32[DIM_MAX] = {0};
-    float* XHost = (float*)malloc(L * dim * sizeof(float));
-    float* YHost = (float*)malloc(L * sizeof(float));
-
-    if (XHost16 == NULL || cpu_out_fp16 == NULL || pnt16 == NULL) {
-        printf("cpu_distance the param is null!\n");
-        return -1;
-    }
-
-    for (i = 0; i < L; ++i) {
-        YHost[i] = 0.f;
-        for (j = 0; j < dim; ++j) {
-            XHost[i * dim + j] = fp16tofp32(XHost16[i * dim + j]);
-            pnt32[j] = fp16tofp32(pnt16[j]);
-            YHost[i] += (XHost[i * dim + j] - pnt32[j]) * (XHost[i * dim + j] - pnt32[j]);
-        }
-        YHost[i] = sqrt(YHost[i]);
-        cpu_out_fp16[i] = fp32tofp16(YHost[i], 1);
-    }
-
-    free(XHost);
-    free(YHost);
-
-    return 0;
 }
 
 static int tpu_distance_fp32(float* XHost, float* YHost, int L,int dim, float pnt32[], bm_handle_t handle)

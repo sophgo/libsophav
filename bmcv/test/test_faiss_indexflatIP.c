@@ -863,15 +863,11 @@ free_mem:
 
 int param_check(int database_vecs_num, int query_vecs_num, int sort_cnt, int vec_dims){
     if(sort_cnt > database_vecs_num) {
-        printf("sort_cnt cannot be greater than b!\n");
+        printf("sort_cnt cannot be greater than database_vecs_num!\n");
         return -1;
     }
     if(query_vecs_num > database_vecs_num) {
-        printf("query_vecs_num cannot be greater than b!\n");
-        return -1;
-    }
-    if(vec_dims > 512) {
-        printf("vec_dims cannot be greater than 512!\n");
+        printf("query_vecs_num cannot be greater than database_vecs_num!\n");
         return -1;
     }
     return 0;

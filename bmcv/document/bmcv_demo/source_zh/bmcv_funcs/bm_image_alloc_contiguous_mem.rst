@@ -33,7 +33,7 @@ bm_image_alloc_contiguous_mem
 
 | 【返回值】
 
-函数调用成功时返回BM_SUCCESS。
+函数调用成功时返回 BM_SUCCESS。
 
 | 【注意事项】
 

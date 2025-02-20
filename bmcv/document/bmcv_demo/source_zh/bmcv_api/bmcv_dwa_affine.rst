@@ -105,30 +105,19 @@ bmcv_dwa_affine
     #include <stdio.h>
     #include <stdlib.h>
     #include <string.h>
-    #include <pthread.h>
-    #include <sys/time.h>
     #include "bmcv_api_ext_c.h"
     #include <unistd.h>
 
-    extern void bm_read_bin(bm_image src, const char *input_name);
-    extern void bm_write_bin(bm_image dst, const char *output_name);
-    extern int md5_cmp(unsigned char* got, unsigned char* exp ,int size);
-
-    int main(int argc, char **argv) {
-        bm_status_t ret = BM_SUCCESS;
-        bm_handle_t handle = NULL;
-        int dev_id = 0;
-        char *src_name = "girls_1920x1080.yuv";
-        char *dst_name = "out_affine.yuv";
-        int src_h = 1080, src_w = 1920;
-        int dst_w = 128, dst_h = 1152;
-        bm_image src, dst;
+    int main() {
+        int src_h = 1080, src_w = 1920, dst_w = 1920, dst_h = 1080, dev_id = 0;
         bm_image_format_ext fmt = FORMAT_YUV420P;
-        int ret = (int)bm_dev_request(&handle, dev_id);
+        char *src_name = "path/to/src", *dst_name = "path/to/dst";
+        bm_handle_t handle = NULL;
         bmcv_affine_attr_s affine_attr = {0};
-        affine_attr.u32RegionNum = 9;
-        affine_attr.stDestSize.u32Width = 128;
-        affine_attr.stDestSize.u32Height = 128;
+        affine_attr.u32RegionNum = 4;
+        affine_attr.stDestSize.u32Width = 400;
+        affine_attr.stDestSize.u32Height = 400;
+        // bmcv_point2f_s faces[9][4] = {0};
         bmcv_point2f_s faces[9][4] = {
             { {.x = 722.755, .y = 65.7575}, {.x = 828.402, .y = 80.6858}, {.x = 707.827, .y = 171.405}, {.x = 813.474, .y = 186.333} },
             { {.x = 494.919, .y = 117.918}, {.x = 605.38,  .y = 109.453}, {.x = 503.384, .y = 228.378}, {.x = 613.845, .y = 219.913} },
@@ -142,16 +131,60 @@ bmcv_dwa_affine
         };
         memcpy(affine_attr.astRegionAttr, faces, sizeof(faces));
 
-        // create bm image
+        int ret = (int)bm_dev_request(&handle, dev_id);
+        if (ret != 0) {
+            printf("Create bm handle failed. ret = %d\n", ret);
+            exit(-1);
+        }
+
+        bm_image src, dst;
+
         bm_image_create(handle, src_h, src_w, fmt, DATA_TYPE_EXT_1N_BYTE, &src, NULL);
         bm_image_create(handle, dst_h, dst_w, fmt, DATA_TYPE_EXT_1N_BYTE, &dst, NULL);
-        ret = bm_image_alloc_dev_mem(src, BMCV_HEAP_ANY);
-        ret = bm_image_alloc_dev_mem(dst, BMCV_HEAP_ANY);
 
-        // read image data from input files
-        bm_read_bin(src, src_name);
+        ret = bm_image_alloc_dev_mem(src, BMCV_HEAP1_ID);
+        ret = bm_image_alloc_dev_mem(dst, BMCV_HEAP1_ID);
+
+        int image_byte_size[4] = {0};
+        bm_image_get_byte_size(src, image_byte_size);
+        int byte_size = image_byte_size[0] + image_byte_size[1] + image_byte_size[2] + image_byte_size[3];
+        unsigned char *input_data = (unsigned char*)malloc(byte_size);
+        FILE *fp_src = fopen(src_name, "rb");
+        if (fread((void*)input_data, 1, byte_size, fp_src) < (unsigned int)byte_size) {
+            printf("file size is less than required bytes%d\n", byte_size);
+        }
+        fclose(fp_src);
+        void* in_ptr[4] = {(void *)input_data,
+                            (void *)((unsigned char*)input_data + image_byte_size[0]),
+                            (void *)((unsigned char*)input_data + image_byte_size[0] + image_byte_size[1]),
+                            (void *)((unsigned char*)input_data + image_byte_size[0] + image_byte_size[1] + image_byte_size[2])};
+        bm_image_copy_host_to_device(src, in_ptr);
+
         bmcv_dwa_affine(handle, src, dst, affine_attr);
-        bm_write_bin(dst, dst_name);
+
+        bm_image_get_byte_size(dst, image_byte_size);
+        byte_size = image_byte_size[0] + image_byte_size[1] + image_byte_size[2] + image_byte_size[3];
+        unsigned char* output_ptr = (unsigned char*)malloc(byte_size);
+        void* out_ptr[4] = {(void*)output_ptr,
+                            (void*)((unsigned char*)output_ptr + image_byte_size[0]),
+                            (void*)((unsigned char*)output_ptr + image_byte_size[0] + image_byte_size[1]),
+                            (void*)((unsigned char*)output_ptr + image_byte_size[0] + image_byte_size[1] + image_byte_size[2])};
+        bm_image_copy_device_to_host(dst, (void **)out_ptr);
+
+        FILE *fp_dst = fopen(dst_name, "wb");
+        if (fwrite((void *)output_ptr, 1, byte_size, fp_dst) < (unsigned int)byte_size){
+            printf("file size is less than %d required bytes\n", byte_size);
+        };
+        fclose(fp_dst);
+
+        bm_image_destroy(&src);
+        bm_image_destroy(&dst);
+
+        free(input_data);
+        free(output_ptr);
+
+        bm_dev_free(handle);
 
         return 0;
     }
+

@@ -130,58 +130,200 @@ bmcv_affine_matrix 定义了一个坐标变换矩阵，其顺序为 float m[6] =
 
     .. code-block:: c
 
-        bm_handle_t handle;
-        int image_h = 1080;
-        int image_w = 1920;
-        int dst_h = 256;
-        int dst_w = 256;
-        int use_bilinear = 0;
-        bmcv_affine_image_matrix matrix_image;
-        bm_status_t ret = BM_SUCCESS;
-        bmcv_affine_matrix* matrix_data = (bmcv_affine_matrix*)malloc(sizeof(bmcv_affine_matrix));
-        u8* src_ptr = (u8*)malloc(image_h * image_w * 3 * sizeof(u8));
-        bm_image src, dst;
+      #include <stdlib.h>
+      #include <stdint.h>
+      #include <stdio.h>
+      #include <string.h>
+      #include <math.h>
+      #include "bmcv_api_ext_c.h"
 
-        matrix_image.matrix_num = 1;
-        matrix_image.matrix = matrix_data;
-        matrix_image.matrix->m[0] = 3.848430;
-        matrix_image.matrix->m[1] = -0.02484;
-        matrix_image.matrix->m[2] = 916.7;
-        matrix_image.matrix->m[3] = 0.02;
-        matrix_image.matrix->m[4] = 3.8484;
-        matrix_image.matrix->m[5] = 56.4748;
+      static int writeBin(const char* path, void* output_data, int size)
+      {
+          int len = 0;
+          FILE* fp_dst = fopen(path, "wb+");
 
-        ret = bm_image_create(handle, image_h, image_w, FORMAT_BGR_PLANAR, DATA_TYPE_EXT_1N_BYTE, &src, NULL);
-        if (ret != BM_SUCCESS) {
-            printf("bm_image_create failed. ret = %d\n", ret);
-            goto exit;
-        }
+          if (fp_dst == NULL) {
+              perror("Error opening file\n");
+              return -1;
+          }
 
-        ret = bm_image_create(handle, dst_h, dst_w, FORMAT_BGR_PLANAR,DATA_TYPE_EXT_1N_BYTE, &dst, NULL);
-        if (ret != BM_SUCCESS) {
-            printf("bm_image_create failed. ret = %d\n", ret);
-            goto exit;
-        }
+          len = fwrite((void*)output_data, 1, size, fp_dst);
+          if (len < size) {
+              printf("file size = %d is less than required bytes = %d\n", len, size);
+              return -1;
+          }
 
-        memset(src_ptr, 148, image_h * image_w * 3);
+          fclose(fp_dst);
+          return 0;
+      }
 
-        ret = bm_image_copy_host_to_device(src, (void**)&src_ptr);
-        if (ret != BM_SUCCESS) {
-            printf("bm_image_copy_host_to_device failed. ret = %d\n", ret);
-            goto exit;
-        }
+      static unsigned char* image_read_2(
+                            int            image_n,
+                            int            image_c,
+                            int            image_sh,
+                            int            image_sw,
+                            int            image_dh,
+                            int            image_dw) {
 
-        ret = bmcv_image_warp_affine(handle, 1, &matrix_image, &src, &dst, use_bilinear);
-        if (ret != BM_SUCCESS) {
-            printf("bmcv_image_warp_affine failed. ret = %d\n", ret);
-            goto exit;
-        }
+          unsigned char* res          = (unsigned char*) malloc(image_n * image_c * image_sh * image_sw * sizeof(unsigned char));
+          unsigned char* res_temp     = (unsigned char*) malloc(image_n * image_c * image_dh * image_dw * sizeof(unsigned char));
+          unsigned char* res_temp_bak = (unsigned char*) malloc(image_n * image_c * image_dh * image_dw * sizeof(unsigned char));
 
-        bm_image_destroy(src);
-        bm_image_destroy(dst);
-        bm_dev_free(handle);
+          for (int i = 0; i < image_n * image_c * image_sh * image_sw; i++)
+          {
+              res[i] = i % 255;
+          }
 
-        exit:
-        free(matrix_data);
-        free(src_ptr);
-        return ret;
+          if (image_dh <= image_sh && image_dw <= image_sw)
+              return res;
+
+          if (image_dh > image_sh){
+              int pad_h_value = (image_dh - image_sh) / 2;
+              for (int i = 0;i < pad_h_value * image_sw;i++)
+                  res_temp[i] = 0;
+
+              for (int i = pad_h_value * image_sw, j = 0; i < pad_h_value * image_sw + image_n * image_c * image_sh * image_sw;i++,j++)
+                  res_temp[i] = res[j];
+
+              for (int i = pad_h_value * image_sw + image_n * image_c * image_sh * image_sw;i <  pad_h_value * image_sw + image_n * image_c * image_sh * image_sw + pad_h_value * image_sw;i++)
+                  res_temp[i] = 0;
+          }
+
+          if (image_dw > image_sw){
+              int pad_w_value = (image_dw - image_sw) / 2;
+              int j = 0;
+              for (int i = 0;i < image_dh;i++){
+                  for (;j < pad_w_value + i * image_dw;j++)
+                      res_temp_bak[j] = 0;
+                  for (;j < pad_w_value + image_sw + i * image_dw;j++)
+                      res_temp_bak[j] = res_temp[j - pad_w_value - i * image_dw + i * image_sw];
+                  for (;j < pad_w_value + pad_w_value + image_sw + i * image_dw;j++)
+                      res_temp_bak[j] = 0;
+              }
+          }
+
+          free(res);
+          free(res_temp);
+          return res_temp_bak;
+      }
+
+
+      int main() {
+          int image_sh = 1080;
+          int image_sw = 1920;
+          int image_dh = 112;
+          int image_dw = 112;
+          int is_bilinear = 0;
+          bm_handle_t handle;
+          int dev_id = 0;
+          bm_status_t ret = bm_dev_request(&handle, dev_id);
+
+          int image_c = 3;
+          int image_n = 1;
+          int output_num = 1;
+
+          unsigned char* src_data = image_read_2(image_n, image_c, image_sh, image_sw, image_dh, image_dw);
+          float* trans_mat = (float*)malloc(output_num * 6 * sizeof(float));
+
+          for (int i = 0; i < output_num; i++){
+              trans_mat[0 + i * 6] = 3.84843f;
+              trans_mat[1 + i * 6] = -0.0248411f;
+              trans_mat[2 + i * 6] = 916.203f;
+              trans_mat[3 + i * 6] = 0.0248411;
+              trans_mat[4 + i * 6] = 3.84843f;
+              trans_mat[5 + i * 6] = 55.9748f;
+          }
+
+          // int* map = (int*)malloc(output_num *image_dh *image_dw * 2 * sizeof(int));
+          unsigned char* dst_image_tpu = (unsigned char*)malloc(output_num * image_c * image_dh * image_dw * sizeof(unsigned char));
+
+
+          bmcv_affine_image_matrix matrix_image[4];
+          bmcv_affine_matrix *     matrix = (bmcv_affine_matrix *)(trans_mat);
+          for (int i = 0; i < image_n; i++) {
+              matrix_image[i].matrix_num = 1;
+              matrix_image[i].matrix     = matrix;
+              matrix += 1;
+          }
+
+          bm_image                 src_img[4];
+          bm_image_format_ext      image_format = FORMAT_BGR_PLANAR;
+          bm_image_data_format_ext data_type    = DATA_TYPE_EXT_1N_BYTE;
+
+          for (int i = 0; i < image_n; i++){
+              bm_image_create(handle, image_sh, image_sw, image_format, data_type, src_img + i, NULL);
+              int stride = 0;
+              bm_image_get_stride(src_img[i], &stride);
+              void *ptr = (void *)(src_data + 3 * stride * image_sh * i);
+              bm_image_copy_host_to_device(src_img[i], (void **)(&ptr));
+          }
+
+          // create dst image.
+          bm_image* dst_img = (bm_image*)malloc(image_n * sizeof(bm_image));
+
+          for (int i = 0; i < image_n; i++) {
+              bm_image_create(handle, image_dh, image_dw, image_format, data_type, dst_img + i, NULL);
+          }
+          ret = bmcv_image_warp_affine(handle, image_n, matrix_image, src_img, dst_img, is_bilinear);
+
+          int size = 0;
+          bm_image_get_byte_size(dst_img[0], &size);
+          unsigned char* temp_out = (unsigned char*)malloc(output_num * size * sizeof(unsigned char));
+          for (int i = 0; i < image_n; i++) {
+              void *ptr = (void *)(temp_out + size * i);
+              bm_image_copy_device_to_host(dst_img[i], (void **)&ptr);
+          }
+          memcpy(dst_image_tpu, temp_out, image_n * image_c * image_dh * image_dw);
+
+          for (int i = 0; i < image_n; i++){
+              bm_image_destroy(&src_img[i]);
+          }
+          char *dst_name = "path/to/dst";
+          writeBin(dst_name, temp_out,  size);
+          writeBin("path/to/src", src_data, image_sh * image_sw * 3);
+          free(src_data);
+          free(dst_img);
+          free(temp_out);
+
+          // free(map);
+          free(dst_image_tpu);
+
+
+          return ret;
+      }
+
+
+bmcv_image_warp_affine_padding
+==============================
+
+**接口说明**
+
+* 所有的使用方式均和上述的 bmcv_image_warp_affine 相同，仅仅改变了接口名字，具体的 padding zero 的接口名字如下：
+
+**接口形式一:**
+
+    .. code-block:: c
+
+        bm_status_t bmcv_image_warp_affine_padding(
+            bm_handle_t handle,
+            int image_num,
+            bmcv_affine_image_matrix matrix[4],
+            bm_image *input,
+            bm_image *output,
+            int use_bilinear);
+
+**接口形式一:**
+
+    .. code-block:: c
+
+        bm_status_t bmcv_image_warp_affine_similar_to_opencv_padding(
+            bm_handle_t handle,
+            int image_num,
+            bmcv_affine_image_matrix matrix[4],
+            bm_image *input,
+            bm_image *output,
+            int use_bilinear);
+
+**代码示例说明**
+
+* 同 bmcv_image_warp_affine 接口使用方式相同，只需要将接口名字换成 bmcv_image_warp_affine_padding 或 bmcv_image_warp_affine_similar_to_opencv_padding 即可。

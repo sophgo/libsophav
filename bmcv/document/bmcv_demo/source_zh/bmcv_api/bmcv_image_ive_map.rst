@@ -116,7 +116,7 @@ DATA_TYPE_EXT_1N_BYTE 的输出，数组元素对应U8类型，假设映射表�
         0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF
     };
 
-假设输入图像的第一个像素大小是10，那么就找到FixMap[10]元素的值幅值给输出图像的第一个元素；然后输入的第二个像素，如果大小是20，那么就将FixMap[20]的值幅值给输出图像的第二个像素。 
+假设输入图像的第一个像素大小是10，那么就找到FixMap[10]元素的值幅值给输出图像的第一个元素；然后输入的第二个像素，如果大小是20，那么就将FixMap[20]的值幅值给输出图像的第二个像素。
 
 | 【代码示例】
 
@@ -125,10 +125,14 @@ DATA_TYPE_EXT_1N_BYTE 的输出，数组元素对应U8类型，假设映射表�
     :lineno-start: 1
     :force:
 
-    extern void bm_ive_read_bin(bm_image src, const char *input_name);
-    extern void bm_ive_write_bin(bm_image dst, const char *output_name);
-    extern bm_status_t bm_ive_image_calc_stride(bm_handle_t handle, int img_h, int img_w,
-        bm_image_format_ext image_format, bm_image_data_format_ext data_type, int *stride);
+    #include <stdio.h>
+    #include <stdlib.h>
+    #include <string.h>
+    #include "bmcv_api_ext_c.h"
+    #include <unistd.h>
+
+    #define align_up(num, align) (((num) + ((align) - 1)) & ~((align) - 1))
+
 
     static unsigned char FixMap[256] = {
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -158,59 +162,74 @@ DATA_TYPE_EXT_1N_BYTE 的输出，数组元素对应U8类型，假设映射表�
         0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
         0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF
     };
-    bm_status_t ret;
-    bm_image src, dst;
-    bm_device_mem_t mapTable;
-    int src_stride[4];
-    int dst_stride[4];
-    bm_ive_image_calc_stride(handle, height, width, src_fmt, DATA_TYPE_EXT_1N_BYTE, src_stride);
-    bm_ive_image_calc_stride(handle, height, width, dst_fmt, DATA_TYPE_EXT_1N_BYTE, dst_stride);
-    bm_image_create(handle, height, width, src_fmt, DATA_TYPE_EXT_1N_BYTE, &src, src_stride);
-    bm_image_create(handle, height, width, dst_fmt, DATA_TYPE_EXT_1N_BYTE, &dst, dst_stride);
-    // alloc bm image memory
-    ret = bm_image_alloc_dev_mem(src, BMCV_HEAP_ANY);
-    if (ret != BM_SUCCESS) {
-        printf("bm_image_alloc_dev_mem_src failed. ret = %d\n", ret);
-        exit(-1);
-    }
-    ret = bm_image_alloc_dev_mem(dst, BMCV_HEAP_ANY);
-    if (ret != BM_SUCCESS) {
-        printf("bm_image_alloc_dev_mem_dst failed. ret = %d\n", ret);
-        exit(-1);
-    }
 
-    ret = bm_malloc_device_byte(handle, &mapTable, MAP_TABLE_SIZE);
-    if (ret != BM_SUCCESS) {
-        printf("bm_image_alloc_dev_mem_dst failed. ret = %d\n", ret);
-        exit(-1);
-    }
+    int main() {
+        int dev_id = 0;
+        int height = 1080, width = 1920;
+        bm_image_format_ext src_fmt = FORMAT_GRAY, dst_fmt = FORMAT_GRAY;
+        char *src_name = "path/to/src", *dst_name = "path/to/dst";
 
-    ret = bm_memcpy_s2d(handle, mapTable, FixMap);
-    if(ret != BM_SUCCESS){
-        printf("bm_memcpy_s2d failed . ret = %d\n", ret);
-        exit(-1);
-    }
+        bm_handle_t handle = NULL;
+        int ret = (int)bm_dev_request(&handle, dev_id);
+        if (ret != 0) {
+            printf("Create bm handle failed. ret = %d\n", ret);
+            exit(-1);
+        }
+        bm_image src, dst;
+        bm_device_mem_t mapTable;
+        int src_stride[4];
+        int dst_stride[4];
 
-    // read image data from input files
-    bm_ive_read_bin(src, src_name);
-    ret = bmcv_ive_map(handle, mapTable, src, dst);
-    if(ret != BM_SUCCESS){
-        printf("bmcv_ive_map failed, ret is %d \n", ret);
-        exit(-1);
-    }
-    unsigned char* ive_res = (unsigned char*) malloc (width * height * sizeof(unsigned char));
-    memset(ive_res, 0, width * height * sizeof(unsigned char));
+        // calc ive image stride
+        int data_size = 1;
+        src_stride[0] = align_up(width, 16) * data_size;
+        dst_stride[0] = align_up(width, 16) * data_size;
 
-    ret = bm_image_copy_device_to_host(dst, (void**)&ive_res);
-    if(ret != BM_SUCCESS){
-        printf("dst bm_image_copy_device_to_host is failed \n");
-        exit(-1);
+        // create bm image struct
+        bm_image_create(handle, height, width, src_fmt, DATA_TYPE_EXT_1N_BYTE, &src, src_stride);
+        bm_image_create(handle, height, width, dst_fmt, DATA_TYPE_EXT_1N_BYTE, &dst, dst_stride);
+
+        // alloc bm image memory
+        ret = bm_image_alloc_dev_mem(src, BMCV_HEAP1_ID);
+        ret = bm_image_alloc_dev_mem(dst, BMCV_HEAP1_ID);
+
+        ret = bm_malloc_device_byte(handle, &mapTable, MAP_TABLE_SIZE);
+        ret = bm_memcpy_s2d(handle, mapTable, FixMap);
+
+        // read image data from input files
+        int image_byte_size[4] = {0};
+        bm_image_get_byte_size(src, image_byte_size);
+        int byte_size  = image_byte_size[0] + image_byte_size[1] + image_byte_size[2] + image_byte_size[3];
+        unsigned char *input_data = (unsigned char *)malloc(byte_size);
+        FILE *fp_src = fopen(src_name, "rb");
+        if (fread((void *)input_data, 1, byte_size, fp_src) < (unsigned int)byte_size) {
+          printf("file size is less than required bytes%d\n", byte_size);
+        };
+        fclose(fp_src);
+        void* in_ptr[4] = {(void *)input_data,
+                            (void *)((unsigned char*)input_data + image_byte_size[0]),
+                            (void *)((unsigned char*)input_data + image_byte_size[0] + image_byte_size[1]),
+                            (void *)((unsigned char*)input_data + image_byte_size[0] + image_byte_size[1] + image_byte_size[2])};
+        bm_image_copy_host_to_device(src, in_ptr);
+
+        ret = bmcv_ive_map(handle, src, dst, mapTable);
+
+        unsigned char* ive_res = (unsigned char*) malloc (width * height * sizeof(unsigned char));
+        memset(ive_res, 0, width * height * sizeof(unsigned char));
+
+        ret = bm_image_copy_device_to_host(dst, (void**)&ive_res);
+        FILE *fp = fopen(dst_name, "wb");
+        fwrite((void *)ive_res, 1, width * height * sizeof(unsigned char), fp);
+        fclose(fp);
+
+        free(input_data);
+        free(ive_res);
+
+        bm_image_destroy(&src);
+        bm_image_destroy(&dst);
+        bm_free_device(handle, mapTable);
+
+        bm_dev_free(handle);
+
+        return 0;
     }
-    FILE *fp = fopen(dst_name, "wb");
-    fwrite((void *)ive_res, 1, width * height * sizeof(unsigned char), fp);
-    fclose(fp);
-    free(ive_res);
-    bm_image_destroy(&src);
-    bm_image_destroy(&dst);
-    bm_free_device(handle, mapTable);
-    bm_dev_free(handle);

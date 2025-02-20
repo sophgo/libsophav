@@ -42,14 +42,14 @@
 //for dump frame for debuging lasi..
 #ifndef BM_PCIE_MODE
 #ifdef __linux__
-static __thread int dump_frame_num = 0;
+//static __thread int dump_frame_num = 0;
 #elif _WIN32
 static  __declspec(thread) int dump_frame_num = 0;
 #endif
 #endif
 
 
-#define VDEC_MAX_CHN_NUM    64
+#define VDEC_MAX_CHN_NUM_INF    64
 #define SOPH_VC_DRV_DECODER_DEV_NAME "soph_vc_dec"
 
 typedef struct _BM_VDEC_CTX{
@@ -58,7 +58,7 @@ typedef struct _BM_VDEC_CTX{
     int chn_id;
 } BM_VDEC_CTX;
 
-BM_VDEC_CTX vpu_dec_chn[VDEC_MAX_CHN_NUM] = {0};
+BM_VDEC_CTX vpu_dec_chn[VDEC_MAX_CHN_NUM_INF] = {0};
 static unsigned int u32ChannelCreatedCnt = 0;
 static pthread_mutex_t VdecChn_Mutex = PTHREAD_MUTEX_INITIALIZER;
 
@@ -69,7 +69,6 @@ void bmvpu_dec_set_logging_threshold(BmVpuDecLogLevel log_level)
 
 BMVidDecRetStatus bmvpu_dec_dump_stream(BMVidCodHandle vidCodHandle, unsigned char *p_stream, int size)
 {
-    int ret = 0;
     static int stream_count = 0;
     static int file_flag = 0;
     int core_idx, inst_idx;
@@ -134,6 +133,12 @@ int bmvpu_dec_get_inst_idx(BMVidCodHandle vidCodHandle)
 
     return VdChn;
 }
+#ifdef BM_PCIE_MODE
+BMVidDecRetStatus bmvpu_dec_read_memory(BMVidCodHandle vidCodHandle, u64 src_addr, u64 dst_addr, int size)
+{
+    return 0;
+}
+#endif
 
 int bmvpu_dec_get_device_fd(BMVidCodHandle vidCodHandle)
 {
@@ -166,7 +171,7 @@ BMVidDecRetStatus bmvpu_dec_create(BMVidCodHandle *pVidCodHandle, BMVidDecParam 
 
     BMVPU_DEC_TRACE("enter bmvpu_dec_create\n");
 
-    bm_vpu_set_logging_threshold(BM_VPU_LOG_LEVEL_INFO);
+    bm_vpu_set_logging_threshold(BMVPU_DEC_LOG_LEVEL_INFO);
 
     if(decParam.streamFormat == BMDEC_AVC)
         stAttr.enType = PT_H264;
@@ -178,10 +183,10 @@ BMVidDecRetStatus bmvpu_dec_create(BMVidCodHandle *pVidCodHandle, BMVidDecParam 
     }
     stAttr.u32StreamBufSize = (decParam.streamBufferSize == 0) ? STREAM_BUF_SIZE : decParam.streamBufferSize;
     stAttr.enMode = (decParam.bsMode == BMDEC_BS_MODE_INTERRUPT) ? VIDEO_MODE_STREAM : VIDEO_MODE_FRAME;
-    stAttr.u32FrameBufCnt = (decParam.extraFrameBufferNum > 0) ? decParam.extraFrameBufferNum : 2;
+    stAttr.u32FrameBufCnt = (decParam.extraFrameBufferNum >= 0) ? decParam.extraFrameBufferNum : 2;
     stAttr.enCompressMode = (decParam.wtlFormat == BMDEC_OUTPUT_COMPRESSED) ? COMPRESS_MODE_FRAME : COMPRESS_MODE_NONE;
     stAttr.u8CommandQueueDepth = decParam.cmd_queue_depth;
-    if (decParam.reorder_disable)
+    if (decParam.decode_order)
         stAttr.u8ReorderEnable = 0;
     else
         stAttr.u8ReorderEnable = 1; //default
@@ -235,7 +240,7 @@ BMVidDecRetStatus bmvpu_dec_create(BMVidCodHandle *pVidCodHandle, BMVidDecParam 
         goto ERR_DEC_INIT2;
     }
     if(VdChn_id >= 2*VC_MAX_CHN_NUM) {
-        BMVPU_DEC_ERROR("init dec error: dec open is more than the max ctreate num(%d).\n", VDEC_MAX_CHN_NUM);
+        BMVPU_DEC_ERROR("init dec error: dec open is more than the max ctreate num(%d).\n", VDEC_MAX_CHN_NUM_INF);
         close(device_fd);
         goto ERR_DEC_INIT2;
     }
@@ -309,7 +314,6 @@ BMVidDecRetStatus bmvpu_dec_decode(BMVidCodHandle vidCodHandle, BMVidStream vidS
 {
     int ret = BM_SUCCESS;
     char *dump_num;
-    unsigned char bEndOfStream = 0;
     vdec_stream_ex_s stStreamEx;
     vdec_stream_s stStream;
     vdec_chn_attr_s stAttr;
@@ -437,9 +441,9 @@ BMVidDecRetStatus bmvpu_dec_get_output(BMVidCodHandle vidCodHandle, BMVidFrame *
     bmFrame->buf[0]   = stFrameInfo.video_frame.viraddr[0];
     bmFrame->buf[1]   = stFrameInfo.video_frame.viraddr[1];
     bmFrame->buf[2]   = stFrameInfo.video_frame.viraddr[2];
-    bmFrame->buf[4]   = stFrameInfo.video_frame.phyaddr[0];
-    bmFrame->buf[5]   = stFrameInfo.video_frame.phyaddr[1];
-    bmFrame->buf[6]   = stFrameInfo.video_frame.phyaddr[2];
+    bmFrame->buf[4]   = (unsigned char *)stFrameInfo.video_frame.phyaddr[0];
+    bmFrame->buf[5]   = (unsigned char *)stFrameInfo.video_frame.phyaddr[1];
+    bmFrame->buf[6]   = (unsigned char *)stFrameInfo.video_frame.phyaddr[2];
 
     bmFrame->stride[0] = stFrameInfo.video_frame.stride[0];
     bmFrame->stride[4] = stFrameInfo.video_frame.stride[0];
@@ -451,7 +455,7 @@ BMVidDecRetStatus bmvpu_dec_get_output(BMVidCodHandle vidCodHandle, BMVidFrame *
     }
     else {
         bmFrame->buf[3] = stFrameInfo.video_frame.ext_virt_addr;
-        bmFrame->buf[7] = stFrameInfo.video_frame.ext_phy_addr;
+        bmFrame->buf[7] = (unsigned char *)stFrameInfo.video_frame.ext_phy_addr;
 
         bmFrame->stride[2] = stFrameInfo.video_frame.length[2];
         bmFrame->stride[6] = stFrameInfo.video_frame.length[2];
@@ -542,15 +546,15 @@ BMVidDecRetStatus bmvpu_dec_clear_output(BMVidCodHandle vidCodHandle, BMVidFrame
     stFrameInfo.video_frame.viraddr[0]   = frame->buf[0];
     stFrameInfo.video_frame.viraddr[1]   = frame->buf[1];
     stFrameInfo.video_frame.viraddr[2]   = frame->buf[2];
-    stFrameInfo.video_frame.phyaddr[0]   = frame->buf[4];
-    stFrameInfo.video_frame.phyaddr[1]   = frame->buf[5];
-    stFrameInfo.video_frame.phyaddr[2]   = frame->buf[6];
+    stFrameInfo.video_frame.phyaddr[0]   = (long long unsigned int)frame->buf[4];
+    stFrameInfo.video_frame.phyaddr[1]   = (long long unsigned int)frame->buf[5];
+    stFrameInfo.video_frame.phyaddr[2]   = (long long unsigned int)frame->buf[6];
 
     if(frame->pixel_format == BM_VPU_DEC_PIX_FORMAT_COMPRESSED)
         stFrameInfo.video_frame.compress_mode = COMPRESS_MODE_FRAME;
     else
         stFrameInfo.video_frame.compress_mode = COMPRESS_MODE_NONE;
-    stFrameInfo.video_frame.private_data  = (void *)frame->frameIdx;
+    stFrameInfo.video_frame.private_data  = (void *)(uintptr_t)frame->frameIdx;
 
     stFrameInfo.video_frame.length[0]   = frame->stride[0] * frame->height;
     stFrameInfo.video_frame.length[1]   = frame->stride[1] * frame->height / 2;
@@ -562,7 +566,7 @@ BMVidDecRetStatus bmvpu_dec_clear_output(BMVidCodHandle vidCodHandle, BMVidFrame
         stFrameInfo.video_frame.ext_length      = frame->stride[3];
 
         stFrameInfo.video_frame.ext_virt_addr    = frame->buf[3];
-        stFrameInfo.video_frame.ext_phy_addr     = frame->buf[7];
+        stFrameInfo.video_frame.ext_phy_addr     = (long long unsigned int)frame->buf[7];
     }
 
     if(frame->pixel_format == BM_VPU_DEC_PIX_FORMAT_YUV420P)
@@ -658,7 +662,7 @@ BMDecStatus bmvpu_dec_get_status(BMVidCodHandle vidCodHandle)
 {
     int ret;
     vdec_chn_status_s stDecStatus = {0};
-    BMDecStatus state;
+    BMDecStatus state = 0;
     int VdChn = *((int *)vidCodHandle);
     if(vpu_dec_chn[VdChn].chn_fd < 0)
     {
@@ -834,7 +838,7 @@ BMVidDecRetStatus bmvpu_dec_get_all_frame_in_buffer(BMVidCodHandle vidCodHandle)
 
 BMVidDecRetStatus bmvpu_dec_reset(int devIdx, int coreIdx)
 {
-    int VdChn;
+    //int VdChn;
 
     //CVI_VDEC_ResetChn(VdChn);
     return BM_SUCCESS;

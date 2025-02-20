@@ -120,43 +120,71 @@ bmcv_matmul
 
     .. code-block:: c
 
-        int M = 3, N = 4, K = 5;
-        int result_type = 1;
-        bool is_B_trans = false;
-        bm_status_t ret = BM_SUCCESS;
-        int rshift_bit = 0;
-        signed char* A = (signed char*)malloc(M * K * sizeof(signed char));
-        signed char* B = (signed char*)malloc(N * K * sizeof(signed char));
-        short* C = (short*)malloc(M * N * sizeof(short));
+      #include "bmcv_api_ext_c.h"
+      #include <math.h>
+      #include <stdio.h>
+      #include <stdlib.h>
+      #include <string.h>
+      #include "test_misc.h"
 
-        struct timespec tp;
-        clock_gettime(NULL, &tp);
-        srand(tp.tv_nsec);
+      static void assign_fix8b_matrix(void* mat, int size, int is_16bit)
+      {
+          int i;
 
-        for (int i = 0; i < M * K; ++i) {
-            A[i] = rand() % 256 - 128;
-        }
-        for (int i = 0; i < K * N; ++i) {
-            B[i] = rand() % 256 - 128;
-        }
+          for (i = 0; i < size; i++) {
+              if (is_16bit) {
+                  *((signed short*)mat + i) = rand() % 65536 - 32768;
+              } else {
+                  *((signed char*)mat + i) = rand() % 256 - 128;
+              }
+          }
+      }
 
-        ret = bm_dev_request(&handle, 0);
-        if (ret != BM_SUCCESS) {
-            printf("Create bm handle failed. ret = %d\n", ret);
-            return -1;
-        }
+      int main()
+      {
+          int M = 1 + rand() % 6;
+          int K = 1 + rand() % 512;
+          int N = 1 + rand() % 9216;
+          // int trans_A = 0;  //whether to transpose
+          int trans_B = 0;
+          int A_sign = 0;  //unsigned or singned
+          int B_sign = 0;
+          int result_type = 0;  //0-int8 1-int16 2-flaot
+          int right_shift_bit = 1;
+          float alpha = 1;
+          float beta = 0;
+          int ret = 0;
+          bm_handle_t handle;
+          ret = bm_dev_request(&handle, 0);
 
-        ret = bmcv_matmul(handle, M, N, K, bm_mem_from_system((void *)A), bm_mem_from_system((void *)B),
-                        bm_mem_from_system((void *)C), 1, 1, rshift_bit, result_type, is_B_trans);
-        if (ret != BM_SUCCESS) {
-            printf("bmcv_matmul failed. ret = %d\n", ret);
-            bm_dev_free(handle);
-            free(A);
-            free(B);
-            free(C);
-            return -1;
-        }
+          signed char* input_A;
+          signed char* input_B;
+          void* tpu_out;
+          input_A = (signed char*)malloc(M * K * sizeof(signed char));
+          input_B = (signed char*)malloc(K * N * sizeof(signed char));
 
-        free(A);
-        free(B);
-        free(C);
+          if (result_type == 0) {
+              tpu_out = (signed char*)malloc(M * N * sizeof(signed char));
+              memset(tpu_out, 0, M * N * sizeof(signed char));
+          }
+
+          assign_fix8b_matrix((void*)input_A, M * K, 0);
+          assign_fix8b_matrix((void*)input_B, K * N, 0);
+
+          ret = bmcv_matmul(handle, M, N, K, bm_mem_from_system((void*)input_A),
+                          bm_mem_from_system((void*)input_B), bm_mem_from_system(tpu_out), A_sign,
+                          B_sign, right_shift_bit, result_type, trans_B, alpha, beta);
+
+          if (ret != BM_SUCCESS) {
+              printf("Create bm handle failed. ret = %d\n", ret);
+              bm_dev_free(handle);
+              return -1;
+          }
+
+          free(input_A);
+          free(input_B);
+          free(tpu_out);
+
+          bm_dev_free(handle);
+          return ret;
+      }

@@ -45,7 +45,7 @@ static float fb_scale = 1.0f;
 static vg_lite_buffer_t buffer[6];
 static vg_lite_buffer_t buffer1[6];
 static vg_lite_buffer_t image;
-static vg_lite_buffer_t * fb;
+//static vg_lite_buffer_t * fb;
 
 static char path_data[] = {
     2, -5, -10, /* moveto   -5,-10 */

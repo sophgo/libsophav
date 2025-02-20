@@ -137,104 +137,80 @@ bmcv_ive_dilate
 
     .. code-block:: c
 
-        #include <stdio.h>
-        #include <stdlib.h>
-        #include <string.h>
-        #include <pthread.h>
-        #include <math.h>
-        #include <sys/time.h>
-        #include "bmcv_api_ext_c.h"
-        #include <unistd.h>
-        extern void bm_ive_read_bin(bm_image src, const char *input_name);
+      #include <stdio.h>
+      #include <stdlib.h>
+      #include <string.h>
+      #include <math.h>
+      #include "bmcv_api_ext_c.h"
+      #include <unistd.h>
 
-        extern bm_status_t bm_ive_image_calc_stride(bm_handle_t handle, int img_h, int img_w,
-            bm_image_format_ext image_format, bm_image_data_format_ext data_type, int *stride);
-        int main(){
+      #define align_up(num, align) (((num) + ((align) - 1)) & ~((align) - 1))
+
+      int main(){
           int dev_id = 0;
-          int height = 288, width = 352;
-          int dilate_size = 0; // 0 : arr3by3; 1: arr5by5
+          int height = 1080, width = 1920;
           bm_image_format_ext fmt = FORMAT_GRAY;
-          char *src_name = "./data/bin_352x288_y.yuv", *dst_name = "ive_dilate_result.yuv";
+          char *src_name = "path/to/src", *dst_name = "path/to/dst";
 
           unsigned char arr3by3[25] = { 0, 0, 0, 0, 0, 0, 0, 255, 0, 0, 0, 255, 255,
                           255, 0, 0, 0, 255, 0, 0, 0, 0, 0, 0, 0 };
 
-          unsigned char arr5by5[25] = { 0, 0, 255, 0, 0, 0, 0, 255, 0,
-                            0, 255, 255, 255, 255, 255, 0, 0, 255,
-                            0, 0, 0, 0, 255, 0, 0 };
           bm_handle_t handle = NULL;
           int ret = (int)bm_dev_request(&handle, dev_id);
           if (ret != 0) {
               printf("Create bm handle failed. ret = %d\n", ret);
               exit(-1);
           }
+
           bm_image src, dst;
           int stride[4];
-          unsigned int i = 0, loop_time = 0;
-          unsigned long long time_single, time_total = 0, time_avg = 0;
-          unsigned long long time_max = 0, time_min = 10000, fps_actual = 0;
-          struct timeval tv_start;
-          struct timeval tv_end;
-          struct timeval timediff;
 
           // calc ive image stride && create bm image struct
-          bm_ive_image_calc_stride(handle, height, width, fmt, DATA_TYPE_EXT_1N_BYTE, stride);
+          int data_size = 1;
+          stride[0] = align_up(width, 16) * data_size;
+
 
           bm_image_create(handle, height, width, fmt, DATA_TYPE_EXT_1N_BYTE, &src, stride);
           bm_image_create(handle, height, width, fmt, DATA_TYPE_EXT_1N_BYTE, &dst, stride);
 
-          ret = bm_image_alloc_dev_mem(src, BMCV_HEAP_ANY);
-          if (ret != BM_SUCCESS) {
-              printf("src bm_image_alloc_dev_mem_src. ret = %d\n", ret);
-              exit(-1);
-          }
+          ret = bm_image_alloc_dev_mem(src, BMCV_HEAP1_ID);
+          ret = bm_image_alloc_dev_mem(dst, BMCV_HEAP1_ID);
 
-          ret = bm_image_alloc_dev_mem(dst, BMCV_HEAP_ANY);
-          if (ret != BM_SUCCESS) {
-              printf("dst bm_image_alloc_dev_mem_src. ret = %d\n", ret);
-              exit(-1);
-          }
-          bm_ive_read_bin(src, src_name);
+          int image_byte_size[4] = {0};
+          bm_image_get_byte_size(src, image_byte_size);
+          int byte_size  = image_byte_size[0] + image_byte_size[1] + image_byte_size[2] + image_byte_size[3];
+          unsigned char *input_data = (unsigned char *)malloc(byte_size);
+          FILE *fp_src = fopen(src_name, "rb");
+          if (fread((void *)input_data, 1, byte_size, fp_src) < (unsigned int)byte_size) {
+            printf("file size is less than required bytes%d\n", byte_size);
+          };
+          fclose(fp_src);
+          void* in_ptr[4] = {(void *)input_data,
+                              (void *)((unsigned char*)input_data + image_byte_size[0]),
+                              (void *)((unsigned char*)input_data + image_byte_size[0] + image_byte_size[1]),
+                              (void *)((unsigned char*)input_data + image_byte_size[0] + image_byte_size[1] + image_byte_size[2])};
+          bm_image_copy_host_to_device(src, in_ptr);
 
-          for (i = 0; i < loop_time; i++) {
-              gettimeofday(&tv_start, NULL);
-              if(dilate_size == 0) {
-                  ret = bmcv_ive_dilate(handle, src, dst, arr3by3);
-              } else {
-                  ret = bmcv_ive_dilate(handle, src, dst, arr5by5);
-              }
-              gettimeofday(&tv_end, NULL);
-              timediff.tv_sec  = tv_end.tv_sec - tv_start.tv_sec;
-              timediff.tv_usec = tv_end.tv_usec - tv_start.tv_usec;
-              time_single = (unsigned int)(timediff.tv_sec * 1000000 + timediff.tv_usec);
 
-              if(time_single>time_max){time_max = time_single;}
-              if(time_single<time_min){time_min = time_single;}
-              time_total = time_total + time_single;
-              if(ret != BM_SUCCESS){
-                  printf("bmcv ive dilate failed, ret = %d \n", ret);
-                  exit(-1);
-              }
-          }
 
-          time_avg = time_total / loop_time;
-          fps_actual = 1000000 / time_avg;
+          ret = bmcv_ive_dilate(handle, src, dst, arr3by3);
+
+          unsigned char* ive_dilate_res = malloc(width * height * sizeof(unsigned char));
+          memset(ive_dilate_res, 0, width * height * sizeof(unsigned char));
+
+          ret = bm_image_copy_device_to_host(dst, (void **)&ive_dilate_res);
+
+          FILE *ive_result_fp = fopen(dst_name, "wb");
+          fwrite((void *)ive_dilate_res, 1, width * height, ive_result_fp);
+          fclose(ive_result_fp);
+
+          free(input_data);
+          free(ive_dilate_res);
+
           bm_image_destroy(&src);
           bm_image_destroy(&dst);
-          printf("bmcv_ive_dilate: loop %d cycles, time_max = %llu, time_avg = %llu, fps %llu \n",
-                  loop_time, time_max, time_avg, fps_actual);
-          printf("bmcv ive dilate test successful \n");
-
-          return 0;
-        }
 
 
-
-
-
-
-
-
-
-
-
+          bm_dev_free(handle);
+          return ret;
+      }

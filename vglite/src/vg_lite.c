@@ -321,7 +321,7 @@ vg_lite_ftable_t    s_ftable = {
 
 static vg_lite_error_t check_hardware_chip_info(void)
 {
-    vg_lite_uint32_t chip_id = 0, chip_rev = 0, cid = 0, eco_id;
+    vg_lite_uint32_t chip_id = 0, chip_rev = 0, cid = 0, eco_id = 0;
 
     vg_lite_get_product_info(NULL, &chip_id, &chip_rev);
     vg_lite_get_register(0x30, &cid);

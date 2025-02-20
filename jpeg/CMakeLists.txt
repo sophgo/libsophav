@@ -12,16 +12,12 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/inc)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/example)
 
 # add library files path
-string(FIND "${CMAKE_C_COMPILER}" "aarch64-linux-gnu-gcc" COMPILER_FOUND)
-if (COMPILER_FOUND GREATER -1)
-    link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/libbmcv/lib/${PLATFORM})
-else ()
-    link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/libbmcv/lib930/${PLATFORM})
-endif ()
+#string(FIND "${CMAKE_C_COMPILER}" "aarch64-linux-gnu-gcc" COMPILER_FOUND)
+link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/libbmcv/${LIB_VERSION}/${PLATFORM})
 
 set(JPEG_LIB_NAME bmjpeg CACHE INTERNAL "jpeg library name")
 set(SRCS src/bm_ioctl.c src/bm_jpeg_interface.c src/bm_jpeg_logging.c)
-set(HEADERS inc/bm_jpeg_interface.h inc/bm_jpeg_internal.h)
+set(HEADERS inc/bm_jpeg_interface.h)
 set(component libsophon)
 
 add_library(${JPEG_LIB_NAME} SHARED ${SRCS})

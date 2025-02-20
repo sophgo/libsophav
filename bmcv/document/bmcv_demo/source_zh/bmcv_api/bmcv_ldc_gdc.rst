@@ -119,157 +119,82 @@ bmcv_ldc_gdc
     #include <stdio.h>
     #include <stdlib.h>
     #include <string.h>
-    #include <pthread.h>
-    #include <sys/time.h>
     #include "bmcv_api_ext_c.h"
     #include <unistd.h>
 
     #define LDC_ALIGN 64
+    #define ALIGN(num, align) (((num) + ((align) - 1)) & ~((align) - 1))
 
-    extern void bm_read_bin(bm_image src, const char *input_name);
-    extern void bm_write_bin(bm_image dst, const char *output_name);
-    extern int md5_cmp(unsigned char* got, unsigned char* exp ,int size);
-    extern bm_status_t bm_ldc_image_calc_stride(bm_handle_t handle,
-                                                int img_h,
-                                                int img_w,
-                                                bm_image_format_ext image_format,
-                                                bm_image_data_format_ext data_type,
-                                                int *stride);
-    int main(int argc, char **argv) {
-        bm_status_t ret = BM_SUCCESS;
-        bm_handle_t handle = NULL;
+    int main() {
         int dev_id = 0;
-        char *src_name = "1920x1080_barrel_0.3.yuv";
-        char *dst_name = "out_barrel_0.yuv";
-        int width = 1920;
-        int height = 1080;
+        int height = 1080, width = 1920;
+        bm_image_format_ext src_fmt = FORMAT_GRAY, dst_fmt = FORMAT_GRAY;
+        bmcv_gdc_attr stLDCAttr = {0};
+        char *src_name = "path/to/src", *dst_name = "path/to/dst";
+        bm_handle_t handle = NULL;
+        int ret = (int)bm_dev_request(&handle, dev_id);
+        if (ret != 0) {
+            printf("Create bm handle failed. ret = %d\n", ret);
+            exit(-1);
+        }
         bm_image src, dst;
-        bm_image_format_ext src_fmt = FORMAT_NV21;
-        bm_image_format_ext dst_fmt = FORMAT_NV21;
         int src_stride[4];
         int dst_stride[4];
-        int ret = (int)bm_dev_request(&handle, dev_id);
-        bmcv_gdc_attr stLDCAttr = {true, 0, 0, 0, 0, 0, -200, };
-        //set ldc_attr for grid_info
-        stLDCAttr.grid_info.u.system.system_addr = NULL;
-        stLDCAttr.grid_info.size = 0;
         // align
         int align_height = (height + (LDC_ALIGN - 1)) & ~(LDC_ALIGN - 1);
         int align_width  = (width  + (LDC_ALIGN - 1)) & ~(LDC_ALIGN - 1);
 
         // calc image stride
-        bm_ldc_image_calc_stride(handle, height, width, src_fmt, DATA_TYPE_EXT_1N_BYTE, src_stride);
-        bm_ldc_image_calc_stride(handle, align_height, align_width, dst_fmt, DATA_TYPE_EXT_1N_BYTE, dst_stride);
-
+        int data_size = 1;
+        src_stride[0] = ALIGN(width, 16) * data_size;
+        dst_stride[0] = ALIGN(align_width, 16) * data_size;
         // create bm image
         bm_image_create(handle, height, width, src_fmt, DATA_TYPE_EXT_1N_BYTE, &src, src_stride);
         bm_image_create(handle, align_height, align_width, dst_fmt, DATA_TYPE_EXT_1N_BYTE, &dst, dst_stride);
 
-        ret = bm_image_alloc_dev_mem(src, BMCV_HEAP_ANY);
-        ret = bm_image_alloc_dev_mem(dst, BMCV_HEAP_ANY);
-        // read image data from input files
-        bm_read_bin(src, src_name);
-        bmcv_ldc_gdc(handle, src, dst, stLDCAttr);
-        bm_write_bin(dst, dst_name);
+        ret = bm_image_alloc_dev_mem(src, BMCV_HEAP1_ID);
+        ret = bm_image_alloc_dev_mem(dst, BMCV_HEAP1_ID);
 
-        return 0;
-    }
+        int image_byte_size[4] = {0};
+        bm_image_get_byte_size(src, image_byte_size);
+        int byte_size  = image_byte_size[0] + image_byte_size[1] + image_byte_size[2] + image_byte_size[3];
+        unsigned char *input_data = (unsigned char *)malloc(byte_size);
+        FILE *fp_src = fopen(src_name, "rb");
+        if (fread((void *)input_data, 1, byte_size, fp_src) < (unsigned int)byte_size) {
+            printf("file size is less than required bytes%d\n", byte_size);
+        };
+        fclose(fp_src);
+        void* in_ptr[4] = {(void *)input_data,
+                            (void *)((unsigned char*)input_data + image_byte_size[0]),
+                            (void *)((unsigned char*)input_data + image_byte_size[0] + image_byte_size[1]),
+                            (void *)((unsigned char*)input_data + image_byte_size[0] + image_byte_size[1] + image_byte_size[2])};
+        bm_image_copy_host_to_device(src, in_ptr);
 
-| 2. 通过 Grid_Info 文件进行图像校正
+        ret = bmcv_ldc_gdc(handle, src, dst, stLDCAttr);
 
-.. code-block:: cpp
-    :linenos:
-    :lineno-start: 1
-    :force:
+        bm_image_get_byte_size(src, image_byte_size);
+        byte_size = image_byte_size[0] + image_byte_size[1] + image_byte_size[2] + image_byte_size[3];
+        unsigned char* output_ptr = (unsigned char*)malloc(byte_size);
+        void* out_ptr[4] = {(void*)output_ptr,
+                            (void*)((unsigned char*)output_ptr + image_byte_size[0]),
+                            (void*)((unsigned char*)output_ptr + image_byte_size[0] + image_byte_size[1]),
+                            (void*)((unsigned char*)output_ptr + image_byte_size[0] + image_byte_size[1] + image_byte_size[2])};
+        bm_image_copy_device_to_host(src, (void **)out_ptr);
 
-    #include <stdio.h>
-    #include <stdlib.h>
-    #include <string.h>
-    #include <pthread.h>
-    #include <sys/time.h>
-    #include "bmcv_api_ext_c.h"
-    #include <unistd.h>
+        FILE *fp_dst = fopen(dst_name, "wb");
+        if (fwrite((void *)input_data, 1, byte_size, fp_dst) < (unsigned int)byte_size){
+            printf("file size is less than %d required bytes\n", byte_size);
+        };
+        fclose(fp_dst);
 
-    #define LDC_ALIGN 64
-    typedef unsigned int         u32;
+        free(input_data);
+        free(output_ptr);
 
-    extern void bm_read_bin(bm_image src, const char *input_name);
-    extern void bm_write_bin(bm_image dst, const char *output_name);
-    extern int md5_cmp(unsigned char* got, unsigned char* exp ,int size);
-    extern bm_status_t bm_ldc_image_calc_stride(bm_handle_t handle,
-                                                int img_h,
-                                                int img_w,
-                                                bm_image_format_ext image_format,
-                                                bm_image_data_format_ext data_type,
-                                                int *stride);
-
-    int main(int argc, char **argv) {
-        bm_status_t ret = BM_SUCCESS;
-        bm_handle_t handle = NULL;
-        int dev_id = 0;
-        char *src_name = "1280x768.yuv";
-        char *dst_name = "out_grid_info.yuv";
-        char *grid_name = "grid_info_79_44_3476_80_45_1280x720.dat";
-        int src_h = 1080, src_w = 1920, dst_h = 0, dst_w = 0;
-        bm_image src, dst;
-        bm_image_format_ext src_fmt = FORMAT_NV21;
-        bm_image_format_ext dst_fmt = FORMAT_NV21;
-        int src_stride[4];
-        int dst_stride[4];
-        int ret = (int)bm_dev_request(&handle, dev_id);
-        bmcv_gdc_attr stLDCAttr = {0};
-        stLDCAttr.grid_info.size = 336080;     // 注意：用户需根据实际的Grid_Info文件大小（字节数）进行输入设置
-        // align
-        src_h = ALIGN(src_h, LDC_ALIGN);
-        dst_w = src_w;
-        dst_h = ALIGN(src_h, LDC_ALIGN);
-
-        // calc image stride
-        bm_ldc_image_calc_stride(handle, height, width, src_fmt, DATA_TYPE_EXT_1N_BYTE, src_stride);
-        bm_ldc_image_calc_stride(handle, align_height, align_width, dst_fmt, DATA_TYPE_EXT_1N_BYTE, dst_stride);
-
-        // create bm image
-        bm_image_create(handle, height, width, src_fmt, DATA_TYPE_EXT_1N_BYTE, &src, src_stride);
-        bm_image_create(handle, align_height, align_width, dst_fmt, DATA_TYPE_EXT_1N_BYTE, &dst, dst_stride);
-
-        ret = bm_image_alloc_dev_mem(src, BMCV_HEAP_ANY);
-        ret = bm_image_alloc_dev_mem(dst, BMCV_HEAP_ANY);
-        // read image data from input files
-        bm_read_bin(src, src_name);
-
-         // read grid_info data
-        char *buffer = (char *)malloc(stLDCAttr.grid_info.size);
-        if (buffer == NULL) {
-            printf("malloc buffer for grid_info failed!\n");
-            goto fail;
-        }
-        memset(buffer, 0, stLDCAttr.grid_info.size);
-
-        FILE *fp = fopen(grid_name, "rb");
-        if (!fp) {
-            printf("open file:%s failed.\n", grid_name);
-            goto fail;
-        }
-
-        fseek(fp, 0, SEEK_END);
-        int fileSize = ftell(fp);
-
-        if (stLDCAttr.grid_info.size != (u32)fileSize) {
-            printf("load grid_info file:(%s) size is not match.\n", grid_name);
-            fclose(fp);
-            goto fail;
-        }
-        rewind(fp);
-        fread(buffer, 1, stLDCAttr.grid_info.size, fp);
-        fclose(fp);
-        stLDCAttr.grid_info.u.system.system_addr = (void *)buffer;
-
-        bmcv_ldc_gdc(handle, src, dst, stLDCAttr);
-        bm_write_bin(dst, dst_name);
 
         bm_image_destroy(&src);
         bm_image_destroy(&dst);
-        free(buffer);
+
+        bm_dev_free(handle);
 
         return 0;
     }

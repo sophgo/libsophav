@@ -1,3 +1,4 @@
+#ifndef BM_PCIE_MODE
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdatomic.h>
@@ -1267,4 +1268,4 @@ bm_status_t bmcv_blending(bm_handle_t handle, int input_num, bm_image* input,bm_
 
   return s32Ret;
 }
-
+#endif

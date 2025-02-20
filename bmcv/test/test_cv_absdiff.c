@@ -4,6 +4,7 @@
 #include "string.h"
 #include <assert.h>
 #include <pthread.h>
+
 #ifdef __linux__
 #include <sys/time.h>
 #else
@@ -24,6 +25,11 @@ typedef struct {
     char *dst_name;
     bm_handle_t handle;
 } cv_absdiff_thread_arg_t;
+
+extern int absdiff_cmodel(unsigned char* input1,
+                          unsigned char* input2,
+                          unsigned char* output,
+                          int img_size);
 
 void readBin(const char * path, unsigned char* input_data, int size)
 {
@@ -107,14 +113,7 @@ static int cmp( unsigned char* got, unsigned char* exp, int len) {
     return 0;
 }
 
-static int absdiff_cmodel(unsigned char* input1,
-                          unsigned char* input2,
-                          unsigned char* output,
-                          int img_size){
-    for(int i = 0; i < img_size; i++)
-        output[i] = abs(input1[i] - input2[i]);
-    return 0;
-}
+
 
 static int absdiff_tpu(
         unsigned char* input1,

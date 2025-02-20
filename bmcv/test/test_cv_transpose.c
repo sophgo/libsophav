@@ -9,8 +9,8 @@
 
 #define DTYPE_F32 4
 #define DTYPE_U8 1
-#define ALIGN(a, b) (((a) + (b) - 1) / (b) * (b))
 #define TIME_COST_US(start, end) ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec))
+#define ALIGN_WIDTH(a, b) (((a) + (b) - 1) / (b) * (b))
 
 typedef struct {
     int loop;
@@ -24,6 +24,9 @@ typedef struct {
     char* dst_name;
     bm_handle_t handle;
 } cv_transpose_thread_arg_t;
+
+extern int cpu_transpose(void* input, void* output, int channel, int height,
+                        int width, int stride, int dtype);
 
 static void fill_input_f32(float* input, int channel, int height, int width)
 {
@@ -197,44 +200,6 @@ static int tpu_transpose(void* input, void* output, int channel, int height,
     bm_image_destroy(&input_img);
     bm_image_destroy(&output_img);
     return ret;
-}
-
-static int cpu_transpose(void* input, void* output, int channel, int height,
-                        int width, int stride, int dtype)
-{
-    int i, j, k;
-
-    if (input == NULL || output == NULL) {
-        printf("the input or the output is null!\n");
-        return -1;
-    }
-    if (dtype == DTYPE_F32) {
-        float* input_tmp = (float*)input;
-        float* output_tmp = (float*)output;
-
-        for (i = 0; i < channel; ++i) {
-            for (j = 0; j < width; ++j) {
-                for (k = 0; k < height; ++k) {
-                    output_tmp[i * height * width + j * height + k] = \
-                                                    input_tmp[i * height * stride + k * stride + j];
-                }
-            }
-        }
-    } else if (dtype == DTYPE_U8) {
-        unsigned char* input_tmp = (unsigned char*)input;
-        unsigned char* output_tmp = (unsigned char*)output;
-
-        for (i = 0; i < channel; ++i) {
-            for (j = 0; j < width; ++j) {
-                for (k = 0; k < height; ++k) {
-                    output_tmp[i * height * width + j * height + k] = \
-                                                    input_tmp[i * height * stride + k * stride + j];
-                }
-            }
-        }
-    }
-
-    return 0;
 }
 
 static int test_transpose(int if_use_img, int channel, int height, int width, int stride, int type,
@@ -414,7 +379,7 @@ int main(int argc, char* args[])
     if (argc > 8) src_name = args[8];
     if (argc > 9) dst_name = args[9];
 
-    stride = ALIGN(width, 64); /*stride is align width.*/
+    stride = ALIGN_WIDTH(width, 64); /*stride is align width.*/
     check = parameters_check(height, width, channel, type);
     if (check) {
         printf("Parameters Failed! \n");

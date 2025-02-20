@@ -67,11 +67,11 @@ bmcv_image_watermark_superpose
 
   * int bitmap_type
 
-    输入参数。水印类型, 值0表示水印为8bit数据类型(有透明度信息), 值1表示水印为1bit数据类型(无透明度信息)。
+    输入参数。水印类型, 值 0 表示水印为 8bit 数据类型(有透明度信息), 值 1 表示水印为 1bit 数据类型(无透明度信息)。
 
   * int pitch
 
-    输入参数。水印文件每行的byte数, 可理解为水印的宽。
+    输入参数。水印文件每行的 byte 数, 可理解为水印的宽。
 
   * bmcv_rect_t\* rects
 
@@ -127,7 +127,7 @@ bmcv_image_watermark_superpose
 
 1. 该API要求如下：
 
-- 输入和输出的数据类型必须为：
+- 底图的数据类型必须为：
 
 +-----+-------------------------------+
 | num | data_type                     |
@@ -135,7 +135,7 @@ bmcv_image_watermark_superpose
 |  1  | DATA_TYPE_EXT_1N_BYTE         |
 +-----+-------------------------------+
 
-- 输入的色彩格式可支持：
+- 底图的色彩格式可支持：
 
 +-----+-------------------------------+
 | num | image_format                  |
@@ -165,8 +165,189 @@ bmcv_image_watermark_superpose
 
 如果不满足输入输出格式要求，则返回失败。
 
+- 水印图两种格式的数据排列：
+
+8bit数据格式：
+
+用每个byte [0-255]存储单个像素的透明度信息，0 代表完全透明，255 代表完全不透明。其数据量为 width * height byte。
+
+.. math::
+  dst = (alpha * color + (255 - alpha) * src) / 255
+
+dst 表示输出图该位置像素点的值，alpha 表示水印图存储的透明度信息，color代表接口中color参数传入的值，src 代表底图该位置像素点的值。
+
+如下代码，A_8bit是一个宽高为8*8的8bit水印，内容为字母A。
+
+    .. code-block:: c
+
+      unsigned char A_8bit[8][8] = {
+        {0,  0,  255, 255,  0,  0, 0, 0},
+        {0, 255,  0,   0,  255, 0, 0, 0},
+        {0, 255,  0,   0,  255, 0, 0, 0},
+        {0, 255, 255, 255, 255, 0, 0, 0},
+        {0, 255,  0,   0,  255, 0, 0, 0},
+        {0, 255,  0,   0,  255, 0, 0, 0},
+        {0,  0,   0,   0,   0,  0, 0, 0},
+        {0,  0,   0,   0,   0,  0, 0, 0}};
+
+1bit数据格式：
+
+用每个bit [0-1]存储单个像素是否在有效区域，0 代表在无效区域，1 代表在有效区域。其数据量为 width * height / 8 byte。
+
+.. math::
+  dst = (alpha == 1 ? color : src)
+
+dst 表示输出图该位置像素点的值，alpha 表示水印图存储的区域信息，color代表接口中color参数传入的值，src 代表底图该位置像素点的值。
+
+将上述A_8bit矩阵用1bit存储，即如下代码。
+
+    .. code-block:: c
+
+      unsigned char A_1bit[8] = {
+        0xc, //(二进制表示 0000 1100)
+        0x12,//(二进制表示 0001 0010)
+        0x12,//(二进制表示 0001 0010)
+        0x1e,//(二进制表示 0001 1110)
+        0x12,//(二进制表示 0001 0010)
+        0x12,//(二进制表示 0001 0010)
+        0x0, //(二进制表示 0000 0000)
+        0x0};//(二进制表示 0000 0000)
+
 2. 输入输出所有 bm_image 结构必须提前创建，否则返回失败。
 
 3. 水印数量最多可设置512个。
 
 4. 如果水印区域超出原图宽高，会返回失败。
+
+5. 不支持对单底图进行位置重叠的多图叠加。
+
+**示例代码：**
+
+    .. code-block:: c
+
+      #include <limits.h>
+      #include <stdio.h>
+      #include <stdlib.h>
+      #include <string.h>
+
+      #include "bmcv_api_ext_c.h"
+
+      static int writeBin(const char* path, void* output_data, int size)
+      {
+          int len = 0;
+          FILE* fp_dst = fopen(path, "wb+");
+
+          if (fp_dst == NULL) {
+              perror("Error opening file\n");
+              return -1;
+          }
+
+          len = fwrite((void*)output_data, 1, size, fp_dst);
+          if (len < size) {
+              printf("file size = %d is less than required bytes = %d\n", len, size);
+              return -1;
+          }
+
+          fclose(fp_dst);
+          return 0;
+      }
+      bm_status_t open_water(
+          bm_handle_t           handle,
+          char *                src_name,
+          int                   src_size,
+          bm_device_mem_t *     dst)
+      {
+          bm_status_t ret = BM_SUCCESS;
+          unsigned char * src = (unsigned char *)malloc(sizeof(unsigned char) * src_size);
+          ret = bm_malloc_device_byte(handle, dst, src_size);
+          if(ret != BM_SUCCESS){
+              printf("bm_malloc_device_byte fail %s: %s: %d\n", __FILE__, __func__, __LINE__);
+              goto fail;
+          }
+
+          FILE * fp_src = fopen(src_name, "rb");
+          size_t read_size = fread((void *)src, src_size, 1, fp_src);
+          printf("fread %ld byte\n", read_size);
+          fclose(fp_src);
+      #ifdef _FPGA
+          ret = bm_memcpy_s2d_fpga(handle, dst[0], (void*)src);
+      #else
+          ret = bm_memcpy_s2d(handle, dst[0], (void*)src);
+      #endif
+          if(ret != BM_SUCCESS){
+              printf("bm_memcpy_s2d fail %s: %s: %d\n", __FILE__, __func__, __LINE__);
+          }
+      fail:
+          free(src);
+          return ret;
+      }
+
+
+      int main() {
+          char *filename_src = "path/to/src";
+          char *filename_water = "path/to/water_file";
+          char *filename_dst = "path/to/dst";
+          int in_width = 1920;
+          int in_height = 1080;
+          int water_width = 800;
+          int water_height = 600;
+          bm_image_format_ext src_format = FORMAT_RGB_PLANAR;
+          bmcv_rect_t rects = {
+              .start_x = 200,
+              .start_y = 200,
+              .crop_w = 800,
+              .crop_h = 600};
+          bmcv_color_t color = {
+              .r = 0,
+              .g = 0,
+              .b = 0};
+
+          bm_status_t ret = BM_SUCCESS;
+
+          int src_size = in_width * in_height * 3;
+          int water_size = water_width * water_height * 3;
+          unsigned char *src_data = (unsigned char *)malloc(src_size);
+          unsigned char *water_data = (unsigned char *)malloc(water_size);
+
+          FILE *file;
+          file = fopen(filename_water, "rb");
+          fread(water_data, sizeof(unsigned char), water_size, file);
+          fclose(file);
+
+          file = fopen(filename_src, "rb");
+          fread(src_data, sizeof(unsigned char), src_size, file);
+          fclose(file);
+
+          bm_handle_t handle = NULL;
+          int dev_id = 0;
+          bm_image src;
+          bm_device_mem_t water;
+          ret = bm_dev_request(&handle, dev_id);
+
+          open_water(handle, filename_water, water_size, &water);
+
+          bm_image_create(handle, in_height, in_width, src_format, DATA_TYPE_EXT_1N_BYTE, &src, NULL);
+          bm_image_alloc_dev_mem(src, BMCV_HEAP1_ID);
+
+          int src_image_byte_size[4] = {0};
+          bm_image_get_byte_size(src, src_image_byte_size);
+
+          void *src_in_ptr[4] = {(void *)src_data,
+                              (void *)((char *)src_data + src_image_byte_size[0]),
+                              (void *)((char *)src_data + src_image_byte_size[0] + src_image_byte_size[1]),
+                              (void *)((char *)src_data + src_image_byte_size[0] + src_image_byte_size[1] + src_image_byte_size[2])};
+
+          bm_image_copy_host_to_device(src, (void **)src_in_ptr);
+          ret = bmcv_image_watermark_superpose(handle, &src, &water, 1, 0, water_width, &rects, color);
+          bm_image_copy_device_to_host(src, (void **)src_in_ptr);
+
+          writeBin(filename_dst, src_data, src_size);
+
+          bm_image_destroy(&src);
+          bm_dev_free(handle);
+
+          free(src_data);
+          free(water_data);
+
+          return ret;
+      }

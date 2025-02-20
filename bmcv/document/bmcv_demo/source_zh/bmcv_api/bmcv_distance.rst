@@ -55,66 +55,87 @@ bmcv_distance
 
     .. code-block:: c
 
-        int L = 1024 * 1024;
-        int dim = 3;
-        float pnt[8] = {0};
-        float* XHost = (float*)malloc(L * dim * sizeof(float));
-        float *YHost = (float*)malloc(L * sizeof(float));
+      #include "bmcv_api_ext_c.h"
+      #include <math.h>
+      #include <stdio.h>
+      #include <stdlib.h>
+      #include <string.h>
+      #include "test_misc.h"
 
-        struct timespec tp;
-        clock_gettime(NULL, &tp);
-        srand(tp.tv_nsec);
+      #define DIM_MAX 8
 
-        for (int i = 0; i < dim; ++i) {
-            pnt[i] = (rand() % 2 ? 1.f : -1.f) * (rand() % 100 + (rand() % 100) * 0.01);
-        }
+      enum op {
+        FP32 = 0,
+        FP16 = 1,
+      };
 
-        for (int i = 0; i < L * dim; ++i) {
-            XHost[i] = (rand() % 2 ? 1.f : -1.f) * (rand() % 100 + (rand() % 100) * 0.01);
-        }
-
+      int main() {
+        int dim = 1 + rand() % 8;
+        int len = 1 + rand() % 40960;
+        int ret = 0;
+        enum op op = 0;
         bm_handle_t handle;
-        bm_status_t ret = BM_SUCCESS;
-        bm_device_mem_t XDev, YDev;
-
         ret = bm_dev_request(&handle, 0);
         if (ret != BM_SUCCESS) {
-            printf("bm_dev_request failed. ret = %d\n", ret);
-            exit(-1);
+          printf("bm_dev_request failed. ret = %d\n", ret);
+          return -1;
         }
 
-        ret = bm_malloc_device_byte(handle, &XDev, L * dim * sizeof(float));
-        if (ret != BM_SUCCESS) {
-            printf("bm_malloc_device_byte failed. ret = %d\n", ret);
-            exit(-1);
+        float pnt32[DIM_MAX] = {0};
+        float* XHost = (float*)malloc(len * dim * sizeof(float));
+        float* tpu_out = (float*)malloc(len * sizeof(float));
+        fp16* XHost16 = (fp16*)malloc(len * dim * sizeof(fp16));
+        fp16* tpu_out_fp16 = (fp16*)malloc(len * sizeof(fp16));
+        fp16 pnt16[DIM_MAX] = {0};
+        int round = 1;
+        int i;
+
+        printf("len = %d, dim = %d, op = %d\n", len, dim, op);
+
+        for (i = 0; i < dim; ++i) {
+          pnt32[i] = (rand() % 2 ? 1.f : -1.f) * (rand() % 100 + (rand() % 100) * 0.01);
+          pnt16[i] = fp32tofp16(pnt32[i], round);
         }
 
-        ret = bm_malloc_device_byte(handle, &YDev, L * sizeof(float));
-        if (ret != BM_SUCCESS) {
-            printf("bm_malloc_device_byte failed. ret = %d\n", ret);
-            exit(-1);
+        for (i = 0; i < len * dim; ++i) {
+          XHost[i] = (rand() % 2 ? 1.f : -1.f) * (rand() % 100 + (rand() % 100) * 0.01);
+          XHost16[i] = fp32tofp16(XHost[i], round);
+        }
+        if (op == FP32) {
+          enum bm_data_type_t dtype = DT_FP32;
+          bm_device_mem_t XDev, YDev;
+
+          ret = bm_malloc_device_byte(handle, &XDev, len * dim * sizeof(float));
+          ret = bm_malloc_device_byte(handle, &YDev, len * sizeof(float));
+          ret = bm_memcpy_s2d(handle, XDev, XHost);
+          ret = bmcv_distance(handle, XDev, YDev, dim, pnt32, len, dtype);
+          ret = bm_memcpy_d2s(handle, tpu_out, YDev);
+
+          bm_free_device(handle, XDev);
+          bm_free_device(handle, YDev);
+        } else {
+          enum bm_data_type_t dtype = DT_FP16;
+          bm_device_mem_t XDev, YDev;
+
+          ret = bm_malloc_device_byte(handle, &XDev, len * dim * sizeof(float) / 2);
+          ret = bm_malloc_device_byte(handle, &YDev, len * sizeof(float) / 2);
+          ret = bm_memcpy_s2d(handle, XDev, XHost16);
+          ret = bmcv_distance(handle, XDev, YDev, dim, (const void *)pnt16, len, dtype);
+          ret = bm_memcpy_d2s(handle, tpu_out_fp16, YDev);
+
+          bm_free_device(handle, XDev);
+          bm_free_device(handle, YDev);
+
+          for (i = 0; i < len; ++i) {
+            tpu_out[i] = fp16tofp32(tpu_out_fp16[i]);
+          }
         }
 
-        ret = bm_memcpy_s2d(handle, XDev, XHost);
-        if (ret != BM_SUCCESS) {
-            printf("bm_memcpy_s2d failed. ret = %d\n", ret);
-            exit(-1);
-        }
-
-        ret = bmcv_distance(handle, XDev, YDev, dim, pnt, L);
-        if (ret != BM_SUCCESS) {
-            printf("bmcv_distance failed. ret = %d\n", ret);
-            exit(-1);
-        }
-
-        ret = bm_memcpy_d2s(handle, YHost, YDev);
-        if (ret != BM_SUCCESS) {
-            printf("bm_memcpy_d2s failed. ret = %d\n", ret);
-            exit(-1);
-        }
-
+        free(XHost16);
+        free(tpu_out_fp16);
         free(XHost);
-        free(YHost);
-        bm_free_device(handle, XDev);
-        bm_free_device(handle, YDev);
+        free(tpu_out);
+
         bm_dev_free(handle);
+        return ret;
+      }

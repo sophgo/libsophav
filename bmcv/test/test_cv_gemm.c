@@ -5,6 +5,7 @@
 #include <string.h>
 #include <math.h>
 #include <pthread.h>
+
 #ifdef __linux__
 #include <sys/time.h>
 #include <time.h>
@@ -43,6 +44,9 @@ typedef struct {
     bool if_B_trans;
     bm_handle_t handle;
 } cv_gemm_thread_arg_t;
+
+extern int cpu_gemm(bool if_A_trans, bool if_B_trans, int M, int N, int K, float alpha, float* src_A,
+                    int lda, float* src_B, int ldb, float beta, float* src_C);
 
 static int cmp_result(float* tpu_res, float* cpu_res, int len)
 {
@@ -159,61 +163,6 @@ static int assign_values_to_matrix(float* matrix, int size)
     for (i = 0; i < size; ++i) {
         matrix[i] = (rand() % 100) * 0.01f;
     }
-
-    return 0;
-}
-
-static void gemm_trans(float* src, int row_num, int col_num)
-{
-    int i, j;
-
-    float* dst = (float*)malloc(row_num * col_num * sizeof(float));
-
-    for (i = 0; i < row_num; ++i) {
-        for (j = 0; j < col_num; j++) {
-            dst[j * row_num + i] = src[i * col_num + j];
-        }
-    }
-    memcpy(src, dst, col_num * row_num * sizeof(float));
-    free(dst);
-}
-
-static int cpu_gemm(bool if_A_trans, bool if_B_trans, int M, int N, int K, float alpha, float* src_A,
-                    int lda, float* src_B, int ldb, float beta, float* src_C)
-{
-    float* A = (float*)malloc(M * K * sizeof(float));
-    float* B = (float*)malloc(N * K * sizeof(float));
-    float* C = (float*)malloc(M * N * sizeof(float));
-    int i, j, k;
-
-    memcpy(A, src_A, sizeof(float) * M * K);
-    memcpy(B, src_B, sizeof(float) * N * K);
-    memset(C, 0.f, sizeof(float) * M * N);
-
-    if (if_A_trans) {
-        gemm_trans(A, K, lda);
-    }
-    if (if_B_trans) {
-        gemm_trans(B, N, ldb);
-    }
-
-    for (i = 0; i < M; ++i) {
-        for (j = 0; j < N; ++j) {
-            for (k = 0; k < K; ++k) {
-                C[i * N + j] += alpha * A[i * K + k] * B[k * N + j];
-            }
-        }
-    }
-
-    for (i = 0; i < M * N; ++i) {
-        C[i] = C[i] + src_C[i] * beta;
-    }
-
-    memcpy(src_C, C, sizeof(float) * M * N);
-
-    free(A);
-    free(B);
-    free(C);
 
     return 0;
 }

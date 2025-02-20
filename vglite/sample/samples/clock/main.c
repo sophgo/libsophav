@@ -426,13 +426,13 @@ int main(int argc, const char * argv[])
 #endif
     int32_t frames = 1;
     int32_t i;
-    vg_lite_filter_t filter;
+    //vg_lite_filter_t filter;
     vg_lite_error_t error;
 
     /* Initialize the vg_lite engine. */
     CHECK_ERROR(vg_lite_init(fb_width, fb_height));
 
-    filter = VG_LITE_FILTER_POINT;
+    //filter = VG_LITE_FILTER_POINT;
 
     /* Allocate the off-screen buffer. */
     buffer.width  = fb_width;
@@ -441,7 +441,7 @@ int main(int argc, const char * argv[])
 
     CHECK_ERROR(vg_lite_allocate(&buffer));
     fb = &buffer;
-    
+
     // Clear the buffer with blue.
     CHECK_ERROR(vg_lite_clear(fb, NULL, 0xFFFF0000));
     

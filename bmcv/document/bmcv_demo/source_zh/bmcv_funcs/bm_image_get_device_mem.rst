@@ -39,4 +39,4 @@ bm_image_get_device_mem
 
 3. 如果 bm_image 对象未创建，则返回失败。
 
-4. 如果是 bm_image 内部申请的 device memory 结构，请不要将其释放，以免发生 double free。
+4. 如果是 bm_image 自行申请的 device memory 结构，请不要将其释放，以免发生 double free。

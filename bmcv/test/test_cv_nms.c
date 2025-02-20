@@ -5,6 +5,7 @@
 #include <string.h>
 #include <pthread.h>
 #include "test_misc.h"
+
 #ifdef __linux__
 #include <sys/time.h>
 #include <time.h>
@@ -15,8 +16,6 @@
 
 #define SCORE_RAND_LEN_MAX 50000
 #define ERR_MAX 1e-6
-#define bm_min(x, y) (((x)) < ((y)) ? (x) : (y))
-#define bm_max(x, y) (((x)) > ((y)) ? (x) : (y))
 #define TIME_COST_US(start, end) ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec))
 
 typedef struct {
@@ -26,68 +25,8 @@ typedef struct {
     bm_handle_t handle;
 } cv_nms_thread_arg_t;
 
-static int compareBBox(const void* a, const void* b)
-{
-    const face_rect_t* rectA = (const face_rect_t*)a;
-    const face_rect_t* rectB = (const face_rect_t*)b;
-
-    return (rectB->score > rectA->score) - (rectB->score < rectA->score);
-}
-
-static float iou(face_rect_t a, face_rect_t b)
-{
-    float x1 = bm_max(a.x1, b.x1);
-    float y1 = bm_max(a.y1, b.y1);
-    float x2 = bm_min(a.x2, b.x2);
-    float y2 = bm_min(a.y2, b.y2);
-
-    if (x2 < x1 || y2 < y1) return 0;
-
-    float a_width = a.x2 - a.x1 + 1;
-    float a_height = a.y2 - a.y1 + 1;
-    float b_width = b.x2 - b.x1 + 1;
-    float b_height = b.y2 - b.y1 + 1;
-
-    float inter_area = (x2 - x1 + 1) * (y2 - y1 + 1);
-    float iou = inter_area / ((a_width * a_height) + (b_width * b_height) - inter_area);
-
-    return iou;
-}
-
-static int cpu_nms(face_rect_t* proposals, const float nms_threshold, face_rect_t* nmsProposals,
-                    int size, int* result_size)
-{
-    bool* keep = (bool*)malloc(size * sizeof(bool));
-    face_rect_t* bboxes = (face_rect_t*)malloc(size * sizeof(face_rect_t));
-    *result_size = 0;
-    int i, j;
-
-    memset(keep, true, size * sizeof(bool));
-    memcpy(bboxes, proposals, size * sizeof(face_rect_t));
-    qsort(bboxes, size, sizeof(bboxes[0]), compareBBox);
-
-    for (i = 0; i < size; ++i) {
-        if (keep[i]) {
-            for(j = i + 1; j < size; j++) {
-                if (keep[j] && (iou(bboxes[i], bboxes[j]) > nms_threshold)) {
-                    keep[j] = false;
-                }
-            }
-        }
-    }
-
-    j = 0;
-    for (i = 0; i < size; ++i) {
-        if (keep[i]) {
-            (*result_size)++;
-            nmsProposals[j++] = bboxes[i];
-        }
-    }
-
-    free(keep);
-    free(bboxes);
-    return 0;
-}
+extern int cpu_nms(face_rect_t* proposals, const float nms_threshold, face_rect_t* nmsProposals,
+                    int size, int* result_size);
 
 static int result_compare(face_rect_t* cpu_ref, nms_proposal_t* tpu_res, int result_size)
 {

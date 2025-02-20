@@ -59,61 +59,53 @@ bmcv_hist_balance
 
     .. code-block:: c
 
-        int H = 1024;
-        int W = 1024;
-        uint8_t* input_addr = (uint8_t*)malloc(H * W * sizeof(uint8_t));
-        uint8_t* output_addr = (uint8_t*)malloc(H * W * sizeof(uint8_t));
-        bm_handle_t handle;
-        bm_status_t ret = BM_SUCCESS;
-        bm_device_mem_t input, output;
-        int i;
+      #include <math.h>
+      #include <stdio.h>
+      #include <stdint.h>
+      #include <stdlib.h>
+      #include <string.h>
+      #include "bmcv_api_ext_c.h"
 
-        struct timespec tp;
-        clock_gettime(NULL, &tp);
-        srand(tp.tv_nsec);
+      int main()
+      {
+          int height = rand() % 8192 + 1;
+          int width = rand() % 8192 + 1;
+          int ret = 0;
+          bm_handle_t handle;
+          int i;
 
-        for (i = 0; i < W * H; ++i) {
-            input_addr[i] = (uint8_t)rand() % 256;
-        }
+          ret = bm_dev_request(&handle, 0);
+          if (ret) {
+              printf("bm_dev_request failed. ret = %d\n", ret);
+              return ret;
+          }
 
-        ret = bm_dev_request(&handle, 0);
-        if (ret != BM_SUCCESS) {
-            printf("bm_dev_request failed. ret = %d\n", ret);
-            exit(-1);
-        }
+          int len = height * width;
 
-        ret = bm_malloc_device_byte(handle, &input, H * W * sizeof(uint8_t));
-        if (ret != BM_SUCCESS) {
-            printf("bm_malloc_device_byte failed. ret = %d\n", ret);
-            exit(-1);
-        }
+          uint8_t* inputHost = (uint8_t*)malloc(len * sizeof(uint8_t));
+          uint8_t* output_tpu = (uint8_t*)malloc(len * sizeof(uint8_t));
 
-        ret = bm_malloc_device_byte(handle, &output, H * W * sizeof(uint8_t));
-        if (ret != BM_SUCCESS) {
-            printf("bm_malloc_device_byte failed. ret = %d\n", ret);
-            exit(-1);
-        }
+          for (i = 0; i < len; ++i) {
+              inputHost[i] = (uint8_t)(rand() % 256);
+          }
 
-        ret = bm_memcpy_s2d(handle, input, input_addr);
-        if (ret != BM_SUCCESS) {
-            printf("bm_memcpy_s2d failed. ret = %d\n", ret);
-            exit(-1);
-        }
+          bm_device_mem_t input, output;
+          int H = height;
+          int W = width;
 
-        ret = bmcv_hist_balance(handle, input, output, H, W);
-        if (ret != BM_SUCCESS) {
-            printf("bmcv_hist_balance failed. ret = %d\n", ret);
-            exit(-1);
-        }
+          ret = bm_malloc_device_byte(handle, &output, H * W * sizeof(uint8_t));
+          ret = bm_malloc_device_byte(handle, &input, H * W * sizeof(uint8_t));
+          ret = bm_memcpy_s2d(handle, input, inputHost);
 
-        ret = bm_memcpy_d2s(handle, output_addr, output);
-        if (ret != BM_SUCCESS) {
-            printf("bm_memcpy_d2s failed. ret = %d\n", ret);
-            exit(-1);
-        }
+          ret = bmcv_hist_balance(handle, input, output, H, W);
+          ret = bm_memcpy_d2s(handle, output_tpu, output);
 
-        free(input_addr);
-        free(output_addr);
-        bm_free_device(handle, input);
-        bm_free_device(handle, output);
-        bm_dev_free(handle);
+          bm_free_device(handle, input);
+          bm_free_device(handle, output);
+
+          free(inputHost);
+          free(output_tpu);
+
+          bm_dev_free(handle);
+          return ret;
+      }

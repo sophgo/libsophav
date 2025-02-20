@@ -26,6 +26,9 @@ typedef struct {
     bm_handle_t handle;
 } gaussian_blur_thread_arg_t;
 
+extern int gaussian_blur_cpu_ref(unsigned char *input, unsigned char *output, int channel, bool is_packed,
+                                 int height, int width, int kw, int kh, float sigmaX, float sigmaY);
+
 #if 0 // Use opencv for comparison to prove that the cpu side's own implementation of ref is correct.
 #include "opencv2/opencv.hpp"
 using namespace cv;
@@ -91,121 +94,6 @@ static void fill(unsigned char *input, int channel, int width, int height, int i
             }
         }
     }
-}
-
-static int get_gaussian_sep_kernel(int n, float sigma, float *k_sep) {
-    const int SMALL_GAUSSIAN_SIZE = 3;
-    static const float small_gaussian_tab[3] = {0.25f, 0.5f, 0.25f};
-    const float* fixed_kernel = n % 2 == 1 && n <= SMALL_GAUSSIAN_SIZE && sigma <= 0 ? small_gaussian_tab : 0;
-    float sigmaX = sigma > 0 ? sigma : ((n - 1) * 0.5 - 1) * 0.3 + 0.8;
-    float scale2X = -0.5 / (sigmaX * sigmaX);
-    float sum = 0;
-    int i;
-
-    for (i = 0; i < n; i++) {
-        float x = i - (n - 1) * 0.5;
-        float t = fixed_kernel ? fixed_kernel[i] : exp(scale2X * x * x);
-        k_sep[i] = t;
-        sum += k_sep[i];
-    }
-    sum = 1./sum;
-    for (i = 0; i < n; i++) {
-        k_sep[i] = k_sep[i] * sum;
-    }
-    return 0;
-}
-
-static void create_gaussian_kernel(float* kernel, int kw, int kh, float sigma1, float sigma2) {
-    float* k_sep_x = (float* )malloc(sizeof(float) * kw);
-    float* k_sep_y = (float* )malloc(sizeof(float) * kh);
-
-    if(sigma2 <= 0) sigma2 = sigma1;
-    // automatic detection of kernel size from sigma
-    if (kw <= 0 && sigma1 > 0 ) kw = (int)round(sigma1 * 3 * 2 + 1) | 1;
-    if (kh <= 0 && sigma2 > 0 ) kh = (int)round(sigma2 * 3 * 2 + 1) | 1;
-    sigma1 = sigma1 < 0 ? 0 : sigma1;
-    sigma2 = sigma2 < 0 ? 0 : sigma2;
-    get_gaussian_sep_kernel(kw, sigma1, k_sep_x);
-    if (kh == kw && abs(sigma1 - sigma2) < DBL_EPSILON) {
-        get_gaussian_sep_kernel(kw, sigma1, k_sep_y);
-    } else {
-        get_gaussian_sep_kernel(kh, sigma2, k_sep_y);
-    }
-    for (int i = 0; i < kh; i++) {
-        for (int j = 0; j < kw; j++) {
-            kernel[i * kw + j] = k_sep_y[i] * k_sep_x[j];
-        }
-    }
-    free(k_sep_x);
-    free(k_sep_y);
-}
-
-static int gaussian_blur_ref_single_channel(unsigned char *input, unsigned char *output, int height,
-                                            int width, int kw, float *kernel) {
-    int half_k = kw / 2;
-    for (int y = 0; y < height; y++) {
-        for (int x = 0; x < width; x++) {
-            float sum = 0.0;
-            for (int i = -half_k; i <= half_k; i++) {
-                for (int j = -half_k; j <= half_k; j++) {  // Boundary reflection fill
-                    int yy = y + i;
-                    int xx = x + j;
-                    if (yy < 0) yy = -yy;
-                    if (yy >= height) yy = 2 * height - yy - 2;
-                    if (xx < 0) xx = -xx;
-                    if (xx >= width) xx = 2 * width - xx - 2;
-                    int pixel_index = yy * width + xx;
-                    int pixel = input[pixel_index];
-                    sum += pixel * kernel[(i + half_k) * kw + j + half_k];
-                }
-            }
-            if (sum > 255) sum = 255;
-            if (sum < 0) sum = 0;
-            int output_index = y * width + x;
-            output[output_index] = (unsigned char)sum;
-        }
-    }
-
-    return 0;
-}
-static int gaussian_blur_cpu_ref(unsigned char *input, unsigned char *output, int channel, bool is_packed,
-                                 int height, int width, int kw, int kh, float sigmaX, float sigmaY) {
-    // create kernel
-    float *kernel = (float*)malloc(kw * kh * sizeof(float));
-    memset(kernel, 0, kw * kh * sizeof(float));
-    create_gaussian_kernel(kernel, kw, kh, sigmaX, sigmaY);
-    if(is_packed) {
-        unsigned char *input_temp = (unsigned char *)malloc(width * height * 3);
-        unsigned char *output_temp = (unsigned char *)malloc(width * height * 3);
-        // Adjusting the order of rgb alignment
-        for (int i = 0; i < 3; i++) {
-            int temp = 0;
-            for (int j = 0; j < width * height; j++) {
-                input_temp[i * width * height + j] = input[i + temp];
-                temp += 3;
-            }
-        }
-        for (int i = 0; i < 3; i++) {
-            gaussian_blur_ref_single_channel(input_temp + i * width * height, output_temp + i * width * height,
-                                             height, width, kw, kernel);
-        }
-        for (int i = 0; i < 3; i++) {
-            int tep = 0;
-            for (int j = 0; j < width * height; j++) {
-                output[i + tep] = output_temp[i * width * height + j];
-                tep += 3;
-            }
-        }
-        free(input_temp);
-        free(output_temp);
-    } else {
-        for (int i = 0; i < channel; i++) {
-            gaussian_blur_ref_single_channel(input + i * width * height, output + i * width * height,
-                                             height, width, kw, kernel);
-        }
-    }
-    free(kernel);
-    return 0;
 }
 
 static int gaussian_blur_tpu(unsigned char *input, unsigned char *output, int height, int width, int kw,

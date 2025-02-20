@@ -40,7 +40,7 @@ typedef struct {
     EncParam enc_params;
 } EncInputParam;
 
-void* acquire_output_buffer(void *context, unsigned int size, void **acquired_handle);
+void* acquire_output_buffer(void *context, size_t size, void **acquired_handle);
 void finish_output_buffer(void *context, void *acquired_handle);
 BmJpuEncReturnCodes start_encode(BmJpuJPEGEncoder *jpeg_encoder, EncParam *enc_params, FILE *fp_in, FILE *fp_out, int inst_idx, const uint8_t *ref_md5);
 

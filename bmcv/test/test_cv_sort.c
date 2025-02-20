@@ -21,16 +21,18 @@ typedef float bm_sort_data_type_t;
 typedef enum { ASCEND_ORDER, DESCEND_ORDER } cdma_sort_order_e;
 
 typedef struct {
-    int   index;
-    float val;
-} __attribute__((packed)) sort_t;
-
-typedef struct {
     int loop_num;
     int data_num;
     int sort_num;
     bm_handle_t handle;
 } sort_thread_arg_t;
+
+typedef struct {
+    int   index;
+    float val;
+} __attribute__((packed)) sort_t;
+
+extern void mergeSort(sort_t ref_res[], int left, int right, bool is_ascend);
 
 static int parameters_check(int data_num, int sort_num)
 {
@@ -59,89 +61,6 @@ bool isEqual(sort_t *cdma_res, sort_t *ref_res, int size) {
         }
     }
     return true;
-}
-
-static void merge_ascend(sort_t ref_res[], int left, int mid, int right) {
-    int n1 = mid - left + 1;
-    int n2 = right - mid;
-    sort_t L[n1], R[n2];
-
-    for (int i = 0; i < n1; i++) {
-        L[i] = ref_res[left + i];
-    }
-    for (int j = 0; j < n2; j++) {
-        R[j] = ref_res[mid + 1 + j];
-    }
-
-    int i = 0, j = 0, k = left;
-    while (i < n1 && j < n2) {
-        if (L[i].val <= R[j].val) {
-            ref_res[k] = L[i];
-            i++;
-        } else {
-        ref_res[k] = R[j];
-        j++;
-        }
-        k++;
-    }
-    while (i < n1) {
-        ref_res[k] = L[i];
-        i++;
-        k++;
-    }
-    while (j < n2) {
-        ref_res[k] = R[j];
-        j++;
-        k++;
-    }
-}
-
-static void merge_descend(sort_t ref_res[], int left, int mid, int right) {
-    int n1 = mid - left + 1;
-    int n2 = right - mid;
-    sort_t L[n1], R[n2];
-
-    for (int i = 0; i < n1; i++) {
-        L[i] = ref_res[left + i];
-    }
-    for (int j = 0; j < n2; j++) {
-        R[j] = ref_res[mid + 1 + j];
-    }
-
-    int i = 0, j = 0, k = left;
-    while (i < n1 && j < n2) {
-        if (L[i].val >= R[j].val) {
-            ref_res[k] = L[i];
-            i++;
-        } else {
-            ref_res[k] = R[j];
-            j++;
-        }
-        k++;
-    }
-    while (i < n1) {
-        ref_res[k] = L[i];
-        i++;
-        k++;
-    }
-    while (j < n2) {
-        ref_res[k] = R[j];
-        j++;
-        k++;
-    }
-}
-
-static void mergeSort(sort_t ref_res[], int left, int right, bool is_ascend) {
-    if (left < right) {
-        int mid = left + (right - left) / 2;
-        mergeSort(ref_res, left, mid, is_ascend);
-        mergeSort(ref_res, mid + 1, right, is_ascend);
-        if (is_ascend) {
-            merge_ascend(ref_res, left, mid, right);
-        }else{
-            merge_descend(ref_res, left, mid, right);
-        }
-    }
 }
 
 static bool push_unstable_map(const sort_t  *cdma_iter,

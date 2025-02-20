@@ -6,12 +6,12 @@
 #ifdef __linux__
 #include <sys/time.h>
 #include <time.h>
+
 #else
 #include <windows.h>
 #include <time.h>
 #endif
 
-#define SATURATE(a, s, e) ((a) > (e) ? (e) : ((a) < (s) ? (s) : (a)))
 #define IMAGE_CHN_NUM_MAX 3
 #define TIME_COST_US(start, end) ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec))
 
@@ -31,6 +31,11 @@ typedef struct {
     bm_handle_t handle;
 } cv_dl_thread_arg_t;
 
+extern int get_image_offset(int format, int width, int height, int* offset_list);
+extern int draw_line_cpu(unsigned char* input, int height, int width, int line_num, int format,
+                        const bmcv_point_t* start, const bmcv_point_t* end,
+                        unsigned char color[3], int thickness);
+
 static void fill_img(unsigned char* input, int width, int height)
 {
     int i, j;
@@ -40,90 +45,6 @@ static void fill_img(unsigned char* input, int width, int height)
             input[i * width + j] = rand() % 256;
         }
     }
-}
-
-static int get_image_offset(int format, int width, int height, int* offset_list)
-{
-    int ret = 0;
-
-    switch (format) {
-        case FORMAT_YUV420P:
-            offset_list[0] = width * height;
-            offset_list[1] = ALIGN(width, 2) * ALIGN(height, 2) >> 2;
-            offset_list[2] = ALIGN(width, 2) * ALIGN(height, 2) >> 2;
-            break;
-        case FORMAT_YUV422P:
-            offset_list[0] = width * height;
-            offset_list[1] = ALIGN(width, 2) * height >> 1;
-            offset_list[2] = ALIGN(width, 2) * height >> 1;
-            break;
-        case FORMAT_YUV444P:
-        case FORMAT_RGB_PLANAR:
-        case FORMAT_BGR_PLANAR:
-        case FORMAT_RGB_PACKED:
-        case FORMAT_BGR_PACKED:
-        case FORMAT_RGBP_SEPARATE:
-        case FORMAT_BGRP_SEPARATE:
-            offset_list[0] = width * height;
-            offset_list[1] = width * height;
-            offset_list[2] = width * height;
-            break;
-        case FORMAT_NV12:
-        case FORMAT_NV21:
-            offset_list[0] = width * height;
-            offset_list[1] = ALIGN(width, 2) * ALIGN(height, 2) >> 1;
-            break;
-        case FORMAT_NV16:
-        case FORMAT_NV61:
-        case FORMAT_NV24:
-            offset_list[0] = width * height;
-            offset_list[1] = ALIGN(width, 2) * height;
-            break;
-        case FORMAT_GRAY:
-            offset_list[0] = width * height;
-            break;
-        default:
-            printf("image format error!\n");
-            ret = -1;
-            break;
-    }
-
-    return ret;
-}
-
-static int get_image_default_step(int format, int width, int* step)
-{
-    int ret = 0;
-
-    switch (format) {
-        case FORMAT_GRAY:
-            step[0] = width;
-            break;
-        case FORMAT_YUV420P:
-        case FORMAT_YUV422P:
-            step[0] = width;
-            step[1] = ALIGN(width, 2) >> 1;
-            step[2] = ALIGN(width, 2) >> 1;
-            break;
-        case FORMAT_YUV444P:
-            step[0] = width;
-            step[1] = width;
-            step[2] = width;
-            break;
-        case FORMAT_NV12:
-        case FORMAT_NV21:
-        case FORMAT_NV16:
-        case FORMAT_NV61:
-            step[0] = width;
-            step[1] = ALIGN(width, 2);
-            break;
-        default:
-            printf("not support format!\n");
-            ret = -1;
-            break;
-    }
-
-    return ret;
 }
 
 static int cmp_result(unsigned char* got, unsigned char* exp, int len)
@@ -183,76 +104,6 @@ static int readBin(const char* path, void* input_data)
 
     fclose(fp_src);
     return 0;
-}
-
-static void swap(int* a, int* b)
-{
-    int temp = *a;
-    *a = *b;
-    *b = temp;
-}
-
-static int draw_line_cpu(unsigned char* input, int height, int width, int line_num, int format,
-                        const bmcv_point_t* start, const bmcv_point_t* end,
-                        unsigned char color[3], int thickness)
-{
-
-    bmcv_point_t* sp = (bmcv_point_t*)malloc(line_num * sizeof(bmcv_point_t));
-    bmcv_point_t* ep = (bmcv_point_t*)malloc(line_num * sizeof(bmcv_point_t));
-    bmcv_color_t rgb = {color[0], color[1], color[2]};
-    int offset_list[IMAGE_CHN_NUM_MAX] = {0};
-    unsigned char* in_ptr[IMAGE_CHN_NUM_MAX] = {0};
-    int step[IMAGE_CHN_NUM_MAX];
-    int ret = 0;
-    int i;
-    bmMat mat;
-    struct timeval t1, t2;
-
-    for (i = 0; i < line_num; ++i) {
-        sp[i].x = SATURATE(start[i].x, 0, width - 1);
-        sp[i].y = SATURATE(start[i].y, 0, height - 1);
-        ep[i].x = SATURATE(end[i].x, 0, width - 1);
-        ep[i].y = SATURATE(end[i].y, 0, height - 1);
-        // because only support start_y < end_y
-        if (sp[i].y > ep[i].y) {
-            swap(&(sp[i].x), &(ep[i].x));
-            swap(&(sp[i].y), &(ep[i].y));
-        }
-    }
-
-    ret = get_image_offset(format, width, height, offset_list);
-    if (ret != 0) {
-        printf("get_image_offset failed!\n");
-        goto exit;
-    }
-
-    in_ptr[0] = input;
-    in_ptr[1] = input + offset_list[0];
-    in_ptr[2] = input + offset_list[0] + offset_list[1];
-
-    ret = get_image_default_step(format, width, step);
-    if (ret != 0) {
-        printf("get_image_default_step failed!\n");
-        goto exit;
-    }
-
-    mat.width = width;
-    mat.height = height;
-    mat.format = (bm_image_format_ext)format;
-    mat.step = step;
-    mat.data = (void**)in_ptr;
-
-    gettimeofday(&t1, NULL);
-    for (i = 0; i < line_num; ++i) {
-        draw_line(&mat, sp[i], ep[i], rgb, thickness);
-    }
-    gettimeofday(&t2, NULL);
-    printf("Draw_lines CPU using time: %ld(us)\n", TIME_COST_US(t1, t2));
-
-exit:
-    free(sp);
-    free(ep);
-    return ret;
 }
 
 static int draw_line_tpu(bm_handle_t handle, unsigned char* input, int height, int width, int line_num,

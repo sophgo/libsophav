@@ -196,10 +196,10 @@ static int getJpgEncOpenParam(EncConfigParam *pEncConfig, BmJpuEncOpenParams* pE
     return ret;
 }
 
-void WritePlane(int width, int height, int stride, uint8_t* dst, uint8_t* src)
+void WritePlane(int width, int height, int stride, uint8_t* dst, const uint8_t* src)
 {
-    uint8_t* src_addr = src;
-    uint8_t* dst_addr = dst;
+    uint8_t* src_addr = (uint8_t *)src;
+    uint8_t* dst_addr = (uint8_t *)dst;
     for(int i = 0; i < height; i++)
     {
         memcpy(dst_addr, src_addr,width);
@@ -262,7 +262,7 @@ int LoadYuvImage(const EncConfigParam* enc_config,
     lumaSize = enc_config->picWidth * enc_config->picHeight;
     if(!enc_open_param->packed_format)  //planner mode
     {
-        WritePlane(enc_config->picWidth, enc_config->picHeight, stride, dst_y,src);           // write Y
+        WritePlane(enc_config->picWidth, enc_config->picHeight, stride, dst_y, src);           // write Y
         WritePlane(cbcr_w, cbcr_h, cbcr_stride, dst_cb, src+lumaSize);   // write U or UV(interleave)
         if(enc_open_param->chroma_interleave == BM_JPU_CHROMA_FORMAT_CBCR_SEPARATED)
             WritePlane(cbcr_w, cbcr_h, cbcr_stride, dst_cr, src+lumaSize + chromaSize);   // write V

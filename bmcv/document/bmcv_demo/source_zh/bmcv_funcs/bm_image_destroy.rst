@@ -30,4 +30,8 @@ bm_image_destroy
 
 | 【返回值】
 
-成功返回将销毁该 bm_image 对象，如果该对象的 device memory 是使用 bm_image_alloc_dev_mem 申请的则释放该空间，否则该对象的 device memory 不会被释放由用户自己管理。
+成功返回将销毁该 bm_image 对象。
+
+注意，如果该对象的 device memory 是直接以该对象用 bm_image_alloc_dev_mem 系列函数申请的，则 bm_image_destroy 释放该内存空间。
+
+如果该对象的 device memory 是使用 bm_image_attach 绑定而来的，则被视为由用户自己管理的内存空间，将不会被释放。

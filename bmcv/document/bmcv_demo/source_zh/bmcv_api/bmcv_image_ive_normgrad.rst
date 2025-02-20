@@ -12,7 +12,7 @@ bmcv_ive_normgrad
     :lineno-start: 1
     :force:
 
-    bm_status_t bmcv_ive_normgrad(
+    bm_status_t bmcv_ive_norm_grad(
         bm_handle_t             handle,
         bm_image  *             input,
         bm_image  *             output_h,
@@ -22,7 +22,7 @@ bmcv_ive_normgrad
 
 | 【参数】
 
-.. list-table:: bmcv_ive_normgrad 参数表
+.. list-table:: bmcv_ive_norm_grad 参数表
     :widths: 15 15 35
 
     * - **参数名称**
@@ -159,164 +159,98 @@ bmcv_ive_normgrad
       #include <stdio.h>
       #include <stdlib.h>
       #include <string.h>
-      #include <pthread.h>
       #include <math.h>
-      #include <sys/time.h>
       #include "bmcv_api_ext_c.h"
       #include <unistd.h>
-      extern void bm_ive_read_bin(bm_image src, const char *input_name);
-      extern bm_status_t bm_ive_image_calc_stride(bm_handle_t handle, int img_h, int img_w,
-          bm_image_format_ext image_format, bm_image_data_format_ext data_type, int *stride);
+
+      #define align_up(num, align) (((num) + ((align) - 1)) & ~((align) - 1))
+
       int main(){
-      int ret = (int)bm_dev_request(&handle, dev_id);
-      if (ret != 0) {
-          printf("Create bm handle failed. ret = %d\n", ret);
-          exit(-1);
-      }
-      int dev_id = 0;int height = 288, width = 352;
-      int thrSize = 0; // 0 -> 3x3  1-> 5x5
-      bmcv_ive_normgrad_outmode enMode = BM_IVE_NORM_GRAD_OUT_HOR_AND_VER;
-      bm_image_format_ext fmt = FORMAT_GRAY;
-      char *src_name = "./data/00_352x288_y.yuv";
-      char *dst_hName = "ive_normGradH_res.yuv", *dst_vName = "ive_normGradV_res.yuv";
-      char *dst_hvName = "ive_normGradHV_res.yuv";
-      bm_handle_t handle = NULL;
-      /* 5 by 5*/
-      signed char arr5by5[25] = { -1, -2, 0,  2,  1, -4, -8, 0,  8,  4, -6, -12, 0,
-                        12, 6,  -4, -8, 0, 8,  4,  -1, -2, 0, 2, 1 };
-      /* 3 by 3*/
-      signed char arr3by3[25] = { 0, 0, 0, 0,  0, 0, -1, 0, 1, 0, 0, -2, 0,
-                        2, 0, 0, -1, 0, 1, 0,  0, 0, 0, 0, 0 };
-      bm_image src;
-      bm_image dst_H, dst_V, dst_conbine_HV;
-      int src_stride[4];
-      int dst_stride[4], dst_combine_stride[4];
-      unsigned int i = 0, loop_time = 0;
-      unsigned long long time_single, time_total = 0, time_avg = 0;
-      unsigned long long time_max = 0, time_min = 10000, fps_actual = 0;
-      struct timeval tv_start;
-      struct timeval tv_end;
-      struct timeval timediff;
-      bmcv_ive_normgrad_ctrl normgrad_attr;
-      normgrad_attr.u8_norm = 8;
-      normgrad_attr.en_mode = enMode;
-      (thrSize == 0) ? (memcpy(normgrad_attr.as8_mask, arr3by3, 5 * 5 * sizeof(signed char))) :
-                        (memcpy(normgrad_attr.as8_mask, arr5by5, 5 * 5 * sizeof(signed char)));
+          int dev_id = 0;
+          int height = 1080, width = 1920;
+          bmcv_ive_normgrad_outmode enMode = BM_IVE_NORM_GRAD_OUT_HOR_AND_VER;
+          bm_image_format_ext fmt = FORMAT_GRAY;
+          char *src_name = "path/to/src";
+          char *dst_hName = "path/to/dst_h", *dst_vName = "path/to/dst_v";
 
-      // calc ive image stride && create bm image struct
-      bm_ive_image_calc_stride(handle, height, width, fmt, DATA_TYPE_EXT_1N_BYTE, src_stride);
-      bm_image_create(handle, height, width, fmt, DATA_TYPE_EXT_1N_BYTE, &src, src_stride);
-      ret = bm_image_alloc_dev_mem(src, BMCV_HEAP_ANY);
-      if (ret != BM_SUCCESS) {
-          printf("src bm_image_alloc_dev_mem_src. ret = %d\n", ret);
-          exit(-1);
-      }
-      bm_ive_read_bin(src, src_name);
+          bm_handle_t handle = NULL;
+          /* 3 by 3*/
+          signed char arr3by3[25] = { 0, 0, 0, 0,  0, 0, -1, 0, 1, 0, 0, -2, 0,
+                          2, 0, 0, -1, 0, 1, 0,  0, 0, 0, 0, 0 };
+          int ret = (int)bm_dev_request(&handle, dev_id);
+          if (ret != 0) {
+              printf("Create bm handle failed. ret = %d\n", ret);
+              exit(-1);
+          }
 
-      if(enMode == BM_IVE_NORM_GRAD_OUT_HOR_AND_VER || enMode == BM_IVE_NORM_GRAD_OUT_HOR){
-          bm_ive_image_calc_stride(handle, height, width, fmt, DATA_TYPE_EXT_1N_BYTE_SIGNED, dst_stride);
+          bm_image src;
+          bm_image dst_H, dst_V, dst_conbine_HV;
+          int src_stride[4];
+          int dst_stride[4];
+
+          bmcv_ive_normgrad_ctrl normgrad_attr;
+          normgrad_attr.u8_norm = 8;
+          normgrad_attr.en_mode = enMode;
+          (memcpy(normgrad_attr.as8_mask, arr3by3, 5 * 5 * sizeof(signed char)));
+
+          // calc ive image stride && create bm image struct
+          int data_size = 1;
+          src_stride[0] = align_up(width, 16) * data_size;
+          bm_image_create(handle, height, width, fmt, DATA_TYPE_EXT_1N_BYTE, &src, src_stride);
+          ret = bm_image_alloc_dev_mem(src, BMCV_HEAP1_ID);
+
+          int image_byte_size[4] = {0};
+          bm_image_get_byte_size(src, image_byte_size);
+          int byte_size  = image_byte_size[0] + image_byte_size[1] + image_byte_size[2] + image_byte_size[3];
+          unsigned char *input_data = (unsigned char *)malloc(byte_size);
+          FILE *fp_src = fopen(src_name, "rb");
+          if (fread((void *)input_data, 1, byte_size, fp_src) < (unsigned int)byte_size) {
+            printf("file size is less than required bytes%d\n", byte_size);
+          };
+          fclose(fp_src);
+          void* in_ptr[4] = {(void *)input_data,
+                              (void *)((unsigned char*)input_data + image_byte_size[0]),
+                              (void *)((unsigned char*)input_data + image_byte_size[0] + image_byte_size[1]),
+                              (void *)((unsigned char*)input_data + image_byte_size[0] + image_byte_size[1] + image_byte_size[2])};
+          bm_image_copy_host_to_device(src, in_ptr);
+
+          dst_stride[0] = align_up(width, 16) * data_size;
           bm_image_create(handle, height, width, fmt, DATA_TYPE_EXT_1N_BYTE_SIGNED, &dst_H, dst_stride);
-          ret = bm_image_alloc_dev_mem(dst_H, BMCV_HEAP_ANY);
-          if (ret != BM_SUCCESS) {
-              printf("dst_H bm_image_alloc_dev_mem_src. ret = %d\n", ret);
-              exit(-1);
-          }
-      }
+          ret = bm_image_alloc_dev_mem(dst_H, BMCV_HEAP1_ID);
 
-      if(enMode == BM_IVE_NORM_GRAD_OUT_HOR_AND_VER || enMode == BM_IVE_NORM_GRAD_OUT_VER){
-          bm_ive_image_calc_stride(handle, height, width, fmt, DATA_TYPE_EXT_1N_BYTE_SIGNED, dst_stride);
+
           bm_image_create(handle, height, width, fmt, DATA_TYPE_EXT_1N_BYTE_SIGNED, &dst_V, dst_stride);
-          ret = bm_image_alloc_dev_mem(dst_V, BMCV_HEAP_ANY);
-          if (ret != BM_SUCCESS) {
-              printf("dst_V bm_image_alloc_dev_mem_src. ret = %d\n", ret);
-              exit(-1);
-          }
-      }
+          ret = bm_image_alloc_dev_mem(dst_V, BMCV_HEAP1_ID);
 
-      if(enMode == BM_IVE_NORM_GRAD_OUT_COMBINE){
-          bm_ive_image_calc_stride(handle, height, width, fmt, DATA_TYPE_EXT_U16, dst_combine_stride);
-          bm_image_create(handle, height, width, fmt, DATA_TYPE_EXT_U16, &dst_conbine_HV, dst_combine_stride);
-          ret = bm_image_alloc_dev_mem(dst_conbine_HV, BMCV_HEAP_ANY);
-          if (ret != BM_SUCCESS) {
-              printf("dst_conbine_HV bm_image_alloc_dev_mem_src. ret = %d\n", ret);
-              exit(-1);
-          }
-      }
-
-      for (i = 0; i < loop_time; i++) {
-          gettimeofday(&tv_start, NULL);
           ret = bmcv_ive_norm_grad(handle, &src, &dst_H, &dst_V, &dst_conbine_HV, normgrad_attr);
-          gettimeofday(&tv_end, NULL);
-          timediff.tv_sec  = tv_end.tv_sec - tv_start.tv_sec;
-          timediff.tv_usec = tv_end.tv_usec - tv_start.tv_usec;
-          time_single = (unsigned int)(timediff.tv_sec * 1000000 + timediff.tv_usec);
 
-          if(time_single>time_max){time_max = time_single;}
-          if(time_single<time_min){time_min = time_single;}
-          time_total = time_total + time_single;
-          if(ret != BM_SUCCESS){
-              printf("bmcv_ive_normgrad failed. ret = %d\n", ret);
-              exit(-1);
-          }
-      }
+          signed char* ive_h_res = malloc(width * height * sizeof(signed char));
+          signed char* ive_v_res = malloc(width * height * sizeof(signed char));
+          unsigned short* ive_combine_res = malloc(width * height * sizeof(unsigned short));
 
-      time_avg = time_total / loop_time;
-      fps_actual = 1000000 / time_avg;
-      bm_image_destroy(&src);
-      if(enMode == BM_IVE_NORM_GRAD_OUT_HOR_AND_VER || enMode == BM_IVE_NORM_GRAD_OUT_HOR)
+          memset(ive_h_res, 0, width * height * sizeof(signed char));
+          memset(ive_v_res, 0, width * height * sizeof(signed char));
+          memset(ive_combine_res, 1, width * height * sizeof(unsigned short));
+
+          ret = bm_image_copy_device_to_host(dst_H, (void**)&ive_h_res);
+          ret = bm_image_copy_device_to_host(dst_V, (void**)&ive_v_res);
+
+          FILE *iveH_fp = fopen(dst_hName, "wb");
+          fwrite((void *)ive_h_res, sizeof(signed char), width * height, iveH_fp);
+          fclose(iveH_fp);
+
+          FILE *iveV_fp = fopen(dst_vName, "wb");
+          fwrite((void *)ive_v_res, sizeof(signed char), width * height, iveV_fp);
+          fclose(iveV_fp);
+
+          free(input_data);
+          free(ive_h_res);
+          free(ive_v_res);
+          free(ive_combine_res);
+
           bm_image_destroy(&dst_H);
-      if(enMode == BM_IVE_NORM_GRAD_OUT_HOR_AND_VER || enMode == BM_IVE_NORM_GRAD_OUT_VER)
           bm_image_destroy(&dst_V);
-      if(enMode == BM_IVE_NORM_GRAD_OUT_COMBINE) bm_image_destroy(&dst_conbine_HV);
 
-      char fmt_str[100], thr_str[50], modeStr[100];
-      format_to_str(src.image_format, fmt_str);
-      (thrSize == 0) ? memcpy(thr_str, "3x3", 50) : memcpy(thr_str, "5x5", 50);
-
-      normGradMode_to_str(normgrad_attr.en_mode, modeStr);
-
-      printf("bmcv_ive_normgrad: format %s, normgradOutMode is %s , thrSize is %s, size %d x %d \n",
-              fmt_str, modeStr, thr_str, width, height);
-      printf(" bmcv_ive_normgrad: loop %d cycles, time_max = %llu, time_avg = %llu, fps %llu \n",
-              loop_time, time_max, time_avg, fps_actual);
-      printf("bmcv ive normgrad test successful \n");
-
-      return 0;
+          bm_dev_free(handle);
+          return ret;
       }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

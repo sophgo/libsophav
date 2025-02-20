@@ -21,22 +21,10 @@ struct cv_fft_thread_arg_t {
     bm_handle_t handle;
 };
 
-static void dft(float* in_real, float* in_imag, float* output_real,
-                float* output_imag, int length, bool forward)
-{
-    int i, j;
-    double angle;
-
-    for (i = 0; i < length; ++i) {
-        output_real[i] = 0.f;
-        output_imag[i] = 0.f;
-        for (j = 0; j < length; ++j) {
-            angle = (forward ? -2.0 : 2.0) * M_PI * i * j / length;
-            output_real[i] += in_real[j] * cos(angle) - in_imag[j] * sin(angle);
-            output_imag[i] += in_real[j] * sin(angle) + in_imag[j] * cos(angle);
-        }
-    }
-}
+extern int cpu_fft(float* in_real, float* in_imag, float* output_real,
+                float* output_imag, int length, int batch, bool forward);
+extern int cpu_fft_2d(float *in_real, float *in_imag, float *out_real,
+                        float *out_imag, int M, int N, bool forward);
 
 static int cmp_res(float* YRHost_tpu, float* YIHost_tpu, float* YRHost_cpu,
                     float* YIHost_cpu, int L, int batch)
@@ -56,36 +44,6 @@ static int cmp_res(float* YRHost_tpu, float* YIHost_tpu, float* YRHost_cpu,
             }
         }
     }
-    return 0;
-}
-
-static void normalize_fft(float* res_XR, float* res_XI, int frm_len, int num)
-{
-    float norm_fac;
-    int i;
-
-    norm_fac = 1.0f / frm_len;
-
-    for (i = 0; i < num; ++i) {
-        res_XR[i] *= norm_fac;
-        res_XI[i] *= norm_fac;
-    }
-}
-
-static int cpu_fft(float* in_real, float* in_imag, float* output_real,
-                float* output_imag, int length, int batch, bool forward)
-{
-    int i;
-
-    for (i = 0; i < batch; ++i) {
-        dft(&(in_real[i * length]), &(in_imag[i * length]), &(output_real[i * length]),
-            &(output_imag[i * length]), length, forward);
-    }
-
-    if (!forward) {
-        normalize_fft(output_real, output_imag, length, batch * length);
-    }
-
     return 0;
 }
 
@@ -328,62 +286,6 @@ err1:
     bm_free_device(handle, XRDev);
 err0:
     return ret;
-}
-
-static int cpu_fft_2d(float *in_real, float *in_imag, float *out_real,
-                        float *out_imag, int M, int N, bool forward)
-{
-    float *row_in_real = (float*)malloc(N * sizeof(float));
-    float *row_in_imag = (float*)malloc(N * sizeof(float));
-    float *row_out_real = (float*)malloc(N * sizeof(float));
-    float *row_out_imag = (float*)malloc(N * sizeof(float));
-    float *col_in_real = (float*)malloc(M * sizeof(float));
-    float *col_in_imag = (float*)malloc(M * sizeof(float));
-    float *col_out_real =(float*)malloc(M * sizeof(float));
-    float *col_out_imag =(float*)malloc(M * sizeof(float));
-    int i, j;
-
-    /* 逐行计算一维 DFT */
-    for (i = 0; i < M; i++) {
-        for (j = 0; j < N; j++) {
-            row_in_real[j] = in_real[i * N + j];
-            row_in_imag[j] = in_imag[i * N + j];
-        }
-        dft(row_in_real, row_in_imag, row_out_real, row_out_imag, N, forward);
-        if (!forward) {
-            normalize_fft(row_out_real, row_out_imag, N, N);
-        }
-        for (j = 0; j < N; j++) {
-            out_real[i * N + j] = row_out_real[j];
-            out_imag[i * N + j] = row_out_imag[j];
-        }
-    }
-
-    /* 逐列计算一维 DFT */
-    for (j = 0; j < N; j++) {
-        for (i = 0; i < M; i++) {
-            col_in_real[i] = out_real[i * N + j];
-            col_in_imag[i] = out_imag[i * N + j];
-        }
-        dft(col_in_real, col_in_imag, col_out_real, col_out_imag, M, forward);
-        if (!forward) {
-            normalize_fft(col_out_real, col_out_imag, M, M);
-        }
-        for (i = 0; i < M; i++) {
-            out_real[i * N + j] = col_out_real[i];
-            out_imag[i * N + j] = col_out_imag[i];
-        }
-    }
-
-    free(row_in_real);
-    free(row_in_imag);
-    free(row_out_real);
-    free(row_out_imag);
-    free(col_in_real);
-    free(col_in_imag);
-    free(col_out_real);
-    free(col_out_imag);
-    return 0;
 }
 
 static int test_fft_2d(int L, int batch, bool forward, bool realInput, bm_handle_t handle)

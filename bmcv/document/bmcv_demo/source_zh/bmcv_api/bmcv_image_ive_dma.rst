@@ -139,98 +139,68 @@ bmcv_ive_dma
       #include <stdio.h>
       #include <stdlib.h>
       #include <string.h>
-      #include <pthread.h>
-      #include <sys/time.h>
       #include "bmcv_api_ext_c.h"
       #include <unistd.h>
 
-      extern void bm_read_bin(bm_image src, const char *input_name);
-      int main(){
-        int dev_id = 0;int height = 288, width = 352;
-        bmcv_ive_dma_mode dma_mode = IVE_DMA_DIRECT_COPY; /* IVE_DMA_MODE_DIRECT_COPY */
-        unsigned long long val = 0;      /* used in memset mode */
-        unsigned char hor_seg_size = 0;  /* used in interval-copy mode */
-        unsigned char elem_size = 0;     /* used in interval-copy mode */
-        unsigned char ver_seg_rows = 0;  /* used in interval-copy mode */
-        bm_image_format_ext src_fmt = FORMAT_GRAY, dst_fmt = FORMAT_GRAY;
-        char *src_name = "./ive_data/00_352x288_y.yuv", *dst_name = "sample_DMA_Direct.bin";
-        char *ref_name = "./ive_data/result/sample_DMA_Direct.bin";
-        bm_handle_t handle = NULL;
-        int ret = (int)bm_dev_request(&handle, dev_id);
-        if (ret != 0) {
-            printf("Create bm handle failed. ret = %d\n", ret);
-            exit(-1);
-        }
-        bmcv_ive_interval_dma_attr dma_interval_attr;
-        bm_image src, dst;
-        int dst_h = 0, dst_w = 0;
-        unsigned int i = 0, loop_time = 0;
-        unsigned long long time_single, time_total = 0, time_avg = 0;
-        unsigned long long time_max = 0, time_min = 10000, fps_actual = 0, pixel_per_sec = 0;
-        struct timeval tv_start;
-        struct timeval tv_end;
-        struct timeval timediff;
+      int main() {
+          int dev_id = 0;
+          int height = 1080, width = 1920;
+          bm_image_format_ext src_fmt = FORMAT_GRAY, dst_fmt = FORMAT_GRAY;
+          char *src_name = "path/to/src", *dst_name = "path/to/dst";
+          bm_handle_t handle = NULL;
+          int ret = (int)bm_dev_request(&handle, dev_id);
+          if (ret != 0) {
+              printf("Create bm handle failed. ret = %d\n", ret);
+              exit(-1);
+          }
+          bm_image src, dst;
 
           // create bm image struct
           bm_image_create(handle, height, width, src_fmt, DATA_TYPE_EXT_1N_BYTE, &src, NULL);
-          if (dma_mode == 0) {
-              bm_image_create(handle, height, width, dst_fmt, DATA_TYPE_EXT_1N_BYTE, &dst, NULL);
-          } else if (dma_mode == 1){
-              memset(&dma_interval_attr, 0, sizeof(bmcv_ive_interval_dma_attr));
-              dma_interval_attr.hor_seg_size = hor_seg_size;
-              dma_interval_attr.elem_size = elem_size;
-              dma_interval_attr.ver_seg_rows = ver_seg_rows;
-              dst_h = height / ver_seg_rows;
-              dst_w = (width / hor_seg_size) * elem_size;
-              bm_image_create(handle, dst_h, dst_w, dst_fmt, DATA_TYPE_EXT_1N_BYTE, &dst, NULL);
-          }
+          bm_image_create(handle, height, width, dst_fmt, DATA_TYPE_EXT_1N_BYTE, &dst, NULL);
 
           // alloc bm image memory
-          ret = bm_image_alloc_dev_mem(src, BMCV_HEAP_ANY);
-          if (ret != BM_SUCCESS) {
-              printf("bm_image_alloc_dev_mem_src. ret = %d\n", ret);
-              exit(-1);
-          }
-          ret = bm_image_alloc_dev_mem(dst, BMCV_HEAP_ANY);
-          if (ret != BM_SUCCESS) {
-              printf("bm_image_alloc_dev_mem_dst. ret = %d\n", ret);
-              exit(-1);
-          }
+          ret = bm_image_alloc_dev_mem(src, BMCV_HEAP1_ID);
+          ret = bm_image_alloc_dev_mem(dst, BMCV_HEAP1_ID);
 
           // read image data from input files
-          bm_read_bin(src, src_name);
+          int image_byte_size[4] = {0};
+          bm_image_get_byte_size(src, image_byte_size);
+          int byte_size  = image_byte_size[0] + image_byte_size[1] + image_byte_size[2] + image_byte_size[3];
+          unsigned char *input_data = (unsigned char *)malloc(byte_size);
+          FILE *fp_src = fopen(src_name, "rb");
+          if (fread((void *)input_data, 1, byte_size, fp_src) < (unsigned int)byte_size) {
+          printf("file size is less than required bytes%d\n", byte_size);
+          };
+          fclose(fp_src);
+          void* in_ptr[4] = {(void *)input_data,
+                              (void *)((unsigned char*)input_data + image_byte_size[0]),
+                              (void *)((unsigned char*)input_data + image_byte_size[0] + image_byte_size[1]),
+                              (void *)((unsigned char*)input_data + image_byte_size[0] + image_byte_size[1] + image_byte_size[2])};
+          bm_image_copy_host_to_device(src, in_ptr);
 
+          ret = bmcv_ive_dma(handle, src, dst, 0, NULL);
 
-          for (i = 0; i < loop_time; i++) {
-              gettimeofday(&tv_start, NULL);
-              if (dma_mode == 0) {
-                  ret = bmcv_ive_dma(handle, src, dst, dma_mode, NULL);
-              } else if (dma_mode == 1){
-                  ret = bmcv_ive_dma(handle, src, dst, dma_mode, &dma_interval_attr);
-              }
-              gettimeofday(&tv_end, NULL);
-              timediff.tv_sec  = tv_end.tv_sec - tv_start.tv_sec;
-              timediff.tv_usec = tv_end.tv_usec - tv_start.tv_usec;
-              time_single = (unsigned int)(timediff.tv_sec * 1000000 + timediff.tv_usec);
-
-              if(time_single>time_max){time_max = time_single;}
-              if(time_single<time_min){time_min = time_single;}
-              time_total = time_total + time_single;
-              if(ret != BM_SUCCESS){
-                  printf("bmcv_ive_dma failed \n");
-                  exit(-1);
-              }
+          unsigned char *ive_res = (unsigned char*) malloc (width * height * sizeof(unsigned char));
+          memset(ive_res, 0, width * height * sizeof(unsigned char));
+          ret = bm_image_copy_device_to_host(dst, (void**)&ive_res);
+          if(ret != BM_SUCCESS){
+              printf("dst bm_image_copy_device_to_host is failed \n");
+              exit(-1);
           }
-          time_avg = time_total / loop_time;
-          fps_actual = 1000000 / time_avg;
-          pixel_per_sec = width * height * fps_actual/1024/1024;
+
+          FILE *fp = fopen(dst_name, "wb");
+          fwrite((void *)ive_res, 1, width * height * sizeof(unsigned char), fp);
+          fclose(fp);
+
+          free(input_data);
+          free(ive_res);
 
           bm_image_destroy(&src);
           bm_image_destroy(&dst);
 
           bm_dev_free(handle);
-          printf("bm_ive_dma: loop %d cycles, time_max = %llu, time_avg = %llu, fps %llu, %lluM pps\n",
-                  loop_time, time_max, time_avg, fps_actual, pixel_per_sec);
 
-          return 0;
-        }
+
+          return ret;
+      }

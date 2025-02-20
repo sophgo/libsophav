@@ -1,14 +1,15 @@
-BMCV尺寸
+BMCV 尺寸限制
 ------------------
 
 .. list-table:: bmcv参数范围表
-    :widths: 15 15 15 15 15
+    :widths: 10 10 15 20 20
+    :align: center
 
     * - **模块**
       - **最小尺寸**
       - **最大尺寸**
-      - **输入 stride**
-      - **输出 stride**
+      - **输入 stride 对齐要求**
+      - **输出 stride 对齐要求**
     * - TPU
       - 8*8
       - 4096*4096

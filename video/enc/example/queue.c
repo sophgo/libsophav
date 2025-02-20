@@ -139,8 +139,8 @@ bool bm_queue_show(bm_queue_t* q)
     start = q->front;
     do
     {
-        int offset   = start * q->size;
-        int* ptr = (int*)(&q->buffer[offset]);
+        //int offset   = start * q->size;
+        //int* ptr = (int*)(&q->buffer[offset]);
 
         // printf("%s:%d(%s) count=%d. front=%d, rear=%d. %dth: 0x%08x\n",
         //        __FILE__, __LINE__, __func__,

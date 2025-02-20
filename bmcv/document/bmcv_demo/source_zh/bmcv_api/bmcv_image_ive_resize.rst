@@ -109,129 +109,83 @@ bmcv_ive_resize
       #include <stdio.h>
       #include <stdlib.h>
       #include <string.h>
-      #include <pthread.h>
       #include <math.h>
-      #include <sys/time.h>
       #include "bmcv_api_ext_c.h"
       #include <unistd.h>
-      #define IMG_NUM 3
-      extern void bm_ive_read_bin(bm_image src, const char *input_name);
-      extern bm_status_t bm_ive_image_calc_stride(bm_handle_t handle, int img_h, int img_w,
-          bm_image_format_ext image_format, bm_image_data_format_ext data_type, int *stride);
+
+      #define align_up(num, align) (((num) + ((align) - 1)) & ~((align) - 1))
+
       int main(){
-        int dev_id = 0;
-        bmcv_resize_algorithm resize_mode = BMCV_INTER_AREA;
-        bm_image_format_ext format[IMG_NUM] = {FORMAT_RGBP_SEPARATE, FORMAT_GRAY, FORMAT_RGB_PLANAR};
-        int src_widht = 352, src_height = 288;
-        int dst_width[IMG_NUM] = {176, 400, 320};
-        int dst_height[IMG_NUM] = {144, 300, 240};
-        char *src_name[IMG_NUM] = {"./ive_data/campus_352x288.rgb", "./ive_data/campus_352x288.gray", "./ive_data/campus_352x288.rgb"};
-        bm_handle_t handle = NULL;
-        int ret = (int)bm_dev_request(&handle, dev_id);
-        if (ret != 0) {
-            printf("Create bm handle failed. ret = %d\n", ret);
-            exit(-1);
-        }
-        bm_image src[IMG_NUM], dst[IMG_NUM];
-        int src_stride[IMG_NUM][4], dst_stride[IMG_NUM][4];
-        unsigned int i = 0, loop_time = 0;
-        unsigned long long time_single, time_total = 0, time_avg = 0;
-        unsigned long long time_max = 0, time_min = 10000, fps_actual = 0;
-        struct timeval tv_start;
-        struct timeval tv_end;
-        struct timeval timediff;
+          int dev_id = 0;
+          bmcv_resize_algorithm resize_mode = BMCV_INTER_AREA;
+          bm_image_format_ext format = FORMAT_GRAY;
+          int src_width = 1920, src_height = 1080;
+          int dst_width = 400;
+          int dst_height = 300;
 
-        // calc ive image stride && create bm image struct
-        for(int img_idx = 0; img_idx < IMG_NUM; img_idx++){
-            bm_ive_image_calc_stride(handle, src_height, src_widht,
-                      format[img_idx], DATA_TYPE_EXT_1N_BYTE, src_stride[img_idx]);
-            bm_image_create(handle, src_height, src_widht, format[img_idx],
-                      DATA_TYPE_EXT_1N_BYTE, &src[img_idx], src_stride[img_idx]);
+          char *src_name = "path/to/src";
+          char *dst_name = "path/to/dst";
+          bm_handle_t handle = NULL;
+          int ret = (int)bm_dev_request(&handle, dev_id);
+          if (ret != 0) {
+              printf("Create bm handle failed. ret = %d\n", ret);
+              exit(-1);
+          }
 
-            bm_ive_image_calc_stride(handle, dst_height[img_idx], dst_width[img_idx],
-                      format[img_idx], DATA_TYPE_EXT_1N_BYTE, dst_stride[img_idx]);
-            bm_image_create(handle, dst_height[img_idx], dst_width[img_idx], format[img_idx],
-                      DATA_TYPE_EXT_1N_BYTE, &dst[img_idx], dst_stride[img_idx]);
+          bm_image src, dst;
+          int src_stride[4], dst_stride[4];
 
-            ret = bm_image_alloc_dev_mem(src[img_idx], BMCV_HEAP_ANY);
-            if (ret != BM_SUCCESS) {
-                printf("src[%d] bm_image_alloc_dev_mem failed. ret = %d\n", img_idx, ret);
-                for(int idx = 0; idx < img_idx; idx++){
-                    bm_image_destroy(&src[idx]);
-                    bm_image_destroy(&dst[idx]);
-                }
-                exit(-1);
-            }
+          int data_size= 1;
+          int byte_size;
+          int image_byte_size[4] = {0};
+          // calc ive image stride && create bm image struct
+          src_stride[0] = align_up(src_width, 16) * data_size;
+          bm_image_create(handle, src_height, src_width, format, DATA_TYPE_EXT_1N_BYTE, &src, src_stride);
 
-            ret = bm_image_alloc_dev_mem(dst[img_idx], BMCV_HEAP_ANY);
-            if (ret != BM_SUCCESS) {
-                printf("dst[%d] bm_image_alloc_dev_mem failed. ret = %d\n", img_idx, ret);
-                for(int idx = 0; idx < img_idx; idx++){
-                    bm_image_destroy(&src[idx]);
-                    bm_image_destroy(&dst[idx]);
-                }
-                exit(-1);
-            }
+          dst_stride[0] = align_up(dst_width, 16) * data_size;
+          bm_image_create(handle, dst_height, dst_width, format, DATA_TYPE_EXT_1N_BYTE, &dst, dst_stride);
 
-            bm_ive_read_bin(src[img_idx], src_name[img_idx]);
-        }
+          ret = bm_image_alloc_dev_mem(src, BMCV_HEAP1_ID);
+          ret = bm_image_alloc_dev_mem(dst, BMCV_HEAP1_ID);
 
-        for (i = 0; i < loop_time; i++) {
-            gettimeofday(&tv_start, NULL);
-            for (int idx=0; idx<IMG_NUM; idx++){
-                ret = bmcv_ive_resize(handle, src[idx], dst[idx], resize_mode);
-            }
-            gettimeofday(&tv_end, NULL);
-            timediff.tv_sec  = tv_end.tv_sec - tv_start.tv_sec;
-            timediff.tv_usec = tv_end.tv_usec - tv_start.tv_usec;
-            time_single = (unsigned int)(timediff.tv_sec * 1000000 + timediff.tv_usec);
+          bm_image_get_byte_size(src, image_byte_size);
+          byte_size  = image_byte_size[0] + image_byte_size[1] + image_byte_size[2] + image_byte_size[3];
+          unsigned char *input_data = (unsigned char *)malloc(byte_size);
+          FILE *fp_src = fopen(src_name, "rb");
+          if (fread((void *)input_data, 1, byte_size, fp_src) < (unsigned int)byte_size) {
+              printf("file size is less than required bytes%d\n", byte_size);
+          };
+          fclose(fp_src);
+          void* in_ptr[4] = {(void *)input_data,
+                              (void *)((unsigned char*)input_data + image_byte_size[0]),
+                              (void *)((unsigned char*)input_data + image_byte_size[0] + image_byte_size[1]),
+                              (void *)((unsigned char*)input_data + image_byte_size[0] + image_byte_size[1] + image_byte_size[2])};
+          bm_image_copy_host_to_device(src, in_ptr);
 
-            if(time_single>time_max){time_max = time_single;}
-            if(time_single<time_min){time_min = time_single;}
-            time_total = time_total + time_single;
-            if(ret != BM_SUCCESS){
-                printf("bmcv_ive_resize failed ,ret is %d \n", ret);
-                for(int idx = 0; idx < IMG_NUM; idx++){
-                    bm_image_destroy(&src[idx]);
-                    bm_image_destroy(&dst[idx]);
-                }
-                exit(-1);
-            }
-        }
+          ret = bmcv_ive_resize(handle, src, dst, resize_mode);
 
-        time_avg = time_total / loop_time;
-        fps_actual = 1000000 / time_avg;
-        for(int idx = 0; idx < IMG_NUM; idx++){
-            bm_image_destroy(&src[idx]);
-            bm_image_destroy(&dst[idx]);
-        }
-        printf("bmcv_ive_resize: loop %d cycles, time_max = %llu, time_avg = %llu, fps %llu \n",
-                loop_time, time_max, time_avg, fps_actual);
-        printf("bmcv ive resize test successful \n");
+          bm_image_get_byte_size(dst, image_byte_size);
+          byte_size = image_byte_size[0] + image_byte_size[1] + image_byte_size[2] + image_byte_size[3];
+          unsigned char* output_ptr = (unsigned char *)malloc(byte_size);
+          memset(output_ptr, 0, sizeof(byte_size));
 
-        return 0;
+          void* out_ptr[4] = {(void*)output_ptr,
+                          (void*)((char*)output_ptr + image_byte_size[0]),
+                          (void*)((char*)output_ptr + image_byte_size[0] + image_byte_size[1]),
+                          (void*)((char*)output_ptr + image_byte_size[0] + image_byte_size[1] + image_byte_size[2])};
+
+          ret = bm_image_copy_device_to_host(dst, (void **)out_ptr);
+
+          FILE *ive_fp = fopen(dst_name, "wb");
+          fwrite((void *)output_ptr, 1, byte_size, ive_fp);
+          fclose(ive_fp);
+
+          free(input_data);
+          free(output_ptr);
+
+          bm_image_destroy(&src);
+          bm_image_destroy(&dst);
+
+          bm_dev_free(handle);
+          return 0;
       }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

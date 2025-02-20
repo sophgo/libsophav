@@ -25,6 +25,8 @@ typedef struct {
 
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
+extern int cpu_lap(unsigned char* src, unsigned char* dst, int width, int height, int ksize);
+
 static void readBin(const char* path, unsigned char* input_data, int size)
 {
     FILE *fp_src = fopen(path, "rb");
@@ -89,74 +91,6 @@ static int compare_result(unsigned char* tpu_out, unsigned char* cpu_out, int le
         }
     }
 
-    return 0;
-}
-
-static int cpu_lap(unsigned char* src, unsigned char* dst, int width, int height, int ksize)
-{
-    const int kernel_size = 3;
-    int new_width = width + kernel_size - 1;
-    int new_height = height + kernel_size - 1;
-    unsigned char* new_input = (unsigned char*)malloc(new_width * new_height * \
-                                sizeof(unsigned char));
-    float kernel[KERNEL_LENGTH] = {2.f, 0.f, 2.f, 0.f, -8.f, 0.f, 2.f, 0.f, 2.f};
-    int i, j, m, n;
-
-    if (src == NULL || dst == NULL) {
-        printf("the cpu param is err!\n");
-        return -1;
-    }
-
-    if (ksize == 1) {
-        float kernel_tmp[KERNEL_LENGTH] = {0.f, 1.f, 0.f, 1.f, -4.f, 1.f, 0.f, 1.f, 0.f};
-        memcpy(kernel, kernel_tmp, sizeof(float) * KERNEL_LENGTH);
-    }
-
-    for (i = 0; i < new_height; ++i) { /* padding the img round*/
-        if (i != 0 && i != new_height - 1) {
-            for (j = 0; j < new_width; ++j) {
-                if (j == 0) {
-                    new_input[i * new_width + j] = src[(i - 1) * width + 1];
-                } else if (j == new_width - 1) {
-                    new_input[i * new_width + j] = src[(i - 1) * width + (width - 1 - 1)];
-                } else {
-                    new_input[i * new_width + j] = src[(i - 1) * width + (j - 1)];
-                }
-            }
-        }
-
-        if (i == new_height - 1) {
-            for (j = 0; j < new_width; ++j) {
-                new_input[i * new_width + j] = new_input[(i - 2) * new_width + j];
-            }
-
-            for (j = 0; j < new_width; ++j) {
-                new_input[j] = new_input[2 * new_width + j];
-            }
-        }
-    }
-
-    for (i = 1; i < new_height - 1; ++i) {
-        for (j = 1; j < new_width - 1; ++j) {
-            float value = 0.f;
-            int count = 0;
-            for (m = -1; m <= 1; ++m) {
-                for (n = -1; n <= 1; ++n) {
-                    value += new_input[(i + m) * new_width + (j + n)] * kernel[count++];
-                }
-            }
-
-            if (value < 0.f) {
-                dst[(i - 1) * width + (j - 1)] = 0;
-            } else if (value > 255.) {
-                dst[(i - 1) * width + (j - 1)] = 255;
-            } else {
-                dst[(i - 1) * width + (j - 1)] = (unsigned char)(value);
-            }
-        }
-    }
-
-    free(new_input);
     return 0;
 }
 

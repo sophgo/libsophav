@@ -48,8 +48,6 @@ static void * dwa_fisheye_grid_info(void* arg) {
 
     loop_time = ctx.loop;
 
-    dst_w = src_w;
-    dst_h = src_h;
     bm_image_create(handle, src_h, src_w, fmt, DATA_TYPE_EXT_1N_BYTE, &src, NULL);
     bm_image_create(handle, dst_h, dst_w, fmt, DATA_TYPE_EXT_1N_BYTE, &dst, NULL);
 
@@ -127,29 +125,31 @@ static void * dwa_fisheye_grid_info(void* arg) {
 
 static void print_help(char **argv){
     printf("please follow this order:\n \
-        %s src_w src_h fmt src_name dst_name enable grid_file_name thread_num loop_num md5\n \
+        %s src_w src_h fmt src_name dst_w dst_h dst_name enable grid_file_name thread_num loop_num md5\n \
         %s thread_num loop_num\n", argv[0], argv[0]);
 };
 
 int main(int argc, char **argv) {
-    if (argc >= 12) {
-        md5 = argv[11];
+    if (argc >= 14) {
+        md5 = argv[13];
     } else if(argc > 3){
         md5 = NULL;
     }
-    if (argc >= 11) {
-        test_threads_num = atoi(argv[9]);
-        test_loop_times  = atoi(argv[10]);
+    if (argc >= 13) {
+        test_threads_num = atoi(argv[11]);
+        test_loop_times  = atoi(argv[12]);
     }
-    if (argc >= 9) {
+    if (argc >= 11) {
         src_w = atoi(argv[1]);
         src_h = atoi(argv[2]);
         fmt = (bm_image_format_ext)atoi(argv[3]);
         src_name = argv[4];
-        dst_name = argv[5];
-        fisheye_attr.bEnable = atoi(argv[6]);
-        grid_name = argv[7];
-        fisheye_attr.grid_info.size = atoi(argv[8]);
+        dst_w = atoi(argv[5]);
+        dst_h = atoi(argv[6]);
+        dst_name = argv[7];
+        fisheye_attr.bEnable = atoi(argv[8]);
+        grid_name = argv[9];
+        fisheye_attr.grid_info.size = atoi(argv[10]);
     }
     if (argc == 2){
         if (atoi(argv[1]) < 0){
@@ -161,7 +161,7 @@ int main(int argc, char **argv) {
     else if (argc == 3){
         test_threads_num = atoi(argv[1]);
         test_loop_times  = atoi(argv[2]);
-    } else if (argc > 3 && argc < 9) {
+    } else if (argc > 3 && argc < 11) {
         printf("command input error\n");
         print_help(argv);
         exit(-1);
@@ -173,7 +173,7 @@ int main(int argc, char **argv) {
     }
     convert_ctx ctx[test_threads_num];
     #ifdef __linux__
-    pthread_t *          pid = (pthread_t *)malloc(sizeof(pthread_t)*test_threads_num);
+    pthread_t * pid = (pthread_t *)malloc(sizeof(pthread_t)*test_threads_num);
     for (int i = 0; i < test_threads_num; i++) {
         ctx[i].i = i;
         ctx[i].loop = test_loop_times;
@@ -193,8 +193,7 @@ int main(int argc, char **argv) {
         fread(ctx[i].buffer, 1, fisheye_attr.grid_info.size, fp);
 
         fclose(fp);
-        if (pthread_create(
-                &pid[i], NULL, dwa_fisheye_grid_info, (void *)(ctx + i))) {
+        if (pthread_create(&pid[i], NULL, dwa_fisheye_grid_info, (void *)(ctx + i))) {
             free(pid);
             perror("create thread failed\n");
             exit(-1);

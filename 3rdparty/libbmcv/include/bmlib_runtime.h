@@ -189,6 +189,18 @@ typedef struct bm_module
 typedef struct bm_module *tpu_kernel_module_t;
 typedef int tpu_kernel_function_t;
 
+DECL_EXPORT bm_status_t bmdev_get_idle_coreid(bm_handle_t handle, int *core_id);
+
+/**
+ * @name    bm_get_tpu_scalar_num
+ * @brief   To get the core number of TPU scalar
+ * @ingroup bmlib_runtime
+ *
+ * @param [in] handle    The device handle
+ * @param [out] core_num The core number of TPU scalar
+ * @retval  BM_SUCCESS  Succeeds.
+ *          Other code  Fails.
+ */
 /**
  * @name    tpu_kernel_load_module_file
  * @brief   To load dyn file

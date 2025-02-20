@@ -28,19 +28,23 @@ typedef struct {
     bm_handle_t handle;
 } cv_stft_thread_arg_t;
 
-enum Pad_mode {
-    CONSTANT = 0,
-    REFLECT = 1,
-};
+typedef struct {
+    float real;
+    float imag;
+} Complex;
 
 enum Win_mode {
     HANN = 0,
     HAMM = 1,
 };
-typedef struct {
-    float real;
-    float imag;
-} Complex;
+
+enum Pad_mode {
+    CONSTANT = 0,
+    REFLECT = 1,
+};
+
+extern int cpu_stft(float* XRHost, float* XIHost, float* YRHost_cpu, float* YIHost_cpu, int L,
+            int batch, int n_fft, int hop_length, int num_frames, int pad_mode, int win_mode, bool norm);
 
 static void readBin_4b(const char* path, float* input_data, int size)
 {
@@ -91,35 +95,6 @@ static void writeBin_8b(const char * path, float* input_XR, float* input_XI, int
     fclose(fp_dst);
 }
 
-static void fft(float* in_real, float* in_imag, float* output_real, float* output_imag,
-                int length, int step, bool forward)
-{
-    int i;
-
-    if (length == 1) {
-        output_real[0] = in_real[0];
-        output_imag[0] = in_imag[0];
-        return;
-    }
-
-    fft(in_real, in_imag, output_real, output_imag, length / 2, 2 * step, forward);
-    fft(in_real + step, in_imag + step, output_real + length / 2, output_imag + length / 2, length / 2, 2 * step, forward);
-
-    for (i = 0; i < length / 2; ++i) {
-        double angle = forward ? -2 * M_PI * i / length : 2 * M_PI * i / length;
-        double wr = cos(angle);
-        double wi = sin(angle);
-
-        float tr = wr * output_real[i + length / 2] - wi * output_imag[i + length / 2];
-        float ti = wr * output_imag[i + length / 2] + wi * output_real[i + length / 2];
-
-        output_real[i + length / 2] = output_real[i] - tr;
-        output_imag[i + length / 2] = output_imag[i] - ti;
-        output_real[i] += tr;
-        output_imag[i] += ti;
-    }
-}
-
 static int cmp_res(float* YRHost_tpu, float* YIHost_tpu, float* YRHost_cpu,
                     float* YIHost_cpu, int batch, int row, int col)
 {
@@ -140,115 +115,6 @@ static int cmp_res(float* YRHost_tpu, float* YIHost_tpu, float* YRHost_cpu,
             }
         }
     }
-    return 0;
-}
-
-static void transpose(int rows, int cols, float* input, float* output)
-{
-    int i, j;
-
-    for (i = 0; i < rows; i++) {
-        for (j = 0; j < cols; j++) {
-            output[j * rows + i] = input[i * cols + j];
-        }
-    }
-}
-
-static void apply_window(float* window, int n_fft, int win_mode)
-{
-    int i;
-
-    if (win_mode == HANN) {
-        for (i = 0; i < n_fft; i++) {
-            window[i] *= 0.5 * (1 - cos(2 * M_PI * (float)i / n_fft));
-        }
-    } else if (win_mode == HAMM) {
-        for (i = 0; i < n_fft; i++) {
-            window[i] *= 0.54 - 0.46 * cos(2 * M_PI * (float)i / n_fft);
-        }
-    }
-}
-
-static void normalize_stft(float* res_XR, float* res_XI, int frm_len, int num)
-{
-    float norm_fac;
-    int i;
-
-    norm_fac = 1.0f / sqrtf((float)frm_len);
-
-    for (i = 0; i < num; ++i) {
-        res_XR[i] *= norm_fac;
-        res_XI[i] *= norm_fac;
-    }
-}
-
-int cpu_stft(float* XRHost, float* XIHost, float* YRHost_cpu, float* YIHost_cpu, int L,
-            int batch, int n_fft, int hop_length, int num_frames, int pad_mode, int win_mode, bool norm)
-{
-    int win_len = n_fft;
-    int hop, i, j;
-    int pad_length = n_fft / 2;
-    int pad_signal_len = L + 2 * pad_length;
-    int row_num = n_fft / 2 + 1;
-    float* input_XR = (float*)malloc(pad_signal_len * sizeof(float));
-    float* input_XI = (float*)malloc(pad_signal_len * sizeof(float));
-    float* window_XR = (float*)malloc(win_len * sizeof(float));
-    float* window_XI = (float*)malloc(win_len * sizeof(float));
-    float* YR = (float*)malloc(n_fft * sizeof(float));
-    float* YI = (float*)malloc(n_fft * sizeof(float));
-    float* YR_cpu= (float*)malloc(row_num * num_frames * sizeof(float));
-    float* YI_cpu = (float*)malloc(row_num * num_frames * sizeof(float));
-
-    /* pad the input signal */
-    memset(input_XR, 0, pad_signal_len * sizeof(float));
-    memset(input_XI, 0, pad_signal_len * sizeof(float));
-
-    for (j = 0; j < batch; ++j) {
-        if (pad_mode == REFLECT) {
-            memcpy(input_XR + pad_length, XRHost + j * L, L * sizeof(float));
-            memcpy(input_XI + pad_length, XIHost + j * L, L * sizeof(float));
-
-            for (i = 0; i < pad_length; ++i) {
-                input_XR[pad_length - i - 1] = XRHost[j * L + i];
-                input_XR[pad_signal_len - pad_length + i] = XRHost[j * L + L - i - 1];
-                input_XI[pad_length - i - 1] = XIHost[j * L + i];
-                input_XI[pad_signal_len - pad_length + i] = XIHost[j * L + L - i - 1];
-            }
-        } else if (pad_mode == CONSTANT) {
-            memcpy(input_XR + pad_length, XRHost + j * L, L * sizeof(float));
-            memcpy(input_XI + pad_length, XIHost + j * L, L * sizeof(float));
-        }
-
-        /* calculate window & dft */
-        for (hop = 0; hop < num_frames; ++hop) {
-            memcpy(window_XR, input_XR + hop * hop_length, win_len * sizeof(float));
-            memcpy(window_XI, input_XI + hop * hop_length, win_len * sizeof(float));
-
-            apply_window(window_XR, win_len, win_mode);
-            apply_window(window_XI, win_len, win_mode);
-
-            fft(window_XR, window_XI, YR, YI, win_len, 1, true);
-
-            memcpy(&(YR_cpu[hop * row_num]), YR, row_num * sizeof(float));
-            memcpy(&(YI_cpu[hop * row_num]), YI, row_num * sizeof(float));
-        }
-
-        transpose(num_frames, row_num, YR_cpu, YRHost_cpu + j * row_num * num_frames);
-        transpose(num_frames, row_num, YI_cpu, YIHost_cpu + j * row_num * num_frames);
-    }
-
-    if (norm) {
-        normalize_stft(YRHost_cpu, YIHost_cpu, n_fft, batch * num_frames * row_num);
-    }
-
-    free(window_XI);
-    free(window_XR);
-    free(input_XR);
-    free(input_XI);
-    free(YR);
-    free(YI);
-    free(YR_cpu);
-    free(YI_cpu);
     return 0;
 }
 

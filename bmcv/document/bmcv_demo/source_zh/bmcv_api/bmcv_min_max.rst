@@ -56,45 +56,43 @@ bmcv_min_max
 
     .. code-block:: c
 
-        bm_handle_t handle;
-        bm_status_t ret = BM_SUCCESS;
-        int len = 1000;
-        float max = 0;
-        float min = 0;
-        float* input = (float*)malloc(len * sizeof(float));
+      #include "bmcv_api_ext_c.h"
+      #include "stdio.h"
+      #include "stdlib.h"
 
-        ret = bm_dev_request(&handle, 0);
-        if (ret != BM_SUCCESS) {
-            printf("Create bm handle failed. ret = %d\n", ret);
-            free(input);
-            return -1;
-        }
 
-        struct timespec tp;
-        clock_gettime(NULL, &tp);
-        srand(tp.tv_nsec);
+      int main() {
+          int L = 50 + rand() % 260095;
+          int ret = 0;
+          bm_handle_t handle;
+          ret = bm_dev_request(&handle, 0);
 
-        for (int i = 0; i < len; i++) {
-            input[i] = (float)(rand() % 1000) / 10.0;
-        }
+          if (ret != BM_SUCCESS) {
+              printf("Create bm handle failed. ret = %d\n", ret);
+              return -1;
+          }
 
-        bm_device_mem_t input_mem;
-        ret = bm_malloc_device_byte(handle, input_mem, len * sizeof(float));
-        if (ret != BM_SUCCESS) {
-            printf("bm_malloc_device_byte failed. ret = %d\n", ret);
-            exit(-1);
-        }
-        ret = bm_memcpy_s2d(handle, input_mem, input);
-        if (ret != BM_SUCCESS) {
-            printf("bm_memcpy_s2d failed. ret = %d\n", ret);
-            exit(-1);
-        }
-        ret = bmcv_min_max(handle, input_mem, &min, &max, len);
-        if (ret != BM_SUCCESS) {
-            printf("bmcv_min_max failed. ret = %d\n", ret);
-            exit(-1);
-        }
+          float min_tpu = 0, max_tpu = 0;
+          float* XHost = (float*)malloc(L * sizeof(float));
+          int i;
 
-        bm_free_device(handle, input_mem);
-        bm_dev_free(handle);
-        free(input);
+          for (i = 0; i < L; ++i)
+              XHost[i] = (float)((rand() % 2 ? 1 : -1) * (rand() % 1000 + (rand() % 100000) * 0.01));
+
+          bm_device_mem_t XDev;
+
+          ret = bm_malloc_device_byte(handle, &XDev, L * sizeof(float));
+          ret = bm_memcpy_s2d(handle, XDev, XHost);
+          ret = bmcv_min_max(handle, XDev, &min_tpu, &max_tpu, L);
+          if (ret != BM_SUCCESS) {
+              printf("Calculate bm min_max failed. ret = %d\n", ret);
+              return -1;
+          }
+
+          bm_free_device(handle, XDev);
+
+          free(XHost);
+
+          bm_dev_free(handle);
+          return ret;
+      }

@@ -3,7 +3,7 @@ bmcv_image_overlay
 
 | 【描述】
 
-| 该 API 实现在图片上添加带透明通道的水印图。
+| 该 API 实现在图片上叠加带透明通道的水印图。该接口可搭配bmcv_gen_text_watermark接口实现绘制中英文的功能，参照代码示例2。
 
 | 【语法】
 
@@ -84,8 +84,10 @@ start_x、start_y、crop_w、crop_h 分别表示输入水印图对象在输入�
 
 4. 输入必须关联 device memory，否则返回失败。
 
+5. 不支持对单底图进行位置重叠的多图叠加。
 
-| 【代码示例】
+
+| 【代码示例1】
 
 .. code-block:: c++
 
@@ -93,32 +95,46 @@ start_x、start_y、crop_w、crop_h 分别表示输入水印图对象在输入�
     #include <stdio.h>
     #include <stdlib.h>
     #include <string.h>
-    #include <pthread.h>
-    #include <time.h>
-    #include <sys/time.h>
+    #include "stb_image.h"
 
     #include "bmcv_api_ext_c.h"
 
-    int main(int argc, char *argv[]) {
-        int dev_id = 0;
-        int test_loop_times  = 1;
-        int test_threads_num = 1;
+    void readBin(const char * path, unsigned char* input_data, int size)
+    {
+        FILE *fp_src = fopen(path, "rb");
+        if (fread((void *)input_data, 1, size, fp_src) < (unsigned int)size){
+            printf("read_Bin: file size is less than %d required bytes\n", size);
+        };
+
+        fclose(fp_src);
+    }
+
+    void writeBin(const char * path, unsigned char* input_data, int size)
+    {
+        FILE *fp_dst = fopen(path, "wb");
+        if (fwrite((void *)input_data, 1, size, fp_dst) < (unsigned int)size){
+            printf("write_Bin: file size is less than %d required bytes\n", size);
+        };
+
+        fclose(fp_dst);
+    }
+
+
+    int main(){
         bm_image_format_ext image_fmt = FORMAT_RGB_PACKED;
-        bm_image_format_ext overlay_fmt = FORMAT_ARGB1555_PACKED;
+        bm_image_format_ext overlay_fmt = FORMAT_ARGB_PACKED;
+
         int img_w = 1920, img_h = 1080;
-        int overlay_w = 80, overlay_h = 60;
+        int overlay_w = 300, overlay_h = 300;
         int overlay_num = 1;
-        int x = 200, y = 200;
-        bool bWrite = false;
-        char *image_name = "./res/car_rgb888.rgb";
-        char *overlay_name = "./res/dog_s_80x60_pngto1555.bin";
-        char *md5 = "a858701cb01131f1356f80c76e7813c0";    // argb1555
+        int x = 500, y = 500;
+        char *image_name = "path/to/image";
+        char *overlay_name = "path/to/overlay";
+        char *output_image = "path/to/output";
         bm_handle_t handle = NULL;
-        bm_status_t ret = (int)bm_dev_request(&handle, dev_id);
-        if (ret != 0) {
-            printf("Create bm handle failed. ret = %d\n", ret);
-            return -1;
-        }
+        bm_status_t ret = bm_dev_request(&handle, 0);
+
+        // config setting
         bmcv_rect_t overlay_info;
         memset(&overlay_info, 0, sizeof(bmcv_rect_t));
 
@@ -127,33 +143,93 @@ start_x、start_y、crop_w、crop_h 分别表示输入水印图对象在输入�
         overlay_info.crop_h = overlay_h;
         overlay_info.crop_w = overlay_w;
 
+        unsigned char* img = malloc(img_h * img_w * 3);
+        unsigned char* output_tpu = malloc(img_h * img_w * 3);
+        readBin(image_name, img, img_h * img_w * 3);
+        memset(output_tpu, 0, img_h * img_w * 3);
+
+        // create bm image struct & alloc dev mem
+        bm_image image;
         bm_image_create(handle, img_h, img_w, image_fmt, DATA_TYPE_EXT_1N_BYTE, &image, NULL);
+        ret = bm_image_alloc_dev_mem(image, BMCV_HEAP1_ID);
+        unsigned char *in1_ptr[1] = {img};
+        bm_image_copy_host_to_device(image, (void **)(in1_ptr));
 
-        ret = bm_image_alloc_dev_mem(image, BMCV_HEAP_ANY);
-        if (ret != BM_SUCCESS) {
-            printf("image bm_image_alloc_dev_mem failed. ret = %d\n", ret);
-            exit(-1);
-        }
+        unsigned char* overlay_ptr = malloc(overlay_w * overlay_h * 4);
+        readBin(overlay_name, overlay_ptr, overlay_w * overlay_h * 4);
 
-        bm_read_bin(image, image_name);
-        for(int idx = 0; idx < overlay_num; idx++){
-            bm_image_create(handle, overlay_h, overlay_w, overlay_fmt,
-                                DATA_TYPE_EXT_1N_BYTE, &overlay_image[idx], NULL);
+        bm_image overlay_image[overlay_num];
+        bm_image_create(handle, overlay_h, overlay_w, overlay_fmt, DATA_TYPE_EXT_1N_BYTE, overlay_image, NULL);
+        ret = bm_image_alloc_dev_mem(overlay_image[0], BMCV_HEAP1_ID);
+        unsigned char* in_overlay[4] = {overlay_ptr, overlay_ptr + overlay_h * overlay_w, overlay_ptr + 2 * overlay_w * overlay_h, overlay_ptr + overlay_w * overlay_h * 3};
+        bm_image_copy_host_to_device(overlay_image[0], (void **)(in_overlay));
 
-            ret = bm_image_alloc_dev_mem(overlay_image[idx], BMCV_HEAP_ANY);
-            if(ret != BM_SUCCESS){
-                printf("image bm_image_alloc_dev_mem failed. ret = %d\n", ret);
-                exit(-1);
-            }
-
-            bm_read_bin(overlay_image[idx], overlay_name);
-        }
         ret = bmcv_image_overlay(handle, image, overlay_num, &overlay_info, overlay_image);
-        bm_write_bin(image, "./bmcv_image_overlay_res.bin");
 
-        bm_image_destroy(&image);
-        for (int i=0;i<overlay_num;i++){
-            bm_image_destroy(&overlay_image[i]);
+        unsigned char *out_ptr[3] = {output_tpu, output_tpu + img_h * img_w, output_tpu + 2 * img_h * img_w};
+        bm_image_copy_device_to_host(image, (void **)out_ptr);
+
+        writeBin(output_image, output_tpu, img_h * img_w * 3);
+
+        free(img);
+        free(output_tpu);
+        bm_dev_free(handle);
+        return ret;
+    }
+
+| 【代码示例2】
+
+.. code-block:: c++
+
+    #include <stdio.h>
+    #include <string.h>
+    #include <math.h>
+    #include <stdbool.h>
+    #include <stdlib.h>
+    #include <wchar.h>
+    #include <locale.h>
+    #include <bmcv_api_ext_c.h>
+
+    int main(int argc, char* args[]){
+
+        setlocale(LC_ALL, "");
+        bm_status_t ret = BM_SUCCESS;
+        wchar_t hexcode[256];
+        int r = 255, g = 255, b = 0;
+        unsigned char fontScale = 2;
+        char* output_path = "out.bmp";
+        mbstowcs(hexcode, "北京beijing" sizeof(hexcode) / sizeof(wchar_t)); //usigned
+        printf("Received wide character string: %ls\n", hexcode);
+        printf("output path: %s\n", output_path);
+
+        bm_image image;
+        bm_handle_t handle = NULL;
+        bm_dev_request(&handle, 0);
+        bm_image_create(handle, 1080, 1920, FORMAT_YUV420P, DATA_TYPE_EXT_1N_BYTE, &image, NULL);
+        bm_image_alloc_dev_mem(image, BMCV_HEAP1_ID);
+        bm_read_bin(image,"/opt/sophon/libsophon-current/bin/res/1920x1080_yuv420.bin");
+        bmcv_point_t org = {.x = 0, .y = 500};
+        bmcv_color_t color = {.r = r, .g = g, .b = b};
+
+        bm_image watermark;
+        ret = bmcv_gen_text_watermark(handle, hexcode, color, fontScale, FORMAT_ARGB_PACKED, &watermark);
+        if (ret != BM_SUCCESS) {
+            printf("bmcv_gen_text_watermark fail\n");
+            goto fail1;
         }
-        return 0;
+
+        bmcv_rect_t rect = {.start_x = org.x, .start_y = org.y, .crop_w = watermark.width, .crop_h = watermark.height};
+        ret = bmcv_image_overlay(handle, image, 1, &rect, &watermark);
+        if (ret != BM_SUCCESS) {
+            printf("bmcv_image_overlay fail\n");
+            goto fail2;
+        }
+        bm_image_write_to_bmp(image, output_path);
+
+    fail2:
+        bm_image_destroy(&watermark);
+    fail1:
+        bm_image_destroy(&image);
+        bm_dev_free(handle);
+        return ret;
     }

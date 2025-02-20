@@ -105,7 +105,7 @@ int bmenc_ioctl_get_chn_attr(int chn_fd, venc_chn_attr_s* pstAttr)
     int ret = 0;
     ret = ioctl(chn_fd, DRV_VC_VENC_GET_CHN_ATTR, pstAttr);
 
-    return 0;
+    return ret;
 }
 
 int bmenc_ioctl_start_recv_frame(int chn_fd, venc_recv_pic_param_s* pstRecvParam)

@@ -162,169 +162,106 @@ bmcv_ive_gradfg
       #include <stdio.h>
       #include <stdlib.h>
       #include <string.h>
-      #include <pthread.h>
       #include <math.h>
-      #include <sys/time.h>
       #include "bmcv_api_ext_c.h"
       #include <unistd.h>
-      extern void bm_ive_read_bin(bm_image src, const char *input_name);
-      extern bm_status_t bm_ive_image_calc_stride(bm_handle_t handle, int img_h, int img_w,
-          bm_image_format_ext image_format, bm_image_data_format_ext data_type, int *stride);
+
+      #define align_up(num, align) (((num) + ((align) - 1)) & ~((align) - 1))
+
       int main(){
-        int dev_id = 0;
-        int height = 288, width = 352;
-        bm_image_format_ext fmt = FORMAT_GRAY;
-        bmcv_ive_gradfg_mode gradfg_mode = GRAD_FG_MODE_USE_CUR_GRAD;
-        char *src_name = "./data/00_352x288_y.yuv";
-        char *dst_name = "./grad_fg_res.yuv";
-        bm_handle_t handle = NULL;
-        int ret = (int)bm_dev_request(&handle, dev_id);
-        if (ret != 0) {
-            printf("Create bm handle failed. ret = %d\n", ret);
-            exit(-1);
-        }
-        /* 3 by 3*/
-        signed char arr3by3[25] = { 0, 0, 0, 0, 0, 0, -1, 0, 1, 0, 0, -2, 0,
-                        2, 0, 0, -1, 0, 1, 0, 0, 0, 0, 0, 0 };
-        bm_image stBgdiffFg;
-        bm_image stCurGrad, stBgGrad, stGragFg;
-        int u8Stride[4], u16Stride[4];
+          int dev_id = 0;
+          int height = 1080, width = 1920;
+          bm_image_format_ext fmt = FORMAT_GRAY;
+          bmcv_ive_gradfg_mode gradfg_mode = GRAD_FG_MODE_USE_CUR_GRAD;
+          char *src_name = "path/to/src";
+          char *dst_name = "path/to/dst";
+          bm_handle_t handle = NULL;
+          /* 3 by 3*/
+          signed char arr3by3[25] = { 0, 0, 0, 0, 0, 0, -1, 0, 1, 0, 0, -2, 0,
+                          2, 0, 0, -1, 0, 1, 0, 0, 0, 0, 0, 0 };
+          int ret = (int)bm_dev_request(&handle, dev_id);
+          if (ret != 0) {
+              printf("Create bm handle failed. ret = %d\n", ret);
+              exit(-1);
+          }
 
-        unsigned int i = 0, loop_time = 0;
-        unsigned long long time_single, time_total = 0, time_avg = 0;
-        unsigned long long time_max = 0, time_min = 10000, fps_actual = 0;
-        struct timeval tv_start;
-        struct timeval tv_end;
-        struct timeval timediff;
+          bm_image stBgdiffFg;
+          bm_image stCurGrad, stBgGrad, stGragFg;
+          int u8Stride[4], u16Stride[4];
 
-        // normGrad config
-        bmcv_ive_normgrad_ctrl normGradAttr;
-        normGradAttr.en_mode = BM_IVE_NORM_GRAD_OUT_COMBINE;
-        normGradAttr.u8_norm = 8;
-        memcpy(&normGradAttr.as8_mask, arr3by3, 5 * 5 * sizeof(signed char));
+          // config setting
 
-        bmcv_ive_gradfg_attr gradFgAttr;
-        gradFgAttr.en_mode = gradfg_mode;
-        gradFgAttr.u16_edw_factor = 1000;
-        gradFgAttr.u8_crl_coef_thr = 80;
-        gradFgAttr.u8_mag_crl_thr = 4;
-        gradFgAttr.u8_min_mag_diff = 2;
-        gradFgAttr.u8_noise_val = 1;
-        gradFgAttr.u8_edw_dark = 1;
+          // normGrad config
+          bmcv_ive_normgrad_ctrl normGradAttr;
+          normGradAttr.en_mode = BM_IVE_NORM_GRAD_OUT_COMBINE;
+          normGradAttr.u8_norm = 8;
+          memcpy(&normGradAttr.as8_mask, arr3by3, 5 * 5 * sizeof(signed char));
 
-        // calc ive image stride && create bm image struct
-        bm_ive_image_calc_stride(handle, height, width, fmt, DATA_TYPE_EXT_1N_BYTE, u8Stride);
-        bm_ive_image_calc_stride(handle, height, width, fmt, DATA_TYPE_EXT_U16, u16Stride);
+          bmcv_ive_gradfg_attr gradFgAttr;
+          gradFgAttr.en_mode = gradfg_mode;
+          gradFgAttr.u16_edw_factor = 1000;
+          gradFgAttr.u8_crl_coef_thr = 80;
+          gradFgAttr.u8_mag_crl_thr = 4;
+          gradFgAttr.u8_min_mag_diff = 2;
+          gradFgAttr.u8_noise_val = 1;
+          gradFgAttr.u8_edw_dark = 1;
 
-        bm_image_create(handle, height, width, fmt, DATA_TYPE_EXT_1N_BYTE, &stBgdiffFg, u8Stride);
-        bm_image_create(handle, height, width, fmt, DATA_TYPE_EXT_U16, &stCurGrad, u16Stride);
-        bm_image_create(handle, height, width, fmt, DATA_TYPE_EXT_U16, &stBgGrad, u16Stride);
-        bm_image_create(handle, height, width, fmt, DATA_TYPE_EXT_1N_BYTE, &stGragFg, u8Stride);
+          // calc ive image stride && create bm image struct
+          int data_size = 1;
+          u8Stride[0] = align_up(width, 16) * data_size;
+          data_size = 2;
+          u16Stride[0] = align_up(width, 16) * data_size;
 
-        ret = bm_image_alloc_dev_mem(stBgdiffFg, BMCV_HEAP_ANY);
-        if (ret != BM_SUCCESS) {
-            printf("stBgdiffFg bm_image_alloc_dev_mem failed. ret = %d\n", ret);
-            bm_image_destroy(&stBgdiffFg);
-            bm_image_destroy(&stCurGrad);
-            bm_image_destroy(&stBgGrad);
-            bm_image_destroy(&stGragFg);
-            exit(-1);
-        }
-        bm_ive_read_bin(stBgdiffFg, src_name);
 
-        ret = bm_image_alloc_dev_mem(stCurGrad, BMCV_HEAP_ANY);
-        if (ret != BM_SUCCESS) {
-            printf("stCurGrad bm_image_alloc_dev_mem failed. ret = %d\n", ret);
-            bm_image_destroy(&stBgdiffFg);
-            bm_image_destroy(&stCurGrad);
-            bm_image_destroy(&stBgGrad);
-            bm_image_destroy(&stGragFg);
-            exit(-1);
-        }
+          bm_image_create(handle, height, width, fmt, DATA_TYPE_EXT_1N_BYTE, &stBgdiffFg, u8Stride);
+          bm_image_create(handle, height, width, fmt, DATA_TYPE_EXT_U16, &stCurGrad, u16Stride);
+          bm_image_create(handle, height, width, fmt, DATA_TYPE_EXT_U16, &stBgGrad, u16Stride);
+          bm_image_create(handle, height, width, fmt, DATA_TYPE_EXT_1N_BYTE, &stGragFg, u8Stride);
 
-        ret = bm_image_alloc_dev_mem(stBgGrad, BMCV_HEAP_ANY);
-        if (ret != BM_SUCCESS) {
-            printf("stBgGrad bm_image_alloc_dev_mem failed. ret = %d\n", ret);
-            bm_image_destroy(&stBgdiffFg);
-            bm_image_destroy(&stCurGrad);
-            bm_image_destroy(&stBgGrad);
-            bm_image_destroy(&stGragFg);
-            exit(-1);
-        }
+          ret = bm_image_alloc_dev_mem(stBgdiffFg, BMCV_HEAP1_ID);
 
-        ret = bm_image_alloc_dev_mem(stGragFg, BMCV_HEAP_ANY);
-        if (ret != BM_SUCCESS) {
-            printf("stGragFg bm_image_alloc_dev_mem failed. ret = %d\n", ret);
-            bm_image_destroy(&stBgdiffFg);
-            bm_image_destroy(&stCurGrad);
-            bm_image_destroy(&stBgGrad);
-            bm_image_destroy(&stGragFg);
-            exit(-1);
-        }
+          int image_byte_size[4] = {0};
+          bm_image_get_byte_size(stBgdiffFg, image_byte_size);
+          int byte_size  = image_byte_size[0] + image_byte_size[1] + image_byte_size[2] + image_byte_size[3];
+          unsigned char *input_data = (unsigned char *)malloc(byte_size);
+          FILE *fp_src = fopen(src_name, "rb");
+          if (fread((void *)input_data, 1, byte_size, fp_src) < (unsigned int)byte_size) {
+            printf("file size is less than required bytes%d\n", byte_size);
+          };
+          fclose(fp_src);
+          void* in_ptr[4] = {(void *)input_data,
+                              (void *)((unsigned char*)input_data + image_byte_size[0]),
+                              (void *)((unsigned char*)input_data + image_byte_size[0] + image_byte_size[1]),
+                              (void *)((unsigned char*)input_data + image_byte_size[0] + image_byte_size[1] + image_byte_size[2])};
+          bm_image_copy_host_to_device(stBgdiffFg, in_ptr);
 
-        // Create Fake Data.
-        ret = bmcv_ive_norm_grad(handle, &stBgdiffFg, NULL, NULL, &stCurGrad, normGradAttr);
-        if(ret != BM_SUCCESS){
-            printf("Create stCurGrad failed. ret = %d\n", ret);
-            bm_image_destroy(&stBgdiffFg);
-            bm_image_destroy(&stCurGrad);
-            bm_image_destroy(&stBgGrad);
-            bm_image_destroy(&stGragFg);
-            exit(-1);
-        }
 
-        normGradAttr.u8_norm = 2;
-        ret = bmcv_ive_norm_grad(handle, &stBgdiffFg, NULL, NULL, &stBgGrad, normGradAttr);
-        if(ret != BM_SUCCESS){
-            printf("Create stBgGrad failed. ret = %d\n", ret);
-            bm_image_destroy(&stBgdiffFg);
-            bm_image_destroy(&stCurGrad);
-            bm_image_destroy(&stBgGrad);
-            bm_image_destroy(&stGragFg);
-            exit(-1);
-        }
+          ret = bm_image_alloc_dev_mem(stCurGrad, BMCV_HEAP1_ID);
+          ret = bm_image_alloc_dev_mem(stBgGrad, BMCV_HEAP1_ID);
+          ret = bm_image_alloc_dev_mem(stGragFg, BMCV_HEAP1_ID);
 
-        for (i = 0; i < loop_time; i++) {
-            // Run ive gradFg
-            gettimeofday(&tv_start, NULL);
-            ret = bmcv_ive_gradfg(handle, stBgdiffFg, stCurGrad, stBgGrad, stGragFg, gradFgAttr);
-            gettimeofday(&tv_end, NULL);
-            timediff.tv_sec  = tv_end.tv_sec - tv_start.tv_sec;
-            timediff.tv_usec = tv_end.tv_usec - tv_start.tv_usec;
-            time_single = (unsigned int)(timediff.tv_sec * 1000000 + timediff.tv_usec);
+          // Create Fake Data.
+          ret = bmcv_ive_norm_grad(handle, &stBgdiffFg, NULL, NULL, &stCurGrad, normGradAttr);
 
-            if(time_single>time_max){time_max = time_single;}
-            if(time_single<time_min){time_min = time_single;}
-            time_total = time_total + time_single;
+          normGradAttr.u8_norm = 2;
+          ret = bmcv_ive_norm_grad(handle, &stBgdiffFg, NULL, NULL, &stBgGrad, normGradAttr);
+          ret = bmcv_ive_gradfg(handle, stBgdiffFg, stCurGrad, stBgGrad, stGragFg, gradFgAttr);
 
-            if(ret != BM_SUCCESS){
-                printf("bmcv_ive_gradfg failed. ret = %d\n", ret);
-                bm_image_destroy(&stBgdiffFg);
-                bm_image_destroy(&stCurGrad);
-                bm_image_destroy(&stBgGrad);
-                bm_image_destroy(&stGragFg);
-                exit(-1);
-            }
-        }
+          unsigned char *gradFg_res = (unsigned char*)malloc(width * height * sizeof(unsigned char));
+          memset(gradFg_res, 0, width * height * sizeof(unsigned char));
 
-        time_avg = time_total / loop_time;
-        fps_actual = 1000000 / time_avg;
-        bm_image_destroy(&stBgdiffFg);
-        bm_image_destroy(&stCurGrad);
-        bm_image_destroy(&stBgGrad);
-        bm_image_destroy(&stGragFg);
-        printf(" bmcv_ive_gradFg: loop %d cycles, time_max = %llu, time_avg = %llu, fps %llu \n",
-              loop_time, time_max, time_avg, fps_actual);
-        printf("bmcv ive gradFg test successful \n");
+          ret = bm_image_copy_device_to_host(stGragFg, (void**)&gradFg_res);
 
-        return 0;
+          FILE *ive_fp = fopen(dst_name, "wb");
+          fwrite((void *)gradFg_res, 1, width * height, ive_fp);
+          fclose(ive_fp);
+          free(gradFg_res);
+
+          bm_image_destroy(&stBgdiffFg);
+          bm_image_destroy(&stCurGrad);
+          bm_image_destroy(&stBgGrad);
+          bm_image_destroy(&stGragFg);
+
+          bm_dev_free(handle);
+          return 0;
       }
-
-
-
-
-
-
-
-
-

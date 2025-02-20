@@ -2,8 +2,8 @@
 # Originally created for "roxlu build system" to compile libyuv on windows
 # Run with -DTEST=ON to build unit tests
 
+CMAKE_MINIMUM_REQUIRED( VERSION 3.16 )
 PROJECT ( YUV C CXX )	# "C" is required even for C++ projects
-CMAKE_MINIMUM_REQUIRED( VERSION 2.8 )
 
 option(ENABLE_PIC "Generate position independent code (necessary for shared libraries)" TRUE)
 option(ENABLE_NEON                "Enable NEON instructions"                            ON)

@@ -30,12 +30,12 @@ bm_image_alloc_dev_mem_heap_mask
     * - heap_mask
       - 输入
       - 选择一个或多个 heap id 的掩码，每一个 bit 表示
-        一个 heap id 的是否有效, 1 表示可以在该 heap 上
-        分配，0 则表示不可以在该 heap 上分配，最低位表示
-        heap0，以此类推。比如 heap_mask=2 则表示指定在
-        heap1 上分配空间，heap_mask=5 则表示指定在 heap0 或者 heap2 上分配空间。
+        一个 heap id 的是否有效, 1 表示可以在该 heap 分配
+        ，0 则表示不可以在该 heap 上分配，最低位表示
+        heap0，以此类推。比如 heap_mask=0x10 则表示指定在
+        heap1 上分配空间，heap_mask=0x101 则表示指定在 heap0 或者 heap2 上分配空间。
 
-【注意事项】
+| 【注意事项】
 
 1. 如果 bm_image 对象未创建，则返回失败。
 

@@ -1617,13 +1617,7 @@ DECL_EXPORT unsigned long long bmcv_calc_cbcr_addr(unsigned long long y_addr, un
  * If $BMCV_PRINT_VERSION == 1, this function prints the BMCV version information
  * and TPU firmware version information. Otherwise, the function does nothing.
  */
-DECL_EXPORT void bmcv_print_version();
-
-bm_status_t bmcv_image_rotate(
-    bm_handle_t handle,
-    bm_image input,
-    bm_image output,
-    int rotation_angle);
+DECL_EXPORT void bmcv_print_version(void);
 
 /** bm_image_create
  * @brief Create and fill bm_image structure
@@ -2014,6 +2008,14 @@ DECL_EXPORT bm_status_t bmcv_image_overlay(
     bmcv_rect_t*        overlay_info,
     bm_image*           overlay_image);
 
+DECL_EXPORT bm_status_t bmcv_gen_text_watermark(
+    bm_handle_t         handle,
+    const wchar_t*      hexcode,
+    bmcv_color_t        color,
+    float               fontscale,
+    bm_image_format_ext format,
+    bm_image*           output);
+
 /*
 * The input image is flipped horizontally, flipped vertically, or rotated 180 degrees
 * input is input image; output is output image;flip_mode is flip mode;
@@ -2066,7 +2068,7 @@ DECL_EXPORT bm_status_t bmcv_image_absdiff(
 * tensor_Y is Device memory address of matrix Y;tensor_F is Device memory address of matrix F;
 * input_n is size of n; input_c is size of c; input_h is size of h; input is size of w;
 */
-DECL_EXPORT bm_status_t  bmcv_image_axpy(
+DECL_EXPORT bm_status_t bmcv_image_axpy(
     bm_handle_t handle,
     bm_device_mem_t tensor_A,
     bm_device_mem_t tensor_X,
@@ -2121,6 +2123,18 @@ DECL_EXPORT bm_status_t bmcv_image_bitwise_xor(
     bm_image input1,
     bm_image input2,
     bm_image output);
+
+DECL_EXPORT bm_status_t bmcv_image_rotate_trans(
+    bm_handle_t handle,
+    bm_image input,
+    bm_image output,
+    int rotation_angle);
+
+DECL_EXPORT bm_status_t bmcv_image_rotate(
+    bm_handle_t handle,
+    bm_image input,
+    bm_image output,
+    int rotation_angle);
 
 /**
  * Edge detection Sobel operator
@@ -2209,11 +2223,11 @@ DECL_EXPORT bm_status_t bmcv_image_threshold(
 * input is input image; output is output image
 */
 DECL_EXPORT bm_status_t bmcv_image_quantify(
-        bm_handle_t handle,
-        bm_image input,
-        bm_image output);
+    bm_handle_t handle,
+    bm_image input,
+    bm_image output);
 
-/**
+/*
  * @brief: calculate inner product distance between query vectors and database vectors, output the top K IP-values and the corresponding indices, return BM_SUCCESS if succeed.
  * @param handle                               [in]: the device handle.
  * @param input_data_global_addr               [in]: device addr information of the query matrix.
@@ -2230,21 +2244,21 @@ DECL_EXPORT bm_status_t bmcv_image_quantify(
  * @param output_dtype      [in]: DT_FP32 / DT_FP16 / DT_INT32.
  */
 DECL_EXPORT bm_status_t bmcv_faiss_indexflatIP(
-        bm_handle_t handle,
-        bm_device_mem_t input_data_global_addr,
-        bm_device_mem_t db_data_global_addr,
-        bm_device_mem_t buffer_global_addr,
-        bm_device_mem_t output_sorted_similarity_global_addr,
-        bm_device_mem_t output_sorted_index_global_addr,
-        int vec_dims,
-        int query_vecs_num,
-        int database_vecs_num,
-        int sort_cnt,
-        int is_transpose,
-        int input_dtype,
-        int output_dtype);
+    bm_handle_t handle,
+    bm_device_mem_t input_data_global_addr,
+    bm_device_mem_t db_data_global_addr,
+    bm_device_mem_t buffer_global_addr,
+    bm_device_mem_t output_sorted_similarity_global_addr,
+    bm_device_mem_t output_sorted_index_global_addr,
+    int vec_dims,
+    int query_vecs_num,
+    int database_vecs_num,
+    int sort_cnt,
+    int is_transpose,
+    int input_dtype,
+    int output_dtype);
 
-/**
+/*
  * @brief: calculate squared L2 distance between query vectors and database vectors, output the top K L2sqr-values and the corresponding indices, return BM_SUCCESS if succeed.
  * @param handle                               [in]: the device handle.
  * @param input_data_global_addr               [in]: device addr information of the query matrix.
@@ -2262,21 +2276,158 @@ DECL_EXPORT bm_status_t bmcv_faiss_indexflatIP(
  * @param input_dtype       [in]: DT_FP32 / DT_FP16.
  * @param output_dtype      [in]: DT_FP32 / DT_FP16.
  */
-DECL_EXPORT bm_status_t bmcv_faiss_indexflatL2(bm_handle_t handle,
-                                   bm_device_mem_t input_data_global_addr,
-                                   bm_device_mem_t db_data_global_addr,
-                                   bm_device_mem_t query_L2norm_global_addr,
-                                   bm_device_mem_t db_L2norm_global_addr,
-                                   bm_device_mem_t buffer_global_addr,
-                                   bm_device_mem_t output_sorted_similarity_global_addr,
-                                   bm_device_mem_t output_sorted_index_global_addr,
-                                   int vec_dims,
-                                   int query_vecs_num,
-                                   int database_vecs_num,
-                                   int sort_cnt,
-                                   int is_transpose,
-                                   int input_dtype,
-                                   int output_dtype);
+DECL_EXPORT bm_status_t bmcv_faiss_indexflatL2(
+    bm_handle_t handle,
+    bm_device_mem_t input_data_global_addr,
+    bm_device_mem_t db_data_global_addr,
+    bm_device_mem_t query_L2norm_global_addr,
+    bm_device_mem_t db_L2norm_global_addr,
+    bm_device_mem_t buffer_global_addr,
+    bm_device_mem_t output_sorted_similarity_global_addr,
+    bm_device_mem_t output_sorted_index_global_addr,
+    int vec_dims,
+    int query_vecs_num,
+    int database_vecs_num,
+    int sort_cnt,
+    int is_transpose,
+    int input_dtype,
+    int output_dtype);
+
+/*
+ * @brief: This interface inputs vectors and centroids, calculates the distance table and sorts it, and outputs the quantized code of vectors.
+ * @param handle                               [in]: the device handle.
+ * @param vector_input_dev                     [in]: the device space for storing the vector to be encoded.
+ * @param centroids_input_dev                  [in]: the deivce space for storing cluster center data.
+ * @param buffer_table_dev                     [in]: cache space for storing calculated distance tables.
+ * @param codes_output_dev                     [out]: the device space for storing vector encoding results.
+ * @param encode_vec_num                       [in]: the number of vectors to be encoded.
+ * @param vec_dims                             [in]: the dimensions of the original vector.
+ * @param slice_num                            [in]: the number of original dimension splits.
+ * @param centroids_num                        [in]: the number of cluster centers
+ * @param IP_metric                            [in]: 0 means L2 distance calculation; 1 means IP distance calculation.
+ * @param input_dtype       [in]: DT_FP32 / DT_FP16.
+ * @param output_dtype      [in]: DT_FP32 / DT_FP16.
+ */
+DECL_EXPORT bm_status_t bmcv_faiss_indexPQ_encode_ext(
+    bm_handle_t handle,
+    bm_device_mem_t vector_input_dev,
+    bm_device_mem_t centroids_input_dev,
+    bm_device_mem_t buffer_table_dev,
+    bm_device_mem_t nvcodes_output_dev,
+    int encode_vec_num,
+    int vec_dims,
+    int slice_num,
+    int centroids_num,
+    int IP_metric,
+    int input_dtype,
+    int output_dtype);
+DECL_EXPORT bm_status_t bmcv_faiss_indexPQ_encode(
+    bm_handle_t handle,
+    bm_device_mem_t vector_input_dev,
+    bm_device_mem_t centroids_input_dev,
+    bm_device_mem_t buffer_table_dev,
+    bm_device_mem_t nvcodes_output_dev,
+    int encode_vec_num,
+    int vec_dims,
+    int slice_num,
+    int centroids_num,
+    int IP_metric);
+
+/*
+ * @brief: calculates the distance table through query and centroids, looks up and sorts the base database encoding, and outputs the top K (sort_cnt) most matching vector indices and their corresponding distances.
+ * @param handle                               [in]: the device handle.
+ * @param centroids_input_dev                  [in]: the deivce space for storing cluster center data.
+ * @param nxquery_input_dev                    [in]: the deivce space that stores the matrix consisting of query vectors.
+ * @param nycodes_input_dev                    [in]: the device space for storing the matrix composed of the base vector.
+ * @param distance_output_dev                  [out]: the device space for storing the output distance.
+ * @param index_output_dev                     [out]: the device space for storing output sorting.
+ * @param vec_dims                             [in]: the dimensions of the original vector.
+ * @param slice_num                            [in]: the number of original dimension splits.
+ * @param centroids_num                        [in]: the number of cluster centers
+ * @param database_num                         [in]: the number of database bases.
+ * @param query_num                            [in]: retrieve the number of vectors.
+ * @param sort_cnt                             [in]: get top sort_cnt values.
+ * @param IP_metric                            [in]: 0 means L2 distance calculation; 1 means IP distance calculation.
+ * @param input_dtype       [in]: DT_FP32 / DT_FP16.
+ * @param output_dtype      [in]: DT_FP32 / DT_FP16.
+ */
+DECL_EXPORT bm_status_t bmcv_faiss_indexPQ_ADC_ext(
+    bm_handle_t handle,
+    bm_device_mem_t centroids_input_dev,
+    bm_device_mem_t nxquery_input_dev,
+    bm_device_mem_t nycodes_input_dev,
+    bm_device_mem_t distance_output_dev,
+    bm_device_mem_t index_output_dev,
+    int vec_dims,
+    int slice_num,
+    int centroids_num,
+    int database_num,
+    int query_num,
+    int sort_cnt,
+    int IP_metric,
+    int input_dtype,
+    int output_dtype);
+DECL_EXPORT bm_status_t bmcv_faiss_indexPQ_ADC(
+    bm_handle_t handle,
+    bm_device_mem_t centroids_input_dev,
+    bm_device_mem_t nxquery_input_dev,
+    bm_device_mem_t nycodes_input_dev,
+    bm_device_mem_t distance_output_dev,
+    bm_device_mem_t index_output_dev,
+    int vec_dims,
+    int slice_num,
+    int centroids_num,
+    int database_num,
+    int query_num,
+    int sort_cnt,
+    int IP_metric);
+
+/*
+ * @brief: calculates the distance table through query and centroids, looks up and sorts the base database encoding, and outputs the top K (sort_cnt) most matching vector indices and their corresponding distances.
+ * @param handle                               [in]: the device handle.
+ * @param sdc_table_input_dev                  [in]: the device space for storing the symmetric distance table.
+ * @param nxcodes_input_dev                    [in]: the device space where the retrieval vector encoding is stored.
+ * @param nycodes_input_dev                    [in]: the device space for storing the matrix composed of the base vector.
+ * @param distance_output_dev                  [out]: the device space for storing the output distance.
+ * @param index_output_dev                     [out]: the device space for storing output sorting.
+ * @param slice_num                            [in]: the number of original dimension splits.
+ * @param centroids_num                        [in]: the number of cluster centers
+ * @param database_num                         [in]: the number of database bases.
+ * @param query_num                            [in]: retrieve the number of vectors.
+ * @param sort_cnt                             [in]: get top sort_cnt values.
+ * @param IP_metric                            [in]: 0 means L2 distance calculation; 1 means IP distance calculation.
+ * @param input_dtype       [in]: DT_FP32 / DT_FP16.
+ * @param output_dtype      [in]: DT_FP32 / DT_FP16.
+ */
+DECL_EXPORT bm_status_t bmcv_faiss_indexPQ_SDC_ext(
+    bm_handle_t handle,
+    bm_device_mem_t sdc_table_input_dev,
+    bm_device_mem_t nxcodes_input_dev,
+    bm_device_mem_t nycodes_input_dev,
+    bm_device_mem_t distance_output_dev,
+    bm_device_mem_t index_output_dev,
+    int slice_num,
+    int centroids_num,
+    int database_num,
+    int query_num,
+    int sort_cnt,
+    int IP_metric,
+    int input_dtype,
+    int output_dtype);
+DECL_EXPORT bm_status_t bmcv_faiss_indexPQ_SDC(
+    bm_handle_t handle,
+    bm_device_mem_t sdc_table_input_dev,
+    bm_device_mem_t nxcodes_input_dev,
+    bm_device_mem_t nycodes_input_dev,
+    bm_device_mem_t distance_output_dev,
+    bm_device_mem_t index_output_dev,
+    int slice_num,
+    int centroids_num,
+    int database_num,
+    int query_num,
+    int sort_cnt,
+    int IP_metric);
+
 /*
 * Gets the maximum and minimum values of data from a continuous space
 * input is device addr of input data; minval is Minimum value;maxVal is maximum value;
@@ -2332,12 +2483,28 @@ DECL_EXPORT bm_status_t bmcv_image_warp_affine(
     bm_image *               output,
     int                      use_bilinear);
 
+DECL_EXPORT bm_status_t bmcv_image_warp_affine_padding(
+    bm_handle_t              handle,
+    int                      image_num,
+    bmcv_affine_image_matrix matrix[4],
+    bm_image *               input,
+    bm_image *               output,
+    int                      use_bilinear);
+
 /**
  * Image affine transformation can realize rotation, translation, scaling and other operations
  * image_num is image num;matrix is transformation matrix data structure corresponding to each image
  * input is src image;output is dst image;use_bilinear is if to use bilinear for interpolation
 */
 DECL_EXPORT bm_status_t bmcv_image_warp_affine_similar_to_opencv(
+    bm_handle_t              handle,
+    int                      image_num,
+    bmcv_affine_image_matrix matrix[4],
+    bm_image *               input,
+    bm_image *               output,
+    int                      use_bilinear);
+
+DECL_EXPORT bm_status_t bmcv_image_warp_affine_similar_to_opencv_padding(
     bm_handle_t              handle,
     int                      image_num,
     bmcv_affine_image_matrix matrix[4],
@@ -2517,22 +2684,24 @@ struct FFT2DPlan {
 * batch is batch num;len is lenth of len;forward is Whether it is a forward transform
 * plan is handle that needs to be used during the execution phase
 */
-DECL_EXPORT bm_status_t bmcv_fft_1d_create_plan(bm_handle_t handle,
-                                    int batch,
-                                    int len,
-                                    bool forward,
-                                    void** plan);
+DECL_EXPORT bm_status_t bmcv_fft_1d_create_plan(
+    bm_handle_t handle,
+    int batch,
+    int len,
+    bool forward,
+    void** plan);
 /**
  * Two-dimensional M*N FFT operation
  * M is The size of the first dimension;N is The size of the second dimension
  * forward is Whether it is a forward transform;
  * plan is handle that needs to be used during the execution phase
 */
-DECL_EXPORT bm_status_t bmcv_fft_2d_create_plan(bm_handle_t handle,
-                                    int M,
-                                    int N,
-                                    bool forward,
-                                    void** plan);
+DECL_EXPORT bm_status_t bmcv_fft_2d_create_plan(
+    bm_handle_t handle,
+    int M,
+    int N,
+    bool forward,
+    void** plan);
 /**
  * The created plan can then begin the actual execution phase
  * inputReal is Enter the real part of the data address;
@@ -2541,12 +2710,13 @@ DECL_EXPORT bm_status_t bmcv_fft_2d_create_plan(bm_handle_t handle,
  * outputImag is Enter the address of the imaginary part of the data
  * plan is handle that needs to be used during the execution phase
 */
-DECL_EXPORT bm_status_t bmcv_fft_execute(bm_handle_t handle,
-                            bm_device_mem_t inputReal,
-                            bm_device_mem_t inputImag,
-                            bm_device_mem_t outputReal,
-                            bm_device_mem_t outputImag,
-                            const void *plan);
+DECL_EXPORT bm_status_t bmcv_fft_execute(
+    bm_handle_t handle,
+    bm_device_mem_t inputReal,
+    bm_device_mem_t inputImag,
+    bm_device_mem_t outputReal,
+    bm_device_mem_t outputImag,
+    const void *plan);
 /**
  * The created plan can then begin the actual execution phase
  * inputReal is Enter the real part of the data address
@@ -2556,11 +2726,11 @@ DECL_EXPORT bm_status_t bmcv_fft_execute(bm_handle_t handle,
  * plan is handle that needs to be used during the execution phase
 */
 DECL_EXPORT bm_status_t bmcv_fft_execute_real_input(
-                            bm_handle_t handle,
-                            bm_device_mem_t inputReal,
-                            bm_device_mem_t outputReal,
-                            bm_device_mem_t outputImag,
-                            const void *plan);
+    bm_handle_t handle,
+    bm_device_mem_t inputReal,
+    bm_device_mem_t outputReal,
+    bm_device_mem_t outputImag,
+    const void *plan);
 
 DECL_EXPORT void bmcv_fft_destroy_plan(bm_handle_t handle, void *plan);
 
@@ -2578,13 +2748,13 @@ DECL_EXPORT void bmcv_fft_destroy_plan(bm_handle_t handle, void *plan);
  * normalize is normalize or not
 **/
 DECL_EXPORT bm_status_t bmcv_stft(
-                            bm_handle_t handle,
-                            float* XRHost, float* XIHost,
-                            float* YRHost, float* YIHost,
-                            int batch, int L,
-                            bool realInput, int pad_mode,
-                            int n_fft, int win_mode, int hop_len,
-                            bool normalize);
+    bm_handle_t handle,
+    float* XRHost, float* XIHost,
+    float* YRHost, float* YIHost,
+    int batch, int L,
+    bool realInput, int pad_mode,
+    int n_fft, int win_mode, int hop_len,
+    bool normalize);
 
 /**
  * XRHost is Enter the real part of the data address
@@ -2599,13 +2769,14 @@ DECL_EXPORT bm_status_t bmcv_stft(
  * win_mode is hanning or hamming
  * normalize is normalize or not
 **/
-DECL_EXPORT bm_status_t bmcv_istft(bm_handle_t handle,
-                            float* XRHost, float* XIHost,
-                            float* YRHost, float* YIHost,
-                            int batch, int L,
-                            bool realInput, int pad_mode,
-                            int n_fft, int win_mode, int hop_len,
-                            bool normalize);
+DECL_EXPORT bm_status_t bmcv_istft(
+    bm_handle_t handle,
+    float* XRHost, float* XIHost,
+    float* YRHost, float* YIHost,
+    int batch, int L,
+    bool realInput, int pad_mode,
+    int n_fft, int win_mode, int hop_len,
+    bool normalize);
 
 /*
 * The Euclidean distance between multiple points and a particular point in dimensional space

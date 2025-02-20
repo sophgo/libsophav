@@ -60,7 +60,10 @@ bm_status_t fill_image_private(bm_image *res, int *stride) {
             image_private->memory_layout[2] = set_plane_layout(1, 1, H, ALIGN(W, 2) >> 1, data_size);
             break;
         }
-        case FORMAT_YUV444P: {
+        case FORMAT_YUV444P:
+        case FORMAT_BGRP_SEPARATE:
+        case FORMAT_RGBP_SEPARATE:
+        case FORMAT_HSV_PLANAR:  {
             image_private->plane_num = 3;
             image_private->memory_layout[0] = set_plane_layout(1, 1, H, W, data_size);
             image_private->memory_layout[1] = set_plane_layout(1, 1, H, W, data_size);
@@ -70,7 +73,7 @@ bm_status_t fill_image_private(bm_image *res, int *stride) {
         case FORMAT_NV24: {
             image_private->plane_num = 2;
             image_private->memory_layout[0] = set_plane_layout(1, 1, H, W, data_size);
-            image_private->memory_layout[1] = set_plane_layout(1, 1, H, ALIGN(W, 2), data_size);
+            image_private->memory_layout[1] = set_plane_layout(1, 1, H, W * 2, data_size);
             break;
         }
         case FORMAT_NV12:
@@ -88,7 +91,9 @@ bm_status_t fill_image_private(bm_image *res, int *stride) {
             image_private->memory_layout[1] = set_plane_layout(1, 1, H, ALIGN(W, 2), data_size);
             break;
         }
-        case FORMAT_GRAY: {
+        case FORMAT_GRAY:
+        case FORMAT_BAYER:
+        case FORMAT_BAYER_RG8: {
             image_private->plane_num = 1;
             image_private->memory_layout[0] = set_plane_layout(1, 1, H, W, data_size);
             break;
@@ -123,21 +128,6 @@ bm_status_t fill_image_private(bm_image *res, int *stride) {
             image_private->memory_layout[0] = set_plane_layout(1, 3, H, W, data_size);
             break;
         }
-        case FORMAT_BGRP_SEPARATE:
-        case FORMAT_RGBP_SEPARATE: {
-            image_private->plane_num = 3;
-            image_private->memory_layout[0] = set_plane_layout(1, 1, H, W, data_size);
-            image_private->memory_layout[1] = set_plane_layout(1, 1, H, W, data_size);
-            image_private->memory_layout[2] = set_plane_layout(1, 1, H, W, data_size);
-            break;
-        }
-        case FORMAT_HSV_PLANAR: {
-            image_private->plane_num = 3;
-            image_private->memory_layout[0] = set_plane_layout(1, 1, H, W, data_size);
-            image_private->memory_layout[1] = set_plane_layout(1, 1, H, W, data_size);
-            image_private->memory_layout[2] = set_plane_layout(1, 1, H, W, data_size);
-            break;
-        }
         case FORMAT_RGBYP_PLANAR: {
             image_private->plane_num = 4;
             image_private->memory_layout[0] = set_plane_layout(1, 1, H, W, data_size);
@@ -149,25 +139,11 @@ bm_status_t fill_image_private(bm_image *res, int *stride) {
         case FORMAT_YUV422_YUYV:
         case FORMAT_YUV422_YVYU:
         case FORMAT_YUV422_UYVY:
-        case FORMAT_YUV422_VYUY: {
-            image_private->plane_num = 1;
-            image_private->memory_layout[0] = set_plane_layout(1, 1, H, W * 2, data_size);
-            break;
-        }
-        case FORMAT_BAYER: {
-            image_private->plane_num = 1;
-            image_private->memory_layout[0] = set_plane_layout(1, 1, H, W, data_size);
-            break;
-        }
-        case FORMAT_BAYER_RG8: {
-            image_private->plane_num = 1;
-            image_private->memory_layout[0] = set_plane_layout(1, 1, H, W, data_size);
-            break;
-        }
+        case FORMAT_YUV422_VYUY:
         case FORMAT_ARGB4444_PACKED:
         case FORMAT_ABGR4444_PACKED:
         case FORMAT_ARGB1555_PACKED:
-        case FORMAT_ABGR1555_PACKED:{
+        case FORMAT_ABGR1555_PACKED: {
             image_private->plane_num = 1;
             image_private->memory_layout[0] = set_plane_layout(1, 1, H, W * 2, data_size);
             break;

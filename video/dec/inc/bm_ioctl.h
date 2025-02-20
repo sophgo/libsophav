@@ -51,12 +51,12 @@ void logging_fn(BmVpuDecLogLevel level, char const *file, int const line, char c
 
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 
-#define BM_VPU_ERROR_FULL(FILE_, LINE_, FUNCTION_, ...)   do { if (bm_vpu_log_level_threshold >= BM_VPU_LOG_LEVEL_ERROR)   { logging_fn(BM_VPU_LOG_LEVEL_ERROR,   FILE_, LINE_, FUNCTION_, __VA_ARGS__); } } while(0)
-#define BM_VPU_WARNING_FULL(FILE_, LINE_, FUNCTION_, ...) do { if (bm_vpu_log_level_threshold >= BM_VPU_LOG_LEVEL_WARNING) { logging_fn(BM_VPU_LOG_LEVEL_WARNING, FILE_, LINE_, FUNCTION_, __VA_ARGS__); } } while(0)
-#define BM_VPU_INFO_FULL(FILE_, LINE_, FUNCTION_, ...)    do { if (bm_vpu_log_level_threshold >= BM_VPU_LOG_LEVEL_INFO)    { logging_fn(BM_VPU_LOG_LEVEL_INFO,    FILE_, LINE_, FUNCTION_, __VA_ARGS__); } } while(0)
-#define BM_VPU_DEBUG_FULL(FILE_, LINE_, FUNCTION_, ...)   do { if (bm_vpu_log_level_threshold >= BM_VPU_LOG_LEVEL_DEBUG)   { logging_fn(BM_VPU_LOG_LEVEL_DEBUG,   FILE_, LINE_, FUNCTION_, __VA_ARGS__); } } while(0)
-#define BM_VPU_LOG_FULL(FILE_, LINE_, FUNCTION_, ...)     do { if (bm_vpu_log_level_threshold >= BM_VPU_LOG_LEVEL_LOG)     { logging_fn(BM_VPU_LOG_LEVEL_LOG,     FILE_, LINE_, FUNCTION_, __VA_ARGS__); } } while(0)
-#define BM_VPU_TRACE_FULL(FILE_, LINE_, FUNCTION_, ...)   do { if (bm_vpu_log_level_threshold >= BM_VPU_LOG_LEVEL_TRACE)   { logging_fn(BM_VPU_LOG_LEVEL_TRACE,   FILE_, LINE_, FUNCTION_, __VA_ARGS__); } } while(0)
+#define BM_VPU_ERROR_FULL(FILE_, LINE_, FUNCTION_, ...)   do { if (bm_vpu_log_level_threshold >= BMVPU_DEC_LOG_LEVEL_ERR)   { logging_fn(BMVPU_DEC_LOG_LEVEL_ERR,   FILE_, LINE_, FUNCTION_, __VA_ARGS__); } } while(0)
+#define BM_VPU_WARNING_FULL(FILE_, LINE_, FUNCTION_, ...) do { if (bm_vpu_log_level_threshold >= BMVPU_DEC_LOG_LEVEL_WARN) { logging_fn(BMVPU_DEC_LOG_LEVEL_WARN, FILE_, LINE_, FUNCTION_, __VA_ARGS__); } } while(0)
+#define BM_VPU_INFO_FULL(FILE_, LINE_, FUNCTION_, ...)    do { if (bm_vpu_log_level_threshold >= BMVPU_DEC_LOG_LEVEL_INFO)    { logging_fn(BMVPU_DEC_LOG_LEVEL_INFO,    FILE_, LINE_, FUNCTION_, __VA_ARGS__); } } while(0)
+#define BM_VPU_DEBUG_FULL(FILE_, LINE_, FUNCTION_, ...)   do { if (bm_vpu_log_level_threshold >= BMVPU_DEC_LOG_LEVEL_DEBUG)   { logging_fn(BMVPU_DEC_LOG_LEVEL_DEBUG,   FILE_, LINE_, FUNCTION_, __VA_ARGS__); } } while(0)
+#define BM_VPU_LOG_FULL(FILE_, LINE_, FUNCTION_, ...)     do { if (bm_vpu_log_level_threshold >= BMVPU_DEC_LOG_LEVEL_LOG)     { logging_fn(BMVPU_DEC_LOG_LEVEL_LOG,     FILE_, LINE_, FUNCTION_, __VA_ARGS__); } } while(0)
+#define BM_VPU_TRACE_FULL(FILE_, LINE_, FUNCTION_, ...)   do { if (bm_vpu_log_level_threshold >= BMVPU_DEC_LOG_LEVEL_TRACE)   { logging_fn(BMVPU_DEC_LOG_LEVEL_TRACE,   FILE_, LINE_, FUNCTION_, __VA_ARGS__); } } while(0)
 
 #define BMVPU_DEC_ERROR(...)    BM_VPU_ERROR_FULL  (FILENAME, __LINE__, __func__, __VA_ARGS__)
 #define BMVPU_DEC_WARNING(...)  BM_VPU_WARNING_FULL(FILENAME, __LINE__, __func__, __VA_ARGS__)
@@ -76,7 +76,7 @@ int bmdec_ioctl_start_recv_stream(int chn_fd);
 int bmdec_ioctl_stop_recv_stream(int chn_fd);
 int bmdec_ioctl_send_stream(int chn_fd, vdec_stream_ex_s* pstStreamEx);
 int bmdec_ioctl_get_frame(int chn_fd, video_frame_info_ex_s* pstFrameInfoEx, vdec_chn_status_s* stChnStatus);
-int bmdec_ioctl_release_frame(int chn_fd, const video_frame_info_s *pstFrameInfo, int size);
+int bmdec_ioctl_release_frame(int chn_fd, video_frame_info_s *pstFrameInfo, int size);
 int bmdec_ioctl_get_chn_attr(int chn_fd, vdec_chn_attr_s *pstAttr);
 int bmdec_ioctl_set_chn_attr(int chn_fd, vdec_chn_attr_s *pstAttr);
 int bmdec_ioctl_query_chn_status(int chn_fd, vdec_chn_status_s *pstStatus);

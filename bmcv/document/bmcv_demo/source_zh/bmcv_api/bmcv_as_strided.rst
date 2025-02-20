@@ -70,74 +70,51 @@ bmcv_as_strided
 
     .. code-block:: c
 
-        #define RAND_MAX 2147483647
-        #define TIME_COST_US(start, end) ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec))
+      #include "bmcv_api_ext_c.h"
+      #include <math.h>
+      #include <stdio.h>
+      #include <stdlib.h>
+      #include <string.h>
 
-        int loop = 1;
+      int main()
+      {
         int input_row = 5;
         int input_col = 5;
         int output_row = 3;
         int output_col = 3;
         int row_stride = 1;
         int col_stride = 2;
-
+        int input_size = input_row * input_col;
+        int output_size = output_row * output_col;
+        int ret = 0;
         bm_handle_t handle;
-        bm_status_t ret = BM_SUCCESS;
         ret = bm_dev_request(&handle, 0);
-        if (ret != BM_SUCCESS) {
-            printf("request dev failed\n");
-            return BM_ERR_FAILURE;
+
+        float* input_data = (float*)malloc(input_size  * sizeof(float));
+        float* tpu_output = (float*)malloc(output_size * sizeof(float));
+
+        for (int i = 0; i < input_size; i++) {
+          input_data[i] = (float)rand() / (float)RAND_MAX * 100;
         }
 
-        float* input_data = (float*) malloc(input_row * input_col * sizeof(float));
-        float* output_data = (float*) malloc(output_row * output_col * sizeof(float));
-
-        struct timespec tp;
-        clock_gettime(NULL, &tp);
-        srand(tp.tv_nsec);
-
-        for (int i = 0; i < len; i++) {
-            input_data[i] = (float)rand() / (float)RAND_MAX * 100;
-        }
+        memset(tpu_output, 0, output_size * sizeof(float));
 
         bm_device_mem_t input_dev_mem, output_dev_mem;
+        ret = bm_malloc_device_byte(handle, &input_dev_mem, input_size * sizeof(float));
+        ret = bm_malloc_device_byte(handle, &output_dev_mem, output_size * sizeof(float));
 
-        ret = bm_malloc_device_byte(handle, &input_dev_mem, input_row * input_col * sizeof(float));
-        if (ret != BM_SUCCESS) {
-            printf("bm_malloc_device_byte failed. ret = %d\n", ret);
-            exit(-1);
-        }
-        ret = bm_malloc_device_byte(handle, &output_dev_mem, output_row * output_col * sizeof(float));
-        if (ret != BM_SUCCESS) {
-            printf("bm_malloc_device_byte failed. ret = %d\n", ret);
-            exit(-1);
-        }
         ret = bm_memcpy_s2d(handle, input_dev_mem, input_data);
-        if (ret != BM_SUCCESS) {
-            printf("bm_memcpy_s2d failed. ret = %d\n", ret);
-            exit(-1);
-        }
 
-        struct timeval t1, t2;
-        gettimeofday_(&t1);
-        ret = bmcv_as_strided(handle, input_dev_mem, output_dev_mem, input_row, input_col,
-                              output_row, output_col, row_stride, col_stride);
-        gettimeofday_(&t2);
-        printf("bmcv_as_strided TPU using time= %ld(us)\n", TIME_COST_US(t1, t2));
-        if (ret != BM_SUCCESS) {
-            printf("bmcv_as_strided failed. ret = %d\n", ret);
-            goto exit;
-        }
+        ret = bmcv_as_strided(handle, input_dev_mem, output_dev_mem, input_row, \
+                        input_col, output_row, output_col, row_stride, col_stride);
 
-        ret = bm_memcpy_d2s(handle, output_data, output_dev_mem);
-        if (ret != BM_SUCCESS) {
-            printf("bm_memcpy_d2s failed. ret = %d\n", ret);
-            exit(-1);
-        }
+        ret = bm_memcpy_d2s(handle, tpu_output, output_dev_mem);
 
-        exit:
         bm_free_device(handle, input_dev_mem);
         bm_free_device(handle, output_dev_mem);
-        bm_dev_free(handle);
-        free(output_data);
+
         free(input_data);
+        free(tpu_output);
+        bm_dev_free(handle);
+        return ret;
+      }

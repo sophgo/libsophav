@@ -23,6 +23,18 @@ typedef struct {
     int trials;
 } copy_to_thread_arg_t;
 
+extern int packedToplanar_float(float * packed, int channel, int width, int height);
+extern int copy_to_ref_v2_float(float * src,
+                                float * dst,
+                                int channel,
+                                int in_h,
+                                int in_w,
+                                int out_h,
+                                int out_w,
+                                int start_x,
+                                int start_y,
+                                int ispacked);
+
 static int parameters_check(int test_loop_times, int test_threads_num)
 {
     int error = 0;
@@ -71,49 +83,6 @@ void gen_test_size(int *in_w, int *in_h, int *out_w, int *out_h, int *start_x, i
 
     *start_x = (*out_w != in_w_tmp) ? (rand() % (*out_w - in_w_tmp)) : (0);
     *start_y = (*out_h != in_h_tmp) ? (rand() % (*out_h - in_h_tmp)) : (0);
-}
-
-static int packedToplanar_float(float * packed, int channel, int width, int height){
-    float * planar = (float *)malloc(channel * width * height * sizeof(float));
-    float * p_img = packed;
-    float * p_r = planar;
-    float * p_g = planar + height * width;
-    float * p_b = planar + height * width * 2;
-    for(int i = 0; i < height * width; i++){
-        * p_r++ = * p_img++;
-        * p_g++ = * p_img++;
-        * p_b++ = * p_img++;
-    }
-    memcpy(packed, planar, sizeof(float) * channel * width * height);
-    free(planar);
-    return 0;
-}
-
-typedef enum { COPY_TO_GRAY = 0, COPY_TO_BGR, COPY_TO_RGB } padding_corlor_e;
-typedef enum { PLANNER = 0, PACKED } padding_format_e;
-
-static int copy_to_ref_v2_float(float * src,
-                                float * dst,
-                                int channel,
-                                int in_h,
-                                int in_w,
-                                int out_h,
-                                int out_w,
-                                int start_x,
-                                int start_y,
-                                int ispacked){
-    if(ispacked){
-        packedToplanar_float(src, channel, in_w, in_h);
-    }
-    for(int c = 0; c < channel; c++){
-        for(int i = 0; i < in_h; i++){
-            for(int j = 0; j < in_w; j++){
-                int index = c * out_w * out_h + (start_y + i) * out_w + start_x + j;
-                    dst[index] = src[(c * in_h * in_w) + i * in_w + j];
-            }
-        }
-    }
-    return 0;
 }
 
 static bool res_ref_comp_float(float *res_1n_planner, float *ref_1n_planner, int size) {

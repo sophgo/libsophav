@@ -435,8 +435,8 @@ static void * test_dpu_online(void* arg)
     char fmt_str[100];
     format_to_str(disp_img.image_format, fmt_str);
 
-    printf("[bmcv dpu sgbm]idx:%d, rand_mode is %d, fmt is %s, size is %d*%d, \n",ctx.i, rand_mode, fmt_str, left_img.width, left_img.height);
-    printf("[bmcv dpu sgbm]idx:%d, loop %d cycles, time_max = %llu, time_avg = %llu, fps %llu, %lluM pps\n",
+    printf("[bmcv dpu online]idx:%d, rand_mode is %d, fmt is %s, size is %d*%d, \n",ctx.i, rand_mode, fmt_str, left_img.width, left_img.height);
+    printf("[bmcv dpu online]idx:%d, loop %d cycles, time_max = %llu, time_avg = %llu, fps %llu, %lluM pps\n",
         ctx.i, loop_time, time_max, time_avg, fps_actual, pixel_per_sec);
 
     return 0;

@@ -104,36 +104,85 @@ bmcv_image_gaussian_blur
     :lineno-start: 1
     :force:
 
-    int format    = FORMAT_RGBP_SEPARATE;
-    int channel   = 3;
-    int width     = 1920;
-    int height    = 1080;
-    int dev_id    = 0;
-    bm_handle_t handle;
-    bm_status_t dev_ret = bm_dev_request(&handle, dev_id);
-    unsigned char *input_data = (unsigned char*)malloc(width * height * channel);
-    unsigned char *output_data = (unsigned char*)malloc(width * height * channel);
-    for (int i = 0; i < channel * width * height; i++) {
-        input_data[i] = rand() % 255;
+    #include <stdio.h>
+    #include "bmcv_api_ext_c.h"
+    #include "stdlib.h"
+    #include "string.h"
+    #include <assert.h>
+    #include <float.h>
+    #include <math.h>
+
+    static void read_bin(const char *input_path, unsigned char *input_data, int width, int height) {
+        FILE *fp_src = fopen(input_path, "rb");
+        if (fp_src == NULL) {
+        printf("无法打开输出文件 %s\n", input_path);
+        return;
+        }
+        if(fread(input_data, sizeof(char), width * height, fp_src) != 0) {
+        printf("read image success\n");
+        }
+        fclose(fp_src);
     }
-    bm_image input, output;
-    bm_image_create(handle, height, width, (bm_image_format_ext)format, DATA_TYPE_EXT_1N_BYTE, &input, NULL);
-    bm_image_create(handle, height, width, (bm_image_format_ext)format, DATA_TYPE_EXT_1N_BYTE, &output, NULL);
-    bm_image_alloc_dev_mem(input, 2);
-    bm_image_alloc_dev_mem(output, 2);
-    unsigned char *input_addr[3] = {input_data, input_data + width * height, input_data + width * height * 2};
-    bm_image_copy_host_to_device(input, (void **)(input_addr));
-    if (BM_SUCCESS != bmcv_image_gaussian_blur(handle, input, output, 3, 3, 0.1, 0.1)) {
-        printf("bmcv gaussian blur error !!!\n");
-        bm_image_destroy(&input);
-        bm_image_destroy(&output);
+
+    static void write_bin(const char *output_path, unsigned char *output_data, int width, int height) {
+        FILE *fp_dst = fopen(output_path, "wb");
+        if (fp_dst == NULL) {
+        printf("无法打开输出文件 %s\n", output_path);
+        return;
+        }
+        fwrite(output_data, sizeof(char), width * height, fp_dst);
+        fclose(fp_dst);
+    }
+
+
+
+
+    int main() {
+        int width = 1920;
+        int height = 1080;
+        int format = FORMAT_GRAY;
+        float sigmaX = (float)rand() / RAND_MAX * 5.0f;
+        float sigmaY = (float)rand() / RAND_MAX * 5.0f;
+        int ret = 0;
+        char *input_path = "path/to/input";
+        char *output_path = "path/to/output";
+        bm_handle_t handle;
+        ret = bm_dev_request(&handle, 0);
+        if (ret != BM_SUCCESS) {
+            printf("bm_dev_request failed. ret = %d\n", ret);
+            return -1;
+        }
+
+        int kw = 3, kh = 3;
+
+        unsigned char *input_data = (unsigned char*)malloc(width * height);
+        unsigned char *output_tpu = (unsigned char*)malloc(width * height);
+
+        read_bin(input_path, input_data, width, height);
+
+        bm_image img_i;
+        bm_image img_o;
+
+        bm_image_create(handle, height, width, (bm_image_format_ext)format, DATA_TYPE_EXT_1N_BYTE, &img_i, NULL);
+        bm_image_create(handle, height, width, (bm_image_format_ext)format, DATA_TYPE_EXT_1N_BYTE, &img_o, NULL);
+        bm_image_alloc_dev_mem(img_i, 2);
+        bm_image_alloc_dev_mem(img_o, 2);
+
+        unsigned char *input_addr[3] = {input_data, input_data + height * width, input_data + 2 * height * width};
+        bm_image_copy_host_to_device(img_i, (void **)(input_addr));
+
+        ret = bmcv_image_gaussian_blur(handle, img_i, img_o, kw, kh, sigmaX, sigmaY);
+        unsigned char *output_addr[3] = {output_tpu, output_tpu + height * width, output_tpu + 2 * height * width};
+        bm_image_copy_device_to_host(img_o, (void **)output_addr);
+
+        bm_image_destroy(&img_i);
+        bm_image_destroy(&img_o);
+
+
+        write_bin(output_path, output_tpu, width, height);
+        free(input_data);
+        free(output_tpu);
+
         bm_dev_free(handle);
-        exit(-1);
+        return ret;
     }
-    unsigned char *output_addr[3] = {output_data, output_data + width * height, output_data + width * height * 2};
-    bm_image_copy_device_to_host(output, (void **)output_addr);
-    bm_image_destroy(&input);
-    bm_image_destroy(&output);
-    free(input_data);
-    free(output_data);
-    bm_dev_free(handle);

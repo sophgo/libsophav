@@ -43,9 +43,9 @@ static bm_status_t bmcv_add_weighted_check(bm_handle_t handle, bm_image input1,
         bmlib_log("ADD_WEIGHTED", BMLIB_LOG_ERROR, "Not supported image format");
         return BM_NOT_SUPPORTED;
     }
-    if (src1_type != DATA_TYPE_EXT_1N_BYTE ||
-        src2_type != DATA_TYPE_EXT_1N_BYTE ||
-        dst_type != DATA_TYPE_EXT_1N_BYTE) {
+    if ((src1_type != DATA_TYPE_EXT_1N_BYTE && src1_type != DATA_TYPE_EXT_FLOAT32) ||
+        (src2_type != DATA_TYPE_EXT_1N_BYTE && src2_type != DATA_TYPE_EXT_FLOAT32) ||
+        (dst_type != DATA_TYPE_EXT_1N_BYTE && dst_type != DATA_TYPE_EXT_FLOAT32)) {
         bmlib_log("ADD_WEIGHTED", BMLIB_LOG_ERROR, "Not supported image data type");
         return BM_NOT_SUPPORTED;
     }
@@ -131,6 +131,7 @@ bm_status_t bmcv_image_add_weighted(bm_handle_t handle, bm_image input1, float a
         api.input2_str[0] /= 3;
         api.output_str[0] /= 3;
     }
+    api.data_type = input1.data_type;
     api.alpha = alpha;
     api.beta = beta;
     api.gamma = gamma;

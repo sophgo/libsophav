@@ -23,17 +23,25 @@ static int flag = 0;
 static int use_bilinear = 0;
 static bm_handle_t handle;
 
-void inverse_matrix(int n, float arcs[3][3], float astar[3][3]);
+extern int get_source_idx(int idx, int *matrix, int image_n);
+extern int bmcv_warp_perspective_ref(
+    // input
+    unsigned char* src_image,
+    float* trans_mat,
+    int matrix_num[4],
+    int image_n,
+    int image_c,
+    int image_sh,
+    int image_sw,
+    int image_dh,
+    int image_dw,
+    int use_bilinear,
+    // output
+    int* map,
+    unsigned char* dst_image,
+    float* tensor_S);
 
-static int get_source_idx(int idx, int *matrix, int image_n) {
-    for (int i = 0; i < image_n; i++) {
-        if (idx < matrix[i]) {
-            return i;
-        }
-    }
-    printf("Error:get source idx error\n");
-    exit(-1);
-}
+void inverse_matrix(int n, float arcs[3][3], float astar[3][3]);
 
 static void my_get_perspective_transform(int* sx, int* sy, int dw, int dh, float* matrix) {
     int A = sx[3] + sx[0] - sx[1] - sx[2];
@@ -284,242 +292,6 @@ static int bmcv_warp_perspective_cmp(
         if (ret != 0) {
             return ret;
         }
-    }
-    return ret;
-}
-
-static int bmcv_perspective_bilinear_1n_ref(
-                                    // input
-                                    unsigned char *src_image,
-                                    float *        trans_mat,
-                                    int            image_c,
-                                    int            image_sh,
-                                    int            image_sw,
-                                    int            image_dh,
-                                    int            image_dw,
-                                    // output
-                                    float          *map,
-                                    unsigned char  *dst_image,
-                                    float*     tensor_S) {
-    UNUSED(image_c);
-    float* tensor_SX = tensor_S;
-    float* tensor_SY = tensor_SX + image_dh * image_dw;
-    float *tensor_DX = map;
-    float *tensor_DY = tensor_DX + image_dh * image_dw;
-    int dst_w = image_dw;
-    int dst_h = image_dh;
-    int src_w = image_sw;
-    int src_h = image_sh;
-    float m0 = trans_mat[0];
-    float m1 = trans_mat[1];
-    float m2 = trans_mat[2];
-    float m3 = trans_mat[3];
-    float m4 = trans_mat[4];
-    float m5 = trans_mat[5];
-    float m6 = trans_mat[6];
-    float m7 = trans_mat[7];
-    float m8 = trans_mat[8];
-
-    // generate the input for calculate coordinate map.
-    for (int y = 0; y < dst_h; y++) {
-        for (int x = 0; x < dst_w; x++) {
-            tensor_SX[y * dst_w + x] = (float)x;
-            tensor_SY[y * dst_w + x] = (float)y;
-        }
-    }
-    // calculate coordinate map.
-    for (int y = 0; y < dst_h; y++) {
-        for (int x = 0; x < dst_w; x++) {
-            float dx = tensor_SX[y * dst_w + x] * m0 +
-                       tensor_SY[y * dst_w + x] * m1 + m2;
-            float dy = tensor_SX[y * dst_w + x] * m3 +
-                       tensor_SY[y * dst_w + x] * m4 + m5;
-            float dz = tensor_SX[y * dst_w + x] * m6 +
-                       tensor_SY[y * dst_w + x] * m7 + m8;
-            dx = dx / dz;
-            dy = dy / dz;
-
-            tensor_DX[y * dst_w + x] = dx;
-            tensor_DY[y * dst_w + x] = dy;
-        }
-    }
-    int w_stride = 1;
-    int src_w_stride = src_w * w_stride;
-    int dst_w_stride = dst_w * w_stride;
-
-    // warp in source image directly.
-    unsigned char *sb = src_image;
-    unsigned char *sg = sb + src_w_stride * src_h;
-    unsigned char *sr = sg + src_w_stride * src_h;
-    unsigned char *db = dst_image;
-    unsigned char *dg = db + dst_w_stride * dst_h;
-    unsigned char *dr = dg + dst_w_stride * dst_h;
-    tensor_DX         = map;
-    tensor_DY         = tensor_DX + dst_h * dst_w;
-    for (int y = 0; y < dst_h; y++) {
-        for (int x = 0; x < dst_w; x++) {
-            float sx = tensor_DX[y * dst_w + x];
-            float sy = tensor_DY[y * dst_w + x];
-            db[y * dst_w_stride + x * w_stride] =
-                fetch_pixel_2(sx, sy, 0, image_sw, image_sh, sb);
-            dg[y * dst_w_stride + x * w_stride] =
-                fetch_pixel_2(sx, sy, 0, image_sw, image_sh, sg);
-            dr[y * dst_w_stride + x * w_stride] =
-                fetch_pixel_2(sx, sy, 0, image_sw, image_sh, sr);
-        }
-    }
-    return 0;
-}
-
-static int bmcv_perspective_nearest_1n_ref(
-                                    // input
-                                    unsigned char *src_image,
-                                    float *        trans_mat,
-                                    int            image_c,
-                                    int            image_sh,
-                                    int            image_sw,
-                                    int            image_dh,
-                                    int            image_dw,
-                                    // output
-                                    int *map,
-                                    unsigned char * dst_image) {
-    UNUSED(image_c);
-    float* tensor_S = (float*)malloc(image_dh *image_dw * 2 * sizeof(float));
-    float*     tensor_SX  = tensor_S;
-    float*     tensor_SY  = tensor_SX + image_dh * image_dw;
-    int        *tensor_DX = map;
-    int        *tensor_DY = tensor_DX + image_dh * image_dw;
-    int        dst_w      = image_dw;
-    int        dst_h      = image_dh;
-    int        src_w      = image_sw;
-    int        src_h      = image_sh;
-    float      m0         = trans_mat[0];
-    float      m1         = trans_mat[1];
-    float      m2         = trans_mat[2];
-    float      m3         = trans_mat[3];
-    float      m4         = trans_mat[4];
-    float      m5         = trans_mat[5];
-    float      m6         = trans_mat[6];
-    float      m7         = trans_mat[7];
-    float      m8         = trans_mat[8];
-
-    // generate the input for calculate coordinate map.
-    for (int y = 0; y < dst_h; y++) {
-        for (int x = 0; x < dst_w; x++) {
-            tensor_SX[y * dst_w + x] = (float)x;
-            tensor_SY[y * dst_w + x] = (float)y;
-        }
-    }
-    // calculate coordinate map.
-    for (int y = 0; y < dst_h; y++) {
-        for (int x = 0; x < dst_w; x++) {
-            float dx = tensor_SX[y * dst_w + x] * m0 +
-                       tensor_SY[y * dst_w + x] * m1 + m2;
-            float dy = tensor_SX[y * dst_w + x] * m3 +
-                       tensor_SY[y * dst_w + x] * m4 + m5;
-            float dz = tensor_SX[y * dst_w + x] * m6 +
-                       tensor_SY[y * dst_w + x] * m7 + m8;
-
-            dx = dx / dz;
-            dy = dy / dz;
-
-            tensor_DX[y * dst_w + x] = (int)(dx + 0.5f);
-            tensor_DY[y * dst_w + x] = (int)(dy + 0.5f);
-            tensor_DX[y * dst_w + x] =
-                BM_MIN(tensor_DX[y * dst_w + x], image_sw - 1);
-            tensor_DX[y * dst_w + x] =
-                BM_MAX(tensor_DX[y * dst_w + x], 0);
-            tensor_DY[y * dst_w + x] =
-                BM_MIN(tensor_DY[y * dst_w + x], image_sh - 1);
-            tensor_DY[y * dst_w + x] =
-                BM_MAX(tensor_DY[y * dst_w + x], 0);
-        }
-    }
-
-    int w_stride = 1;
-    int src_w_stride = src_w * w_stride;
-    int dst_w_stride = dst_w * w_stride;
-
-    // warp in source image directly.
-    unsigned char *sb = src_image;
-    unsigned char *sg = sb + src_w_stride * src_h;
-    unsigned char *sr = sg + src_w_stride * src_h;
-    unsigned char *db = dst_image;
-    unsigned char *dg = db + dst_w_stride * dst_h;
-    unsigned char *dr = dg + dst_w_stride * dst_h;
-    tensor_DX         = map;
-    tensor_DY         = tensor_DX + dst_h * dst_w;
-
-    for (int y = 0; y < dst_h; y++) {
-        for (int x = 0; x < dst_w; x++) {
-            unsigned short  sx = tensor_DX[y * dst_w + x];
-            unsigned short  sy = tensor_DY[y * dst_w + x];
-            db[y * dst_w_stride + x * w_stride] =
-                sb[sy * src_w_stride + sx * w_stride];
-            dg[y * dst_w_stride + x * w_stride] =
-                sg[sy * src_w_stride + sx * w_stride];
-            dr[y * dst_w_stride + x * w_stride] =
-                sr[sy * src_w_stride + sx * w_stride];
-        }
-    }
-    free(tensor_S);
-    return 0;
-}
-
-static int bmcv_warp_perspective_ref(
-    // input
-    unsigned char* src_image,
-    float* trans_mat,
-    int matrix_num[4],
-    int image_n,
-    int image_c,
-    int image_sh,
-    int image_sw,
-    int image_dh,
-    int image_dw,
-    int use_bilinear,
-    // output
-    int* map,
-    unsigned char* dst_image,
-    float* tensor_S)
-{
-    int output_num = 0;
-    int matrix_sigma[4] = {0};
-    bm_status_t ret = BM_SUCCESS;
-    for (int i = 0; i < image_n; i++) {
-        output_num += matrix_num[i];
-        matrix_sigma[i] = output_num;
-    }
-    for (int i = 0; i < output_num; i++) {
-        int s_idx = get_source_idx(i, matrix_sigma, image_n);
-        int src_offset = s_idx * image_c * image_sh * image_sw;
-        int dst_offset = i * image_c * image_dh * image_dw;
-        if (use_bilinear)
-            ret = bmcv_perspective_bilinear_1n_ref(
-                    src_image + src_offset,
-                    trans_mat + i * 9,
-                    image_c,
-                    image_sh,
-                    image_sw,
-                    image_dh,
-                    image_dw,
-                    (float*)map + i * image_dh * image_dw * 2,
-                    dst_image + dst_offset,
-                    tensor_S);
-        else
-            ret = bmcv_perspective_nearest_1n_ref(
-                    src_image + src_offset,
-                    trans_mat + i * 9,
-                    image_c,
-                    image_sh,
-                    image_sw,
-                    image_dh,
-                    image_dw,
-                    map + i * image_dh * image_dw * 2,
-                    dst_image + dst_offset);
-
-        if (ret != BM_SUCCESS)
-            return ret;
     }
     return ret;
 }

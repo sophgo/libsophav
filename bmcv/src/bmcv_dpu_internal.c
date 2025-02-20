@@ -1,3 +1,4 @@
+#ifndef BM_PCIE_MODE
 #include <stdio.h>
 #include "bmcv_internal.h"
 #include "bmcv_a2_dpu_ext.h"
@@ -208,3 +209,4 @@ bm_status_t bmcv_dpu_online_disp( bm_handle_t         handle,
 
     return ret;
 }
+#endif

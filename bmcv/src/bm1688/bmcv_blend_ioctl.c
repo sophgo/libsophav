@@ -1,3 +1,4 @@
+#ifndef BM_PCIE_MODE
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
@@ -124,3 +125,4 @@ int stitch_get_available_grp(int fd, stitch_grp *grp_id)
 {
     return ioctl(fd, STITCH_GET_AVAIL_GROUP, grp_id);
 }
+#endif

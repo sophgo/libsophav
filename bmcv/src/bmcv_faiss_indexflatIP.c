@@ -28,7 +28,16 @@ bm_status_t bmcv_faiss_indexflatIP(bm_handle_t handle,
     api.transpose = is_transpose;
     api.input_dtype = input_dtype;
     api.output_dtype = output_dtype;
-
+    if(database_vecs_num < sort_cnt){
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "faiss_api_indexflatIP database_vecs_num(%d) < sort_cnt(%d), %s: %s: %d\n",
+                                        database_vecs_num, sort_cnt, filename(__FILE__), __func__, __LINE__);
+        return BM_NOT_SUPPORTED;
+    }
+    if(database_vecs_num < query_vecs_num){
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "faiss_api_indexflatIP database_vecs_num(%d) < query_vecs_num(%d), %s: %s: %d\n",
+                                        database_vecs_num, sort_cnt, filename(__FILE__), __func__, __LINE__);
+        return BM_NOT_SUPPORTED;
+    }
     int core_id = 0;
     bm_status_t ret = BM_SUCCESS;
     unsigned int chipid;

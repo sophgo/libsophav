@@ -8,6 +8,12 @@
 #include <pthread.h>
 #include "bmcv_api_ext_c.h"
 
+typedef struct {
+    int idx;
+    int trials;
+    bm_handle_t handle;
+} convert_to_thread_arg_t;
+
 typedef enum {
     UINT8_C1 = 0,
     UINT8_C3,
@@ -23,12 +29,6 @@ typedef enum {
 } convert_storage_mode_e;
 
 typedef struct {
-    int idx;
-    int trials;
-    bm_handle_t handle;
-} convert_to_thread_arg_t;
-
-typedef struct {
     float alpha;
     float beta;
 } convert_to_arg_t;
@@ -42,11 +42,6 @@ typedef struct {
     int h;
 } image_shape_t;
 
-#define BM1688_MAX_W (2048)
-#define BM1688_MAX_H (2048)
-#define MIN_W (16)
-#define MIN_H (16)
-
 #define __ALIGN_MASK(x, mask) (((x) + (mask)) & ~(mask))
 
 #ifdef __linux__
@@ -55,9 +50,41 @@ typedef struct {
 #define ALIGN(x, a) __ALIGN_MASK(x, (int)(a)-1)
 #endif
 
+extern int32_t convert_to_ref_float( float            *src,
+                              float            *dst,
+                              convert_to_arg_t *convert_to_arg,
+                              int               image_num,
+                              int               image_channel,
+                              int               image_h,
+                              int               image_w_stride,
+                              int               image_w,
+                              int               convert_format);
+extern int32_t convert_to_ref_int8( signed char            *src,
+                             signed char            *dst,
+                             convert_to_arg_t *convert_to_arg,
+                             int               image_num,
+                             int               image_channel,
+                             int               image_h,
+                             int               image_w_stride,
+                             int               image_w,
+                             int               convert_format);
+
+#define BM1688_MAX_W (2048)
+#define BM1688_MAX_H (2048)
+#define MIN_W (16)
+#define MIN_H (16)
+
+#define __ALIGN_MASK(x, mask) (((x) + (mask)) & ~(mask))
+
+#ifdef __linux__
+// #define ALIGN(x, a) __ALIGN_MASK(x, (__typeof__(x))(a)-1)
+#else
+#define ALIGN(x, a) __ALIGN_MASK(x, (int)(a)-1)
+#endif
+
 #define TIME_COST_US(start, end) ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec))
 
-typedef enum { MIN_TEST = 0, MAX_TEST, RAND_TEST, MAX_RAND_MODE } rand_mode_e;
+typedef enum { MIN_TEST = 0, MAX_TEST, RAND_TEST, my_MAX_RAND_MODE } my_rand_mode_e;
 
 static int parameters_check(int test_loop_times, int test_threads_num)
 {
@@ -177,79 +204,6 @@ int32_t bmcv_convert_to_cmp_int8(signed char *p_exp,
         }
 
     }
-    return 0;
-}
-
-int32_t convert_to_ref_float( float            *src,
-                              float            *dst,
-                              convert_to_arg_t *convert_to_arg,
-                              int               image_num,
-                              int               image_channel,
-                              int               image_h,
-                              int               image_w_stride,
-                              int               image_w,
-                              int               convert_format){
-    int image_len = image_num * image_channel * image_w_stride * image_h;
-    float *temp_old_buf = malloc(image_len * sizeof(float));
-    memcpy(temp_old_buf, src, sizeof(float) * image_len);
-
-    for(int n_idx = 0; n_idx < image_num; n_idx++){
-        for(int c_idx = 0; c_idx < image_channel; c_idx++){
-            for(int y = 0; y < image_h; y++){
-                for(int x = 0; x < image_w; x++){
-                    int check_idx = (n_idx * image_channel + c_idx) * image_w * image_h +
-                                     y * image_w + x;
-                    int src_check_idx = (n_idx * image_channel + c_idx) *
-                                         image_w_stride * image_h +
-                                         y * image_w_stride + x;
-                    float temp = 0.0;
-                    temp = (temp_old_buf[src_check_idx]) * convert_to_arg[c_idx].alpha +
-                            convert_to_arg[c_idx].beta;
-                    dst[check_idx] = (float) round (temp);
-                }
-
-            }
-        }
-    }
-
-    free(temp_old_buf);
-    return 0;
-}
-
-int32_t convert_to_ref_int8( signed char            *src,
-                             signed char            *dst,
-                             convert_to_arg_t *convert_to_arg,
-                             int               image_num,
-                             int               image_channel,
-                             int               image_h,
-                             int               image_w_stride,
-                             int               image_w,
-                             int               convert_format){
-    int image_len = image_num * image_channel * image_w_stride * image_h;
-    signed char *temp_old_buf = malloc(image_len * sizeof(signed char));
-    memcpy(temp_old_buf, src, sizeof(signed char) * image_len);
-
-    for(int n_idx = 0; n_idx < image_num; n_idx++){
-        for(int c_idx = 0; c_idx < image_channel; c_idx++){
-            for(int y = 0; y < image_h; y++){
-                for(int x = 0; x < image_w; x++){
-                    int check_idx = (n_idx * image_channel + c_idx) * image_w * image_h +
-                                     y * image_w + x;
-                    int src_check_idx = (n_idx * image_channel + c_idx) *
-                                         image_w_stride * image_h +
-                                         y * image_w_stride + x;
-                    float temp = 0.0;
-                    temp = (temp_old_buf[src_check_idx]) * convert_to_arg[c_idx].alpha +
-                            convert_to_arg[c_idx].beta;
-                    temp = (temp > 127) ? (127)
-                                            : ((temp < -128) ? (-128) : (temp));
-                    dst[check_idx] = (signed char) round (temp);
-                }
-            }
-        }
-    }
-
-    free(temp_old_buf);
     return 0;
 }
 
@@ -780,7 +734,7 @@ DWORD WINAPI test_convert_to_thread(LPVOID arg)
                 printf("---------CONVERT TO CORNER TEST---------- \n");
                 int rand_loop_num = 2;
                 for(int rand_loop_idx = 0; rand_loop_idx < rand_loop_num; rand_loop_idx++){
-                    for(int rand_mode = 0; rand_mode < MAX_RAND_MODE; rand_mode++){
+                    for(int rand_mode = 0; rand_mode < my_MAX_RAND_MODE; rand_mode++){
                         gen_test_size(chipid,
                                       &image_shape.w,
                                       &image_shape.h,

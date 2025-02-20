@@ -20,6 +20,12 @@ typedef struct {
     bm_handle_t handle;
 } cv_quantify_thread_arg_t;
 
+extern int quantify_cpu(
+        float* input,
+        unsigned char* output,
+        int height,
+        int width);
+
 static int parameters_check(int height, int width)
 {
     if (height > 4096 || width > 4096){
@@ -71,23 +77,6 @@ static void fill(
             }
         }
     }
-}
-
-static int quantify_cpu(
-        float* input,
-        unsigned char* output,
-        int height,
-        int width) {
-    for(int i = 0; i < width * height * 3; i++) {
-        if (input[i] < 0.0f) {
-            output[i] = 0;
-        } else if(input[i] > 255.0f) {
-            output[i] = 255;
-        } else {
-            output[i] = (unsigned char)input[i];
-        }
-    }
-    return 0;
 }
 
 static int quantify_tpu(

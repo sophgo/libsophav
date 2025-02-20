@@ -843,6 +843,12 @@ typedef struct
      * 0 disables skipped frame generation. Default value is 0. */
     int skip_frame;
 
+    /* A flag to use a force picture type */
+    int       forcePicTypeEnable;
+    /* A force picture type (I, P, B, IDR, CRA).
+     * It is valid when forcePicTypeEnable is 1. */
+    int       forcePicType;
+
     /* Functions for acquiring and finishing output buffers. See the
      * typedef documentations above for details about how these
      * functions should behave, and the bmvpu_enc_encode()
@@ -938,7 +944,7 @@ DECL_EXPORT int bmvpu_enc_get_core_idx(int soc_idx);
 DECL_EXPORT int bmvpu_enc_load(int soc_idx);
 DECL_EXPORT int bmvpu_enc_unload(int soc_idx);
 
-DECL_EXPORT int bmvpu_get_ext_addr();
+DECL_EXPORT int bmvpu_get_ext_addr(void);
 
 /* Called before bmvpu_enc_open(), it returns the alignment and size for the
  * physical memory block necessary for the encoder's bitstream buffer.

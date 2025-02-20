@@ -141,6 +141,7 @@ typedef struct bm_api_cv_add_weighted {
   int input1_str[3];
   int input2_str[3];
   int output_str[3];
+  int data_type;
   float alpha;
   float beta;
   float gamma;
@@ -222,6 +223,15 @@ typedef struct bm_api_laplacian {
   float delta;
   int is_packed;
 } __attribute__((packed)) bm_api_laplacian_t;
+
+typedef struct sg_api_cv_rotate {
+  int channel;
+  int rotation_angle;
+  u64 input_addr[3];
+  u64 output_addr[3];
+  int width;
+  int height;
+} sg_api_cv_rotate_t;
 
 typedef struct bm_api_cv_as_strided {
   u64 input_addr;
@@ -560,7 +570,7 @@ typedef struct {
     bool  realInput;
     int   trans;
     int   factorSize;
-    int   factors[10];
+    int   factors[15];
     bool  normalize;
 } __attribute__((aligned(4))) bm_api_cv_fft_t;
 
@@ -596,6 +606,56 @@ typedef struct {
     int output_dtype;
 } __attribute__((packed)) faiss_api_indexflatL2_t;
 
+typedef struct
+{
+    unsigned long long centroids_global_addr;
+    unsigned long long nxquery_global_addr;
+    unsigned long long nycodes_global_addr;
+    unsigned long long output_distance_global_addr;
+    unsigned long long output_distance_global_tmp_addr;
+    unsigned long long output_index_global_addr;
+    int d;
+    int m;
+    int ksub;
+    int ny;
+    int nx;
+    int k;
+    int IP_metric;
+    int input_dtype;
+    int output_dtype;
+} __attribute__((packed)) faiss_api_indexPQ_ADC_t;
+typedef struct
+{
+    unsigned long long sdc_table_global_addr;
+    unsigned long long nxcodes_global_addr;
+    unsigned long long nycodes_global_addr;
+    unsigned long long output_distance_global_addr;
+    unsigned long long output_distance_global_tmp_addr;
+    unsigned long long output_index_global_addr;
+    int m;
+    int ksub;
+    int ny;
+    int nx;
+    int k;
+    int IP_metric;
+    int input_dtype;
+    int output_dtype;
+} __attribute__((packed)) faiss_api_indexPQ_SDC_t;
+typedef struct
+{
+    unsigned long long vector_input_global_addr;
+    unsigned long long centroids_global_addr;
+    unsigned long long buffer_table_global_addr;
+    unsigned long long buffer_table_global_tmp_addr;
+    unsigned long long codes_output_global_addr;
+    int nv;
+    int d;
+    int m;
+    int ksub;
+    int IP_metric;
+    int input_dtype;
+    int output_dtype;
+} __attribute__((packed)) faiss_api_indexPQ_encode_t;
 
 #ifdef _WIN32
 

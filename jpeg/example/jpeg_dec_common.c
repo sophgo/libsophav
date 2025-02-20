@@ -1,4 +1,5 @@
 #include <sys/time.h>
+#include <string.h>
 
 #include "jpeg_dec_common.h"
 #include "bm_ioctl.h"
@@ -136,7 +137,7 @@ BmJpuDecReturnCodes start_decode(BmJpuJPEGDecoder *jpeg_decoder, uint8_t *bs_buf
         /* convert md5 value to md5 string */
         char md5_str[MD5_STRING_LENGTH + 1];
         for (i = 0; i < MD5_DIGEST_LENGTH; i++) {
-            snprintf(md5_str + i*2, 3, "%02x", out_md5 + i);
+            snprintf(md5_str + i*2, 3, "%02x", out_md5[i]);
         }
         fprintf(stdout, "output file md5: %s\n", md5_str);
 

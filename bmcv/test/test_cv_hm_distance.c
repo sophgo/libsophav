@@ -24,6 +24,9 @@ typedef struct {
     bm_handle_t handle;
 } hm_distance_thread_arg_t;
 
+extern void native_cal_hammingDistance(int *input1, int *input2, int *output, int bits_len,
+                                       int input1_num, int input2_num);
+
 static int parameters_check(int input1_num, int input2_num)
 {
     int error = 0;
@@ -37,28 +40,6 @@ static int parameters_check(int input1_num, int input2_num)
     }
 
     return error;
-}
-
-static int hammingDistance(int x, int y) {
-    int cnt = 0;
-    int z = x ^ y;
-    while (z != 0) {
-        cnt += z & 1;
-        z = z >> 1;
-    }
-    return cnt;
-}
-
-static void native_cal_hammingDistance(int *input1, int *input2, int *output, int bits_len,
-                                       int input1_num, int input2_num) {
-    for (int i = 0; i < input1_num; i++) {
-        for(int j = 0; j < input2_num; j++) {
-                for(int d = 0; d < bits_len; d++) {
-                    output[i * input2_num + j] +=
-                    hammingDistance(input1[i * bits_len + d], input2[j * bits_len + d]);
-            }
-        }
-    }
 }
 
 static int array_cmp_int32(int *p_exp, int *p_got, int len, const char *info_label, int delta) {

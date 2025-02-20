@@ -143,32 +143,32 @@ static bm_status_t per_image_deal_bilinear(bm_handle_t handle,
     param.output_image_addr = bm_mem_get_device_addr(tensor_output);
     param.input_image_addr = bm_mem_get_device_addr(tensor_input);
 
-    ret = bm_malloc_device_byte(handle, &tensor_temp_r, input.height * input.width * 4);
     int index_size_temp = image_dw > image_dh ? ALIGN(image_dw, 64) : ALIGN(image_dh, 64);
+    ret = bm_malloc_device_byte(handle, &tensor_temp_r, index_size_temp * index_size_temp * image_c * 4);
     if (BM_SUCCESS != ret) {
         printf("bm_malloc error\n");
         goto ERR_0;
     }
 
-    ret = bm_malloc_device_byte(handle, &tensor_temp_g, input.height * input.width * 4);
+    ret = bm_malloc_device_byte(handle, &tensor_temp_g, index_size_temp * index_size_temp * image_c * 4);
     if (BM_SUCCESS != ret) {
         printf("bm_malloc error\n");
         goto ERR_1;
     }
 
-    ret = bm_malloc_device_byte(handle, &tensor_temp_b, input.height * input.width * 4);
+    ret = bm_malloc_device_byte(handle, &tensor_temp_b, index_size_temp * index_size_temp * image_c * 4);
     if (BM_SUCCESS != ret) {
         printf("bm_malloc error\n");
         goto ERR_2;
     }
 
-    ret = bm_malloc_device_byte(handle, &tensor_out_align_a, output.height * output.width * 4);
+    ret = bm_malloc_device_byte(handle, &tensor_out_align_a, index_size_temp * index_size_temp * image_c * 4);
     if (BM_SUCCESS != ret) {
         printf("bm_malloc error\n");
         goto ERR_3;
     }
 
-    ret = bm_malloc_device_byte(handle, &tensor_out_align_b, output.height * output.width * 4);
+    ret = bm_malloc_device_byte(handle, &tensor_out_align_b, index_size_temp * index_size_temp * image_c * 4);
     if (BM_SUCCESS != ret) {
         printf("bm_malloc error\n");
         goto ERR_4;
@@ -257,6 +257,282 @@ ERR_0:
     bm_free_device(handle, tensor_temp_r);
 
   return ret;
+}
+
+static bm_status_t per_image_deal_nearest_padding(bm_handle_t handle,
+                        int image_dh,
+                        int image_dw,
+                        bm_image input,
+                        bm_image output,
+                        bm_device_mem_t tensor_output,
+                        bmcv_affine_image_matrix matrix){
+    int image_c = 3;
+    bm_device_mem_t tensor_input;
+    bm_device_mem_t tensor_temp;
+    bm_device_mem_t tensor_S;
+    bm_device_mem_t tensor_out_align;
+    bm_status_t ret = BM_SUCCESS;
+    bm_image_get_device_mem(input, &tensor_input);
+    bm_image_get_device_mem(output, &tensor_output);
+    sg_api_cv_warp_t param;
+    int image_sh = input.height;
+    int image_sw = input.width;
+    param.output_image_addr = bm_mem_get_device_addr(tensor_output);
+    param.input_image_addr = bm_mem_get_device_addr(tensor_input);
+    ret = bm_malloc_device_byte(handle, &tensor_temp, input.height * input.width * 2);
+    if (BM_SUCCESS != ret) {
+        printf("bm_malloc error\n");
+        return ret;
+    }
+    ret = bm_malloc_device_byte(handle, &tensor_out_align, output.height * output.width * 2);
+    if (BM_SUCCESS != ret) {
+        printf("bm_malloc error\n");
+        bm_free_device(handle, tensor_temp);
+        return ret;
+    }
+    param.input_image_addr_align = bm_mem_get_device_addr(tensor_temp);
+    param.out_image_addr_align   = bm_mem_get_device_addr(tensor_out_align);
+    param.image_n  = NO_USE;
+    param.image_c  = (input.image_format == FORMAT_BGR_PLANAR || input.image_format == FORMAT_RGB_PLANAR) ? 3 : 1;
+    param.image_sh = image_sh;
+    param.image_sw = image_sw;
+    param.image_dh = image_dh;
+    param.image_dw = image_dw;
+    param.type = 0;   // 0: affine_nearest
+
+    for (int i = 0;i < 6;i++){
+        param.m.m[i] = matrix.matrix->m[i];
+    }
+
+    int tmp_stride;
+    bm_image_get_stride(input, &(tmp_stride));
+    param.src_w_stride = tmp_stride;
+    int index_size_temp = image_dw > image_dh ? ALIGN(image_dw, 64) : ALIGN(image_dh, 64);
+    ret = bm_malloc_device_byte(handle, &tensor_S, index_size_temp * index_size_temp * image_c * 4);
+    // ret = bm_malloc_device_byte(handle, &tensor_S, image_dh * image_dw * image_c * 4);
+    if(BM_SUCCESS != ret) {
+        printf("bm_malloc error\n");
+        bm_free_device(handle, tensor_temp);
+        bm_free_device(handle, tensor_out_align);
+        return ret;
+    }
+    param.index_image_addr = bm_mem_get_device_addr(tensor_S);
+    bm_image_get_stride(output, &(tmp_stride));
+    param.dst_w_stride = tmp_stride;
+    int core_id = 0;
+    ret = bm_tpu_kernel_launch(handle, "sg_cv_warp_affine_1688_nearest_padding", (u8 *)&param, sizeof(param), core_id);
+    if(BM_SUCCESS != ret){
+        printf("sg_cv_warp_affine_1688_nearest_padding error\n");
+        bm_free_device(handle, tensor_temp);
+        bm_free_device(handle, tensor_out_align);
+        return ret;
+    }
+
+    bm_free_device(handle, tensor_S);
+    bm_free_device(handle, tensor_temp);
+    bm_free_device(handle, tensor_out_align);
+    return BM_SUCCESS;
+}
+
+static bm_status_t per_image_deal_bilinear_padding(bm_handle_t handle,
+                        int image_dh,
+                        int image_dw,
+                        bm_image input,
+                        bm_image output,
+                        bm_device_mem_t tensor_output,
+                        bmcv_affine_image_matrix matrix,
+                        bm_image_data_format_ext input_format,
+                        bm_image_data_format_ext output_format){
+    int image_c = 3;
+    bm_device_mem_t tensor_input;
+    bm_device_mem_t tensor_temp_r;
+    bm_device_mem_t tensor_temp_g;
+    bm_device_mem_t tensor_temp_b;
+    bm_device_mem_t tensor_S;
+    bm_device_mem_t tensor_sys_lu;
+    bm_device_mem_t tensor_sys_ld;
+    bm_device_mem_t tensor_sys_ru;
+    bm_device_mem_t tensor_sys_rd;
+    bm_device_mem_t tensor_out_align_a;
+    bm_device_mem_t tensor_out_align_b;
+    bm_status_t ret = BM_SUCCESS;
+    bm_image_get_device_mem(input, &tensor_input);
+    bm_image_get_device_mem(output, &tensor_output);
+    sg_api_cv_warp_bilinear_t param;
+    int image_sh = input.height;
+    int image_sw = input.width;
+    param.output_image_addr = bm_mem_get_device_addr(tensor_output);
+    param.input_image_addr = bm_mem_get_device_addr(tensor_input);
+
+    int index_size_temp = image_dw > image_dh ? ALIGN(image_dw, 64) : ALIGN(image_dh, 64);
+    ret = bm_malloc_device_byte(handle, &tensor_temp_r, index_size_temp * index_size_temp * image_c * 4);
+    if (BM_SUCCESS != ret) {
+        printf("bm_malloc error\n");
+        goto ERR_0;
+    }
+
+    ret = bm_malloc_device_byte(handle, &tensor_temp_g, index_size_temp * index_size_temp * image_c * 4);
+    if (BM_SUCCESS != ret) {
+        printf("bm_malloc error\n");
+        goto ERR_1;
+    }
+
+    ret = bm_malloc_device_byte(handle, &tensor_temp_b, index_size_temp * index_size_temp * image_c * 4);
+    if (BM_SUCCESS != ret) {
+        printf("bm_malloc error\n");
+        goto ERR_2;
+    }
+
+    ret = bm_malloc_device_byte(handle, &tensor_out_align_a, index_size_temp * index_size_temp * image_c * 4);
+    if (BM_SUCCESS != ret) {
+        printf("bm_malloc error\n");
+        goto ERR_3;
+    }
+
+    ret = bm_malloc_device_byte(handle, &tensor_out_align_b, index_size_temp * index_size_temp * image_c * 4);
+    if (BM_SUCCESS != ret) {
+        printf("bm_malloc error\n");
+        goto ERR_4;
+    }
+
+    param.input_image_addr_align_r = bm_mem_get_device_addr(tensor_temp_r);
+    param.input_image_addr_align_g = bm_mem_get_device_addr(tensor_temp_g);
+    param.input_image_addr_align_b = bm_mem_get_device_addr(tensor_temp_b);
+    param.out_image_addr_align_a   = bm_mem_get_device_addr(tensor_out_align_a);
+    param.out_image_addr_align_b   = bm_mem_get_device_addr(tensor_out_align_b);
+    param.image_sh = image_sh;
+    param.image_sw = image_sw;
+    param.image_dh = image_dh;
+    param.image_dw = image_dw;
+    param.image_c = (input.image_format == FORMAT_BGR_PLANAR || input.image_format == FORMAT_RGB_PLANAR) ? 3 : 1;
+    param.input_format  = (bm_image_data_format_ext)input_format;
+    param.output_format = (bm_image_data_format_ext)output_format;
+    param.type = 0;   // 0: affine_nearest
+
+    for (int i = 0;i < 6;i++){
+        param.m.m[i] = matrix.matrix->m[i];
+    }
+
+    // ret = bm_malloc_device_byte(handle, &tensor_S, image_dh * image_dw * image_c * 4);
+    ret = bm_malloc_device_byte(handle, &tensor_S, index_size_temp * index_size_temp * image_c * 4);
+    if(BM_SUCCESS != ret) {
+        printf("bm_malloc error\n");
+        goto ERR_5;
+    }
+
+    ret = bm_malloc_device_byte(handle, &tensor_sys_lu, image_dh * image_dw * image_c * 4);
+    if(BM_SUCCESS != ret) {
+        printf("bm_malloc error\n");
+        goto ERR_6;
+    }
+
+    ret = bm_malloc_device_byte(handle, &tensor_sys_ld, image_dh * image_dw * image_c * 4);
+    if(BM_SUCCESS != ret) {
+        printf("bm_malloc error\n");
+        goto ERR_6;
+    }
+
+    ret = bm_malloc_device_byte(handle, &tensor_sys_ru, image_dh * image_dw * image_c * 4);
+    if(BM_SUCCESS != ret) {
+        printf("bm_malloc error\n");
+        goto ERR_7;
+    }
+
+    ret = bm_malloc_device_byte(handle, &tensor_sys_rd, image_dh * image_dw * image_c * 4);
+    if(BM_SUCCESS != ret) {
+        printf("bm_malloc error\n");
+        goto ERR_8;
+    }
+
+    param.index_image_addr = bm_mem_get_device_addr(tensor_S);
+    param.system_image_addr_lu = bm_mem_get_device_addr(tensor_sys_lu);
+    param.system_image_addr_ld = bm_mem_get_device_addr(tensor_sys_ld);
+    param.system_image_addr_ru = bm_mem_get_device_addr(tensor_sys_ru);
+    param.system_image_addr_rd = bm_mem_get_device_addr(tensor_sys_rd);
+    int core_id = 0;
+    ret = bm_tpu_kernel_launch(handle, "cv_api_warp_affine_bilinear_1684x_padding", &param, sizeof(param), core_id);
+    if(ret != BM_SUCCESS){
+        printf("cv_api_warp_affine_bilinear_1684x_padding error\n");
+        goto ERR_9;
+    }
+
+ERR_9:
+    bm_free_device(handle, tensor_sys_rd);
+ERR_8:
+    bm_free_device(handle, tensor_sys_ru);
+ERR_7:
+    bm_free_device(handle, tensor_sys_ld);
+ERR_6:
+    bm_free_device(handle, tensor_sys_lu);
+ERR_5:
+    bm_free_device(handle, tensor_S);
+ERR_4:
+    bm_free_device(handle, tensor_out_align_b);
+ERR_3:
+    bm_free_device(handle, tensor_out_align_a);
+ERR_2:
+    bm_free_device(handle, tensor_temp_b);
+ERR_1:
+    bm_free_device(handle, tensor_temp_g);
+ERR_0:
+    bm_free_device(handle, tensor_temp_r);
+
+  return ret;
+}
+
+bm_status_t bmcv_image_warp_affine_1684X_padding(
+    bm_handle_t handle,
+    int image_num,
+    bmcv_affine_image_matrix matrix[4],
+    int image_dh,
+    int image_dw,
+    bm_image* input,
+    bm_image* output,
+    int use_bilinear){
+    bm_status_t ret = BM_SUCCESS;
+    bm_device_mem_t tensor_output[4];
+    #ifdef __linux__
+    bool output_alloc_flag[image_num];
+    #else
+    std::shared_ptr<bool> output_alloc_flag_(new bool[image_num], std::default_delete<bool[]>());
+    bool*                 output_alloc_flag = output_alloc_flag_.get();
+    #endif
+    for (int num = 0;num < image_num;num++){
+        output_alloc_flag[num] = false;
+        if(!bm_image_is_attached(output[num])) {
+            if(BM_SUCCESS !=bm_image_alloc_dev_mem(output[num], BMCV_HEAP1_ID)) {
+                printf("bm_image_alloc_dev_mem error\r\n");
+                for (int free_idx = 0; free_idx < num; free_idx ++) {
+                    if (output_alloc_flag[free_idx]) {
+                        bm_image_detach(output[num]);
+                    }
+                }
+                return BM_ERR_FAILURE;
+            }
+            output_alloc_flag[num] = true;
+        }
+    }
+
+    for (int num = 0;num < image_num;num++){
+        if(use_bilinear){
+            bm_image_data_format_ext input_format = input[0].data_type;
+            bm_image_data_format_ext output_format = output[0].data_type;
+            ret = per_image_deal_bilinear_padding(handle, image_dh, image_dw, input[num], output[num],
+                    tensor_output[num], matrix[num], input_format, output_format);
+        }else{
+            ret = per_image_deal_nearest_padding(handle, image_dh, image_dw, input[num], output[num],
+                    tensor_output[num], matrix[num]);
+        }
+        if (BM_SUCCESS != ret){
+            for (int free_idx = 0; free_idx < num; free_idx ++) {
+                if (output_alloc_flag[free_idx]) {
+                    bm_image_detach(output[free_idx]);
+                }
+            }
+            return ret;
+        }
+    }
+    return BM_SUCCESS;
 }
 
  bm_status_t bmcv_image_warp_affine_1684X(
@@ -472,6 +748,69 @@ bm_status_t bmcv_image_warp_affine_similar_to_opencv(
     }
 
     return bmcv_image_warp_affine(handle,
+            image_num,
+            &matrix[0],
+            input, output,use_bilinear);
+}
+
+bm_status_t bmcv_image_warp_affine_padding(
+    bm_handle_t handle,
+    int image_num,
+    bmcv_affine_image_matrix matrix[4],
+    bm_image *input,
+    bm_image *output,
+    int use_bilinear)
+{
+    if(BM_SUCCESS !=bmcv_warp_check(handle, image_num, matrix, input, output)) {
+        BMCV_ERR_LOG("bm_memcpy_s2d error\r\n");
+        return BM_ERR_FAILURE;
+    }
+
+    unsigned int chipid;
+    bm_get_chipid(handle, &chipid);
+    if (chipid == BM1688 || chipid == BM1688_PREV){
+        return bmcv_image_warp_affine_1684X_padding(handle,
+                image_num,
+                &matrix[0],
+                output->height,
+                output->width,
+                input,
+                output,
+                use_bilinear);
+    }
+    return BM_SUCCESS;
+}
+
+bm_status_t bmcv_image_warp_affine_similar_to_opencv_padding(
+    bm_handle_t handle,
+    int image_num,
+    bmcv_affine_image_matrix matrix[4],
+    bm_image *input,
+    bm_image *output,
+    int use_bilinear)
+{
+    UNUSED(use_bilinear);
+    float matrix_tem[3][3];
+    float matrix_tem_inv[2][3];
+    for (int i = 0; i < image_num; i++) {
+        for(int matrix_no = 0; matrix_no < matrix[i].matrix_num; matrix_no++){
+            memset(matrix_tem, 0, sizeof(matrix_tem));
+            memset(matrix_tem_inv, 0, sizeof(matrix_tem_inv));
+            for(int a = 0;a < 6;a++){
+                matrix_tem[(a/3)][(a%3)] = matrix[i].matrix->m[a];
+            }
+            matrix_tem[2][0] = 0;
+            matrix_tem[2][1] = 0;
+            matrix_tem[2][2] = 1;
+            inverse_matrix(matrix_tem, matrix_tem_inv);
+            for(int a = 0;a < 6;a++){
+                float temp = matrix_tem_inv[(a/3)][(a%3)];
+                matrix[i].matrix->m[a] = temp;
+            }
+        }
+    }
+
+    return bmcv_image_warp_affine_padding(handle,
             image_num,
             &matrix[0],
             input, output,use_bilinear);
