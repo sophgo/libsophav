@@ -626,11 +626,15 @@ bm_status_t bmcv_gen_text_watermark(
     ret = bm_image_get_device_mem(output[0], &pmem);
     if (ret != BM_SUCCESS)
         goto fail;
+#ifndef BM_PCIE_MODE
     ret = bm_mem_mmap_device_mem_no_cache(handle, &pmem, &virt_addr);
     if (ret != BM_SUCCESS) {
         printf("bm_mem_mmap_device_mem_no_cache fail, paddr(0x%lx)\n", pmem.u.device.device_addr);
         goto fail;
     }
+#else
+    virt_addr = (unsigned long long)malloc(pmem.size);
+#endif
     memset((void*)virt_addr, 0, 24 * fontscale_u8 * stride_w);
 
     for (int m = 0; m < hz_num + en_num; m++){
@@ -647,16 +651,27 @@ bm_status_t bmcv_gen_text_watermark(
             idx += 11 * fontscale_u8;
         }
     }
-
+#ifndef BM_PCIE_MODE
     ret = bm_mem_unmap_device_mem(handle, (void *)virt_addr, stride_w * 24 * fontscale_u8);
     if (ret != BM_SUCCESS) {
         printf("bm_mem_unmap_device_mem fail, vaddr(0x%llx)\n", virt_addr);
         goto fail;
     }
+#else
+    ret = bm_memcpy_s2d(handle, pmem, (void *)virt_addr);
+    if (ret != BM_SUCCESS) {
+        printf("bm_memcpy_s2d fail, vaddr(0x%llx)\n", virt_addr);
+        goto fail;
+    }
+#endif
     output->width = idx;
 fail:
     if (ret != BM_SUCCESS)
         bm_image_destroy(output);
+#ifdef BM_PCIE_MODE
+    if (virt_addr)
+        free((void *)virt_addr);
+#endif
     return ret;
 }
 
@@ -706,9 +721,9 @@ bm_status_t bmcv_image_put_text(bm_handle_t handle, bm_image image, const char* 
 
     if(thickness == 0){
         setlocale(LC_ALL, "");
-        size_t len = mbstowcs(NULL, text, 0); // 获取转换后宽字符字符串的长度
-        wchar_t wideStr[len + 1]; // 分配宽字符字符串的内存
-        mbstowcs(wideStr, text, len + 1); // 进行转换
+        size_t len = mbstowcs(NULL, text, 0);
+        wchar_t wideStr[len + 1];
+        mbstowcs(wideStr, text, len + 1);
         ret = bmcv_overlay_put_text(handle, image, wideStr, org, color, fontScale);
         return ret;
     }
@@ -727,12 +742,20 @@ bm_status_t bmcv_image_put_text(bm_handle_t handle, bm_image image, const char* 
     }
     dmem = image.image_private->data[0];
     bm_set_device_mem(&dmem, total_size, dmem.u.device.device_addr);
+#ifndef BM_PCIE_MODE
     ret = bm_mem_mmap_device_mem_no_cache(image.image_private->handle, &dmem, &virt_addr);
     if (ret != BM_SUCCESS) {
         bmlib_log("PUT_TEXT", BMLIB_LOG_ERROR, "bm_mem_mmap_device_mem failed with error code %d\r\n", ret);
         return ret;
     }
-
+#else
+    virt_addr = (unsigned long long)malloc(total_size);
+    ret = bm_memcpy_d2s(image.image_private->handle, (void *)virt_addr, dmem);
+    if (ret != BM_SUCCESS) {
+        bmlib_log("PUT_TEXT", BMLIB_LOG_ERROR, "bm_memcpy_d2s failed with error code %d\r\n", ret);
+        goto exit;
+    }
+#endif
     in_ptr[0] = (unsigned char *)virt_addr;
     in_ptr[1] = in_ptr[0] + size[0];
     in_ptr[2] = in_ptr[1] + size[1];
@@ -749,12 +772,20 @@ bm_status_t bmcv_image_put_text(bm_handle_t handle, bm_image image, const char* 
     mat.data = (void**)in_ptr;
 
     put_text(mat, text, org, FONT_HERSHEY_SIMPLEX, fontScale, color, thickness);
-
+#ifndef BM_PCIE_MODE
     ret = bm_mem_unmap_device_mem(image.image_private->handle, (void *)virt_addr, total_size);
     if (ret != BM_SUCCESS) {
         bmlib_log("PUT_TEXT", BMLIB_LOG_ERROR, "bm_mem_unmap_device_mem failed with error code %d\r\n", ret);
         return ret;
     }
-
+#else
+    ret = bm_memcpy_s2d(image.image_private->handle, dmem, (void *)virt_addr);
+    if (ret != BM_SUCCESS) {
+        bmlib_log("PUT_TEXT", BMLIB_LOG_ERROR, "bm_memcpy_s2d failed with error code %d\r\n", ret);
+        goto exit;
+    }
+exit:
+    free((void *)virt_addr);
+#endif
     return ret;
 }

@@ -104,11 +104,13 @@ bmcv_faiss_indexflatL2
 
 3、假设输入数据和底库数据的 L2 范数的平方值已提前计算完成, 并存储在处理器上。
 
-3、底库数据通常以 database_vecs_num * vec_dims 的形式排布在内存中。此时, 参数 is_transpose 需要设置为 1。
+4、底库数据通常以 database_vecs_num * vec_dims 的形式排布在内存中。此时, 参数 is_transpose 需要设置为 1。
 
 5、查询向量和数据库向量 L2 距离的平方值越小, 表示两者的相似度越高。因此, 在 TopK 过程中对 L2 距离的平方值按升序排序。
 
 6、database_vecs_num与sort_cnt的取值需要满足条件：database_vecs_num > sort_cnt。
+
+7、输入参数中 sort_cnt 和 query_vecs_num 需要小于或等于 database_vecs_num。
 
 
 **示例代码**

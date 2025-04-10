@@ -3,7 +3,11 @@ project(vdec)
 
 # add header files path
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/inc)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../3rdparty/osdrv)
+if("${PLATFORM}" STREQUAL "pcie" OR "${PLATFORM}" STREQUAL "pcie_arm64")
+    include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../3rdparty/osdrv_pcie)
+else()
+    include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../3rdparty/osdrv)
+endif()
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../3rdparty/libbmcv/include)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/example)
 

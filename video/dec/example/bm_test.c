@@ -207,6 +207,7 @@ static void *process_output(void* arg)
     fd_set read_fds;
     int fd;
 #ifdef BM_PCIE_MODE
+    int soc_idx = 0;
     // DecHandle decHandle = vidHandle->codecInst;
     // int coreIdx = decHandle->coreIdx;
 #endif
@@ -341,9 +342,7 @@ static void *process_output(void* arg)
                             result = FALSE;
                             break;
                         }
-                        // TODO A2没有现成接口，需要重新实现
-                        // vdi_read_memory(coreIdx, (u64)(pFrame->buf[4]), buf0, pFrame->size,   VDI_LITTLE_ENDIAN);
-                        bmvpu_dec_read_memory(vidCodHandle, (u64)(pFrame->buf[4]), (u64)buf0, pFrame->size);
+                        bmvpu_dec_read_memory(soc_idx, (u64)(pFrame->buf[4]), buf0, pFrame->size);
 #else
                         buf0 = pFrame->buf[0];
                         buf1 = pFrame->buf[1];
@@ -431,9 +430,7 @@ static void *process_output(void* arg)
                         result = FALSE;
                         break;
                     }
-                    // TODO A2没有现成接口，需要重新实现
-                    // vdi_read_memory(coreIdx, (u64)(pFrame->buf[4]), buf0, pFrame->size,   VDI_LITTLE_ENDIAN);
-                    bmvpu_dec_read_memory(vidCodHandle, (u64)(pFrame->buf[4]), (u64)buf0, pFrame->size);
+                    bmvpu_dec_read_memory(soc_idx, (u64)(pFrame->buf[4]), buf0, pFrame->size);
 
                     MD5(buf0, ySize, yMd);
                     MD5(buf1, ySize/4, uMd);
@@ -519,13 +516,9 @@ static void *process_output(void* arg)
                             uint8_t *buf1 = malloc(ySize/4);
                             uint8_t *buf2 = malloc(ySize/4);
 
-                            // TODO A2没有现成接口，需要重新实现
-                            // vdi_read_memory(coreIdx, (u64)(pFrame->buf[4]), buf0, ySize,   VDI_LITTLE_ENDIAN);
-                            // vdi_read_memory(coreIdx, (u64)(pFrame->buf[5]), buf1, ySize/4, VDI_LITTLE_ENDIAN);
-                            // vdi_read_memory(coreIdx, (u64)(pFrame->buf[6]), buf2, ySize/4, VDI_LITTLE_ENDIAN);
-                            bmvpu_dec_read_memory(vidCodHandle, (u64)(pFrame->buf[4]), (u64)buf0, ySize);
-                            bmvpu_dec_read_memory(vidCodHandle, (u64)(pFrame->buf[5]), (u64)buf1, ySize/4);
-                            bmvpu_dec_read_memory(vidCodHandle, (u64)(pFrame->buf[6]), (u64)buf2, ySize/4);
+                            bmvpu_dec_read_memory(soc_idx, (u64)(pFrame->buf[4]), buf0, ySize);
+                            bmvpu_dec_read_memory(soc_idx, (u64)(pFrame->buf[5]), buf1, ySize/4);
+                            bmvpu_dec_read_memory(soc_idx, (u64)(pFrame->buf[6]), buf2, ySize/4);
 
                             fwrite(buf0, 1, ySize, fp);
                             fwrite(buf1, 1, ySize/4, fp);
@@ -620,9 +613,7 @@ static void *process_output(void* arg)
                     printf("the frame buffer size maybe error..\n");
                     break;
                 }
-                // TODO A2没有现成接口，需要重新实现
-                // vdi_read_memory(coreIdx, (u64)(pFrame->buf[4]), buf0, pFrame->size, VDI_LITTLE_ENDIAN);
-                bmvpu_dec_read_memory(vidCodHandle, (u64)(pFrame->buf[4]), (u64)buf0, pFrame->size);
+                bmvpu_dec_read_memory(soc_idx, (u64)(pFrame->buf[4]), buf0, pFrame->size);
 
                 int core_idx = bmvpu_dec_get_core_idx(vidCodHandle);
                 int inst_idx = bmvpu_dec_get_inst_idx(vidCodHandle);

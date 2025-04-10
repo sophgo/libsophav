@@ -7,6 +7,8 @@
 #include <locale.h>
 #include <bmcv_api_ext_c.h>
 
+extern int md5_cmp(unsigned char* got, unsigned char* exp ,int size);
+
 int main(int argc, char* args[]){
 
     setlocale(LC_ALL, "");
@@ -15,8 +17,8 @@ int main(int argc, char* args[]){
     int r = 255, g = 255, b = 0;
     unsigned char fontScale = 2;
     char* output_path = "out.bmp";
-    if ((argc == 1) ||
-        (argc == 2 && atoi(args[1]) == -1)) {
+    char *md5 = "eb2edce6ba908bc2ce57c99652e2c7cc";
+    if (argc == 2 && atoi(args[1]) == -1) {
         printf("usage: %d\n", argc);
         printf("%s text_string r g b fontscale out_name\n", args[0]);
         printf("example:\n");
@@ -24,14 +26,17 @@ int main(int argc, char* args[]){
         printf("%s bitmain.go 255 255 255 2 out.bmp\n", args[0]);
         return 0;
     }
-    mbstowcs(hexcode, args[1], sizeof(hexcode) / sizeof(wchar_t)); //usigned
+    if (argc > 1)
+        mbstowcs(hexcode, args[1], sizeof(hexcode) / sizeof(wchar_t)); //usigned
+    else
+        mbstowcs(hexcode, "算能sophgo", sizeof(hexcode) / sizeof(wchar_t)); //usigned
     printf("Received wide character string: %ls\n", hexcode);
     if (argc > 2) r = atoi(args[2]);
     if (argc > 3) g = atoi(args[3]);
     if (argc > 4) b = atoi(args[4]);
     if (argc > 5) fontScale = atoi(args[5]);
     if (argc > 6) output_path = args[6];
-    printf("output path: %s\n", output_path);
+    if (argc > 7) md5 = args[7];
 
     bm_image image;
     bm_handle_t handle = NULL;
@@ -55,7 +60,26 @@ int main(int argc, char* args[]){
         printf("bmcv_image_overlay fail\n");
         goto fail2;
     }
-    bm_image_write_to_bmp(image, output_path);
+    if (argc > 1) {
+        bm_image_write_to_bmp(image, output_path);
+        printf("output path: %s\n", output_path);
+    }
+    if (argc == 1 || argc > 7) {
+        int image_byte_size[4] = {0};
+        bm_image_get_byte_size(image, image_byte_size);
+        int byte_size = image_byte_size[0] + image_byte_size[1] + image_byte_size[2] + image_byte_size[3];
+        unsigned char* output_ptr = (unsigned char *)malloc(byte_size);
+        void* out_ptr[4] = {(void*)output_ptr,
+                            (void*)((unsigned char*)output_ptr + image_byte_size[0]),
+                            (void*)((unsigned char*)output_ptr + image_byte_size[0] + image_byte_size[1]),
+                            (void*)((unsigned char*)output_ptr + image_byte_size[0] + image_byte_size[1] + image_byte_size[2])};
+        bm_image_copy_device_to_host(image, (void **)out_ptr);
+        if(md5_cmp(output_ptr, (unsigned char*)md5, byte_size)!=0){
+            bm_write_bin(image, "error_cmp.bin");
+            ret = -1;
+        }
+        free(output_ptr);
+    }
 
 fail2:
     bm_image_destroy(&watermark);

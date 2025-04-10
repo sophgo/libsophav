@@ -1247,7 +1247,7 @@ exit0:
   return s32Ret;
 }
 
-bm_status_t bmcv_blending(bm_handle_t handle, int input_num, bm_image* input,bm_image output,struct stitch_param stitch_config)
+bm_status_t bmcv_blending_internal(bm_handle_t handle, int input_num, bm_image* input,bm_image output,struct stitch_param stitch_config)
 {
   bm_status_t s32Ret = 0;
 

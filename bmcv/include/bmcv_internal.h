@@ -273,11 +273,19 @@ plane_layout stride_width(plane_layout src, int stride);
 u8 is_full_image(bm_image_format_ext image_format);
 u8 is_yuv420_image(bm_image_format_ext image_format);
 
-bm_status_t  update_memory_layout(bm_handle_t     handle,
-                                  bm_device_mem_t src,
-                                  plane_layout    src_layout,
-                                  bm_device_mem_t dst,
-                                  plane_layout    dst_layout);
+bm_status_t  update_memory_layout(
+    bm_handle_t     handle,
+    bm_device_mem_t src,
+    plane_layout    src_layout,
+    bm_device_mem_t dst,
+    plane_layout    dst_layout);
+
+bm_status_t fill_default_image_private(
+    bm_image_private        *image_private,
+    int                      H,
+    int                      W,
+    bm_image_format_ext      image_format,
+    bm_image_data_format_ext data_type);
 
 DECL_EXPORT bm_status_t bm_send_api(
     bm_handle_t  handle,

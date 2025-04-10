@@ -41,6 +41,7 @@
 #endif
 
 #include <signal.h>     /* SIG_SETMASK */
+#include <pthread.h>
 
 #include "bm_vpuenc_interface.h"
 #include "bm_ioctl.h"
@@ -400,7 +401,7 @@ static int __attribute__((unused)) bmvpu_enc_free_proc(void *enc_ctx,
 
 
 static void bmvpu_enc_load_bmlib_handle(int soc_idx){
-    if (soc_idx > MAX_SOC_NUM)
+    if (soc_idx >= MAX_SOC_NUM)
     {
         BMVPU_ENC_ERROR("soc_idx excess MAX_SOC_NUM!\n");
         exit(0);
@@ -429,7 +430,7 @@ static void bmvpu_enc_load_bmlib_handle(int soc_idx){
 
 
 static void bmvpu_enc_unload_bmlib_handle(int soc_idx){
-    if (soc_idx > MAX_SOC_NUM)
+    if (soc_idx >= MAX_SOC_NUM)
     {
       BMVPU_ENC_ERROR("soc_idx excess MAX_SOC_NUM!\n");
       exit(0);
@@ -459,7 +460,7 @@ static void bmvpu_enc_unload_bmlib_handle(int soc_idx){
 bm_handle_t bmvpu_enc_get_bmlib_handle(int soc_idx)
 {
     bm_handle_t handle = 0;
-    if (soc_idx > MAX_SOC_NUM)
+    if (soc_idx >= MAX_SOC_NUM)
     {
         BMVPU_ENC_ERROR("soc_idx excess MAX_SOC_NUM!\n");
         exit(0);
@@ -1171,7 +1172,13 @@ int bmvpu_enc_open(BmVpuEncoder **encoder,
         }
     }
 
-    bmvpu_enc_encode_header(*encoder);
+    ret = bmvpu_enc_encode_header(*encoder);
+    if (ret != BM_VPU_ENC_RETURN_CODE_OK) {
+        bmvpu_enc_close(*encoder);
+        g_enc_chn[VeChn].is_used = 0;
+        BMVPU_ENC_ERROR("encode header faile. ret=%d \n", ret);
+        return BM_VPU_ENC_RETURN_CODE_ERROR;
+    }
 
     return BM_VPU_ENC_RETURN_CODE_OK;
 }
@@ -1323,7 +1330,7 @@ int bmvpu_enc_encode_header(BmVpuEncoder *encoder)
     ret = bmenc_ioctl_encode_header(g_enc_chn[VeChn].chn_fd, &stEncodeHeader);
     if (ret != 0) {
         BMVPU_ENC_ERROR("bmvpu_enc_encode_header failed(ret=%x).\n", ret);
-        return -1;
+        return ret;
     }
 
 
@@ -1513,19 +1520,47 @@ int bmvpu_enc_get_stream(BmVpuEncoder *encoder,
     {
         venc_pack_s *pkt_drv;
         pkt_drv = &g_enc_chn[VeChn].stStream.pstPack[i];
+
         // 2. map bs data
         BmVpuEncDMABuffer dma_buf;
         dma_buf.phys_addr = pkt_drv->u64PhyAddr;
         dma_buf.size = pkt_drv->u32Len;
+#ifndef BM_PCIE_MODE
         ret = bmvpu_dma_buffer_map(0, &dma_buf, BM_VPU_ENC_MAPPING_FLAG_READ|BM_VPU_ENC_MAPPING_FLAG_WRITE);
         if (ret != BM_VPU_ENC_RETURN_CODE_OK) {
             continue;
         }
         pkt_drv->pu8Addr = (unsigned char *)dma_buf.virt_addr;
         if (pkt_drv->pu8Addr == NULL) {
-            BMVPU_ENC_DEBUG("bmenc get stream map fiaile.\n");
+            BMVPU_ENC_DEBUG("bmenc get stream map failed.\n");
             continue;
         }
+
+#else
+        uint8_t * host_va = malloc(sizeof(uint8_t)*dma_buf.size);
+        if (host_va==NULL)
+        {
+            fprintf(stderr, "malloc failed\n");
+            free(host_va);
+            return BM_VPU_ENC_RETURN_CODE_ERROR;
+        }
+
+        u64 vpu_pa = bmvpu_enc_dma_buffer_get_physical_address(&dma_buf);
+
+        ret = bmvpu_enc_read_memory(0 , vpu_pa, host_va, dma_buf.size);
+        if (ret < 0){
+            BMVPU_ENC_ERROR("bmvpu_enc_read_memory failed, ret=%d\n", ret);
+            free(host_va);
+            continue;
+        } else if(pkt_drv->pu8Addr == NULL) {
+            BMVPU_ENC_ERROR("bmenc get stream map failed.\n");
+            free(host_va);
+            continue;
+        }
+
+        pkt_drv->pu8Addr = host_va;
+
+#endif
         // 3. sps  pps sei save local
         if ((pkt_drv->DataType.enH264EType == H264E_NALU_SEI) || (pkt_drv->DataType.enH264EType == H264E_NALU_SPS) || \
             (pkt_drv->DataType.enH264EType == H264E_NALU_PPS) || \
@@ -1591,8 +1626,12 @@ int bmvpu_enc_get_stream(BmVpuEncoder *encoder,
             }
         }
 
+#ifndef BM_PCIE_MODE
         // 5. unmap
         bmvpu_dma_buffer_unmap(0, &dma_buf);
+#else
+        free(host_va);
+#endif
     }
 
     // 4. call ioctl release stream
@@ -1825,5 +1864,21 @@ unsigned int bmvpu_enc_dma_buffer_get_size(BmVpuEncDMABuffer* buf)
     return 0;
 }
 
+#ifdef BM_PCIE_MODE
+int bmvpu_enc_read_memory(int soc_idx, u64 src_addr, unsigned char *dst_addr, int size)
+{
+    //return vdi_read_memory(coreIdx, addr, data, len, endian);
+    bm_device_mem_t src_mem = bm_mem_from_device(src_addr, size);
+    int ret = bm_memcpy_d2s_partial(bmvpu_enc_get_bmlib_handle(soc_idx), dst_addr, src_mem, size);
+    return ret;
+}
+
+int bmvpu_enc_write_memory(int soc_idx, u64 dst_addr, unsigned char *src_addr, int size)
+{
+    bm_device_mem_t dst_mem = bm_mem_from_device(dst_addr, size);
+    int ret = bm_memcpy_s2d_partial(bmvpu_enc_get_bmlib_handle(soc_idx), dst_mem, src_addr, size);
+    return ret;
+}
+#endif
 
 

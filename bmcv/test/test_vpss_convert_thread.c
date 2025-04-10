@@ -139,6 +139,109 @@ static void * convert(void* arg) {
     return 0;
 }
 
+static void * multi_crop(void* arg) {
+    bm_status_t ret;
+    convert_ctx ctx = *(convert_ctx*)arg;
+    bm_image src, dst[2];
+    bmcv_rect_t rect_[2] = {rect, {960, 540, 960, 540}};
+    unsigned int i = 0, loop_time = 0;
+    unsigned long long time_single, time_total = 0, time_avg = 0;
+    unsigned long long time_max = 0, time_min = 10000, fps_actual = 0, pixel_per_sec = 0;
+#if SLEEP_ON
+    int fps = 60;
+    int sleep_time = 1000000 / fps;
+#endif
+
+    struct timeval tv_start;
+    struct timeval tv_end;
+    struct timeval timediff;
+
+    loop_time = ctx.loop;
+
+    bm_image_create(handle, src_h, src_w, src_fmt, DATA_TYPE_EXT_1N_BYTE, &src, NULL);
+    bm_image_create(handle, dst_h, dst_w, dst_fmt, DATA_TYPE_EXT_1N_BYTE, &dst[0], NULL);
+    bm_image_create(handle, dst_h, dst_w, dst_fmt, DATA_TYPE_EXT_1N_BYTE, &dst[1], NULL);
+
+    ret = bm_image_alloc_dev_mem(src, BMCV_HEAP1_ID);
+    if (ret != BM_SUCCESS) {
+        printf("bm_image_alloc_dev_mem_src. ret = %d\n", ret);
+        exit(-1);
+    }
+    ret = bm_image_alloc_dev_mem(dst[0], BMCV_HEAP1_ID);
+    if (ret != BM_SUCCESS) {
+        printf("bm_image_alloc_dev_mem_dst. ret = %d\n", ret);
+        exit(-1);
+    }
+    ret = bm_image_alloc_dev_mem(dst[1], BMCV_HEAP1_ID);
+    if (ret != BM_SUCCESS) {
+        printf("bm_image_alloc_dev_mem_dst. ret = %d\n", ret);
+        exit(-1);
+    }
+    bm_read_bin(src,src_name);
+
+    for(i = 0;i < loop_time; i++){
+        gettimeofday(&tv_start, NULL);
+
+        bmcv_image_vpp_convert(handle, 2, src, dst, rect_, algorithm);
+
+        gettimeofday(&tv_end, NULL);
+        timediff.tv_sec  = tv_end.tv_sec - tv_start.tv_sec;
+        timediff.tv_usec = tv_end.tv_usec - tv_start.tv_usec;
+        time_single = (unsigned int)(timediff.tv_sec * 1000000 + timediff.tv_usec);
+#if SLEEP_ON
+        if(time_single < sleep_time)
+            usleep((sleep_time - time_single));
+        gettimeofday(&tv_end, NULL);
+        timediff.tv_sec  = tv_end.tv_sec - tv_start.tv_sec;
+        timediff.tv_usec = tv_end.tv_usec - tv_start.tv_usec;
+        time_single = (unsigned int)(timediff.tv_sec * 1000000 + timediff.tv_usec);
+#endif
+        if(time_single>time_max){time_max = time_single;}
+        if(time_single<time_min){time_min = time_single;}
+        time_total = time_total + time_single;
+    }
+    time_avg = time_total / loop_time;
+    fps_actual = 1000000 / time_avg;
+    pixel_per_sec = src_w * src_h * fps_actual/1024/1024;
+    if (md5 == NULL) {
+        bm_write_bin(dst[0], "multi_crop_dst0.bin");
+        bm_write_bin(dst[1], "multi_crop_dst1.bin");
+    } else {
+        int image_byte_size[4] = {0};
+        bm_image_get_byte_size(dst[1], image_byte_size);
+        int byte_size = image_byte_size[0] + image_byte_size[1] + image_byte_size[2] + image_byte_size[3];
+        unsigned char* output_ptr = (unsigned char *)malloc(byte_size);
+        void* out_ptr[4] = {(void*)output_ptr,
+                            (void*)((unsigned char*)output_ptr + image_byte_size[0]),
+                            (void*)((unsigned char*)output_ptr + image_byte_size[0] + image_byte_size[1]),
+                            (void*)((unsigned char*)output_ptr + image_byte_size[0] + image_byte_size[1] + image_byte_size[2])};
+        bm_image_copy_device_to_host(dst[1], (void **)out_ptr);
+        if(md5_cmp(output_ptr, (unsigned char*)md5, byte_size)!=0){
+            bm_write_bin(dst[1], "error_cmp.bin");
+            bm_image_destroy(&src);
+            bm_image_destroy(&dst[0]);
+            bm_image_destroy(&dst[1]);
+            exit(-1);
+        }
+        free(output_ptr);
+    }
+    bm_image_destroy(&src);
+    bm_image_destroy(&dst[0]);
+    bm_image_destroy(&dst[1]);
+
+    char src_fmt_str[100],dst_fmt_str[100],algorithm_str[100];
+    format_to_str(src.image_format, src_fmt_str);
+    format_to_str(dst[1].image_format, dst_fmt_str);
+    algorithm_to_str(algorithm, algorithm_str);
+
+
+    printf("idx:%d, %d*%d->%d*%d, %s->%s,%s\n",ctx.i,src_w,src_h,dst[0].width,dst[0].height,src_fmt_str,dst_fmt_str,algorithm_str);
+    printf("idx:%d, bmcv_image_vpp_convert multi crop:loop %d cycles, time_max = %llu, time_avg = %llu, fps %llu, %lluM pps\n",
+        ctx.i, loop_time, time_max, time_avg, fps_actual, pixel_per_sec);
+
+    return 0;
+}
+
 static void * convert_list(void* arg){
     //csc
     //yuv420->rgb 1920x1080
@@ -226,6 +329,14 @@ static void * convert_list(void* arg){
     rect.start_x = 0; rect.start_y = 0; rect.crop_w = 16; rect.crop_h = 16;
     algorithm = BMCV_INTER_LINEAR; md5 = "00b995b1b6617bb01a240430196c10db";
     convert(arg);
+
+    //yuv420 1920x1080 crop (0 0 960 540) (960 540 960 540)
+    src_w = 1920; src_h = 1080; dst_w = 960; dst_h = 540; dev_id = 0;
+    src_fmt = FORMAT_YUV420P; dst_fmt = FORMAT_YUV420P;
+    src_name = "/opt/sophon/libsophon-current/bin/res/1920x1080_yuv420.bin"; dst_name = "dst.bin";
+    rect.start_x = 0; rect.start_y = 0; rect.crop_w = 960; rect.crop_h = 540;
+    algorithm = BMCV_INTER_LINEAR; md5 = "ca79b6bf9d87cda370c50a935497540d";
+    multi_crop(arg);
     return 0;
 }
 

@@ -127,3 +127,30 @@ bm_status_t bm_vpss_flip(
   bm_image             input,
   bm_image             output,
   bmcv_flip_mode       flip_mode);
+
+bm_status_t bm_vpss_circle(
+  bm_handle_t          handle,
+  bm_image             image,
+  bmcv_cir_mode        cir_mode,
+  bmcv_point_t         center,
+  int                  radius,
+  unsigned char        line_width,
+  unsigned char        r,
+  unsigned char        g,
+  unsigned char        b);
+
+bm_status_t bm_vpss_all_func(
+  bm_handle_t             handle,
+  int                     crop_num,
+  bm_image                input,
+  bm_image*               output,
+  bmcv_rect_t*            crop_rect,
+  bmcv_padding_attr_t*    padding_attr,
+  bmcv_resize_algorithm   algorithm,
+  csc_type_t              csc_type,
+  bmcv_flip_mode          flip_mode,
+  bmcv_convert_to_attr*   convert_to_attr,
+  bmcv_overlay_attr*      overlay_attr,
+  bmcv_draw_rect_attr*    draw_rect_attr,
+  bmcv_fill_rect_attr*    fill_rect_attr,
+  bmcv_circle_attr*       circle_attr);

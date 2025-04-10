@@ -8,8 +8,8 @@
 #include <math.h>
 #include "bmcv_a2_common_internal.h"
 
-#define SLICE_W_CNT_MAX (8)
-#define SLICE_H_CNT_MAX (8)
+#define SLICE_W_CNT_MAX (16)
+#define SLICE_H_CNT_MAX (16)
 #define BM_TRUE                1
 #define MAX_REGION_NUM 5
 #define MAX_ION_BUFFER_NAME 32
@@ -23,6 +23,7 @@
 #define WITHOUT_BIAS (0)
 #define M_PI            3.14159265358979323846
 #define OFFSET_SCALE (1) // new method
+#define SLICE_MAGIC (168)
 
 #ifndef UNUSED
 #define UNUSED(x) ((void)(x))
@@ -242,6 +243,15 @@ enum grid_info_mode {
     GRID_MODE_MAX,
 };
 
+typedef struct _slice_info_s {
+    int magic;
+    int slice_h_cnt;
+    int slice_v_cnt;
+    int cache_hit_cnt;
+    int cache_miss_cnt;
+    int cache_req_cnt;
+} slice_info_s;
+
 typedef struct _BM_MESH_DATA_ALL_S {
     char grid_name[64];
     bool balloc;
@@ -262,6 +272,7 @@ typedef struct _BM_MESH_DATA_ALL_S {
     float _homography[10];
     int corners[10];
     enum grid_info_mode grid_mode;
+    slice_info_s slice_info;
     float *_pmapx, *_pmapy;
 } bm_mesh_data_all_s;
 

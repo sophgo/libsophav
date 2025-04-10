@@ -1057,7 +1057,11 @@ char const *bmvpu_frame_type_string(BmVpuEncFrameType frame_type);
  */
 DECL_EXPORT int bmvpu_enc_param_parse(BmVpuEncOpenParams *p, const char *name, const char *value);
 
+#ifdef BM_PCIE_MODE
+DECL_EXPORT int bmvpu_enc_read_memory(int soc_idx, u64 src_addr, unsigned char *dst_addr, int size);
 
+DECL_EXPORT int bmvpu_enc_write_memory(int soc_idx, u64 dst_addr, unsigned char *src_addr, int size);
+#endif
 
 
 #ifdef __cplusplus

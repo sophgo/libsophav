@@ -319,10 +319,10 @@ int DecodeTest(DecConfigParam *param)
 #ifdef BM_PCIE_MODE
     size_t yuv_size;
     uint8_t *yuv_data = NULL;
-#else
+#endif
     struct timeval start;
     double difftime = 0;
-#endif
+
     memcpy(&decConfig, param, sizeof(DecConfigParam));
 
     input_file = fopen(decConfig.bitStreamFileName, "rb");
@@ -393,12 +393,10 @@ int DecodeTest(DecConfigParam *param)
         goto cleanup;
     }
 
-#ifndef BM_PCIE_MODE
 #if _WIN32
     s_gettimeofday(&start, NULL);
 #else
     gettimeofday(&start, NULL);
-#endif
 #endif
     bm_handle_t handle = bm_jpu_dec_get_bm_handle(decConfig.device_index);
     for (int i = 0; i < decConfig.loopNums; i++)
@@ -458,15 +456,11 @@ int DecodeTest(DecConfigParam *param)
         fprintf(stderr, "decoded output picture:  writing %zu byte\n", num_out_byte);
 #endif
 
-#ifndef BM_PCIE_MODE
         if((i % 100) == 0)
             printf("dec loopNums : %d\n",i);
         if((i == (decConfig.loopNums - 1)) || jpu_slt_en)
-#endif
         {
-#ifndef BM_PCIE_MODE
             if(i == (decConfig.loopNums - 1))
-#endif
             {
 #if _WIN32
                 s_gettimeofday(&end, NULL);
@@ -474,10 +468,8 @@ int DecodeTest(DecConfigParam *param)
                 gettimeofday(&end, NULL);
 #endif
 
-#ifndef BM_PCIE_MODE
                 difftime = (end.tv_sec + end.tv_usec / 1000.0 / 1000.0) - (start.tv_sec + start.tv_usec / 1000.0 / 1000.0);
                 printf("Decoder thread = %d, time(second) : %f, real FPS:%d\n",param->instanceIndex, difftime, (int)(decConfig.loopNums/difftime));
-#endif
             }
 #ifdef BM_PCIE_MODE
             yuv_size = info.framebuffer->dma_buffer->size;
@@ -520,7 +512,7 @@ int DecodeTest(DecConfigParam *param)
                     output_file = NULL;
                 }
             }
-            if (pRefYuv && i % decConfig.Skip == 0)
+            if (pRefYuv && (i % decConfig.Skip == 0))
             {
                 if(memcmp(mapped_virtual_address,pRefYuv,num_out_byte)) {
                     fprintf(stderr,"dec thread = %d, count = %d, compare failed!\n",param->instanceIndex, i);
@@ -559,7 +551,6 @@ int DecodeTest(DecConfigParam *param)
         jpeg_decoder = NULL;
         if(jpu_stress_test && jpu_rand_sleep)
         {
-
 #ifdef _WIN32
             int rt = rand() % 5;
             Sleep(rt);
@@ -608,10 +599,9 @@ int EncodeTest(EncConfigParam *param)
     void *acquired_handle;
     size_t output_buffer_size;
     struct timeval start;
-#ifndef BM_PCIE_MODE
     struct timeval end;
     double difftime = 0;
-#endif
+
     struct timeval start2;
     struct timeval end2;
     double difftime2 = 0;
@@ -834,31 +824,25 @@ int EncodeTest(EncConfigParam *param)
         * did the encoding, so deallocate it */
         bm_free_device(handle, *(framebuffer.dma_buffer));
 
-#ifndef BM_PCIE_MODE
         if((i % 100) == 0)
             printf("enc loopNums : %d\n",i);
 
         if((i == (encConfig.loopNums - 1)) || jpu_slt_en)
-#endif
         {
 
-#ifndef BM_PCIE_MODE
             if(i == (encConfig.loopNums - 1))
-#endif
             {
 
-#ifndef BM_PCIE_MODE
 #if _WIN32
                 s_gettimeofday(&end, NULL);
 #else
                 gettimeofday(&end, NULL);
-#endif
 
-            if (ret == BM_JPU_ENC_RETURN_CODE_OK) {
-                difftime = (end.tv_sec + end.tv_usec / 1000.0 / 1000.0) - (start.tv_sec + start.tv_usec / 1000.0 / 1000.0);
-                printf("Encoder thread = %d, time(second) : %f,   jpu theory FPS: %d (not include memory/flush times), real FPS:%d\n",param->instanceIndex, difftime,
-                    (int)(encConfig.loopNums/difftime2), (int)(encConfig.loopNums/difftime));
-            }
+                if (ret == BM_JPU_ENC_RETURN_CODE_OK) {
+                    difftime = (end.tv_sec + end.tv_usec / 1000.0 / 1000.0) - (start.tv_sec + start.tv_usec / 1000.0 / 1000.0);
+                    printf("Encoder thread = %d, time(second) : %f,   jpu theory FPS: %d (not include memory/flush times), real FPS:%d\n",param->instanceIndex, difftime,
+                        (int)(encConfig.loopNums/difftime2), (int)(encConfig.loopNums/difftime));
+                }
 #endif
             }
             if (!jpu_slt_en)

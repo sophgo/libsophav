@@ -511,7 +511,7 @@ typedef void* BMVidCodHandle;
 DECL_EXPORT void bmvpu_dec_set_logging_threshold(BmVpuDecLogLevel log_level);
 DECL_EXPORT BMVidDecRetStatus bmvpu_dec_create(BMVidCodHandle* pVidCodHandle, BMVidDecParam decParam);
 #ifdef BM_PCIE_MODE
-DECL_EXPORT BMVidDecRetStatus bmvpu_dec_read_memory(BMVidCodHandle vidCodHandle, u64 src_addr, u64 dst_addr, int size);
+DECL_EXPORT BMVidDecRetStatus bmvpu_dec_read_memory(int soc_idx, u64 src_addr, unsigned char *dst_addr, int size);
 #endif
 DECL_EXPORT BMVidDecRetStatus bmvpu_dec_get_caps(BMVidCodHandle vidCodHandle, BMVidStreamInfo* streamInfo);
 DECL_EXPORT BMVidDecRetStatus bmvpu_dec_decode(BMVidCodHandle vidCodHandle, BMVidStream vidStream);

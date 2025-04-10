@@ -46,7 +46,8 @@ typedef struct _vdec_stream_ex_s  {
 
 extern BmVpuDecLogLevel bm_vpu_log_level_threshold;
 
-void bm_vpu_set_logging_threshold(BmVpuDecLogLevel threshold);
+void bmdec_set_logging_threshold(BmVpuDecLogLevel threshold);
+void bmdec_set_logging_thresholdEx();
 void logging_fn(BmVpuDecLogLevel level, char const *file, int const line, char const *fn, const char *format, ...);
 
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
