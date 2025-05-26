@@ -19,6 +19,13 @@
 typedef long long int64;
 typedef unsigned char uchar;
 
+typedef struct {
+    uint8_t b; // Blue
+    uint8_t g; // Green
+    uint8_t r; // Red
+    uint8_t a; // Alpha
+} ARGB8888;
+
 struct bmPoint2l {
     int64 x;
     int64 y;
@@ -576,6 +583,113 @@ static void paint_mat(unsigned char* font_buff, unsigned long offset, int datasi
     return;
 }
 
+static void bilinear_downscale_argb8888(
+    const ARGB8888* src, int src_w, int src_h,
+    ARGB8888* dst, int dst_w, int dst_h, bmcv_color_t color)
+{
+    float x_step = (float)src_w / dst_w;
+    float y_step = (float)src_h / dst_h;
+
+    float inv_x_step = 1.0f / x_step;
+    float inv_y_step = 1.0f / y_step;
+
+    for (int y = 0; y < dst_h; ++y) {
+        float src_y = y * y_step;
+        int y1 = (int)src_y;
+        int y2 = (y1 < src_h - 1) ? y1 + 1 : y1;
+        float dy = src_y - y1;
+
+        for (int x = 0; x < dst_w; ++x) {
+            float src_x = x * x_step;
+            int x1 = (int)src_x;
+            int x2 = (x1 < src_w - 1) ? x1 + 1 : x1;
+            float dx = src_x - x1;
+
+            ARGB8888 p11 = src[y1 * src_w + x1];
+            ARGB8888 p21 = src[y1 * src_w + x2];
+            ARGB8888 p12 = src[y2 * src_w + x1];
+            ARGB8888 p22 = src[y2 * src_w + x2];
+
+            float w11 = (1 - dx) * (1 - dy) * inv_x_step * inv_y_step;
+            float w21 = dx * (1 - dy) * inv_x_step * inv_y_step;
+            float w12 = (1 - dx) * dy * inv_x_step * inv_y_step;
+            float w22 = dx * dy * inv_x_step * inv_y_step;
+
+            float a = 0;
+            a += p11.a * w11 + p21.a * w21 + p12.a * w12 + p22.a * w22;
+
+            dst[y * dst_w + x] = (ARGB8888){
+                .a = (uint8_t)fminf(fmaxf(a, 0), 255),
+                .r = color.r,
+                .g = color.g,
+                .b = color.b
+            };
+        }
+    }
+}
+
+static bm_status_t resize_watermark(bm_handle_t handle, bm_image *out, bm_image *in,
+    float fontscale, unsigned long long in_vaddr, bmcv_color_t color) {
+
+    short resize_w, resize_h;
+    bm_device_mem_t pmem;
+    unsigned long long virt_addr = 0;
+    bm_status_t ret = BM_SUCCESS;
+
+    resize_w = ALIGN_TO((short)(in->width * fontscale), 4);
+    resize_h = in->height * fontscale;
+
+    ret = bm_image_create(handle, resize_h, resize_w, FORMAT_ARGB_PACKED, DATA_TYPE_EXT_1N_BYTE, out, NULL);
+    if (ret != BM_SUCCESS)
+        return ret;
+
+    ret = bm_image_dev_mem_alloc(out[0], BMCV_HEAP1_ID);
+    if (ret != BM_SUCCESS)
+        return ret;
+
+    ret = bm_image_get_device_mem(out[0], &pmem);
+    if (ret != BM_SUCCESS)
+        goto fail;
+
+#ifndef BM_PCIE_MODE
+    ret = bm_mem_mmap_device_mem(handle, &pmem, &virt_addr);
+    if (ret != BM_SUCCESS) {
+        printf("resize_watermark mmap fail, paddr(0x%lx)\n", pmem.u.device.device_addr);
+        goto fail;
+    }
+#else
+    virt_addr = (unsigned long long)malloc(pmem.size);
+#endif
+
+    bilinear_downscale_argb8888((const ARGB8888*)in_vaddr, in->image_private->memory_layout->pitch_stride/4,
+        in->height, (ARGB8888*)virt_addr, resize_w, resize_h, color);
+
+#ifndef BM_PCIE_MODE
+    ret = bm_mem_flush_device_mem(handle, &pmem);
+    if (ret != BM_SUCCESS)
+        goto fail;
+
+    ret = bm_mem_unmap_device_mem(handle, (void *)virt_addr, resize_w * resize_h * 4);
+    if (ret != BM_SUCCESS)
+        goto fail;
+#else
+    ret = bm_memcpy_s2d(handle, pmem, (void *)virt_addr);
+    if (ret != BM_SUCCESS) {
+        printf("bm_memcpy_s2d fail, vaddr(0x%llx)\n", virt_addr);
+        goto fail;
+    }
+#endif
+    return ret;
+
+fail:
+    bm_image_destroy(out);
+#ifdef BM_PCIE_MODE
+    if (virt_addr)
+        free((void *)virt_addr);
+#endif
+    return ret;
+}
+
 bm_status_t bmcv_gen_text_watermark(
     bm_handle_t handle,
     const wchar_t* hexcode,
@@ -591,7 +705,10 @@ bm_status_t bmcv_gen_text_watermark(
     unsigned char fontscale_u8 = (unsigned char)fontscale;
     unsigned char *ASCII = bmcv_test_res_1624_ez;
     unsigned char *HZK = bmcv_test_res_2424_unicode_1;
+    unsigned char need_down_resize =
+        (fontscale < 1 && fontscale > 0 && format == FORMAT_ARGB_PACKED);
     bm_device_mem_t pmem;
+    bm_image resize_bmimg;
 
     if (format != FORMAT_GRAY && format != FORMAT_ARGB_PACKED) {
         printf("format(%d) is not supported\n", format);
@@ -627,9 +744,9 @@ bm_status_t bmcv_gen_text_watermark(
     if (ret != BM_SUCCESS)
         goto fail;
 #ifndef BM_PCIE_MODE
-    ret = bm_mem_mmap_device_mem_no_cache(handle, &pmem, &virt_addr);
+    ret = bm_mem_mmap_device_mem(handle, &pmem, &virt_addr);
     if (ret != BM_SUCCESS) {
-        printf("bm_mem_mmap_device_mem_no_cache fail, paddr(0x%lx)\n", pmem.u.device.device_addr);
+        printf("bm_mem_mmap_device_mem fail, paddr(0x%lx)\n", pmem.u.device.device_addr);
         goto fail;
     }
 #else
@@ -651,7 +768,20 @@ bm_status_t bmcv_gen_text_watermark(
             idx += 11 * fontscale_u8;
         }
     }
+    output->width = idx;
+
+    if (need_down_resize) {
+        ret = resize_watermark(handle, &resize_bmimg, output, fontscale, virt_addr, color);
+        if (ret != BM_SUCCESS)
+            goto fail;
+    }
+
 #ifndef BM_PCIE_MODE
+    if (!need_down_resize) {
+        ret = bm_mem_flush_device_mem(handle, &pmem);
+        if (ret != BM_SUCCESS)
+            goto fail;
+    }
     ret = bm_mem_unmap_device_mem(handle, (void *)virt_addr, stride_w * 24 * fontscale_u8);
     if (ret != BM_SUCCESS) {
         printf("bm_mem_unmap_device_mem fail, vaddr(0x%llx)\n", virt_addr);
@@ -664,7 +794,11 @@ bm_status_t bmcv_gen_text_watermark(
         goto fail;
     }
 #endif
-    output->width = idx;
+
+    if (need_down_resize) {
+        bm_image_destroy(output);
+        output[0] = resize_bmimg;
+    }
 fail:
     if (ret != BM_SUCCESS)
         bm_image_destroy(output);
@@ -719,7 +853,7 @@ bm_status_t bmcv_image_put_text(bm_handle_t handle, bm_image image, const char* 
         return ret;
     }
 
-    if(thickness == 0){
+    if (thickness == 0){
         setlocale(LC_ALL, "");
         size_t len = mbstowcs(NULL, text, 0);
         wchar_t wideStr[len + 1];

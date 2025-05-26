@@ -1444,7 +1444,7 @@ int main(int argc, char *argv[])
     }
 
     bmvpu_enc_set_logging_threshold(par.log_level);
-    bmvpu_enc_set_logging_function(logging_fn);
+    bmvpu_enc_set_logging_function(bmvpu_enc_logging_fn);
 
 
     InputParameter mt_par[par.thread_number];

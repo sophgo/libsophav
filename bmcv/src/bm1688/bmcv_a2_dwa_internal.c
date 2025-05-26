@@ -3701,7 +3701,7 @@ bm_status_t bmcv_dwa_rot_internel(bm_handle_t          handle,
     rot_name.rotation_mode = rotation_mode;
     md5_get((unsigned char *)&rot_name, sizeof(rot_name), md5_str, 0);
 
-    snprintf(param.stTask.name, sizeof(param.stTask.name) + 1, md5_str);
+    snprintf(param.stTask.name, sizeof(param.stTask.name) + 1, "%s", md5_str);
     // snprintf(param.identity.Name, sizeof(param.identity.Name), "job_rot");
     ret = bm_dwa_basic(handle, input_image, output_image, &param, (void *)&rotation_mode);
     if(ret != BM_SUCCESS){
@@ -3751,7 +3751,7 @@ bm_status_t bmcv_dwa_gdc_internel(bm_handle_t          handle,
         gdc_name.ldc_attr = gdc_with_grid.ldc_attr;
 
         md5_get((unsigned char *)&gdc_name, sizeof(gdc_name), md5_str, 0);
-        snprintf(param.stTask.name, sizeof(param.stTask.name) + 1, md5_str);
+        snprintf(param.stTask.name, sizeof(param.stTask.name) + 1, "%s", md5_str);
         // snprintf(param.identity.Name, sizeof(param.identity.Name), "job_gdc");
     } else {
         gdc_with_grid.ldc_attr.grid_info_attr.enable = true;
@@ -3774,7 +3774,7 @@ bm_status_t bmcv_dwa_gdc_internel(bm_handle_t          handle,
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "grid_info md5 = [%s]\n", md5_grid_info);
         strcpy(gdc_name.grid, md5_grid_info);
         md5_get((unsigned char *)&gdc_name, sizeof(gdc_name), md5_str, 0);
-        snprintf(param.stTask.name, sizeof(param.stTask.name) + 1, md5_str);
+        snprintf(param.stTask.name, sizeof(param.stTask.name) + 1, "%s", md5_str);
         strcpy(gdc_with_grid.ldc_attr.grid_info_attr.grid_file_name, "grid_info_79_43_3397_80_45_1280x720.dat");
     }
 
@@ -3827,7 +3827,7 @@ bm_status_t bmcv_dwa_fisheye_internel(bm_handle_t          handle,
         fisheye_name.param = param;
         fisheye_name.fisheye_attr = fisheye_with_grid.fisheye_attr;
         md5_get((unsigned char *)&fisheye_name, sizeof(fisheye_name), md5_str, 0);
-        snprintf(param.stTask.name, sizeof(param.stTask.name) + 1, md5_str);
+        snprintf(param.stTask.name, sizeof(param.stTask.name) + 1, "%s", md5_str);
         // snprintf(param.identity.Name, sizeof(param.identity.Name), "job_fisheye");
     } else {
         fisheye_with_grid.fisheye_attr.enable = fisheye_attr.bEnable;
@@ -3843,7 +3843,7 @@ bm_status_t bmcv_dwa_fisheye_internel(bm_handle_t          handle,
         strcpy(fisheye_with_grid.fisheye_attr.grid_info_attr.grid_bind_name, md5_grid_info);
         strcpy(fisheye_name.grid, md5_grid_info);
         md5_get((unsigned char *)&fisheye_name, sizeof(fisheye_name), md5_str, 0);
-        snprintf(param.stTask.name, sizeof(param.stTask.name) + 1, md5_str);
+        snprintf(param.stTask.name, sizeof(param.stTask.name) + 1, "%s", md5_str);
         strcpy(fisheye_with_grid.fisheye_attr.grid_info_attr.grid_file_name, "L_grid_info_68_68_4624_70_70_dst_2240x2240_src_2240x2240.dat");
     }
 
@@ -3882,7 +3882,7 @@ bm_status_t bmcv_dwa_affine_internel(bm_handle_t          handle,
     affine_name.param = param;
     affine_name.affine_attr = dwa_affine_attr;
     md5_get((unsigned char *)&affine_name, sizeof(affine_name), md5_str, 0);
-    snprintf(param.stTask.name, sizeof(param.stTask.name) + 1, md5_str);
+    snprintf(param.stTask.name, sizeof(param.stTask.name) + 1, "%s", md5_str);
     // snprintf(param.identity.Name, sizeof(param.identity.Name), "job_affine");
 
     dwa_affine_attr.region_num = affine_attr.u32RegionNum;
@@ -3935,7 +3935,7 @@ bm_status_t bmcv_dwa_dewarp_internel(bm_handle_t          handle,
     strcpy(dewarp_with_grid.dewarp_attr.grid_info_attr.grid_bind_name, md5_grid_info);
     strcpy(dewarp_name.grid, md5_grid_info);
     md5_get((unsigned char *)&dewarp_name, sizeof(dewarp_name), md5_str, 0);
-    snprintf(param.stTask.name, sizeof(param.stTask.name) + 1, md5_str);
+    snprintf(param.stTask.name, sizeof(param.stTask.name) + 1, "%s", md5_str);
     strcpy(dewarp_with_grid.dewarp_attr.grid_info_attr.grid_file_name, "grid_info_79_43_3397_80_45_1280x720.dat");
 
     ret = bm_dwa_basic(handle, input_image, output_image, &param, (void *)&dewarp_with_grid);

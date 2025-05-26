@@ -1113,7 +1113,7 @@ bm_status_t bm_vpss_asic(
 				(csc_cfg->flip_mode == VERTICAL_FLIP || csc_cfg->flip_mode == ROTATE_180);
 		}
 		if ((padding_attr != NULL) && (padding_attr[i].dst_crop_stx != 0 || padding_attr[i].dst_crop_sty != 0 ||
-				padding_attr[i].dst_crop_w != output[i].width || padding_attr[i].dst_crop_h != output[i].width)) {
+				padding_attr[i].dst_crop_w != output[i].width || padding_attr[i].dst_crop_h != output[i].height)) {
 			ctx[i].vpss_cfg.chn_attr.chn_attr.aspect_ratio.mode = ASPECT_RATIO_MANUAL;
 			ctx[i].vpss_cfg.chn_attr.chn_attr.aspect_ratio.video_rect.x = padding_attr[i].dst_crop_stx;
 			ctx[i].vpss_cfg.chn_attr.chn_attr.aspect_ratio.video_rect.y = padding_attr[i].dst_crop_sty;
@@ -1938,6 +1938,7 @@ bm_status_t bm_vpss_stitch(
 	pthread_t pid[input_num];
 	stitch_ctx ctx[input_num];
 	for (i = 0; i < input_num; i++) {
+		bmcv_rect_t org_rect = {0, 0, input[i].width, input[i].height};
 		ctx[i].padding_attr.dst_crop_stx = dst_crop_rect[i].start_x;
 		ctx[i].padding_attr.dst_crop_sty = dst_crop_rect[i].start_y;
 		ctx[i].padding_attr.dst_crop_w   = dst_crop_rect[i].crop_w;
@@ -1947,7 +1948,7 @@ bm_status_t bm_vpss_stitch(
 		ctx[i].handle = handle;
 		ctx[i].input = input[i];
 		ctx[i].output = output;
-		ctx[i].src_crop_rect = src_crop_rect[i];
+		ctx[i].src_crop_rect = src_crop_rect ? src_crop_rect[i] : org_rect;
 		ctx[i].algorithm = algorithm;
 		if (pthread_create(
 				&pid[i], NULL, stitch_thread, (void *)(ctx + i))) {
@@ -2232,6 +2233,10 @@ bm_status_t bm_vpss_quick_overlay(
 	struct rgn_param gop_cfg;
 	bmcv_rgn_cfg gop_attr;
 
+	if (!is_full_image(image.image_format)) {
+		rects.start_x = rects.start_x & (~0x1);
+		rects.start_y = rects.start_y & (~0x1);
+	}
 	rects.crop_w = overlay_image.width;
 	rects.crop_h = overlay_image.height;
 	if (rects.start_x >= image.width || rects.start_y >= image.height) {

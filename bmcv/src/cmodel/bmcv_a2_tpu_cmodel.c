@@ -2980,9 +2980,9 @@ int copy_to_ref_v2_float(float * src,
 /*
   test_cv_hm_distance
 */
-int hammingDistance(int x, int y) {
-    int cnt = 0;
-    int z = x ^ y;
+uint32_t hammingDistance(uint32_t x, uint32_t y) {
+    uint32_t cnt = 0;
+    uint32_t z = x ^ y;
     while (z != 0) {
         cnt += z & 1;
         z = z >> 1;
@@ -2990,7 +2990,7 @@ int hammingDistance(int x, int y) {
     return cnt;
 }
 
-void native_cal_hammingDistance(int *input1, int *input2, int *output, int bits_len,
+void native_cal_hammingDistance(int *input1, uint32_t *input2, uint32_t *output, int bits_len,
                                        int input1_num, int input2_num) {
     for (int i = 0; i < input1_num; i++) {
         for(int j = 0; j < input2_num; j++) {

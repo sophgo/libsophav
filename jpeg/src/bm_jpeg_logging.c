@@ -9,7 +9,7 @@ void bm_jpu_set_logging_threshold(BmJpuLogLevel threshold)
     bm_jpu_cur_log_level_threshold = threshold;
 }
 
-void logging_fn(BmJpuLogLevel level, char const *file, int const line, char const *fn, const char *format, ...)
+void bm_jpu_logging_fn(BmJpuLogLevel level, char const *file, int const line, char const *fn, const char *format, ...)
 {
     va_list args;
 

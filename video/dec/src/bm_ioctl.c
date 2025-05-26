@@ -58,7 +58,7 @@ void bmdec_set_logging_thresholdEx()
     }
 }
 
-void logging_fn(BmVpuDecLogLevel level, char const *file, int const line, char const *fn, const char *format, ...)
+void bmdec_logging_fn(BmVpuDecLogLevel level, char const *file, int const line, char const *fn, const char *format, ...)
 {
     va_list args;
 

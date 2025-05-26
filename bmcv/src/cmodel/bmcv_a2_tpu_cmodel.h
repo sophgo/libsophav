@@ -213,7 +213,7 @@ int cpu_hist_balance(uint8_t* input_host, uint8_t* output_cpu, int height, int w
 /*
   test_cv_hm_distance
 */
-void native_cal_hammingDistance(int *input1, int *input2, int *output, int bits_len,
+void native_cal_hammingDistance(uint32_t *input1, uint32_t *input2, uint32_t *output, int bits_len,
                                        int input1_num, int input2_num);
 /*
   test_cv_laplace
