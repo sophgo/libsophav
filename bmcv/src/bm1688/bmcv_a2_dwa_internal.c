@@ -2924,8 +2924,8 @@ static bm_status_t bm_dwa_add_ldc_task(bm_handle_t handle, int fd, GDC_HANDLE hH
     , const ldc_attr_s *pstLDCAttr, rotation_e enRotation, char *grid)
 {
     bm_status_t ret = BM_SUCCESS;
-    MOD_CHECK_NULL_PTR(ID_DWA, pstTask);
-    MOD_CHECK_NULL_PTR(ID_DWA, pstLDCAttr);
+    MOD_CHECK_NULL_PTR(ID_GDC, pstTask);
+    MOD_CHECK_NULL_PTR(ID_GDC, pstLDCAttr);
     CHECK_DWA_FORMAT(pstTask->img_in, pstTask->img_out);
 
     if (!hHandle) {
@@ -3016,7 +3016,7 @@ static bm_status_t bm_dwa_add_ldc_task(bm_handle_t handle, int fd, GDC_HANDLE hH
 static bm_status_t bm_dwa_add_rotation_task(bm_handle_t handle, int fd, DWA_HANDLE hHandle, gdc_task_attr_s *pstTask, rotation_e enRotation)
 {
     bm_status_t ret = BM_SUCCESS;
-    MOD_CHECK_NULL_PTR(ID_DWA, pstTask);
+    MOD_CHECK_NULL_PTR(ID_GDC, pstTask);
     CHECK_DWA_FORMAT(pstTask->img_in, pstTask->img_out);
 
     if (!hHandle){
@@ -3088,8 +3088,8 @@ static bm_status_t bm_dwa_add_rotation_task(bm_handle_t handle, int fd, DWA_HAND
 static bm_status_t bm_dwa_add_correction_task(bm_handle_t handle, int fd, GDC_HANDLE hHandle, gdc_task_attr_s *pstTask,
                 const fisheye_attr_s *pstFishEyeAttr, char *grid){
     bm_status_t ret = BM_SUCCESS;
-    MOD_CHECK_NULL_PTR(ID_DWA, pstTask);
-    MOD_CHECK_NULL_PTR(ID_DWA, pstFishEyeAttr);
+    MOD_CHECK_NULL_PTR(ID_GDC, pstTask);
+    MOD_CHECK_NULL_PTR(ID_GDC, pstFishEyeAttr);
     CHECK_DWA_FORMAT(pstTask->img_in, pstTask->img_out);
 
     if (!hHandle) {
@@ -3195,8 +3195,8 @@ static bm_status_t bm_dwa_add_correction_task(bm_handle_t handle, int fd, GDC_HA
 static bm_status_t bm_dwa_add_affine_task(bm_handle_t handle, int fd, GDC_HANDLE hHandle, gdc_task_attr_s *pstTask, const affine_attr_s *pstAffineAttr)
 {
     bm_status_t ret = BM_SUCCESS;
-    MOD_CHECK_NULL_PTR(ID_DWA, pstTask);
-    MOD_CHECK_NULL_PTR(ID_DWA, pstAffineAttr);
+    MOD_CHECK_NULL_PTR(ID_GDC, pstTask);
+    MOD_CHECK_NULL_PTR(ID_GDC, pstAffineAttr);
     CHECK_DWA_FORMAT(pstTask->img_in, pstTask->img_out);
 
     if (!hHandle) {
@@ -3296,8 +3296,8 @@ static bm_status_t bm_dwa_add_dewarp_task(bm_handle_t handle, int fd, GDC_HANDLE
     , const warp_attr_s *pstWarpAttr, char *grid)
 {
     bm_status_t ret = BM_SUCCESS;
-    MOD_CHECK_NULL_PTR(ID_DWA, pstTask);
-    MOD_CHECK_NULL_PTR(ID_DWA, pstWarpAttr);
+    MOD_CHECK_NULL_PTR(ID_GDC, pstTask);
+    MOD_CHECK_NULL_PTR(ID_GDC, pstWarpAttr);
     CHECK_DWA_FORMAT(pstTask->img_in, pstTask->img_out);
 
     if (!hHandle) {
@@ -3451,7 +3451,7 @@ static bm_status_t bm_dwa_add_task(bm_handle_t handle, int fd, bm_dwa_basic_para
 
 static bm_status_t bm_dwa_begin_job(int fd, DWA_HANDLE *phHandle)
 {
-    MOD_CHECK_NULL_PTR(ID_DWA, phHandle);
+    MOD_CHECK_NULL_PTR(ID_GDC, phHandle);
 
     struct gdc_handle_data cfg;
 
@@ -3466,7 +3466,7 @@ static bm_status_t bm_dwa_begin_job(int fd, DWA_HANDLE *phHandle)
 
 static bm_status_t bm_dwa_set_job_identity(int fd, DWA_HANDLE hHandle,gdc_identity_attr_s *identity_attr)
 {
-    MOD_CHECK_NULL_PTR(ID_DWA, identity_attr);
+    MOD_CHECK_NULL_PTR(ID_GDC, identity_attr);
 
     if(!hHandle){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "null hHandle");
@@ -3541,8 +3541,8 @@ bm_status_t bm_dwa_get_chn_frame(int fd, gdc_identity_attr_s *identity_attr, vid
     bm_status_t ret;
     struct gdc_chn_frm_cfg cfg;
 
-    MOD_CHECK_NULL_PTR(ID_DWA, identity_attr);
-    MOD_CHECK_NULL_PTR(ID_DWA, pstFrameInfo);
+    MOD_CHECK_NULL_PTR(ID_GDC, identity_attr);
+    MOD_CHECK_NULL_PTR(ID_GDC, pstFrameInfo);
 
     memset(&cfg, 0, sizeof(cfg));
     memcpy(&cfg.identity.attr, identity_attr, sizeof(*identity_attr));
@@ -3673,7 +3673,7 @@ bm_status_t bmcv_dwa_rot_internel(bm_handle_t          handle,
 
     bm_image_format_to_cvi(input_image.image_format, input_image.data_type, &param.enPixelFormat);
     bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "param.enPixelFormat = [%d]\n", param.enPixelFormat);
-    param.identity.mod_id = ID_DWA;
+    param.identity.mod_id = ID_GDC;
     param.identity.id = 0;
 
     param.identity.sync_io = true;
@@ -3712,7 +3712,7 @@ bm_status_t bmcv_dwa_gdc_internel(bm_handle_t          handle,
 
     bm_image_format_to_cvi(input_image.image_format, input_image.data_type, &param.enPixelFormat);
     bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "param.enPixelFormat = [%d]\n", param.enPixelFormat);
-    param.identity.mod_id = ID_DWA;
+    param.identity.mod_id = ID_GDC;
     param.identity.id = 0;
 
     param.identity.sync_io = true;
@@ -3787,7 +3787,7 @@ bm_status_t bmcv_dwa_fisheye_internel(bm_handle_t          handle,
     param.size_out.height = output_image.height;
     bm_image_format_to_cvi(input_image.image_format, input_image.data_type, &param.enPixelFormat);
     bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "param.enPixelFormat = [%d]\n", param.enPixelFormat);
-    param.identity.mod_id = ID_DWA;
+    param.identity.mod_id = ID_GDC;
     param.identity.id = 0;
     param.identity.sync_io = true;
 
@@ -3855,7 +3855,7 @@ bm_status_t bmcv_dwa_affine_internel(bm_handle_t          handle,
     param.size_out.height = output_image.height;
     bm_image_format_to_cvi(input_image.image_format, input_image.data_type, &param.enPixelFormat);
     bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "param.enPixelFormat = [%d]\n", param.enPixelFormat);
-    param.identity.mod_id = ID_DWA;
+    param.identity.mod_id = ID_GDC;
     param.identity.id = 0;
     param.identity.sync_io = true;
 
@@ -3898,7 +3898,7 @@ bm_status_t bmcv_dwa_dewarp_internel(bm_handle_t          handle,
     param.size_out.height = output_image.height;
     bm_image_format_to_cvi(input_image.image_format, input_image.data_type, &param.enPixelFormat);
     bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "param.enPixelFormat = [%d]\n", param.enPixelFormat);
-    param.identity.mod_id = ID_DWA;
+    param.identity.mod_id = ID_GDC;
     param.identity.id = 0;
     param.identity.sync_io = true;
 

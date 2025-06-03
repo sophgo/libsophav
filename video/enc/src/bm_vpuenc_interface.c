@@ -41,6 +41,7 @@
 #endif
 
 #include <signal.h>     /* SIG_SETMASK */
+#include <pthread.h>
 
 #include "bm_vpuenc_interface.h"
 #include "bm_ioctl.h"

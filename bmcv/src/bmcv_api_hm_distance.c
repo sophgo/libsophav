@@ -2,17 +2,21 @@
 #include "bmcv_internal.h"
 #include "bmcv_common.h"
 
-static bm_status_t bmcv_hamming_distance_check(bm_handle_t handle, int input1_num, int input2_num) {
+static bm_status_t bmcv_hamming_distance_check(bm_handle_t handle, int bits_len, int input1_num, int input2_num) {
     if (handle == NULL) {
         bmlib_log("HAMMING_DISTANCE", BMLIB_LOG_ERROR, "Can not get handle!\r\n");
         return BM_ERR_PARAM;
     }
-    if (input1_num <= 0 || input1_num > 100) {
-        bmlib_log("HAMMING_DISTANCE", BMLIB_LOG_ERROR, "input1_num should be 1~100!\n");
+    if (bits_len != 4 && bits_len != 8 && bits_len != 16 && bits_len != 32) {
+        bmlib_log("HAMMING_DISTANCE", BMLIB_LOG_ERROR, "bits_len should be 4, 8, 16 or 32!\n");
         return BM_ERR_PARAM;
     }
-    if (input2_num <= 0 || input2_num > 2500) {
-        bmlib_log("HAMMING_DISTANCE", BMLIB_LOG_ERROR, "input2_num should be 1~2500!\n");
+    if (input1_num <= 0 || input1_num > 16) {
+        bmlib_log("HAMMING_DISTANCE", BMLIB_LOG_ERROR, "input1_num should be 1~16!\n");
+        return BM_ERR_PARAM;
+    }
+    if (input2_num <= 0 || input2_num > 50000000) {
+        bmlib_log("HAMMING_DISTANCE", BMLIB_LOG_ERROR, "input2_num should be 1~50000000!\n");
         return BM_ERR_PARAM;
     }
     return BM_SUCCESS;
@@ -25,7 +29,7 @@ bm_status_t bmcv_hamming_distance(bm_handle_t handle, bm_device_mem_t input1, bm
     unsigned int chipid;
     int core_id = 0;
 
-    ret = bmcv_hamming_distance_check(handle, input1_num, input2_num);
+    ret = bmcv_hamming_distance_check(handle, bits_len, input1_num, input2_num);
     if (BM_SUCCESS != ret) {
         return ret;
     }

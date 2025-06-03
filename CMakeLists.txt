@@ -21,6 +21,33 @@ elseif(CMAKE_HOST_UNIX)
 endif()
 cmake_policy(SET CMP0046 NEW)
 
+# copy header from drv
+if("${PLATFORM}" STREQUAL "pcie" OR "${PLATFORM}" STREQUAL "pcie_arm64")
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../libsophon")
+        set(LIBSOPHON_HEADER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../libsophon/driver/bm1688/media/include/common/uapi/linux)
+
+        file(COPY "${LIBSOPHON_HEADER_DIR}"
+            DESTINATION "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/osdrv_pcie")
+        message(STATUS "LIBSOPHON_HEADER_DIR........ " ${LIBSOPHON_HEADER_DIR})
+    else()
+        message(WARNING "not find repo libsophon, use the default header")
+    endif()
+else()
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../osdrv")
+        set(OSDRV_HEADER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../osdrv/interdrv/v2/include/common/uapi/linux)
+        set(V4L2_HEADER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../linux_5.10/drivers/media/platform/soph/osdrv_include/chip/cv186x/uapi/linux)
+
+        file(COPY "${OSDRV_HEADER_DIR}"
+            DESTINATION "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/osdrv")
+        file(COPY "${V4L2_HEADER_DIR}/sns_v4l2_uapi.h" "${V4L2_HEADER_DIR}/vi_v4l2_uapi.h"
+            DESTINATION "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/osdrv/linux")
+        message(STATUS "OSDRV_HEADER_DIR............ " ${OSDRV_HEADER_DIR})
+        message(STATUS "V4L2_HEADER_DIR............. " ${V4L2_HEADER_DIR})
+    else()
+        message(WARNING "not find repo cvi_osdrv, use the default header")
+    endif()
+endif()
+
 # options
 #set(CHIP_LIST bm1688)
 #set(CHIP_NAME bm1688 CACHE STRING "chip: bm1688")
