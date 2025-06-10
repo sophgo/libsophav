@@ -2258,6 +2258,22 @@ DECL_EXPORT bm_status_t bmcv_faiss_indexflatIP(
     int input_dtype,
     int output_dtype);
 
+// Support allocating device memory over 4G Byte
+DECL_EXPORT bm_status_t bmcv_faiss_indexflatIP_u64(
+    bm_handle_t handle,
+    bm_device_mem_u64_t input_data_global_addr,
+    bm_device_mem_u64_t db_data_global_addr,
+    bm_device_mem_u64_t buffer_global_addr,
+    bm_device_mem_u64_t output_sorted_similarity_global_addr,
+    bm_device_mem_u64_t output_sorted_index_global_addr,
+    int vec_dims,
+    int query_vecs_num,
+    int database_vecs_num,
+    int sort_cnt,
+    int is_transpose,
+    int input_dtype,
+    int output_dtype);
+
 /**
  * @brief: calculate squared L2 distance between query vectors and database vectors, output the top K L2sqr-values and the corresponding indices, return BM_SUCCESS if succeed.
  * @param handle                               [in]: the device handle.
@@ -2285,6 +2301,24 @@ DECL_EXPORT bm_status_t bmcv_faiss_indexflatL2(
     bm_device_mem_t buffer_global_addr,
     bm_device_mem_t output_sorted_similarity_global_addr,
     bm_device_mem_t output_sorted_index_global_addr,
+    int vec_dims,
+    int query_vecs_num,
+    int database_vecs_num,
+    int sort_cnt,
+    int is_transpose,
+    int input_dtype,
+    int output_dtype);
+
+// Support allocating device memory over 4G Byte
+DECL_EXPORT bm_status_t bmcv_faiss_indexflatL2_u64(
+    bm_handle_t handle,
+    bm_device_mem_u64_t input_data_global_addr,
+    bm_device_mem_u64_t db_data_global_addr,
+    bm_device_mem_u64_t query_L2norm_global_addr,
+    bm_device_mem_u64_t db_L2norm_global_addr,
+    bm_device_mem_u64_t buffer_global_addr,
+    bm_device_mem_u64_t output_sorted_similarity_global_addr,
+    bm_device_mem_u64_t output_sorted_index_global_addr,
     int vec_dims,
     int query_vecs_num,
     int database_vecs_num,
@@ -2436,6 +2470,14 @@ DECL_EXPORT bm_status_t bmcv_faiss_indexPQ_SDC(
 DECL_EXPORT bm_status_t bmcv_min_max(
     bm_handle_t handle,
     bm_device_mem_t input,
+    float *minVal,
+    float *maxVal,
+    int len);
+
+// Support allocating device memory over 4G Byte
+DECL_EXPORT bm_status_t bmcv_min_max_u64(
+    bm_handle_t handle,
+    bm_device_mem_u64_t input,
     float *minVal,
     float *maxVal,
     int len);
@@ -2897,6 +2939,23 @@ DECL_EXPORT bm_status_t bmcv_matmul(
     float            alpha = 1,
     float            beta = 0);
 
+// Support allocating device memory over 4G Byte
+DECL_EXPORT bm_status_t bmcv_matmul_u64(
+    bm_handle_t      handle,
+    int              M,
+    int              N,
+    int              K,
+    bm_device_mem_u64_t  A,
+    bm_device_mem_u64_t  B,
+    bm_device_mem_u64_t  C,
+    int              A_sign, /*1: signed 0: unsigned */
+    int              B_sign,
+    int              rshift_bit,
+    int              result_type, /* 0:8bit 1:int16 2:fp32 */
+    bool             is_B_trans,
+    float            alpha = 1,
+    float            beta = 0);
+
 /**
  * histogram
  * @param [in] input input data
@@ -2965,6 +3024,23 @@ DECL_EXPORT bm_status_t bmcv_gemm(
     bm_device_mem_t C,
     int ldc);
 
+// Support allocating device memory over 4G Byte
+DECL_EXPORT bm_status_t bmcv_gemm_u64(
+    bm_handle_t handle,
+    bool is_A_trans,
+    bool is_B_trans,
+    int M,
+    int N,
+    int K,
+    float alpha,
+    bm_device_mem_u64_t A,
+    int lda,
+    bm_device_mem_u64_t B,
+    int ldb,
+    float beta,
+    bm_device_mem_u64_t C,
+    int ldc);
+
 /**
  * is_A_trans is_B_trans is transpose or not
  * M is A C Y line number;N is B C Y columns;K is A columns and B lines
@@ -2987,6 +3063,24 @@ DECL_EXPORT bm_status_t bmcv_gemm_ext(
     bm_device_mem_t Y,
     bm_image_data_format_ext in_dtype,
     bm_image_data_format_ext out_dtype);
+
+// Support allocating device memory over 4G Byte
+DECL_EXPORT bm_status_t bmcv_gemm_ext_u64(
+    bm_handle_t handle,
+    bool is_A_trans,
+    bool is_B_trans,
+    int M,
+    int N,
+    int K,
+    float alpha,
+    bm_device_mem_u64_t A,
+    bm_device_mem_u64_t B,
+    float beta,
+    bm_device_mem_u64_t C,
+    bm_device_mem_u64_t Y,
+    bm_image_data_format_ext in_dtype,
+    bm_image_data_format_ext out_dtype);
+
 
 /**
  * network get feature points(float)and compares them with feature points(float) in database

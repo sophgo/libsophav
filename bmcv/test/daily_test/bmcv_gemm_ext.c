@@ -75,23 +75,23 @@ int main()
     unsigned short* B_fp16 = (unsigned short*)malloc(N * K * sizeof(unsigned short));
     unsigned short* C_fp16 = (unsigned short*)malloc(M * N * sizeof(unsigned short));
     unsigned short* Y_fp16 = (unsigned short*)malloc(M * N * sizeof(unsigned short));
-    bm_device_mem_t input_dev_buffer[GEMM_INPUT_NUM];
-    bm_device_mem_t output_dev_buffer[GEMM_OUTPUT_NUM];
+    bm_device_mem_u64_t input_dev_buffer[GEMM_INPUT_NUM];
+    bm_device_mem_u64_t output_dev_buffer[GEMM_OUTPUT_NUM];
 
-    ret = bm_malloc_device_byte(handle, &input_dev_buffer[0], M * K * sizeof(float));
-    ret = bm_malloc_device_byte(handle, &input_dev_buffer[1], N * K * sizeof(float));
-    ret = bm_malloc_device_byte(handle, &input_dev_buffer[2], M * N * sizeof(float));
-    ret = bm_memcpy_s2d(handle, input_dev_buffer[0], (void*)A);
-    ret = bm_memcpy_s2d(handle, input_dev_buffer[1], (void*)B);
-    ret = bm_memcpy_s2d(handle, input_dev_buffer[2], (void*)C);
+    ret = bm_malloc_device_byte_u64(handle, &input_dev_buffer[0], M * K * sizeof(float));
+    ret = bm_malloc_device_byte_u64(handle, &input_dev_buffer[1], N * K * sizeof(float));
+    ret = bm_malloc_device_byte_u64(handle, &input_dev_buffer[2], M * N * sizeof(float));
+    ret = bm_memcpy_s2d_u64(handle, input_dev_buffer[0], (void*)A);
+    ret = bm_memcpy_s2d_u64(handle, input_dev_buffer[1], (void*)B);
+    ret = bm_memcpy_s2d_u64(handle, input_dev_buffer[2], (void*)C);
 
-    ret = bm_malloc_device_byte(handle, &output_dev_buffer[0], M * N * sizeof(float));
+    ret = bm_malloc_device_byte_u64(handle, &output_dev_buffer[0], M * N * sizeof(float));
 
-    ret = bmcv_gemm_ext(handle, is_A_trans, is_B_trans, M, N, K, alpha, input_dev_buffer[0],
+    ret = bmcv_gemm_ext_u64(handle, is_A_trans, is_B_trans, M, N, K, alpha, input_dev_buffer[0],
                         input_dev_buffer[1], beta, input_dev_buffer[2], output_dev_buffer[0],
                         in_dtype, out_dtype);
 
-    ret = bm_memcpy_d2s(handle, (void*)tpu_C, output_dev_buffer[0]);
+    ret = bm_memcpy_d2s_u64(handle, (void*)tpu_C, output_dev_buffer[0]);
 
     free(A_fp16);
     free(B_fp16);

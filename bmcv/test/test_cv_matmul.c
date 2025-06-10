@@ -83,8 +83,8 @@ static int tpu_matmul(signed char* input_A, signed char* input_B, void* output, 
     struct timeval t1, t2;
 
     gettimeofday(&t1, NULL);
-    ret = bmcv_matmul(handle, M, N, K, bm_mem_from_system((void*)input_A),
-                    bm_mem_from_system((void*)input_B), bm_mem_from_system(output), A_sign,
+    ret = bmcv_matmul_u64(handle, M, N, K, bm_mem_from_system_u64((void*)input_A),
+                    bm_mem_from_system_u64((void*)input_B), bm_mem_from_system_u64(output), A_sign,
                     B_sign, right_shift_bit, result_type, trans_B, alpha, beta);
     gettimeofday(&t2, NULL);
     printf("Matmul TPU using time = %ld(us)\n", TIME_COST_US(t1, t2));

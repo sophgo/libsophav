@@ -20,17 +20,17 @@ int main() {
     for (i = 0; i < L; ++i)
         XHost[i] = (float)((rand() % 2 ? 1 : -1) * (rand() % 1000 + (rand() % 100000) * 0.01));
 
-    bm_device_mem_t XDev;
+    bm_device_mem_u64_t XDev;
 
-    ret = bm_malloc_device_byte(handle, &XDev, L * sizeof(float));
-    ret = bm_memcpy_s2d(handle, XDev, XHost);
-    ret = bmcv_min_max(handle, XDev, &min_tpu, &max_tpu, L);
+    ret = bm_malloc_device_byte_u64(handle, &XDev, L * sizeof(float));
+    ret = bm_memcpy_s2d_u64(handle, XDev, XHost);
+    ret = bmcv_min_max_u64(handle, XDev, &min_tpu, &max_tpu, L);
     if (ret != BM_SUCCESS) {
         printf("Calculate bm min_max failed. ret = %d\n", ret);
         return -1;
     }
 
-    bm_free_device(handle, XDev);
+    bm_free_device_u64(handle, XDev);
 
     free(XHost);
 

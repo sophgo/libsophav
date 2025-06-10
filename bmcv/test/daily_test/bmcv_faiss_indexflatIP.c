@@ -74,34 +74,34 @@ int main() {
     for (i = 0; i < query_vecs_num; i++) {
         ref_result[i] = (int*)calloc(database_vecs_num, sizeof(int));
     }
-    bm_device_mem_t input_data_global_addr_device,
+    bm_device_mem_u64_t input_data_global_addr_device,
                     db_data_global_addr_device,
                     buffer_global_addr_device,
                     output_sorted_similarity_global_addr_device,
                     output_sorted_index_global_addr_device;
-    bm_malloc_device_byte(handle,
+    bm_malloc_device_byte_u64(handle,
                         &input_data_global_addr_device,
                         dtype_size((enum bm_data_type_t)input_dtype) * query_vecs_num * vec_dims);
-    bm_malloc_device_byte(handle,
+    bm_malloc_device_byte_u64(handle,
                         &db_data_global_addr_device,
                         dtype_size((enum bm_data_type_t)input_dtype) * database_vecs_num * vec_dims);
-    bm_malloc_device_byte(handle,
+    bm_malloc_device_byte_u64(handle,
                         &buffer_global_addr_device,
                         dtype_size((enum bm_data_type_t)DT_FP32) * query_vecs_num * database_vecs_num);
-    bm_malloc_device_byte(handle,
+    bm_malloc_device_byte_u64(handle,
                         &output_sorted_similarity_global_addr_device,
                         dtype_size((enum bm_data_type_t)output_dtype) * query_vecs_num * sort_cnt);
-    bm_malloc_device_byte(handle,
+    bm_malloc_device_byte_u64(handle,
                         &output_sorted_index_global_addr_device,
                         dtype_size(DT_INT32) * query_vecs_num * sort_cnt);
-    bm_memcpy_s2d(handle,
+    bm_memcpy_s2d_u64(handle,
                 input_data_global_addr_device,
                 bm_mem_get_system_addr(bm_mem_from_system(input_data)));
-    bm_memcpy_s2d(handle,
+    bm_memcpy_s2d_u64(handle,
                 db_data_global_addr_device,
                 bm_mem_get_system_addr(bm_mem_from_system(db_data)));
 
-    ret = bmcv_faiss_indexflatIP(handle,
+    ret = bmcv_faiss_indexflatIP_u64(handle,
                         input_data_global_addr_device,
                         db_data_global_addr_device,
                         buffer_global_addr_device,
@@ -115,18 +115,18 @@ int main() {
                         input_dtype,
                         output_dtype);
 
-    bm_memcpy_d2s(handle,
+    bm_memcpy_d2s_u64(handle,
                 bm_mem_get_system_addr(bm_mem_from_system(output_similarity)),
                 output_sorted_similarity_global_addr_device);
-    bm_memcpy_d2s(handle,
+    bm_memcpy_d2s_u64(handle,
                 bm_mem_get_system_addr(bm_mem_from_system(output_index)),
                 output_sorted_index_global_addr_device);
 
-    bm_free_device(handle, input_data_global_addr_device);
-    bm_free_device(handle, db_data_global_addr_device);
-    bm_free_device(handle, buffer_global_addr_device);
-    bm_free_device(handle, output_sorted_similarity_global_addr_device);
-    bm_free_device(handle, output_sorted_index_global_addr_device);
+    bm_free_device_u64(handle, input_data_global_addr_device);
+    bm_free_device_u64(handle, db_data_global_addr_device);
+    bm_free_device_u64(handle, buffer_global_addr_device);
+    bm_free_device_u64(handle, output_sorted_similarity_global_addr_device);
+    bm_free_device_u64(handle, output_sorted_index_global_addr_device);
 
     free(input_data);
     free(db_data);

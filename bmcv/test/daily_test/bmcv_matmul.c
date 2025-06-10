@@ -49,8 +49,8 @@ int main()
     assign_fix8b_matrix((void*)input_A, M * K, 0);
     assign_fix8b_matrix((void*)input_B, K * N, 0);
 
-    ret = bmcv_matmul(handle, M, N, K, bm_mem_from_system((void*)input_A),
-                    bm_mem_from_system((void*)input_B), bm_mem_from_system(tpu_out), A_sign,
+    ret = bmcv_matmul_u64(handle, M, N, K, bm_mem_from_system_u64((void*)input_A),
+                    bm_mem_from_system_u64((void*)input_B), bm_mem_from_system_u64(tpu_out), A_sign,
                     B_sign, right_shift_bit, result_type, trans_B, alpha, beta);
 
     if (ret != BM_SUCCESS) {

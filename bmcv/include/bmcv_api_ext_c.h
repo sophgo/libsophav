@@ -1692,7 +1692,7 @@ DECL_EXPORT bm_status_t bm_image_detach(bm_image image);
  * It is automatically released when bm_image_destroy, bm_image_detach,
  * or bm_image_attach other device memory is called. In contrast,
  * if bm_image_attach a device memory, that memory will be managed by the caller.
- * bm_image_destroy, bm_image_detach, or call bm_image_attach to other device memory will not be released,
+ * bm_image_destroy, bm_image_detach, or call bm_image_attach_u64 to other device memory will not be released,
  * and the caller needs to release it manually.
  */
 DECL_EXPORT bool        bm_image_is_attached(bm_image);
@@ -2243,13 +2243,28 @@ DECL_EXPORT bm_status_t bmcv_image_quantify(
  * @param input_dtype       [in]: DT_FP32 / DT_FP16 / DT_INT8.
  * @param output_dtype      [in]: DT_FP32 / DT_FP16 / DT_INT32.
  */
-DECL_EXPORT bm_status_t bmcv_faiss_indexflatIP(
-    bm_handle_t handle,
+DECL_EXPORT bm_status_t bmcv_faiss_indexflatIP(bm_handle_t handle,
     bm_device_mem_t input_data_global_addr,
     bm_device_mem_t db_data_global_addr,
     bm_device_mem_t buffer_global_addr,
     bm_device_mem_t output_sorted_similarity_global_addr,
     bm_device_mem_t output_sorted_index_global_addr,
+    int vec_dims,
+    int query_vecs_num,
+    int database_vecs_num,
+    int sort_cnt,
+    int is_transpose,
+    int input_dtype,
+    int output_dtype);
+
+// Support allocating device memory over 4G Byte
+DECL_EXPORT bm_status_t bmcv_faiss_indexflatIP_u64(
+    bm_handle_t handle,
+    bm_device_mem_u64_t input_data_global_addr,
+    bm_device_mem_u64_t db_data_global_addr,
+    bm_device_mem_u64_t buffer_global_addr,
+    bm_device_mem_u64_t output_sorted_similarity_global_addr,
+    bm_device_mem_u64_t output_sorted_index_global_addr,
     int vec_dims,
     int query_vecs_num,
     int database_vecs_num,
@@ -2285,6 +2300,24 @@ DECL_EXPORT bm_status_t bmcv_faiss_indexflatL2(
     bm_device_mem_t buffer_global_addr,
     bm_device_mem_t output_sorted_similarity_global_addr,
     bm_device_mem_t output_sorted_index_global_addr,
+    int vec_dims,
+    int query_vecs_num,
+    int database_vecs_num,
+    int sort_cnt,
+    int is_transpose,
+    int input_dtype,
+    int output_dtype);
+
+// Support allocating device memory over 4G Byte
+DECL_EXPORT bm_status_t bmcv_faiss_indexflatL2_u64(
+    bm_handle_t handle,
+    bm_device_mem_u64_t input_data_global_addr,
+    bm_device_mem_u64_t db_data_global_addr,
+    bm_device_mem_u64_t query_L2norm_global_addr,
+    bm_device_mem_u64_t db_L2norm_global_addr,
+    bm_device_mem_u64_t buffer_global_addr,
+    bm_device_mem_u64_t output_sorted_similarity_global_addr,
+    bm_device_mem_u64_t output_sorted_index_global_addr,
     int vec_dims,
     int query_vecs_num,
     int database_vecs_num,
@@ -2436,6 +2469,14 @@ DECL_EXPORT bm_status_t bmcv_faiss_indexPQ_SDC(
 DECL_EXPORT bm_status_t bmcv_min_max(
     bm_handle_t handle,
     bm_device_mem_t input,
+    float *minVal,
+    float *maxVal,
+    int len);
+
+// Support allocating device memory over 4G Byte
+DECL_EXPORT bm_status_t bmcv_min_max_u64(
+    bm_handle_t handle,
+    bm_device_mem_u64_t input,
     float *minVal,
     float *maxVal,
     int len);
@@ -2897,6 +2938,23 @@ DECL_EXPORT bm_status_t bmcv_matmul(
     float            alpha,
     float            beta);
 
+// Support allocating device memory over 4G Byte
+DECL_EXPORT bm_status_t bmcv_matmul_u64(
+    bm_handle_t      handle,
+    int              M,
+    int              N,
+    int              K,
+    bm_device_mem_u64_t  A,
+    bm_device_mem_u64_t  B,
+    bm_device_mem_u64_t  C,
+    int              A_sign, /*1: signed 0: unsigned */
+    int              B_sign,
+    int              rshift_bit,
+    int              result_type, /* 0:8bit 1:int16 2:fp32 */
+    bool             is_B_trans,
+    float            alpha,
+    float            beta);
+
 /**
  * histogram
  * @param [in] input input data
@@ -2949,6 +3007,7 @@ DECL_EXPORT bm_status_t bmcv_calc_hist_with_weight(
  * B is Right matrix B data address;ldb is C of leading dimension
  * beta is Multiplicative coefficient;C is Matrix C data address
 */
+
 DECL_EXPORT bm_status_t bmcv_gemm(
     bm_handle_t handle,
     bool is_A_trans,
@@ -2963,6 +3022,23 @@ DECL_EXPORT bm_status_t bmcv_gemm(
     int ldb,
     float beta,
     bm_device_mem_t C,
+    int ldc);
+
+// Support allocating device memory over 4G Byte
+DECL_EXPORT bm_status_t bmcv_gemm_u64(
+    bm_handle_t handle,
+    bool is_A_trans,
+    bool is_B_trans,
+    int M,
+    int N,
+    int K,
+    float alpha,
+    bm_device_mem_u64_t A,
+    int lda,
+    bm_device_mem_u64_t B,
+    int ldb,
+    float beta,
+    bm_device_mem_u64_t C,
     int ldc);
 
 /**
@@ -2985,6 +3061,23 @@ DECL_EXPORT bm_status_t bmcv_gemm_ext(
     float beta,
     bm_device_mem_t C,
     bm_device_mem_t Y,
+    bm_image_data_format_ext in_dtype,
+    bm_image_data_format_ext out_dtype);
+
+// Support allocating device memory over 4G Byte
+DECL_EXPORT bm_status_t bmcv_gemm_ext_u64(
+    bm_handle_t handle,
+    bool is_A_trans,
+    bool is_B_trans,
+    int M,
+    int N,
+    int K,
+    float alpha,
+    bm_device_mem_u64_t A,
+    bm_device_mem_u64_t B,
+    float beta,
+    bm_device_mem_u64_t C,
+    bm_device_mem_u64_t Y,
     bm_image_data_format_ext in_dtype,
     bm_image_data_format_ext out_dtype);
 

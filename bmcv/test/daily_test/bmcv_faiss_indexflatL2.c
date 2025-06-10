@@ -88,7 +88,7 @@ int main() {
     matrix_trans(db_data, db_data_trans, database_vecs_num, vec_dims, (enum bm_data_type_t)input_dtype);
     fvec_norm_L2sqr_ref(vec_query, input_data, query_vecs_num, vec_dims);
     fvec_norm_L2sqr_ref(vec_db, db_data, database_vecs_num, vec_dims);
-    bm_device_mem_t query_data_dev_mem,
+    bm_device_mem_u64_t query_data_dev_mem,
                     db_data_dev_mem,
                     query_L2norm_dev_mem,
                     db_L2norm_dev_mem,
@@ -96,41 +96,41 @@ int main() {
                     sorted_similarity_dev_mem,
                     sorted_index_dev_mem;
 
-    bm_malloc_device_byte(handle,
+    bm_malloc_device_byte_u64(handle,
                         &query_data_dev_mem,
                         dtype_size((enum bm_data_type_t)input_dtype) * query_vecs_num * vec_dims);
-    bm_malloc_device_byte(handle,
+    bm_malloc_device_byte_u64(handle,
                         &db_data_dev_mem,
                         dtype_size((enum bm_data_type_t)input_dtype) * database_vecs_num * vec_dims);
-    bm_malloc_device_byte(handle,
+    bm_malloc_device_byte_u64(handle,
                         &query_L2norm_dev_mem,
                         dtype_size((enum bm_data_type_t)input_dtype) * query_vecs_num * 1);
-    bm_malloc_device_byte(handle,
+    bm_malloc_device_byte_u64(handle,
                         &db_L2norm_dev_mem,
                         dtype_size((enum bm_data_type_t)input_dtype) * database_vecs_num * 1);
 
-    bm_malloc_device_byte(handle,
+    bm_malloc_device_byte_u64(handle,
                         &buffer_dev_mem,
                         dtype_size((enum bm_data_type_t)DT_FP32) * query_vecs_num * database_vecs_num);
-    bm_malloc_device_byte(handle,
+    bm_malloc_device_byte_u64(handle,
                         &sorted_similarity_dev_mem,
                         dtype_size((enum bm_data_type_t)output_dtype) * query_vecs_num * sort_cnt);
-    bm_malloc_device_byte(handle,
+    bm_malloc_device_byte_u64(handle,
                         &sorted_index_dev_mem,
                         dtype_size((enum bm_data_type_t)DT_INT32) * query_vecs_num * sort_cnt);
-    bm_memcpy_s2d(handle,
+    bm_memcpy_s2d_u64(handle,
                 query_data_dev_mem,
                 bm_mem_get_system_addr(bm_mem_from_system(input_data)));
-    bm_memcpy_s2d(handle,
+    bm_memcpy_s2d_u64(handle,
                 db_data_dev_mem,
                 bm_mem_get_system_addr(bm_mem_from_system(db_data)));
-    bm_memcpy_s2d(handle,
+    bm_memcpy_s2d_u64(handle,
                 query_L2norm_dev_mem,
                 bm_mem_get_system_addr(bm_mem_from_system(vec_query)));
-    bm_memcpy_s2d(handle,
+    bm_memcpy_s2d_u64(handle,
                 db_L2norm_dev_mem,
                 bm_mem_get_system_addr(bm_mem_from_system(vec_db)));
-    ret = bmcv_faiss_indexflatL2(handle,
+    ret = bmcv_faiss_indexflatL2_u64(handle,
                         query_data_dev_mem,
                         db_data_dev_mem,
                         query_L2norm_dev_mem,
@@ -145,10 +145,10 @@ int main() {
                         is_transpose,
                         input_dtype,
                         output_dtype);
-    bm_memcpy_d2s(handle,
+    bm_memcpy_d2s_u64(handle,
                 bm_mem_get_system_addr(bm_mem_from_system(output_dis)),
                 sorted_similarity_dev_mem);
-    bm_memcpy_d2s(handle,
+    bm_memcpy_d2s_u64(handle,
                 bm_mem_get_system_addr(bm_mem_from_system(output_idx)),
                 sorted_index_dev_mem);
     matmul_param_t param;
@@ -162,13 +162,13 @@ int main() {
     param.R_dtype = (enum bm_data_type_t)input_dtype;
     param.Y_dtype = (enum bm_data_type_t)output_dtype;
 
-    bm_free_device(handle, query_data_dev_mem);
-    bm_free_device(handle, db_data_dev_mem);
-    bm_free_device(handle, query_L2norm_dev_mem);
-    bm_free_device(handle, db_L2norm_dev_mem);
-    bm_free_device(handle, buffer_dev_mem);
-    bm_free_device(handle, sorted_similarity_dev_mem);
-    bm_free_device(handle, sorted_index_dev_mem);
+    bm_free_device_u64(handle, query_data_dev_mem);
+    bm_free_device_u64(handle, db_data_dev_mem);
+    bm_free_device_u64(handle, query_L2norm_dev_mem);
+    bm_free_device_u64(handle, db_L2norm_dev_mem);
+    bm_free_device_u64(handle, buffer_dev_mem);
+    bm_free_device_u64(handle, sorted_similarity_dev_mem);
+    bm_free_device_u64(handle, sorted_index_dev_mem);
 
     free(input_data);
     free(db_data);

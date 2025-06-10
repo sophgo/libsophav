@@ -30,7 +30,7 @@ static int parameters_check(int len)
 static int tpu_min_max(float* XHost, int L, float* min_tpu, float* max_tpu, bm_handle_t handle)
 {
 
-    bm_device_mem_t XDev;
+    bm_device_mem_u64_t XDev;
     bm_status_t ret = BM_SUCCESS;
     struct timeval t1, t2;
 
@@ -38,18 +38,18 @@ static int tpu_min_max(float* XHost, int L, float* min_tpu, float* max_tpu, bm_h
         printf("the param Xhost or mi_tpu or nax_tpu is null\n");
         return -1;
     }
-    ret = bm_malloc_device_byte(handle, &XDev, L * sizeof(float));
+    ret = bm_malloc_device_byte_u64(handle, &XDev, L * sizeof(float));
     if (ret != BM_SUCCESS) {
         printf("Allocate bm device memory failed. ret = %d\n", ret);
         return -1;
     }
-    ret = bm_memcpy_s2d(handle, XDev, XHost);
+    ret = bm_memcpy_s2d_u64(handle, XDev, XHost);
     if (ret != BM_SUCCESS) {
         printf("Memory copy sys to device failed. ret = %d\n", ret);
         return -1;
     }
     gettimeofday(&t1, NULL);
-    ret = bmcv_min_max(handle, XDev, min_tpu, max_tpu, L);
+    ret = bmcv_min_max_u64(handle, XDev, min_tpu, max_tpu, L);
     if (ret != BM_SUCCESS) {
         printf("Calculate bm min_max failed. ret = %d\n", ret);
         return -1;
@@ -57,7 +57,7 @@ static int tpu_min_max(float* XHost, int L, float* min_tpu, float* max_tpu, bm_h
     gettimeofday(&t2, NULL);
     printf("Min_max TPU using time = %ld(us)\n", TIME_COST_US(t1, t2));
 
-    bm_free_device(handle, XDev);
+    bm_free_device_u64(handle, XDev);
     return 0;
 
 }
