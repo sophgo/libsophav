@@ -1047,3 +1047,68 @@ BMVidDecRetStatus bmvpu_dec_reset(int devIdx, int coreIdx)
     return BM_SUCCESS;
 }
 
+// Need to set decParam->streamFormat before use it.
+BMVidDecRetStatus bmvpu_dec_get_param(BMVidStream vidStream, BMVidDecParam *decParam)
+{
+    BMVidCodHandle vidHandle;
+    int ret = 0;
+    BMVidFrame pFrame;
+    BMVidStreamInfo streamInfo;
+    int retry = 0;
+
+    decParam->extraFrameBufferNum = 1;
+    decParam->streamBufferSize = 0x500000;
+    decParam->enable_cache = 0;
+    decParam->bsMode = 0;
+    decParam->core_idx = -1;
+    decParam->cmd_queue_depth = 4;
+
+    if(vidStream.buf == NULL || vidStream.length == 0){
+        BMVPU_DEC_ERROR("Input buffer error\n");
+        return BM_ERR_VDEC_ILLEGAL_PARAM;
+    }
+
+    ret = bmvpu_dec_create(&vidHandle, *decParam);
+    if(ret != BM_SUCCESS){
+        BMVPU_DEC_ERROR("Create decoder failed, ret=%d\n", ret);
+        return ret;
+    }
+
+    while((ret = bmvpu_dec_decode(vidHandle, vidStream)) != BM_SUCCESS){
+        usleep(1000);
+        if(++retry >= 1000){
+            BMVPU_DEC_ERROR("Send one frame failed after %d retries (%.3f sec), aborting.\n", retry, retry * 0.001);
+            goto OUT2;
+        }
+    }
+
+    bmvpu_dec_get_all_frame_in_buffer(vidHandle);
+
+    retry = 0;
+    while((ret = bmvpu_dec_get_output(vidHandle, &pFrame)) != BM_SUCCESS){
+        usleep(1000);
+        if(++retry >= 1000){
+            BMVPU_DEC_ERROR("Get one frame failed after %d retries (%.3f sec), aborting.\n", retry, retry * 0.001);
+            goto OUT2;
+        }
+    }
+
+    memset(&streamInfo, 0 ,sizeof(BMVidStreamInfo));
+    ret = bmvpu_dec_get_caps(vidHandle, &streamInfo);
+    if(ret != BM_SUCCESS){
+        BMVPU_DEC_ERROR("Get caps failed, ret=%d\n", ret);
+        goto OUT1;
+    }
+    decParam->picWidth = streamInfo.picWidth;
+    decParam->picHeight = streamInfo.picHeight;
+    decParam->min_framebuf_cnt = streamInfo.minFrameBufferCount;
+    decParam->framebuf_delay = streamInfo.frameBufDelay;
+
+OUT1:
+    if(bmvpu_dec_clear_output(vidHandle, &pFrame) != BM_SUCCESS){
+        BMVPU_DEC_ERROR("Clear one frame failed.\n");
+    }
+OUT2:
+    bmvpu_dec_delete(vidHandle);
+    return ret;
+}
