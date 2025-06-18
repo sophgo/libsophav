@@ -73,20 +73,20 @@ typedef struct _stitch_grp_op_attr {
 
 /* Public */
 
-#define STITCH_INIT          _IO('S',    0x00)
-#define STITCH_DEINIT        _IO('S',    0x01)
-#define STITCH_SET_SRC_ATTR  _IOW('S',   0x02, stitch_grp_src_attr)
-#define STITCH_GET_SRC_ATTR  _IOWR('S',  0x03, stitch_grp_src_attr)
-#define STITCH_SET_CHN_ATTR  _IOW('S',   0x04, stitch_grp_chn_attr)
-#define STITCH_GET_CHN_ATTR  _IOWR('S',  0x05, stitch_grp_chn_attr)
-#define STITCH_SET_OP_ATTR   _IOW('S',   0x06, stitch_grp_op_attr)
-#define STITCH_GET_OP_ATTR   _IOWR('S',  0x07, stitch_grp_op_attr)
+#define STITCH_INIT          _IO('S',   0x00)
+#define STITCH_DEINIT        _IO('S',   0x01)
+#define STITCH_SET_SRC_ATTR  _IOW('S',  0x02, stitch_grp_src_attr)
+#define STITCH_GET_SRC_ATTR  _IOWR('S', 0x03, stitch_grp_src_attr)
+#define STITCH_SET_CHN_ATTR  _IOW('S',  0x04, stitch_grp_chn_attr)
+#define STITCH_GET_CHN_ATTR  _IOWR('S', 0x05, stitch_grp_chn_attr)
+#define STITCH_SET_OP_ATTR   _IOW('S',  0x06, stitch_grp_op_attr)
+#define STITCH_GET_OP_ATTR   _IOWR('S', 0x07, stitch_grp_op_attr)
 #define STITCH_SET_WGT_ATTR   _IOW('S',  0x08, stitch_grp_bld_wgt_attr)
 #define STITCH_GET_WGT_ATTR   _IOWR('S', 0x09, stitch_grp_bld_wgt_attr)
 
 #define STITCH_SET_REGX      _IOW('S',  0x0a, uint8_t)
-#define STITCH_GRP_ENABLE    _IOW('S',  0x0b, stitch_grp)
-#define STITCH_GRP_DISABLE   _IOW('S',  0x0c, stitch_grp)
+#define STITCH_GRP_ENABLE    _IOW('S',   0x0b, stitch_grp)
+#define STITCH_GRP_DISABLE   _IOW('S',   0x0c, stitch_grp)
 #define STITCH_SEND_SRC_FRM  _IOW('S',  0x0d, struct stitch_grp_src_frm_cfg)
 #define STITCH_SEND_CHN_FRM  _IOW('S',  0x0e, struct stitch_grp_chn_frm_cfg)
 #define STITCH_GET_CHN_FRM   _IOWR('S', 0x0f, struct stitch_grp_chn_frm_cfg)
@@ -96,11 +96,11 @@ typedef struct _stitch_grp_op_attr {
 #define STITCH_DUMP_REGS _IO('S', 0x13)
 #define STITCH_RST _IO('S', 0x14)
 
-#define STITCH_SUSPEND _IO('S', 0x15)
-#define STITCH_RESUME _IO('S',  0x16)
+#define STITCH_SUSPEND _IO('S',0x15)
+#define STITCH_RESUME _IO('S',0x16)
 
-#define STITCH_INIT_GRP          _IOW('S',  0x17, stitch_grp)
-#define STITCH_DEINIT_GRP        _IOW('S',  0x18, stitch_grp)
+#define STITCH_INIT_GRP          _IOW('S',   0x17, stitch_grp)
+#define STITCH_DEINIT_GRP        _IOW('S',   0x18, stitch_grp)
 #define STITCH_GET_AVAIL_GROUP   _IOWR('S', 0x19, stitch_grp)
 
 /* Internal use */

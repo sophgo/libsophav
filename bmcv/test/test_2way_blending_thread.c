@@ -7,6 +7,12 @@
 #include "getopt.h"
 #include "signal.h"
 #include <stdatomic.h>
+extern bm_status_t bm_blend_image_calc_stride(bm_handle_t handle,
+                                     int img_h,
+                                     int img_w,
+                                     bm_image_format_ext image_format,
+                                     bm_image_data_format_ext data_type,
+                                     int *stride);
 
 #ifdef __linux__
 #include <sys/time.h>
@@ -200,6 +206,8 @@ static int test_2way_blending(int* src_h, int* src_w, char** src_name, char** wg
                               bm_handle_t handle) {
 
   bm_image src[2], dst;
+  int src_stride[2][4] = {0};
+  int dst_stride[4] = {0};
   int ret = 0;
   #ifdef __linux__
       struct timeval tv_start;
@@ -210,12 +218,18 @@ static int test_2way_blending(int* src_h, int* src_w, char** src_name, char** wg
   unsigned long long time_max = 0, time_min = 10000, fps = 0, pixel_per_sec = 0;
   int wgtWidth = ALIGN(stitch_config.ovlap_attr.ovlp_rx[0] - stitch_config.ovlap_attr.ovlp_lx[0] + 1, 16);
   int wgtHeight = src_h[0];
+  // calc image stride
+  for (int i = 0; i < 2; i++)
+  {
+    bm_blend_image_calc_stride(handle, src_h[i], src_w[i], src_fmt, DATA_TYPE_EXT_1N_BYTE, src_stride[i]);
+  }
+  bm_blend_image_calc_stride(handle, dst_h, dst_w, dst_fmt, DATA_TYPE_EXT_1N_BYTE, dst_stride);
 
   atomic_fetch_add(&num_threads, 1);
 
   for(int i = 0;i < 2; i++)
   {
-    bm_image_create(handle, src_h[i], src_w[i], src_fmt, DATA_TYPE_EXT_1N_BYTE, &src[i],NULL);
+    bm_image_create(handle, src_h[i], src_w[i], src_fmt, DATA_TYPE_EXT_1N_BYTE, &src[i], src_stride[i]);
     bm_image_alloc_dev_mem(src[i],1);
     bm_read_bin(src[i],src_name[i]);
     wgt_len = wgtWidth * wgtHeight;
@@ -225,7 +239,7 @@ static int test_2way_blending(int* src_h, int* src_w, char** src_name, char** wg
 
     bm_dem_read_bin(handle, &stitch_config.wgt_phy_mem[0][i], wgt_name[i],  wgt_len);
   }
-  bm_image_create(handle, dst_h, dst_w, dst_fmt, DATA_TYPE_EXT_1N_BYTE, &dst,NULL);
+  bm_image_create(handle, dst_h, dst_w, dst_fmt, DATA_TYPE_EXT_1N_BYTE, &dst, dst_stride);
   bm_image_alloc_dev_mem(dst, 1);
 
 

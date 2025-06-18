@@ -61,11 +61,6 @@ static void * ramdom(void* arg) {
         printf("bm_image_alloc_dev_mem_src. ret = %d\n", ret);
         exit(-1);
     }
-    ret = bm_image_alloc_dev_mem(dst, BMCV_HEAP1_ID);
-    if (ret != BM_SUCCESS) {
-        printf("bm_image_alloc_dev_mem_dst. ret = %d\n", ret);
-        exit(-1);
-    }
 
     for(i = 0;i < loop_time; i++){
         gettimeofday(&tv_start, NULL);

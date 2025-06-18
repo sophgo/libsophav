@@ -52,101 +52,136 @@ static  __declspec(thread) int dump_frame_num = 0;
 #define VDEC_MAX_CHN_NUM_INF    64
 #define SOPH_VC_DRV_DECODER_DEV_NAME "soph_vc_dec"
 
+typedef struct {
+    FILE* stream_fp;
+    int stream_count;
+    int file_flag;
+} dump_info_t;
+
 typedef struct _BM_VDEC_CTX{
     int is_used;
     int chn_fd;
     int chn_id;
+    pthread_rwlock_t process_lock;
+    dump_info_t dump_info;
 } BM_VDEC_CTX;
 
 BM_VDEC_CTX vpu_dec_chn[VDEC_MAX_CHN_NUM_INF] = {0};
 static unsigned int u32ChannelCreatedCnt = 0;
 static pthread_mutex_t VdecChn_Mutex = PTHREAD_MUTEX_INITIALIZER;
 
+bm_handle_t bmvpu_dec_get_bmlib_handle(int soc_idx);
+
 void bmvpu_dec_set_logging_threshold(BmVpuDecLogLevel log_level)
 {
-    bm_vpu_set_logging_threshold(log_level);
+    bmdec_set_logging_threshold(log_level);
 }
 
 BMVidDecRetStatus bmvpu_dec_dump_stream(BMVidCodHandle vidCodHandle, unsigned char *p_stream, int size)
 {
-    static int stream_count = 0;
-    static int file_flag = 0;
-    int core_idx, inst_idx;
     char filename[128];
-    static FILE* stream_fp = NULL;
+    int VdChn = *((int *)vidCodHandle);
 
-    if(stream_fp == NULL) {
-        core_idx = bmvpu_dec_get_core_idx(vidCodHandle);
-        inst_idx = bmvpu_dec_get_inst_idx(vidCodHandle);
-        sprintf(filename, "core%d_inst%d_ref_stream%d.bin", core_idx, inst_idx, file_flag);
+    if(vpu_dec_chn[VdChn].is_used != 1)
+    {
+        BMVPU_DEC_ERROR("invalid vdec chn.");
+        return BM_ERR_VDEC_INVALID_CHNID;
+    }
 
-        stream_fp = fopen(filename, "wb");
-        if(stream_fp == NULL) {
+    if(vpu_dec_chn[VdChn].chn_fd < 0){
+        BMVPU_DEC_ERROR("Vdec device fd error.");
+        return BM_ERR_VDEC_FAILURE;
+    }
+
+    if(vpu_dec_chn[VdChn].dump_info.stream_fp == NULL) {
+        sprintf(filename, "core%d_inst%d_ref_stream%d.bin", bmvpu_dec_get_core_idx(vidCodHandle), bmvpu_dec_get_inst_idx(vidCodHandle), vpu_dec_chn[VdChn].dump_info.file_flag);
+
+        vpu_dec_chn[VdChn].dump_info.stream_fp = fopen(filename, "wb");
+        if(vpu_dec_chn[VdChn].dump_info.stream_fp == NULL) {
             BMVPU_DEC_ERROR("can not open dump file.\n");
             return BM_ERR_VDEC_FAILURE;
         }
     }
 
-    if(stream_fp != NULL) {
-        fwrite(p_stream, 1, size, stream_fp);
-        stream_count += 1;
+    if(vpu_dec_chn[VdChn].dump_info.stream_fp != NULL) {
+        fwrite(p_stream, 1, size, vpu_dec_chn[VdChn].dump_info.stream_fp);
+        vpu_dec_chn[VdChn].dump_info.stream_count += 1;
     }
 
-    if(stream_count == atoi(getenv("BMVPU_DEC_DUMP_NUM"))) {
-        fclose(stream_fp);
-        stream_fp = NULL;
-        stream_count = 0;
-        file_flag = 1 - file_flag;
+    if(vpu_dec_chn[VdChn].dump_info.stream_count == atoi(getenv("BMVPU_DEC_DUMP_NUM"))) {
+        fclose(vpu_dec_chn[VdChn].dump_info.stream_fp);
+        vpu_dec_chn[VdChn].dump_info.stream_fp = NULL;
+        vpu_dec_chn[VdChn].dump_info.stream_count = 0;
+        vpu_dec_chn[VdChn].dump_info.file_flag = 1 - vpu_dec_chn[VdChn].dump_info.file_flag;
     }
 
     return BM_SUCCESS;
 }
 
-int bmvpu_dec_get_core_idx(BMVidCodHandle handle){
+int bmvpu_dec_get_core_idx(BMVidCodHandle vidCodHandle)
+{
     int ret;
     int coreIdx = 0;
-    int VdChn = *((int *)handle);
+    int VdChn = *((int *)vidCodHandle);
     vdec_chn_status_s stDecStatus = {0};
+
+    if(vpu_dec_chn[VdChn].is_used != 1)
+    {
+        BMVPU_DEC_ERROR("invalid vdec chn.");
+        return BM_ERR_VDEC_INVALID_CHNID;
+    }
+
+    pthread_rwlock_rdlock(&vpu_dec_chn[VdChn].process_lock);
     if(vpu_dec_chn[VdChn].chn_fd < 0){
         BMVPU_DEC_ERROR("Vdec device fd error.");
+        pthread_rwlock_unlock(&vpu_dec_chn[VdChn].process_lock);
         return BM_ERR_VDEC_FAILURE;
     }
 
     ret = bmdec_ioctl_query_chn_status(vpu_dec_chn[VdChn].chn_fd, &stDecStatus);
     if(ret != BM_SUCCESS){
         BMVPU_DEC_ERROR("Vdec query channel status failed. error: %d", ret);
+        pthread_rwlock_unlock(&vpu_dec_chn[VdChn].process_lock);
         return ret;
     }
     coreIdx = stDecStatus.stSeqinitalInfo.u8CoreIdx;
 
+    pthread_rwlock_unlock(&vpu_dec_chn[VdChn].process_lock);
     return coreIdx;
 }
 
 int bmvpu_dec_get_inst_idx(BMVidCodHandle vidCodHandle)
 {
     int VdChn = *((int *)vidCodHandle);
+    if(vpu_dec_chn[VdChn].is_used != 1)
+    {
+        BMVPU_DEC_ERROR("invalid vdec chn.");
+        return BM_ERR_VDEC_INVALID_CHNID;
+    }
+
     if(vpu_dec_chn[VdChn].chn_fd < 0)
     {
         BMVPU_DEC_ERROR("Vdec device fd error.");
-        return BM_ERR_VDEC_FAILURE;
+        return BM_ERR_VDEC_INVALID_CHNID;
     }
 
     return VdChn;
 }
-#ifdef BM_PCIE_MODE
-BMVidDecRetStatus bmvpu_dec_read_memory(BMVidCodHandle vidCodHandle, u64 src_addr, u64 dst_addr, int size)
-{
-    return 0;
-}
-#endif
 
 int bmvpu_dec_get_device_fd(BMVidCodHandle vidCodHandle)
 {
     int VdChn = *((int *)vidCodHandle);
+
+    if(vpu_dec_chn[VdChn].is_used != 1)
+    {
+        BMVPU_DEC_ERROR("invalid vdec chn.");
+        return BM_ERR_VDEC_INVALID_CHNID;
+    }
+
     if(vpu_dec_chn[VdChn].chn_fd < 0)
     {
         BMVPU_DEC_ERROR("Vdec device fd error.");
-        return BM_ERR_VDEC_FAILURE;
+        return BM_ERR_VDEC_INVALID_CHNID;
     }
 
     return vpu_dec_chn[VdChn].chn_fd;
@@ -171,7 +206,7 @@ BMVidDecRetStatus bmvpu_dec_create(BMVidCodHandle *pVidCodHandle, BMVidDecParam 
 
     BMVPU_DEC_TRACE("enter bmvpu_dec_create\n");
 
-    bm_vpu_set_logging_threshold(BMVPU_DEC_LOG_LEVEL_INFO);
+    bmdec_set_logging_thresholdEx();
 
     if(decParam.streamFormat == BMDEC_AVC)
         stAttr.enType = PT_H264;
@@ -209,12 +244,21 @@ BMVidDecRetStatus bmvpu_dec_create(BMVidCodHandle *pVidCodHandle, BMVidDecParam 
                 decParam.extraFrameBufferNum, decParam.min_framebuf_cnt, decParam.framebuf_delay, decParam.cmd_queue_depth);
             return BM_ERR_VDEC_ILLEGAL_PARAM;
         }
-        if(decParam.wtlFormat != BMDEC_OUTPUT_COMPRESSED)
+        if(decParam.wtlFormat != BMDEC_OUTPUT_COMPRESSED) {
             stAttr.stBufferInfo.numOfDecwtl = decParam.framebuf_delay + decParam.extraFrameBufferNum + decParam.cmd_queue_depth;
-        stAttr.stBufferInfo.numOfDecFbc = decParam.min_framebuf_cnt + decParam.extraFrameBufferNum + decParam.cmd_queue_depth;
+            stAttr.stBufferInfo.numOfDecFbc = decParam.min_framebuf_cnt + decParam.cmd_queue_depth;
+        }
+        else {
+            stAttr.stBufferInfo.numOfDecwtl = 0;
+            stAttr.stBufferInfo.numOfDecFbc = decParam.min_framebuf_cnt + decParam.extraFrameBufferNum + decParam.cmd_queue_depth;
+        }
         stAttr.stBufferInfo.frame_buffer = (buffer_info_s *)decParam.frame_buffer;
         stAttr.stBufferInfo.Ytable_buffer = (buffer_info_s *)decParam.Ytable_buffer;
         stAttr.stBufferInfo.Ctable_buffer = (buffer_info_s *)decParam.Ctable_buffer;
+        BMVPU_DEC_INFO("Frame buffer cnt: fbc_cnt: %d wtl_cnt: %d min_frame_cnt: %d frame_delay: %d extra_cnt: %d cmd_queue: %d\n",
+                        stAttr.stBufferInfo.numOfDecFbc, stAttr.stBufferInfo.numOfDecwtl,
+                        decParam.min_framebuf_cnt, decParam.framebuf_delay,
+                        decParam.extraFrameBufferNum, decParam.cmd_queue_depth);
     }
 
     if(getenv("NO_FRAMEBUFFER")!=NULL && strcmp(getenv("NO_FRAMEBUFFER"),"1")==0)
@@ -258,9 +302,19 @@ BMVidDecRetStatus bmvpu_dec_create(BMVidCodHandle *pVidCodHandle, BMVidDecParam 
         goto ERR_DEC_INIT2;
     }
 
+    if (pthread_rwlock_init(&vpu_dec_chn[VdChn_id].process_lock, NULL) != 0) {
+        BMVPU_DEC_ERROR("pthread_rwlock_init error");
+        close(device_fd);
+        goto ERR_DEC_INIT2;
+    }
+
+    pthread_rwlock_wrlock(&vpu_dec_chn[VdChn_id].process_lock);
     vpu_dec_chn[VdChn_id].chn_fd = device_fd;
     vpu_dec_chn[VdChn_id].chn_id = VdChn_id;
     vpu_dec_chn[VdChn_id].is_used = 1;
+    vpu_dec_chn[VdChn_id].dump_info.stream_fp = NULL;
+    vpu_dec_chn[VdChn_id].dump_info.stream_count = 0;
+    vpu_dec_chn[VdChn_id].dump_info.file_flag = 0;
     *pVidCodHandle = (BMVidCodHandle)&vpu_dec_chn[VdChn_id].chn_id;
     u32ChannelCreatedCnt += 1;
 
@@ -271,7 +325,6 @@ BMVidDecRetStatus bmvpu_dec_create(BMVidCodHandle *pVidCodHandle, BMVidDecParam 
         u32ChannelCreatedCnt -= 1;
         goto ERR_DEC_INIT;
     }
-    pthread_mutex_unlock(&VdecChn_Mutex);
 
     bmdec_ioctl_get_chn_param(vpu_dec_chn[VdChn_id].chn_fd, &stChnParam);
     if(decParam.pixel_format == BM_VPU_DEC_PIX_FORMAT_NV12)
@@ -287,20 +340,24 @@ BMVidDecRetStatus bmvpu_dec_create(BMVidCodHandle *pVidCodHandle, BMVidDecParam 
         BMVPU_DEC_ERROR("CVI_VDEC_StartRecvStream failed. ret = %d", ret);
         ret = BM_ERR_VDEC_FAILURE;
         bmdec_ioctl_destory_chn(vpu_dec_chn[VdChn_id].chn_fd);
-
         close(vpu_dec_chn[VdChn_id].chn_fd);
-        pthread_mutex_lock(&VdecChn_Mutex);
         u32ChannelCreatedCnt -= 1;
         goto ERR_DEC_INIT;
     }
 
+    pthread_rwlock_unlock(&vpu_dec_chn[VdChn_id].process_lock);
+    pthread_mutex_unlock(&VdecChn_Mutex);
     return ret;
 
 ERR_DEC_INIT:
     vpu_dec_chn[VdChn_id].chn_fd = -1;
     vpu_dec_chn[VdChn_id].chn_id = 0;
     vpu_dec_chn[VdChn_id].is_used = 0;
+    vpu_dec_chn[VdChn_id].dump_info.stream_fp = NULL;
+    vpu_dec_chn[VdChn_id].dump_info.stream_count = 0;
+    vpu_dec_chn[VdChn_id].dump_info.file_flag = 0;
     *pVidCodHandle = NULL;
+    pthread_rwlock_unlock(&vpu_dec_chn[VdChn_id].process_lock);
 ERR_DEC_INIT2:
     pthread_mutex_unlock(&VdecChn_Mutex);
     if(u32ChannelCreatedCnt == 0)
@@ -322,10 +379,19 @@ BMVidDecRetStatus bmvpu_dec_decode(BMVidCodHandle vidCodHandle, BMVidStream vidS
     int total_size;
 
     int VdChn = *((int *)vidCodHandle);
+
+    if(vpu_dec_chn[VdChn].is_used != 1)
+    {
+        BMVPU_DEC_ERROR("invalid vdec chn.");
+        return BM_ERR_VDEC_INVALID_CHNID;
+    }
+
+    pthread_rwlock_rdlock(&vpu_dec_chn[VdChn].process_lock);
     if(vpu_dec_chn[VdChn].chn_fd < 0)
     {
         BMVPU_DEC_ERROR("Vdec device fd error.");
-        return BM_ERR_VDEC_INVALID_CHNID;
+        ret = BM_ERR_VDEC_INVALID_CHNID;
+        goto RET;
     }
 
     BMVPU_DEC_TRACE("enter bmvpu_dec_decode\n");
@@ -334,16 +400,18 @@ BMVidDecRetStatus bmvpu_dec_decode(BMVidCodHandle vidCodHandle, BMVidStream vidS
     if(ret != BM_SUCCESS)
     {
         BMVPU_DEC_ERROR("Vdec query channel status failed.");
-        return ret;
+        goto RET;
     }
 
-    if(stDecStatus.u8Status == SEQ_CHANGE)
-        return BM_ERR_VDEC_SEQ_CHANGE;
+    if(stDecStatus.u8Status == SEQ_CHANGE){
+        ret = BM_ERR_VDEC_SEQ_CHANGE;
+        goto RET;
+    }
 
     ret = bmdec_ioctl_get_chn_attr(vpu_dec_chn[VdChn].chn_fd, &stAttr);
     if(ret != BM_SUCCESS){
         BMVPU_DEC_ERROR("VDEC_GET_CHN_ATTR error. ret = %d");
-        return ret;
+        goto RET;
     }
 
     if(stAttr.enMode == VIDEO_MODE_FRAME){
@@ -359,7 +427,8 @@ BMVidDecRetStatus bmvpu_dec_decode(BMVidCodHandle vidCodHandle, BMVidStream vidS
         total_buf = (uint8_t*)malloc(total_size);
         if(total_buf == NULL) {
             BMVPU_DEC_ERROR("malloc input buffer error.");
-            return BM_ERR_VDEC_NOBUF;
+            ret = BM_ERR_VDEC_NOBUF;
+            goto RET;
         }
 
         memcpy(total_buf, vidStream.header_buf, vidStream.header_size);
@@ -383,17 +452,17 @@ BMVidDecRetStatus bmvpu_dec_decode(BMVidCodHandle vidCodHandle, BMVidStream vidS
     if(ret == BM_ERR_VDEC_ILLEGAL_PARAM)
         BMVPU_DEC_ERROR("bmdec_ioctl_send_stream failed. REASON:%d\n", ret);
 
+    if((ret == 0) && ((dump_num = getenv("BMVPU_DEC_DUMP_NUM")) != NULL)) {
+        bmvpu_dec_dump_stream(vidCodHandle, stStream.pu8Addr, stStream.u32Len);
+    }
+
     if(total_buf != NULL) {
         free(total_buf);
         total_buf = NULL;
     }
 
-    if((dump_num = getenv("BMVPU_DEC_DUMP_NUM")) != NULL) {
-        if(vidStream.header_buf != NULL && vidStream.header_size != 0)
-            bmvpu_dec_dump_stream(vidCodHandle, vidStream.header_buf, vidStream.header_size);
-        bmvpu_dec_dump_stream(vidCodHandle, vidStream.buf, vidStream.length);
-    }
-
+RET:
+    pthread_rwlock_unlock(&vpu_dec_chn[VdChn].process_lock);
     return ret;
 }
 
@@ -402,15 +471,25 @@ BMVidDecRetStatus bmvpu_dec_get_output(BMVidCodHandle vidCodHandle, BMVidFrame *
     int ret;
     int dump_num;
     int VdChn = *((int *)vidCodHandle);
+
+    if(vpu_dec_chn[VdChn].is_used != 1)
+    {
+        BMVPU_DEC_ERROR("invalid vdec chn.");
+        return BM_ERR_VDEC_INVALID_CHNID;
+    }
+
+    pthread_rwlock_rdlock(&vpu_dec_chn[VdChn].process_lock);
     if(vpu_dec_chn[VdChn].chn_fd < 0)
     {
         BMVPU_DEC_ERROR("Vdec device fd error.");
-        return BM_ERR_VDEC_INVALID_CHNID;
+        ret = BM_ERR_VDEC_INVALID_CHNID;
+        goto RET;
     }
 
     if(bmFrame == NULL) {
         BMVPU_DEC_ERROR("the frame buffer invalid");
-        return BM_ERR_VDEC_NOBUF;
+        ret = BM_ERR_VDEC_NOBUF;
+        goto RET;
     }
 
     BMVPU_DEC_TRACE("enter bmvpu_dec_get_output");
@@ -422,17 +501,19 @@ BMVidDecRetStatus bmvpu_dec_get_output(BMVidCodHandle vidCodHandle, BMVidFrame *
     stFrameInfoEx.s32MilliSec = 0;
 
     ret = bmdec_ioctl_get_frame(vpu_dec_chn[VdChn].chn_fd, &stFrameInfoEx, &stChnStatus);
-    if (ret != BM_SUCCESS)
-        return ret;
+    if (ret != BM_SUCCESS){
+        BMVPU_DEC_TRACE("get frame failed ret=%d\n", ret);
+        goto RET;
+    }
     else
-        BMVPU_DEC_LOG("get frame success");
+    BMVPU_DEC_TRACE("get frame success");
 
-    if(stFrameInfo.video_frame.pixel_format == PIXEL_FORMAT_NV12)
+    if(stFrameInfo.video_frame.compress_mode == COMPRESS_MODE_FRAME)
+        bmFrame->pixel_format = BM_VPU_DEC_PIX_FORMAT_COMPRESSED;
+    else if(stFrameInfo.video_frame.pixel_format == PIXEL_FORMAT_NV12)
         bmFrame->pixel_format = BM_VPU_DEC_PIX_FORMAT_NV12;
     else if(stFrameInfo.video_frame.pixel_format == PIXEL_FORMAT_NV21)
         bmFrame->pixel_format = BM_VPU_DEC_PIX_FORMAT_NV21;
-    else if(stFrameInfo.video_frame.compress_mode == COMPRESS_MODE_FRAME)
-        bmFrame->pixel_format = BM_VPU_DEC_PIX_FORMAT_COMPRESSED;
     else
         bmFrame->pixel_format = BM_VPU_DEC_PIX_FORMAT_YUV420P;
 
@@ -491,8 +572,10 @@ BMVidDecRetStatus bmvpu_dec_get_output(BMVidCodHandle vidCodHandle, BMVidFrame *
 
             dump_num = atoi(getenv("BMVPU_DEC_DUMP_FBC_NUM"));
             static int dump_cnt[64] = {0};
-            if(dump_cnt[inst_num] >= dump_num)
-                return BM_SUCCESS;
+            if(dump_cnt[inst_num] >= dump_num) {
+                ret = BM_SUCCESS;
+                goto RET;
+            }
 
             FILE* fbc_fp[4] = {0};
             char fbc_filename[4][128] = {0};
@@ -521,7 +604,9 @@ BMVidDecRetStatus bmvpu_dec_get_output(BMVidCodHandle vidCodHandle, BMVidFrame *
         }
     }
 
-    return BM_SUCCESS;
+RET:
+    pthread_rwlock_unlock(&vpu_dec_chn[VdChn].process_lock);
+    return ret;
 }
 
 BMVidDecRetStatus bmvpu_dec_clear_output(BMVidCodHandle vidCodHandle, BMVidFrame *frame)
@@ -529,9 +614,18 @@ BMVidDecRetStatus bmvpu_dec_clear_output(BMVidCodHandle vidCodHandle, BMVidFrame
     int ret;
     int VdChn = *((int *)vidCodHandle);
     video_frame_info_s stFrameInfo = {0};
+
+    if(vpu_dec_chn[VdChn].is_used != 1)
+    {
+        BMVPU_DEC_ERROR("invalid vdec chn.");
+        return BM_ERR_VDEC_INVALID_CHNID;
+    }
+
+    pthread_rwlock_rdlock(&vpu_dec_chn[VdChn].process_lock);
     if(vpu_dec_chn[VdChn].chn_fd < 0)
     {
         BMVPU_DEC_ERROR("Vdec device fd error.");
+        pthread_rwlock_unlock(&vpu_dec_chn[VdChn].process_lock);
         return BM_ERR_VDEC_INVALID_CHNID;
     }
 
@@ -579,10 +673,10 @@ BMVidDecRetStatus bmvpu_dec_clear_output(BMVidCodHandle vidCodHandle, BMVidFrame
     ret = bmdec_ioctl_release_frame(vpu_dec_chn[VdChn].chn_fd, &stFrameInfo, frame->size);
     if(ret != BM_SUCCESS) {
         BMVPU_DEC_ERROR("realease frame failed %d.\n", ret);
-        return ret;
     }
 
-    return BM_SUCCESS;
+    pthread_rwlock_unlock(&vpu_dec_chn[VdChn].process_lock);
+    return ret;
 }
 
 
@@ -590,9 +684,10 @@ BMVidDecRetStatus bmvpu_dec_flush(BMVidCodHandle vidCodHandle)
 {
     int ret;
     int VdChn = *((int *)vidCodHandle);
-    if(vpu_dec_chn[VdChn].chn_fd < 0)
+
+    if(vpu_dec_chn[VdChn].is_used != 1)
     {
-        BMVPU_DEC_ERROR("Vdec device fd error.");
+        BMVPU_DEC_ERROR("invalid vdec chn.");
         return BM_ERR_VDEC_INVALID_CHNID;
     }
 
@@ -605,23 +700,42 @@ BMVidDecRetStatus bmvpu_dec_flush(BMVidCodHandle vidCodHandle)
     stStreamEx.s32MilliSec = -1;
     while(1)
     {
+        pthread_rwlock_rdlock(&vpu_dec_chn[VdChn].process_lock);
+        if(vpu_dec_chn[VdChn].chn_fd < 0)
+        {
+            BMVPU_DEC_ERROR("Vdec device fd error.");
+            pthread_rwlock_unlock(&vpu_dec_chn[VdChn].process_lock);
+            return BM_ERR_VDEC_INVALID_CHNID;
+        }
+
         ret = bmdec_ioctl_send_stream(vpu_dec_chn[VdChn].chn_fd, &stStreamEx);
+        pthread_rwlock_unlock(&vpu_dec_chn[VdChn].process_lock);
         if(ret == BM_SUCCESS || ret == BM_ERR_VDEC_ILLEGAL_PARAM)
             break;
         usleep(1000);
     }
 
-    return BM_SUCCESS;
+    return ret;
 }
 
 BMVidDecRetStatus bmvpu_dec_delete(BMVidCodHandle vidCodHandle)
 {
     int ret;
     int VdChn = *((int *)vidCodHandle);
+
+    if(vpu_dec_chn[VdChn].is_used != 1)
+    {
+        BMVPU_DEC_ERROR("invalid vdec chn.");
+        return BM_ERR_VDEC_INVALID_CHNID;
+    }
+
+    pthread_mutex_lock(&VdecChn_Mutex);
+    pthread_rwlock_wrlock(&vpu_dec_chn[VdChn].process_lock);
     if(vpu_dec_chn[VdChn].chn_fd < 0)
     {
         BMVPU_DEC_ERROR("Vdec device fd error.");
-        return BM_ERR_VDEC_INVALID_CHNID;
+        ret = BM_ERR_VDEC_INVALID_CHNID;
+        goto ERR_RET;
     }
 
     BMVPU_DEC_TRACE("enter bmvpu_dec_delete chn id = %d\n", VdChn);
@@ -630,30 +744,42 @@ BMVidDecRetStatus bmvpu_dec_delete(BMVidCodHandle vidCodHandle)
     if(ret != 0)
     {
         BMVPU_DEC_ERROR("ioctl CVI_VC_VDEC_STOP_RECV_STREAM fail with %d", ret);
-        return ret;
+        goto ERR_RET;
     }
 
     ret = bmdec_ioctl_destory_chn(vpu_dec_chn[VdChn].chn_fd);
     if(ret != 0)
     {
         BMVPU_DEC_ERROR("ioctl CVI_VC_VDEC_DESTROY_CHN fail with %d", ret);
-        return ret;
+        goto ERR_RET;
     }
 
-    pthread_mutex_lock(&VdecChn_Mutex);
     close(vpu_dec_chn[VdChn].chn_fd);
     BMVPU_DEC_TRACE("the chn %d is deleted\n", VdChn);
     vpu_dec_chn[VdChn].chn_fd = 0;
     vpu_dec_chn[VdChn].chn_id = 0;
     vpu_dec_chn[VdChn].is_used = 0;
+    vpu_dec_chn[VdChn].dump_info.stream_fp = NULL;
+    vpu_dec_chn[VdChn].dump_info.stream_count = 0;
+    vpu_dec_chn[VdChn].dump_info.file_flag = 0;
     u32ChannelCreatedCnt -= 1;
-    pthread_mutex_unlock(&VdecChn_Mutex);
+
+    pthread_rwlock_unlock(&vpu_dec_chn[VdChn].process_lock);
 
     if(u32ChannelCreatedCnt == 0)
     {
         bmdec_chn_close(0);
     }
+    pthread_mutex_unlock(&VdecChn_Mutex);
 
+    if (pthread_rwlock_destroy(&vpu_dec_chn[VdChn].process_lock) != 0) {
+        BMVPU_DEC_ERROR("pthread_rwlock_destroy error");
+    }
+
+    return ret;
+
+ERR_RET:
+    pthread_rwlock_unlock(&vpu_dec_chn[VdChn].process_lock);
     return ret;
 }
 
@@ -664,9 +790,18 @@ BMDecStatus bmvpu_dec_get_status(BMVidCodHandle vidCodHandle)
     vdec_chn_status_s stDecStatus = {0};
     BMDecStatus state = 0;
     int VdChn = *((int *)vidCodHandle);
+
+    if(vpu_dec_chn[VdChn].is_used != 1)
+    {
+        BMVPU_DEC_ERROR("invalid vdec chn.");
+        return BM_ERR_VDEC_INVALID_CHNID;
+    }
+
+    pthread_rwlock_rdlock(&vpu_dec_chn[VdChn].process_lock);
     if(vpu_dec_chn[VdChn].chn_fd < 0)
     {
         BMVPU_DEC_ERROR("Vdec device fd error.");
+        pthread_rwlock_unlock(&vpu_dec_chn[VdChn].process_lock);
         return BM_ERR_VDEC_INVALID_CHNID;
     }
 
@@ -674,6 +809,7 @@ BMDecStatus bmvpu_dec_get_status(BMVidCodHandle vidCodHandle)
     if(ret != BM_SUCCESS)
     {
         BMVPU_DEC_ERROR("Vdec query channel status failed.");
+        pthread_rwlock_unlock(&vpu_dec_chn[VdChn].process_lock);
         return ret;
     }
 
@@ -703,6 +839,7 @@ BMDecStatus bmvpu_dec_get_status(BMVidCodHandle vidCodHandle)
         break;
     }
 
+    pthread_rwlock_unlock(&vpu_dec_chn[VdChn].process_lock);
     return state;
 }
 
@@ -712,9 +849,18 @@ BMVidDecRetStatus bmvpu_dec_get_caps(BMVidCodHandle vidCodHandle, BMVidStreamInf
     int ret;
     vdec_chn_status_s stDecStatus = {0};
     int VdChn = *((int *)vidCodHandle);
+
+    if(vpu_dec_chn[VdChn].is_used != 1)
+    {
+        BMVPU_DEC_ERROR("invalid vdec chn.");
+        return BM_ERR_VDEC_INVALID_CHNID;
+    }
+
+    pthread_rwlock_rdlock(&vpu_dec_chn[VdChn].process_lock);
     if(vpu_dec_chn[VdChn].chn_fd < 0)
     {
         BMVPU_DEC_ERROR("Vdec device fd error.");
+        pthread_rwlock_unlock(&vpu_dec_chn[VdChn].process_lock);
         return BM_ERR_VDEC_INVALID_CHNID;
     }
 
@@ -722,6 +868,7 @@ BMVidDecRetStatus bmvpu_dec_get_caps(BMVidCodHandle vidCodHandle, BMVidStreamInf
     if(ret != BM_SUCCESS)
     {
         BMVPU_DEC_ERROR("Vdec query channel status failed.");
+        pthread_rwlock_unlock(&vpu_dec_chn[VdChn].process_lock);
         return ret;
     }
 
@@ -745,7 +892,45 @@ BMVidDecRetStatus bmvpu_dec_get_caps(BMVidCodHandle vidCodHandle, BMVidStreamInf
     streamInfo->picCropRect.left    = stDecStatus.stSeqinitalInfo.stPicCropRect.left;
     streamInfo->picCropRect.right   = stDecStatus.stSeqinitalInfo.stPicCropRect.right;
 
+    pthread_rwlock_unlock(&vpu_dec_chn[VdChn].process_lock);
     return BM_SUCCESS;
+}
+
+BMVidDecRetStatus bmvpu_dec_get_stream_info(BMVidCodHandle vidCodHandle, int* width, int* height, int* mini_fb, int* frame_delay)
+{
+    int ret;
+    vdec_chn_status_s stDecStatus = {0};
+    int VdChn = *((int *)vidCodHandle);
+
+    if(vpu_dec_chn[VdChn].is_used != 1)
+    {
+        BMVPU_DEC_ERROR("invalid vdec chn.");
+        return BM_ERR_VDEC_INVALID_CHNID;
+    }
+
+    pthread_rwlock_rdlock(&vpu_dec_chn[VdChn].process_lock);
+    if(vpu_dec_chn[VdChn].chn_fd < 0)
+    {
+        BMVPU_DEC_ERROR("Vdec device fd error.");
+        pthread_rwlock_unlock(&vpu_dec_chn[VdChn].process_lock);
+        return BM_ERR_VDEC_INVALID_CHNID;
+    }
+
+    ret = bmdec_ioctl_query_chn_status(vpu_dec_chn[VdChn].chn_fd, &stDecStatus);
+    if(ret != BM_SUCCESS)
+    {
+        BMVPU_DEC_ERROR("Vdec query channel status failed.");
+        pthread_rwlock_unlock(&vpu_dec_chn[VdChn].process_lock);
+        return ret;
+    }
+
+    *width = stDecStatus.stSeqinitalInfo.s32PicWidth;
+    *height = stDecStatus.stSeqinitalInfo.s32PicHeight;
+    *mini_fb = stDecStatus.stSeqinitalInfo.s32MinFrameBufferCount;
+    *frame_delay = stDecStatus.stSeqinitalInfo.s32FrameBufDelay;
+
+    pthread_rwlock_unlock(&vpu_dec_chn[VdChn].process_lock);
+    return ret;
 }
 
 
@@ -754,9 +939,18 @@ int bmvpu_dec_get_all_empty_input_buf_cnt(BMVidCodHandle vidCodHandle)
     int ret;
     vdec_chn_status_s stDecStatus = {0};
     int VdChn = *((int *)vidCodHandle);
+
+    if(vpu_dec_chn[VdChn].is_used != 1)
+    {
+        BMVPU_DEC_ERROR("invalid vdec chn.");
+        return BM_ERR_VDEC_INVALID_CHNID;
+    }
+
+    pthread_rwlock_rdlock(&vpu_dec_chn[VdChn].process_lock);
     if(vpu_dec_chn[VdChn].chn_fd < 0)
     {
         BMVPU_DEC_ERROR("Vdec device fd error.");
+        pthread_rwlock_unlock(&vpu_dec_chn[VdChn].process_lock);
         return BM_ERR_VDEC_INVALID_CHNID;
     }
 
@@ -764,9 +958,11 @@ int bmvpu_dec_get_all_empty_input_buf_cnt(BMVidCodHandle vidCodHandle)
     if(ret != BM_SUCCESS)
     {
         BMVPU_DEC_ERROR("Vdec query channel status failed.");
+        pthread_rwlock_unlock(&vpu_dec_chn[VdChn].process_lock);
         return ret;
     }
 
+    pthread_rwlock_unlock(&vpu_dec_chn[VdChn].process_lock);
     return (int)stDecStatus.u8FreeSrcBuffer;
 }
 
@@ -775,9 +971,18 @@ int bmvpu_dec_get_stream_buffer_empty_size(BMVidCodHandle vidCodHandle)
     int ret;
     vdec_chn_status_s stDecStatus = {0};
     int VdChn = *((int *)vidCodHandle);
+
+    if(vpu_dec_chn[VdChn].is_used != 1)
+    {
+        BMVPU_DEC_ERROR("invalid vdec chn.");
+        return BM_ERR_VDEC_INVALID_CHNID;
+    }
+
+    pthread_rwlock_rdlock(&vpu_dec_chn[VdChn].process_lock);
     if(vpu_dec_chn[VdChn].chn_fd < 0)
     {
         BMVPU_DEC_ERROR("Vdec device fd error.");
+        pthread_rwlock_unlock(&vpu_dec_chn[VdChn].process_lock);
         return BM_ERR_VDEC_INVALID_CHNID;
     }
 
@@ -785,9 +990,11 @@ int bmvpu_dec_get_stream_buffer_empty_size(BMVidCodHandle vidCodHandle)
     if(ret != BM_SUCCESS)
     {
         BMVPU_DEC_ERROR("Vdec query channel status failed.");
+        pthread_rwlock_unlock(&vpu_dec_chn[VdChn].process_lock);
         return ret;
     }
 
+    pthread_rwlock_unlock(&vpu_dec_chn[VdChn].process_lock);
     return (int)stDecStatus.u32EmptyStreamBufSzie;
 }
 
@@ -797,9 +1004,18 @@ int bmvpu_dec_get_pkt_in_buf_cnt(BMVidCodHandle vidCodHandle)
     int ret;
     vdec_chn_status_s stDecStatus = {0};
     int VdChn = *((int *)vidCodHandle);
+
+    if(vpu_dec_chn[VdChn].is_used != 1)
+    {
+        BMVPU_DEC_ERROR("invalid vdec chn.");
+        return BM_ERR_VDEC_INVALID_CHNID;
+    }
+
+    pthread_rwlock_rdlock(&vpu_dec_chn[VdChn].process_lock);
     if(vpu_dec_chn[VdChn].chn_fd < 0)
     {
         BMVPU_DEC_ERROR("Vdec device fd error.");
+        pthread_rwlock_unlock(&vpu_dec_chn[VdChn].process_lock);
         return BM_ERR_VDEC_INVALID_CHNID;
     }
 
@@ -807,9 +1023,11 @@ int bmvpu_dec_get_pkt_in_buf_cnt(BMVidCodHandle vidCodHandle)
     if(ret != BM_SUCCESS)
     {
         BMVPU_DEC_ERROR("Vdec query channel status failed.");
+        pthread_rwlock_unlock(&vpu_dec_chn[VdChn].process_lock);
         return ret;
     }
 
+    pthread_rwlock_unlock(&vpu_dec_chn[VdChn].process_lock);
     return (int)stDecStatus.u8BusySrcBuffer;
 }
 
@@ -820,9 +1038,18 @@ BMVidDecRetStatus bmvpu_dec_get_all_frame_in_buffer(BMVidCodHandle vidCodHandle)
     int VdChn = *((int *)vidCodHandle);
     vdec_stream_s stStream;
     vdec_stream_ex_s stStreamEx;
+
+    if(vpu_dec_chn[VdChn].is_used != 1)
+    {
+        BMVPU_DEC_ERROR("invalid vdec chn.");
+        return BM_ERR_VDEC_INVALID_CHNID;
+    }
+
+    pthread_rwlock_rdlock(&vpu_dec_chn[VdChn].process_lock);
     if(vpu_dec_chn[VdChn].chn_fd < 0)
     {
         BMVPU_DEC_ERROR("Vdec device fd error.");
+        pthread_rwlock_unlock(&vpu_dec_chn[VdChn].process_lock);
         return BM_ERR_VDEC_INVALID_CHNID;
     }
 
@@ -831,8 +1058,11 @@ BMVidDecRetStatus bmvpu_dec_get_all_frame_in_buffer(BMVidCodHandle vidCodHandle)
     stStreamEx.pstStream = &stStream;
     stStreamEx.s32MilliSec = -1;
     ret = bmdec_ioctl_send_stream(vpu_dec_chn[VdChn].chn_fd, &stStreamEx);
-    if(ret != BM_SUCCESS)
+    if(ret != BM_SUCCESS) {
+        pthread_rwlock_unlock(&vpu_dec_chn[VdChn].process_lock);
         return ret;
+    }
+    pthread_rwlock_unlock(&vpu_dec_chn[VdChn].process_lock);
     return BMDEC_FLUSH_SUCCESS;
 }
 
@@ -844,3 +1074,11 @@ BMVidDecRetStatus bmvpu_dec_reset(int devIdx, int coreIdx)
     return BM_SUCCESS;
 }
 
+#ifdef BM_PCIE_MODE
+BMVidDecRetStatus bmvpu_dec_read_memory(int soc_idx, u64 src_addr, unsigned char *dst_addr, int size)
+{
+    bm_device_mem_t src_mem = bm_mem_from_device(src_addr, size);
+    int ret = bm_memcpy_d2s_partial(bmvpu_dec_get_bmlib_handle(soc_idx), dst_addr, src_mem, size);
+    return ret;
+}
+#endif

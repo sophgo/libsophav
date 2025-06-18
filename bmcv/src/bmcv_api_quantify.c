@@ -22,9 +22,8 @@ static bm_status_t bmcv_quantify_check(
         bmlib_log("QUANTIFY", BMLIB_LOG_ERROR, "input and output image format is NOT same");
         return BM_ERR_PARAM;
     }
-    if (src_format != FORMAT_RGB_PLANAR &&
-        src_format != FORMAT_BGR_PLANAR) {
-        bmlib_log("QUANTIFY", BMLIB_LOG_ERROR, "Not supported image format");
+    if (src_format == FORMAT_RGBYP_PLANAR || src_format == FORMAT_COMPRESSED) {
+        bmlib_log("Quantify", BMLIB_LOG_ERROR, "do not support image format");
         return BM_NOT_SUPPORTED;
     }
     if (src_type != DATA_TYPE_EXT_FLOAT32 ||

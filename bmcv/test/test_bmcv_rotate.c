@@ -55,30 +55,19 @@ static int parameters_check(int height, int width)
     return 0;
 }
 
-static void read_bin(const char *input_path, unsigned char *input_data, int width, int height, float channel) {
+static void read_bin(const char *input_path, unsigned char *input_data, int img_size) {
     FILE *fp_src = fopen(input_path, "rb");
     if (fp_src == NULL)
     {
         printf("Can not open file! %s\n", input_path);
         return;
     }
-    if(fread(input_data, sizeof(unsigned char), width * height * channel, fp_src) != 0)
+    if(fread(input_data, sizeof(unsigned char), img_size, fp_src) != 0)
         printf("read image success\n");
     fclose(fp_src);
 }
 
-static void write_bin(const char *output_path, unsigned char *output_data, int width, int height, int channel) {
-    FILE *fp_dst = fopen(output_path, "wb");
-    if (fp_dst == NULL)
-    {
-        printf("Can not open file! %s\n", output_path);
-        return;
-    }
-    fwrite(output_data, sizeof(unsigned char), width * height * channel, fp_dst);
-    fclose(fp_dst);
-}
-
-static void write_bin_nv21(const char *output_path, unsigned char *output_data, int img_size) {
+static void write_bin(const char *output_path, unsigned char *output_data, int img_size) {
     FILE *fp_dst = fopen(output_path, "wb");
     if (fp_dst == NULL)
     {
@@ -89,40 +78,9 @@ static void write_bin_nv21(const char *output_path, unsigned char *output_data, 
     fclose(fp_dst);
 }
 
-static void fill(
-        unsigned char* input,
-        int channel,
-        int width,
-        int height) {
-    for (int i = 0; i < channel; i++) {
-        for (int j = 0; j < height; j++) {
-            for(int k = 0; k < width; k++) {
-                unsigned char num =  rand() % 256;
-                input[i * width * height + j * width + k] = num;
-            }
-        }
-    }
-}
-
-static void fillNV21(unsigned char* nv21Buffer, int width, int height) {
-    // filling Y component
-    for (int j = 0; j < height; j++) {
-        for (int k = 0; k < width; k++) {
-            unsigned char yValue = rand() % 256;
-            nv21Buffer[j * width + k] = yValue;
-        }
-    }
-    // filling VU component
-    int vuIndex = width * height; // VU starting index
-    for (int j = 0; j < height / 2; j++) {
-        for (int k = 0; k < width / 2; k++) {
-            unsigned char uValue = rand() % 256;
-            unsigned char vValue = rand() % 256;
-
-            // VU stored interleaved -> skip 2 pos each time
-            nv21Buffer[vuIndex++] = vValue;
-            nv21Buffer[vuIndex++] = uValue;
-        }
+static void fill(unsigned char* input, int img_size) {
+    for (int i = 0; i < img_size; ++i) {
+        input[i] = rand() / (RAND_MAX) * 255.0f;
     }
 }
 
@@ -133,7 +91,6 @@ static int rotate_cpu(
         int height,
         int format,
         int rotation_angle,
-        bm_image input_img,
         bm_handle_t handle) {
     switch (format) {
         case FORMAT_GRAY:
@@ -223,8 +180,7 @@ static int rotate_tpu(
         int height,
         int format,
         int rotation_angle,
-        bm_handle_t handle,
-        bm_image nv12_input_img) {
+        bm_handle_t handle) {
     bm_status_t ret;
     struct timeval t1, t2;
     bm_image input_img, output_img;
@@ -239,27 +195,21 @@ static int rotate_tpu(
 
     bm_image_alloc_dev_mem(input_img, 2);
     bm_image_alloc_dev_mem(output_img, 2);
-    if (format == FORMAT_GRAY) {
-        unsigned char *input_addr[1] = {input};
-        bm_image_copy_host_to_device(input_img, (void **)(input_addr));
-    } else if (format == FORMAT_YUV444P ||
-               format == FORMAT_RGB_PLANAR ||
-               format == FORMAT_BGR_PLANAR ||
-               format == FORMAT_RGBP_SEPARATE ||
-               format == FORMAT_BGRP_SEPARATE) {
-        unsigned char *input_addr[3] = {input, input + height * width, input + 2 * height * width};
-        bm_image_copy_host_to_device(input_img, (void **)(input_addr));
-    }
+    int image_byte_size[4] = {0};
+    bm_image_get_byte_size(input_img, image_byte_size);
+    void* input_addr[4] = {(void *)input,
+                            (void *)((unsigned char*)input + image_byte_size[0]),
+                            (void *)((unsigned char*)input + image_byte_size[0] + image_byte_size[1]),
+                            (void *)((unsigned char*)input + image_byte_size[0] + image_byte_size[1] + image_byte_size[2])};
+    bm_image_copy_host_to_device(input_img, (void **)input_addr);
+
     gettimeofday(&t1, NULL);
-    if(format == FORMAT_NV12 || format == FORMAT_NV21) {
-        ret = bmcv_image_rotate_trans(handle, nv12_input_img, output_img, rotation_angle);
-    } else {
     ret = bmcv_image_rotate_trans(handle, input_img, output_img, rotation_angle);
-    }
     gettimeofday(&t2, NULL);
+
     double duration = TIME_COST_MS(t1, t2);
     thread_stat_fps[thread_idx] += 1;
-    printf("For thread %d, using time before duration = %f, duration = %f\n", thread_idx, thread_stat_lastts[thread_idx], duration);
+    printf("For thread %d, using time before duration = %f, duration = %f ms\n", thread_idx, thread_stat_lastts[thread_idx], duration);
     thread_stat_lastts[thread_idx] += duration;
     if (thread_stat_lastts[thread_idx] > 1000) {
         printf("FPS for thread %d is: %d\n", thread_idx, thread_stat_fps[thread_idx]);
@@ -274,43 +224,27 @@ static int rotate_tpu(
         bm_dev_free(handle);
         return -1;
     }
-
-    if (format == FORMAT_GRAY) {
-        unsigned char *output_addr[1] = {output};
-        bm_image_copy_device_to_host(output_img, (void **)output_addr);
-    } else if (format == FORMAT_NV12 || format == FORMAT_NV21) {
-        unsigned char *output_addr[2] = {output, output + height * width};
-        bm_image_copy_device_to_host(output_img, (void **)output_addr);
-    } else {
-        unsigned char *output_addr[3] = {output, output + height * width, output + 2 * height * width};
-        bm_image_copy_device_to_host(output_img, (void **)output_addr);
-    }
+    void* output_addr[4] = {(void *)output,
+                            (void *)((unsigned char*)output + image_byte_size[0]),
+                            (void *)((unsigned char*)output + image_byte_size[0] + image_byte_size[1]),
+                            (void *)((unsigned char*)output + image_byte_size[0] + image_byte_size[1] + image_byte_size[2])};
+    bm_image_copy_device_to_host(output_img, (void **)output_addr);
 
     bm_image_destroy(&input_img);
     bm_image_destroy(&output_img);
+
     return 0;
 }
 
 static int cmp_rotate(
     unsigned char *got,
     unsigned char *exp,
-    int len,
-    int format) {
-    if (format == FORMAT_NV12 || format == FORMAT_NV21) {
-        for (int i = 0; i < len; i++) {
-            if (abs(got[i] - exp[i]) > 100) {
-                printf("cmp error: idx=%d  exp=%d  got=%d\n", i, exp[i], got[i]);
-                return -1;
-            }
+    int len) {
+    for (int i = 0; i < len; i++) {
+        if (abs(got[i] - exp[i]) > 100) {
+            printf("cmp error: idx=%d  exp=%d  got=%d\n", i, exp[i], got[i]);
+            return -1;
         }
-    } else {
-        for (int i = 0; i < len; i++) {
-            if (got[i] != exp[i]) {
-                printf("cmp error: idx=%d  exp=%d  got=%d\n", i, exp[i], got[i]);
-                return -1;
-            }
-        }
-
     }
     return 0;
 }
@@ -331,59 +265,25 @@ static int test_rotate_random(
     unsigned char* input_data;
     unsigned char* output_cpu;
     unsigned char* output_tpu;
+
     bm_image input_img;
-    if(format == FORMAT_GRAY){
-        input_data = (unsigned char*)malloc(width * height * sizeof(unsigned char));
-        output_cpu = (unsigned char*)malloc(width * height * sizeof(unsigned char));
-        output_tpu = (unsigned char*)malloc(width * height * sizeof(unsigned char));
-    } else if (format == FORMAT_NV12 ||
-               format == FORMAT_NV21) {
-        input_data = (unsigned char*)malloc(width * height * 3 / 2 * sizeof(unsigned char));
-        output_cpu = (unsigned char*)malloc(width * height * 3 / 2 * sizeof(unsigned char));
-        output_tpu = (unsigned char*)malloc(width * height * 3 / 2 * sizeof(unsigned char));
-    } else {
-        input_data = (unsigned char*)malloc(width * height * 3 * sizeof(unsigned char));
-        output_cpu = (unsigned char*)malloc(width * height * 3 * sizeof(unsigned char));
-        output_tpu = (unsigned char*)malloc(width * height * 3 * sizeof(unsigned char));
-    }
+    bm_image_create(handle, height, width, (bm_image_format_ext)format, DATA_TYPE_EXT_1N_BYTE, &input_img, NULL);
+    int byte_size[4] = {0};
+    bm_image_get_byte_size(input_img, byte_size);
+    int img_size = byte_size[0] + byte_size[1] + byte_size[2] + byte_size[3];
+    bm_image_destroy(&input_img);
+
+    input_data = (unsigned char*)malloc(img_size * sizeof(unsigned char));
+    output_cpu = (unsigned char*)malloc(img_size * sizeof(unsigned char));
+    output_tpu = (unsigned char*)malloc(img_size * sizeof(unsigned char));
 
     if(use_real_img == 1){
-        if(format == FORMAT_GRAY){
-            read_bin(input_path, input_data, width, height, 1);
-        } else if(format == FORMAT_YUV444P ||
-                  format == FORMAT_RGB_PLANAR  ||
-                  format == FORMAT_BGR_PLANAR  ||
-                  format == FORMAT_RGBP_SEPARATE ||
-                  format == FORMAT_BGRP_SEPARATE) {
-            read_bin(input_path, input_data, width, height, 3);
-        } else {
-            bm_image_create(handle, height, width, (bm_image_format_ext)format, DATA_TYPE_EXT_1N_BYTE, &input_img, NULL);
-            bm_image_alloc_dev_mem(input_img, BMCV_HEAP_ANY);
-            bm_read_bin(input_img,input_path);
-        }
+        read_bin(input_path, input_data, img_size);
     } else {
-        if(format == FORMAT_GRAY){
-            fill(input_data, 1, width, height);
-        } else if (format == FORMAT_YUV444P  ||
-                   format == FORMAT_RGB_PLANAR  ||
-                   format == FORMAT_BGR_PLANAR  ||
-                   format == FORMAT_RGBP_SEPARATE ||
-                   format == FORMAT_BGRP_SEPARATE) {
-            fill(input_data, 3, width, height);
-        } else if (format == FORMAT_NV12 ||
-                   format == FORMAT_NV21) {
-            fillNV21(input_data, width, height);
-        } else {
-            printf("not support input format random test!\n");
-            free(input_data);
-            free(output_cpu);
-            free(output_tpu);
-            bm_image_destroy(&input_img);
-            return -1;
-        }
+        fill(input_data, img_size);
     }
     gettimeofday(&t1, NULL);
-    ret = rotate_cpu(input_data, output_cpu, width, height, format, rotation_angle, input_img, handle);
+    ret = rotate_cpu(input_data, output_cpu, width, height, format, rotation_angle, handle);
     gettimeofday(&t2, NULL);
     printf("Rotate CPU using time = %ld(us)\n", TIME_COST_US(t1, t2));
     if(ret != 0){
@@ -394,7 +294,7 @@ static int test_rotate_random(
         return ret;
     }
 
-    ret = rotate_tpu(thread_idx, input_data, output_tpu, width, height, format, rotation_angle, handle, input_img);
+    ret = rotate_tpu(thread_idx, input_data, output_tpu, width, height, format, rotation_angle, handle);
     if(ret != 0){
         free(input_data);
         free(output_cpu);
@@ -403,30 +303,14 @@ static int test_rotate_random(
         return ret;
     }
 
-    if(format == FORMAT_GRAY){
-        ret = cmp_rotate(output_tpu, output_cpu, width * height, format);
-    } else {
-        ret = cmp_rotate(output_tpu, output_cpu, width * height * 3, format);
-    }
+    ret = cmp_rotate(output_tpu, output_cpu, img_size);
     if (ret == 0) {
         printf("Compare TPU result with CPU result successfully!\n");
         if (use_real_img == 1) {
-            if(format == FORMAT_GRAY){
-                write_bin(output_path, output_tpu, width, height, 1);
-            } else {
-                write_bin(output_path, output_tpu, width, height, 3);
-            }
+            write_bin(output_path, output_tpu, img_size);
         }
     } else {
         printf("cpu and tpu failed to compare \n");
-    }
-    if (format == FORMAT_NV12 ||
-        format == FORMAT_NV21) {
-        write_bin_nv21(output_path, output_tpu, width * height * 3 / 2);
-    } else if (format == FORMAT_GRAY) {
-        write_bin(output_path, output_tpu, width, height, 1);
-    } else {
-        write_bin(output_path, output_tpu, width, height, 3);
     }
 
     free(input_data);

@@ -158,6 +158,11 @@ doc:
 	mkdir -p $(OUT_DIR)/$(CHIP)/doc
 	mv $(LIBSOPHAV_ROOT)/bmcv/document/bmcv_demo/build/*.pdf $(OUT_DIR)/$(CHIP)/doc
 
+html:
+	make -C $(LIBSOPHAV_ROOT)/bmcv/document/bmcv_demo LC_ALL=en_US.UTF-8 web
+	mkdir -p $(OUT_DIR)/$(CHIP)/html
+	cp -r $(LIBSOPHAV_ROOT)/bmcv/document/bmcv_demo/build/html/* $(OUT_DIR)/$(CHIP)/html
+
 test: $(BMCV_TEST_OBJ)
 
 clean:

@@ -27,3 +27,4 @@ BMCV基础函数
    bmcv_funcs/bm_image_get_plane_num.rst
    bmcv_funcs/bm_image_is_attached.rst
    bmcv_funcs/bm_image_get_handle.rst
+   bmcv_funcs/bm_image_write_to_bmp.rst

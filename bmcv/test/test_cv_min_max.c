@@ -20,8 +20,8 @@ extern int cpu_min_max(float* XHost, int L, float* min_cpu, float* max_cpu);
 
 static int parameters_check(int len)
 {
-    if (len < 50 || len > 260144){
-        printf("Unsupported size! len_size range : 50 ~ 260144 \n");
+    if (len < 0){
+        printf("Unsupported size! len_size must larger than 0! \n");
         return -1;
     }
     return 0;
@@ -29,7 +29,6 @@ static int parameters_check(int len)
 
 static int tpu_min_max(float* XHost, int L, float* min_tpu, float* max_tpu, bm_handle_t handle)
 {
-
     bm_device_mem_t XDev;
     bm_status_t ret = BM_SUCCESS;
     struct timeval t1, t2;

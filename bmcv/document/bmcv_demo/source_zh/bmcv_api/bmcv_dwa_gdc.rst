@@ -204,9 +204,9 @@ bmcv_dwa_gdc
     #include <unistd.h>
 
     int main() {
-        int src_h = 1080, src_w = 1920, dev_id = 0;
+        int src_h = 1080, src_w = 1920, dst_h = 1080, dst_w = 1920, dev_id = 0;
         bm_image_format_ext fmt = FORMAT_YUV420P;
-        char *src_name = "path/to/src", *dst_name = "path/to/dst";
+        char *src_name = "path/to/src", *dst_name = "path/to/dst", *grid_name = "path/to/grid_info";
         bm_handle_t handle = NULL;
         bmcv_gdc_attr ldc_attr = {true, 0, 0, 0, 0, 0, -200, };
         fmt = FORMAT_RGB_PLANAR;
@@ -218,13 +218,19 @@ bmcv_dwa_gdc
             exit(-1);
         }
 
+        FILE *fp = fopen(grid_name, "rb");
+        if (!fp) {
+            printf("open file:%s failed.\n", grid_name);
+            exit(-1);
+        }
+        u32 grid_size = 32768;    // grid_info文件的字节数
+        char *grid_data = (char *)malloc(grid_size);
+        fread(grid_data, 1, grid_size, fp);
+
+        fclose(fp);
+
         bm_image src, dst;
-        int dst_w, dst_h;
-
         bm_image_create(handle, src_h, src_w, fmt, DATA_TYPE_EXT_1N_BYTE, &src, NULL);
-
-        dst_w = src_w;
-        dst_h = src_h;
         bm_image_create(handle, dst_h, dst_w, fmt, DATA_TYPE_EXT_1N_BYTE, &dst, NULL);
 
         ret = bm_image_alloc_dev_mem(src, BMCV_HEAP1_ID);
@@ -244,6 +250,9 @@ bmcv_dwa_gdc
         };
         fclose(fp_src);
         bm_image_copy_host_to_device(src, (void *)&input_data);
+
+        ldc_attr.grid_info.u.system.system_addr = (void *)grid_data;
+        ldc_attr.grid_info.size = grid_size;
 
         bmcv_dwa_gdc(handle, src, dst, ldc_attr);
 

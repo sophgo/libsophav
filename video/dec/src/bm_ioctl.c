@@ -41,12 +41,24 @@ static  volatile long bmhandle_atomic_lock = 0;
 static int bmlib_init_flag = 0;
 BmVpuDecLogLevel bm_vpu_log_level_threshold = BMVPU_DEC_LOG_LEVEL_ERR;
 
-void bm_vpu_set_logging_threshold(BmVpuDecLogLevel threshold)
+void bmdec_set_logging_threshold(BmVpuDecLogLevel threshold)
 {
     bm_vpu_log_level_threshold = threshold;
+    printf("vdec loglevel is %d\n", bm_vpu_log_level_threshold);
 }
 
-void logging_fn(BmVpuDecLogLevel level, char const *file, int const line, char const *fn, const char *format, ...)
+void bmdec_set_logging_thresholdEx()
+{
+    char *debug_env = getenv("BMVID_DEBUG");
+
+    if (debug_env) {
+        BmVpuDecLogLevel log_level = BMVPU_DEC_LOG_LEVEL_ERR;
+        log_level = atoi(debug_env);
+        bmdec_set_logging_threshold(log_level);
+    }
+}
+
+void bmdec_logging_fn(BmVpuDecLogLevel level, char const *file, int const line, char const *fn, const char *format, ...)
 {
     va_list args;
 
@@ -195,7 +207,7 @@ static void bm_handle_unlock()
 
 static void bmvpu_dec_load_bmlib_handle(int soc_idx){
 
-    if (soc_idx > MAX_SOC_NUM)
+    if (soc_idx >= MAX_SOC_NUM)
     {
         BMVPU_DEC_ERROR("soc_idx excess MAX_SOC_NUM!\n");
         exit(0);
@@ -225,7 +237,7 @@ static void bmvpu_dec_load_bmlib_handle(int soc_idx){
 
 
 static void bmvpu_dec_unload_bmlib_handle(int soc_idx){
-    if (soc_idx > MAX_SOC_NUM)
+    if (soc_idx >= MAX_SOC_NUM)
     {
       BMVPU_DEC_ERROR("soc_idx excess MAX_SOC_NUM!\n");
       exit(0);
@@ -254,7 +266,7 @@ static void bmvpu_dec_unload_bmlib_handle(int soc_idx){
 bm_handle_t bmvpu_dec_get_bmlib_handle(int soc_idx)
 {
     bm_handle_t handle = 0;
-    if (soc_idx > MAX_SOC_NUM)
+    if (soc_idx >= MAX_SOC_NUM)
     {
         BMVPU_DEC_ERROR("soc_idx excess MAX_SOC_NUM!\n");
         exit(0);
@@ -420,6 +432,7 @@ int bmdec_ioctl_get_frame(int chn_fd, video_frame_info_ex_s* pstFrameInfoEx, vde
         }
 
         if(pstFrameInfoEx->pstFrame->video_frame.compress_mode == COMPRESS_MODE_FRAME){
+#ifndef BM_PCIE_MODE
             if(getenv("BMVPU_DEC_DUMP_FBC_NUM") != NULL) {
                 if(pstFrameInfoEx->pstFrame->video_frame.phyaddr[0] && pstFrameInfoEx->pstFrame->video_frame.length[0]) {
                     pstFrameInfoEx->pstFrame->video_frame.viraddr[0] =
@@ -445,9 +458,11 @@ int bmdec_ioctl_get_frame(int chn_fd, video_frame_info_ex_s* pstFrameInfoEx, vde
                                             pstFrameInfoEx->pstFrame->video_frame.ext_length);
                 }
             }
+#endif
             return ret;
         }
 
+#ifndef BM_PCIE_MODE
         size = (pstFrameInfoEx->pstFrame->video_frame.phyaddr[1] - pstFrameInfoEx->pstFrame->video_frame.phyaddr[0]) * 3 / 2;
         if(pstFrameInfoEx->pstFrame->video_frame.phyaddr[0] && size) {
             pstFrameInfoEx->pstFrame->video_frame.viraddr[0] =
@@ -463,6 +478,7 @@ int bmdec_ioctl_get_frame(int chn_fd, video_frame_info_ex_s* pstFrameInfoEx, vde
                                                                     pstFrameInfoEx->pstFrame->video_frame.phyaddr[1];
             }
         }
+#endif
     }
     else{
         bm_ret = bm_get_ret(ret);
@@ -480,12 +496,15 @@ int bmdec_ioctl_release_frame(int chn_fd, video_frame_info_s *pstFrameInfo, int 
 {
     int ret = 0;
     if(pstFrameInfo->video_frame.compress_mode != COMPRESS_MODE_FRAME) {
+#ifndef BM_PCIE_MODE
         if (pstFrameInfo->video_frame.viraddr[0] && pstFrameInfo->video_frame.length[0]) {
             bmvpu_dec_bmlib_munmap(0, (uint64_t)pstFrameInfo->video_frame.viraddr[0], size);
         }
+#endif
     }
     else {
         if(getenv("BMVPU_DEC_DUMP_FBC_NUM") != NULL) {
+#ifndef BM_PCIE_MODE
             if (pstFrameInfo->video_frame.viraddr[0] && pstFrameInfo->video_frame.length[0]) {
                 bmvpu_dec_bmlib_munmap(0, (uint64_t)pstFrameInfo->video_frame.viraddr[0], pstFrameInfo->video_frame.length[0]);
             }
@@ -501,6 +520,7 @@ int bmdec_ioctl_release_frame(int chn_fd, video_frame_info_s *pstFrameInfo, int 
             if(pstFrameInfo->video_frame.ext_virt_addr && pstFrameInfo->video_frame.ext_length) {
                 bmvpu_dec_bmlib_munmap(0, (uint64_t)pstFrameInfo->video_frame.ext_virt_addr, pstFrameInfo->video_frame.ext_length);
             }
+#endif
         }
     }
 

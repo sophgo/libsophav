@@ -128,10 +128,7 @@ BmJpuEncReturnCodes start_encode(BmJpuJPEGEncoder *jpeg_encoder, EncParam *enc_p
     unsigned long long phys_addr = bm_mem_get_device_addr(*framebuffer.dma_buffer);
     printf("phys addr: %#llx, total_size = %u\n", phys_addr, total_size);
 
-#ifdef BOARD_FPGA
-    int chn_fd = bm_jpu_enc_get_channel_fd(jpeg_encoder->encoder->channel_id);
-    virt_addr = bmjpeg_ioctl_mmap(chn_fd, phys_addr, total_size);
-#else
+#ifndef BM_PCIE_MODE
     unsigned long long vaddr = 0;
     bm_ret = bm_mem_mmap_device_mem(bm_handle, framebuffer.dma_buffer, &vaddr);
     if (bm_ret != BM_SUCCESS) {
@@ -139,19 +136,25 @@ BmJpuEncReturnCodes start_encode(BmJpuJPEGEncoder *jpeg_encoder, EncParam *enc_p
         goto finish;
     }
     virt_addr = (uint8_t *)vaddr;
+#else
+    virt_addr = malloc(total_size);
+    if(!virt_addr) {
+        fprintf(stderr, "can't malloc memory to save input data\n");
+        ret = -1;
+        goto finish;
+    }
 #endif
     printf("virt addr: %p\n", virt_addr);
 
     fread(virt_addr, sizeof(uint8_t), total_size, fp_in);
 
     if (virt_addr != NULL) {
-    #ifdef BOARD_FPGA
-        bmjpeg_ioctl_munmap(virt_addr, total_size);
-    #else
+    #ifndef BM_PCIE_MODE
         bm_mem_unmap_device_mem(bm_handle, virt_addr, total_size);
+    #else
+        bm_memcpy_s2d_partial(bm_handle, *(framebuffer.dma_buffer), virt_addr, total_size);
     #endif
     }
-
     ConvertToImageFormat(&image_format, enc_params->pix_fmt, enc_params->cbcr_interleave);
     memset(&jpu_enc_params, 0, sizeof(BmJpuJPEGEncParams));
     jpu_enc_params.frame_width = enc_params->width;
@@ -249,6 +252,12 @@ finish:
         bm_free_device(bm_handle, *framebuffer.dma_buffer);
         free(framebuffer.dma_buffer);
     }
+
+#ifdef BM_PCIE_MODE
+    if(virt_addr) {
+        free(virt_addr);
+    }
+#endif
 
     if (bitstream_buffer != NULL) {
         bm_free_device(bm_handle, *bitstream_buffer);

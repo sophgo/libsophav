@@ -10,8 +10,7 @@ aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/src/. SRC)
 
 set(TDE_LIB_NAME tde CACHE INTERNAL "tde library name")
 
-link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../vglite/lib/)
-target_link_libraries(${VGLite_LIB_NAME})
+link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../vglite/LD/)
 
 add_library(${TDE_LIB_NAME} SHARED ${SRC})
 add_library(${TDE_LIB_NAME}-static STATIC ${SRC})
@@ -27,21 +26,10 @@ set(HEADERS inc/tde.h)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/libbmcv/include)
 aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/sample/. SRC)
-
-# link_directories(${TDE_path}/lib)
-#string(FIND "${CMAKE_C_COMPILER}" "aarch64-linux-gnu-gcc" COMPILER_FOUND)
-if ("${CMAKE_C_COMPILER}" MATCHES "aarch64-linux-gnu-gcc$")
-    link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/libbmcv/lib/${PLATFORM})
-elseif ("${CMAKE_C_COMPILER}" MATCHES "aarch64-linux-gcc$")
-    link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/libbmcv/lib930/${PLATFORM})
-elseif ("${CMAKE_C_COMPILER}" MATCHES "aarch64-none-linux-gnu-gcc$")
-    link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/libbmcv/lib1131/${PLATFORM})
-else ()
-    message(FATAL_ERROR "Unsupported compiler: ${CMAKE_C_COMPILER}")
-endif ()
+link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/libbmcv/${LIB_VERSION}/${PLATFORM})
 
 add_executable(${sample_name} ${SRC})
-target_link_libraries(${sample_name} ${VGLite_LIB_NAME}-static ${TDE_LIB_NAME}-static bmlib dl m pthread atomic)
+target_link_libraries(${sample_name} libvg_lite.a ${TDE_LIB_NAME}-static bmlib dl m pthread atomic)
 
 # INSTALL(TARGETS ${sample_name} RUNTIME DESTINATION ${TDE_path}/bin)
 

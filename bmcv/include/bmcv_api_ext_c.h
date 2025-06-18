@@ -428,12 +428,51 @@ typedef enum {
 } bmcv_flip_mode;
 
 /*
+* Description circle Mode
+* CIR_EMPTY means a frame mode where the area outside the circle is filled with a color, leaving the circular area unchanged.
+* CIR_SHAPE means a solid circle where the entire area inside the circle is filled with a color.
+*/
+typedef enum {
+    CIR_EMPTY = -2,
+    CIR_SHAPE = -1,
+} bmcv_cir_mode;
+
+/*
 * The starting coordinate information corresponding to the line point
 */
 typedef struct {
     int x;
     int y;
 } bmcv_point_t;
+
+/*
+* The required structure for a fully functional interface
+*/
+typedef struct bmcv_overlay_attr {
+    char          overlay_num;
+    bmcv_rect_t*  overlay_info;
+    bm_image*     overlay_image;
+} bmcv_overlay_attr;
+
+typedef struct bmcv_draw_rect_attr {
+    char          rect_num;
+    bmcv_rect_t   draw_rect[4];
+    unsigned int  color[4];
+    short         line_width[4];
+} bmcv_draw_rect_attr;
+
+typedef struct bmcv_fill_rect_attr {
+    char          rect_num;
+    bmcv_rect_t   fill_rect[4];
+    unsigned int  color[4];
+} bmcv_fill_rect_attr;
+
+typedef struct bmcv_circle_attr {
+    bmcv_point_t  center;
+    short         radius;
+    bmcv_color_t  color;
+    signed char   line_width;
+} bmcv_circle_attr;
 
 /*
 * Affine transformation matrix data
@@ -1743,8 +1782,12 @@ DECL_EXPORT bm_status_t bm_image_write_to_bmp(bm_image image, const char *filena
 
 /* Read information from a file into the bm_image data structure */
 DECL_EXPORT void bm_read_bin(bm_image src, const char *input_name);
+/* Read information from a compact arrangement of file into the bm_image data structure */
+DECL_EXPORT void bm_read_compact_bin(bm_image src, const char *input_name);
 /* Insert the data from the bm_image structure into the file */
 DECL_EXPORT void bm_write_bin(bm_image dst, const char *output_name);
+/* Insert the data from the bm_image structure into the compact arrangement of file */
+DECL_EXPORT void bm_write_compact_bin(bm_image dst, const char *output_name);
 /* input image Width align for output image */
 DECL_EXPORT bm_status_t bmcv_width_align(bm_handle_t handle, bm_image input, bm_image output);
 
@@ -1918,6 +1961,26 @@ DECL_EXPORT bm_status_t bmcv_image_csc_convert_to(
     bmcv_convert_to_attr*   convert_to_attr);
 
 /*
+* This interface can complete many tasks in one task.
+* Including crop/resize/csc/padding/convertto/flip/circle/drawrect/fillrect/overlay.
+*/
+DECL_EXPORT bm_status_t bmcv_image_csc_overlay(
+    bm_handle_t             handle,
+    int                     crop_num,
+    bm_image                input,
+    bm_image*               output,
+    bmcv_rect_t*            crop_rect,
+    bmcv_padding_attr_t*    padding_attr,
+    bmcv_resize_algorithm   algorithm,
+    csc_type_t              csc_type,
+    bmcv_flip_mode          flip_mode,
+    bmcv_convert_to_attr*   convert_to_attr,
+    bmcv_overlay_attr*      overlay_attr,
+    bmcv_draw_rect_attr*    draw_rect_attr,
+    bmcv_fill_rect_attr*    fill_rect_attr,
+    bmcv_circle_attr*       circle_attr);
+
+/*
 * The interface implements a copy of an image to the corresponding memory area of the destination image
 * copy_to_attr is attribute configuration; input is input bm_image; output is output bm_image
 */
@@ -2025,6 +2088,36 @@ DECL_EXPORT bm_status_t bmcv_image_flip(
     bm_image             input,
     bm_image             output,
     bmcv_flip_mode       flip_mode);
+
+/*
+* Draws a circle on the image based on the specified mode.
+* center_x and center_y set the circle's center;
+* radius defines the circle's size; line_width sets outline thickness;
+* color specify the circle's color.
+*/
+DECL_EXPORT bm_status_t bmcv_image_circle(
+	bm_handle_t         handle,
+	bm_image            image,
+	bmcv_point_t        center,
+	int                 radius,
+	bmcv_color_t        color,
+	int                 line_width);
+
+/*
+* Draws quare points on the image.
+* coord set oordinates in the upper left corner;
+* length set he side length of a square point;
+* color specify the point's color.
+*/
+DECL_EXPORT bm_status_t bmcv_image_draw_point(
+	bm_handle_t         handle,
+	bm_image            image,
+	int                 point_num,
+	bmcv_point_t*       coord,
+	int                 length,
+	unsigned char       r,
+	unsigned char       g,
+	unsigned char       b);
 
 // quality_factor = 84
 /*

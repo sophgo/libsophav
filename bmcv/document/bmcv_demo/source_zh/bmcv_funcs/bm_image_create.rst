@@ -49,7 +49,7 @@ bm_image_create
       - 输出填充的 bm_image 结构指针。
     * - \*stride
       - 输入
-      - 所创建 bm_image 将要关联的 device memory 内存布局，即每个 plane 的 width stride 值。在传入NULL时默认与一行的数据宽度相同，以 byte 计数。
+      - 所创建 bm_image 将要关联的 device memory 内存布局，即每个 plane 的 width stride 值。在传入NULL时默认与一行的数据宽度相同，以 byte 计数。更多用法请参阅注意事项。
 
 
 | 【返回值】
@@ -74,8 +74,8 @@ bm_image_create
     - FORMAT_NV21
 
 #. FORMAT_COMPRESSED 图片格式的图片创建时需要将 stride 参数的数组设置为各通道的数据长度。若 stride 设置为 NULL，后续则需要用 bm_image_attach 绑定 device memory。
-#. 若 stride 参数设置为 NULL，此时默认各个 plane 的数据是 compact 排列，stride 被设置为与 image_format 对应的默认值。
-#. 如果 stride 非 NULL，则会检测 stride 中的 width stride 值是否合法。所谓的合法，即 image_format 对应的所有 plane 的 stride 大于默认 stride。
+#. 若 stride 参数设置为 NULL，此时默认各个 plane 的数据是 compact 排列，创建的 bm_image 各 plane 的 stride 被设置为与 image_format 对应的默认值。
+#. 如果传入 stride 非 NULL，则会检测传入的各 stride 值是否大于 image_format 对应的所有 plane 的 默认 stride， 若大于，则创建的 bm_image 各 plane 的 stride 值设定为传入值；若反之，则设定为默认 stride 值向上对齐传入值的值。
 #. 默认 stride 值的计算方法如下：
 
 .. code-block:: c++

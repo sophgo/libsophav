@@ -130,6 +130,7 @@ struct ldc_vb_pool_cfg {
 #define LDC_ADD_WAR_TASK _IOW('D', 0x12, struct gdc_task_attr)
 #define LDC_ADD_LDC_LDC_TASK _IOW('D', 0x13, struct gdc_task_attr)
 #define LDC_ADD_DWA_ROT_TASK _IOW('D', 0x14, struct gdc_task_attr)
+
 #ifdef __cplusplus
 }
 #endif

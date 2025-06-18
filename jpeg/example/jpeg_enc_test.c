@@ -197,7 +197,7 @@ static int parse_args(int argc, char *argv[], EncInputParam *input_params)
     }
 
     if (input_params->enc_params.c_stride == 0) {
-        if (input_params->enc_params.pix_fmt == 0 || input_params->enc_params.pix_fmt == 1) {
+        if ((input_params->enc_params.pix_fmt == 0 || input_params->enc_params.pix_fmt == 1) && (input_params->enc_params.cbcr_interleave == 0)) {
             input_params->enc_params.c_stride = input_params->enc_params.y_stride / 2;
         } else {
             input_params->enc_params.c_stride = input_params->enc_params.y_stride;
