@@ -229,7 +229,7 @@ BMVidDecRetStatus bmvpu_dec_create(BMVidCodHandle *pVidCodHandle, BMVidDecParam 
     }
     if(decParam.frame_buffer != NULL && decParam.Ytable_buffer != NULL && decParam.Ctable_buffer != NULL) {
         if(decParam.extraFrameBufferNum <= 0 || decParam.min_framebuf_cnt <= 0 ||
-            decParam.framebuf_delay <=0 || decParam.cmd_queue_depth <= 0 ) {
+            decParam.framebuf_delay < 0 || decParam.cmd_queue_depth <= 0 ) {
             BMVPU_DEC_ERROR("Invalid frame buffer count: extra frame buffer:%d mini frame buffer:%d frame delay:%d command queue depth:%d\n",
                 decParam.extraFrameBufferNum, decParam.min_framebuf_cnt, decParam.framebuf_delay, decParam.cmd_queue_depth);
             return BM_ERR_VDEC_ILLEGAL_PARAM;
