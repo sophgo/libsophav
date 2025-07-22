@@ -78,7 +78,7 @@ typedef struct stitch_ctx_{
 
 typedef struct vpss_thread_ctx_{
 	u16 idx;
-	u8 fd;
+	u32 fd;
 	bm_status_t ret;
 	bm_handle_t handle;
 	bm_vpss_cfg vpss_cfg;
