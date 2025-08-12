@@ -13,19 +13,9 @@ typedef struct {
     int len;
     bm_handle_t handle;
 } cv_min_max_thread_arg_t;
-
 #define TIME_COST_US(start, end) ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec))
 
 extern int cpu_min_max(float* XHost, int L, float* min_cpu, float* max_cpu);
-
-static int parameters_check(int len)
-{
-    if (len < 0){
-        printf("Unsupported size! len_size must larger than 0! \n");
-        return -1;
-    }
-    return 0;
-}
 
 static int tpu_min_max(float* XHost, int L, float* min_tpu, float* max_tpu, bm_handle_t handle)
 {
@@ -71,7 +61,7 @@ static int test_min_max(int len, bm_handle_t handle)
     float* Xhost = (float*)malloc(L * sizeof(float));
     int i;
 
-    printf("len = %d\n", len);
+    printf("data_num = %d\n", len);
     for (i = 0; i < L; ++i)
         Xhost[i] = (float)((rand() % 2 ? 1 : -1) * (rand() % 1000 + (rand() % 100000) * 0.01));
     ret = tpu_min_max(Xhost, L, &min_tpu, &max_tpu, handle);
@@ -104,6 +94,9 @@ void* test_thread_min_max(void* args) {
     int len = cv_cmulp_thread_arg->len;
     bm_handle_t handle = cv_cmulp_thread_arg->handle;
     for (int i = 0; i < loop; ++i) {
+        if(loop > 1) {
+            len = 50 + rand() % 1000000;
+        }
         int ret = test_min_max(len, handle);
         if (ret) {
             printf("------Test Min_Max Failed!------\n");
@@ -121,9 +114,8 @@ int main(int argc, char* args[]) {
     srand(seed);
     int thread_num = 1;
     int loop = 1;
-    int len = 50 + rand() % 260095;
+    int len = 50 + rand() % 1000000;
     int ret = 0;
-    int check = 0;
     bm_handle_t handle;
     ret = bm_dev_request(&handle, 0);
 
@@ -144,11 +136,6 @@ int main(int argc, char* args[]) {
     if (argc > 2) loop = atoi(args[2]);
     if (argc > 3) len = atoi(args[3]);
 
-    check = parameters_check(len);
-    if (check) {
-        printf("Parameters Failed! \n");
-        return check;
-    }
     // test for multi-thread
     pthread_t pid[thread_num];
     cv_min_max_thread_arg_t cv_cmulp_thread_arg[thread_num];

@@ -213,4 +213,42 @@ bm_status_t bmcv_ldc_gdc_load_mesh(bm_handle_t          handle,
     }
     return ret;
 }
+#else
+#include "bmcv_internal.h"
+bm_status_t bmcv_ldc_rot(
+    bm_handle_t          handle,
+    bm_image             in_image,
+    bm_image             out_image,
+    bmcv_rot_mode        rot_mode) {
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
+    return BM_NOT_SUPPORTED;
+}
+
+bm_status_t bmcv_ldc_gdc(
+    bm_handle_t          handle,
+    bm_image             in_image,
+    bm_image             out_image,
+    bmcv_gdc_attr        ldc_attr){
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
+    return BM_NOT_SUPPORTED;
+}
+
+bm_status_t bmcv_ldc_gdc_gen_mesh(
+    bm_handle_t          handle,
+    bm_image             in_image,
+    bm_image             out_image,
+    bmcv_gdc_attr        ldc_attr,
+    bm_device_mem_t      dmem){
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
+    return BM_NOT_SUPPORTED;
+};
+
+bm_status_t bmcv_ldc_gdc_load_mesh(
+    bm_handle_t          handle,
+    bm_image             in_image,
+    bm_image             out_image,
+    bm_device_mem_t      dmem){
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
+    return BM_NOT_SUPPORTED;
+};
 #endif

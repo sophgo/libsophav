@@ -8,6 +8,7 @@
 #include "bmcv_a2_dpu_internal.h"
 #ifdef __linux__
 #include <sys/ioctl.h>
+#include <unistd.h>
 #endif
 
 #define S32MILLISEC 4000
@@ -391,8 +392,10 @@ bm_status_t bm_dpu_basic( bm_handle_t handle,
                           bm_image *left_input,
                           bm_image *right_input,
                           bm_image *output,
-                          dpu_grp_attr_s dpuGrpAttr){
+                          dpu_grp_attr_s dpuGrpAttr,
+                          u64 fgs_store_paddr){
     bm_status_t ret = BM_SUCCESS;
+    struct bm_dpu_cfg dpu_cfg;
     int fd = 0;
     unsigned int DpuGrp = 0;
     int DpuChn = 0;
@@ -402,72 +405,56 @@ bm_status_t bm_dpu_basic( bm_handle_t handle,
 
     ret = bm_get_dpu_fd(&fd);
 
-    ret = bm_dpu_get_grp_id(fd, &DpuGrp);
-    if(ret != BM_SUCCESS){
-        goto fail;
-    }
+    memcpy(&dpu_cfg.grp_attr.grp_attr, &dpuGrpAttr, sizeof(dpu_grp_attr_s));
+    memcpy(&dpu_cfg.chn_attr.chn_attr, &chn, sizeof(dpu_chn_attr_s));
+    dpu_cfg.chn_attr.dpu_chn_id = DpuChn;
+    dpu_cfg.chn_attr.dpu_grp_id = DpuGrp;
+    dpu_cfg.grp_attr.dpu_grp_id = DpuGrp;
+    dpu_cfg.fgs_store_addr = fgs_store_paddr;
 
-    ret = check_dpu_grp_valid(DpuGrp);
-    if(ret != BM_SUCCESS)
-        goto fail;
+    dpu_cfg.frame_set_cfg.millisec = 4000;
 
-    ret = check_dpu_chn_valid(DpuChn);
-    if(ret != BM_SUCCESS)
-        goto fail;
-
-    // init dpu
-    ret = bm_dpu_create_grp(fd, DpuGrp, &dpuGrpAttr);
-    if(ret != BM_SUCCESS)
-        goto fail;
-
-    ret = bm_dpu_set_grp_attr(fd, DpuGrp, &dpuGrpAttr);
-    if(ret != BM_SUCCESS)
-        goto fail;
-
-    ret = bm_dpu_set_chn(fd, DpuGrp, DpuChn, &chn);
-    if(ret != BM_SUCCESS)
-        goto fail;
-
-    ret = bm_dpu_enable_chn(fd, DpuGrp, DpuChn);
-    if(ret != BM_SUCCESS)
-        goto fail;
-
-    // start dpu
-    ret = bm_dpu_start_grp(fd, DpuGrp);
-    if(ret != BM_SUCCESS)
-        goto fail;
+    // send Chnframe
+    dpu_cfg.frame_get_cfg.millisec = 4000;
+    video_frame_info_s pst_output_frame;
+    pixel_format_e pixel_fomat = 0;
+    memset(&pst_output_frame, 0, sizeof(pst_output_frame));
+    bm_image_format_to_cvi_(output->image_format, output->data_type, &pixel_fomat);
+    bm_image_to_frame(output, pixel_fomat, &pst_output_frame);
+    memcpy(&dpu_cfg.frame_get_cfg.video_frame, &pst_output_frame, sizeof(dpu_cfg.frame_get_cfg.video_frame));
 
     // send frame
-    ret = bm_dpu_send_Chnframe(fd, DpuGrp, DpuChn, output, 4000);
-    if(ret != BM_SUCCESS)
-        goto fail;
+    video_frame_info_s pst_left_frame;
+	video_frame_info_s pst_right_frame;
+    memset(&pst_left_frame, 0, sizeof(pst_left_frame));
+    memset(&pst_right_frame, 0, sizeof(pst_right_frame));
+    bm_image_format_to_cvi_(left_input->image_format, left_input->data_type, &pixel_fomat);
+    bm_image_to_frame(left_input, pixel_fomat, &pst_left_frame);
+    bm_image_to_frame(right_input, pixel_fomat, &pst_right_frame);
 
-    ret = bm_dpu_send_frame(fd, DpuGrp, left_input, right_input, 4000);
-    if(ret != BM_SUCCESS)
-        goto fail;
+    bm_device_mem_t left_image_devmem, right_image_devmem;
+    bm_image_get_device_mem(*left_input, &left_image_devmem);
+    bm_image_get_device_mem(*right_input, &right_image_devmem);
+    pst_left_frame.video_frame.phyaddr[0] = bm_mem_get_device_addr(left_image_devmem);
+    pst_right_frame.video_frame.phyaddr[0] = bm_mem_get_device_addr(right_image_devmem);
+
+    memcpy(&dpu_cfg.frame_set_cfg.src_left_frame, &pst_left_frame, sizeof(dpu_cfg.frame_set_cfg.src_left_frame));
+    memcpy(&dpu_cfg.frame_set_cfg.src_right_frame, &pst_right_frame, sizeof(dpu_cfg.frame_set_cfg.src_right_frame));
 
     // get frame
-    ret = bm_dpu_get_frame(fd, DpuGrp, DpuChn, output, 4000);
-    if(ret != BM_SUCCESS)
-        goto fail;
+    video_frame_info_s dst_output_frame;
+    pixel_format_e format = 0;
+    memset(&dst_output_frame, 0, sizeof(dst_output_frame));
+    bm_image_format_to_cvi_(output->image_format, output->data_type, &format);
+    bm_image_to_frame(output, format, &dst_output_frame);
+    memcpy(&dpu_cfg.frame_get_cfg.video_frame, &dst_output_frame, sizeof(dpu_cfg.frame_get_cfg.video_frame));
+    dpu_cfg.frame_get_cfg.dpu_chn_id = 0;
 
-    // release frame
-    ret = bm_dpu_release_frame(fd, DpuGrp, DpuChn, output);
-
-fail:
-    if(BM_SUCCESS != bm_dpu_disable_chn(fd, DpuGrp, DpuChn)){
-        return BM_ERR_FAILURE;
+    ret = (bm_status_t)ioctl(fd, DPU_EDGE_SEND_FRAME, &dpu_cfg);
+    if(ret != BM_SUCCESS){
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "DpuGrp(%d) DpuChn(%d) send edge frame fail, %s: %s: %d\n", DpuGrp, DpuChn, filename(__FILE__), __func__, __LINE__);
+        return ret;
     }
-
-    if(BM_SUCCESS != bm_dpu_stop_grp(fd, DpuGrp)){
-        return BM_ERR_FAILURE;
-    }
-
-    if(BM_SUCCESS != bm_dpu_destory_grp(fd, DpuGrp)){
-        return BM_ERR_FAILURE;
-    }
-
-    // ret = bm_destroy_dpu_fd();
 
     return ret;
 }
@@ -525,7 +512,7 @@ bm_status_t check_bm_dpu_image_param(bm_image *left_input, bm_image *right_input
     }
 
     if(left_width % 4 != 0){
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "The width should 4 align \n");
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "The width should 16 align \n");
         return BM_ERR_FAILURE;
     }
 
@@ -595,7 +582,7 @@ bm_status_t bm_dpu_sgbm_disp_internal( bm_handle_t          handle,
     dpu_grp.censusshift = dpu_attr->dpu_census_shift;
     dpu_grp.dcc_dir = dpu_attr->dcc_dir_en;
 
-    ret = bm_dpu_basic(handle, left_image, right_image, disp_image, dpu_grp);
+    ret = bm_dpu_basic(handle, left_image, right_image, disp_image, dpu_grp, 0);
     if(ret != BM_SUCCESS){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "Dpu basic failed \n");
         return ret;
@@ -611,17 +598,26 @@ bm_status_t bm_dpu_fgs_disp_internal(  bm_handle_t          handle,
                                        bmcv_dpu_fgs_mode    fgs_mode){
     bm_status_t ret = BM_SUCCESS;
     dpu_grp_attr_s dpu_grp;
+    bm_device_mem_t fgs_chfh_store_paddr;
     memset(&dpu_grp, 0, sizeof(dpu_grp_attr_s));
     set_default_dpu_param(&dpu_grp, guide_image, smooth_image);
 
+    ret = bm_malloc_device_byte(handle, &fgs_chfh_store_paddr, guide_image->height * guide_image->width * 8);
+    if(ret != 0) {
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "fgs_chfh_store_paddr alloc fail\n");
+        return BM_ERR_FAILURE;
+    }
+
     if((fgs_mode != DPU_FGS_MUX0) && (fgs_mode != DPU_FGS_MUX1)){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "FGS output mode not supported \n");
+        bm_free_device(handle, fgs_chfh_store_paddr);
         return BM_ERR_FAILURE;
     }
     dpu_grp.dpu_mode = fgs_mode;
 
     ret = check_bm_dpu_image_param(guide_image, smooth_image, disp_image);
     if(ret != BM_SUCCESS){
+        bm_free_device(handle, fgs_chfh_store_paddr);
         return ret;
     }
 
@@ -631,12 +627,13 @@ bm_status_t bm_dpu_fgs_disp_internal(  bm_handle_t          handle,
     dpu_grp.fgsmaxt = fgs_attr->fgs_max_t;
     dpu_grp.dpu_depth_unit = fgs_attr->depth_unit_en;
 
-    ret = bm_dpu_basic(handle, guide_image, smooth_image, disp_image, dpu_grp);
+    ret = bm_dpu_basic(handle, guide_image, smooth_image, disp_image, dpu_grp, bm_mem_get_device_addr(fgs_chfh_store_paddr));
     if(ret != BM_SUCCESS){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "Dpu basic failed \n");
+        bm_free_device(handle, fgs_chfh_store_paddr);
         return ret;
     }
-
+    bm_free_device(handle, fgs_chfh_store_paddr);
     return ret;
 }
 
@@ -649,13 +646,21 @@ bm_status_t bm_dpu_online_disp_internal( bm_handle_t             handle,
                                          bmcv_dpu_online_mode    online_mode){
     bm_status_t ret = BM_SUCCESS;
     dpu_grp_attr_s dpu_grp;
-     memset(&dpu_grp, 0, sizeof(dpu_grp_attr_s));
+    bm_device_mem_t online_chfh_store_paddr;
+    memset(&dpu_grp, 0, sizeof(dpu_grp_attr_s));
     set_default_dpu_param(&dpu_grp, left_image, right_image);
+
+    ret = bm_malloc_device_byte(handle, &online_chfh_store_paddr, left_image->height * left_image->width * 8);
+    if(ret != 0) {
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "online_chfh_store_paddr alloc fail\n");
+        return BM_ERR_FAILURE;
+    }
 
     if((online_mode != DPU_ONLINE_MUX0) && (online_mode != DPU_ONLINE_MUX1) &&
        (online_mode != DPU_ONLINE_MUX2)){
 
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "FGS output mode not supported \n");
+        bm_free_device(handle, online_chfh_store_paddr);
         return BM_ERR_FAILURE;
     }
 
@@ -663,10 +668,12 @@ bm_status_t bm_dpu_online_disp_internal( bm_handle_t             handle,
        dpu_attr->disp_start_pos > (left_image->width - 16)){
 
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "The disp_start_pos value error.! \n");
+        bm_free_device(handle, online_chfh_store_paddr);
         return BM_ERR_FAILURE;
     }
     ret = check_bm_dpu_image_param(left_image, right_image, disp_image);
     if(ret != BM_SUCCESS){
+        bm_free_device(handle, online_chfh_store_paddr);
         return ret;
     }
 
@@ -687,11 +694,13 @@ bm_status_t bm_dpu_online_disp_internal( bm_handle_t             handle,
     dpu_grp.fgsmaxt = fgs_attr->fgs_max_t;
     dpu_grp.dpu_depth_unit = fgs_attr->depth_unit_en;
 
-    ret = bm_dpu_basic(handle, left_image, right_image, disp_image, dpu_grp);
+    ret = bm_dpu_basic(handle, left_image, right_image, disp_image, dpu_grp, bm_mem_get_device_addr(online_chfh_store_paddr));
     if(ret != BM_SUCCESS){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "Dpu basic failed \n");
+        bm_free_device(handle, online_chfh_store_paddr);
         return ret;
     }
+    bm_free_device(handle, online_chfh_store_paddr);
     return ret;
 }
 #endif

@@ -1,5 +1,5 @@
-bmcv_axpy
-=========
+bmcv_image_axpy
+==================
 
 该接口实现 F = A * X + Y，其中 A 是常数，大小为 n * c ，F 、X 、Y 都是大小为n * c * h * w的矩阵。
 

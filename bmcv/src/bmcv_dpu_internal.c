@@ -126,4 +126,39 @@ bm_status_t bmcv_dpu_online_disp( bm_handle_t         handle,
 
     return ret;
 }
+#else
+#include "bmcv_internal.h"
+bm_status_t bmcv_dpu_sgbm_disp(
+    bm_handle_t         handle,
+    bm_image            *left_image,
+    bm_image            *right_image,
+    bm_image            *disp_image,
+    bmcv_dpu_sgbm_attrs *dpu_attr,
+    bmcv_dpu_sgbm_mode  sgbm_mode) {
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
+    return BM_NOT_SUPPORTED;
+}
+
+bm_status_t bmcv_dpu_fgs_disp(
+    bm_handle_t         handle,
+    bm_image            *guide_image,
+    bm_image            *smooth_image,
+    bm_image            *disp_image,
+    bmcv_dpu_fgs_attrs  *fgs_attr,
+    bmcv_dpu_fgs_mode   fgs_mode) {
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
+    return BM_NOT_SUPPORTED;
+}
+
+bm_status_t bmcv_dpu_online_disp(
+    bm_handle_t            handle,
+    bm_image               *left_image,
+    bm_image               *right_image,
+    bm_image               *disp_image,
+    bmcv_dpu_sgbm_attrs    *dpu_attr,
+    bmcv_dpu_fgs_attrs     *fgs_attr,
+    bmcv_dpu_online_mode   online_mode) {
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
+    return BM_NOT_SUPPORTED;
+}
 #endif

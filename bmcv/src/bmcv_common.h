@@ -1,6 +1,6 @@
 #ifndef BMCV_COMMON_H
 #define BMCV_COMMON_H
-
+#include <stdint.h>
 #include "bmcv_api_ext_c.h"
 #ifdef __x86_64__
 void print_trace(void);
@@ -102,23 +102,61 @@ typedef struct bm_api_cv_absdiff {
   int output_str[3];
 } __attribute__((packed)) bm_api_cv_absdiff_t;
 
+typedef struct bm_api_cv_absdiff_dual_core {
+  int channel;
+  unsigned long long input1_addr[3];
+  unsigned long long input2_addr[3];
+  unsigned long long output_addr[3];
+  int width[3];
+  int height[3];
+  int input1_str[3];
+  int input2_str[3];
+  int output_str[3];
+  int core_id;
+  int core_num;
+  int base_msg_id;
+} __attribute__((packed)) bm_api_cv_absdiff_dual_core_t;
+
 typedef struct {
-  u64 input_img_addr;
-  int img_w;
-  int img_w_stride;
-  int img_h;
+  int channel;
+  u64 input_img_addr[3];
+  int img_w[3];
+  int img_in_stride[3];
+  int img_out_stride[3];
+  int img_h[3];
   float alpha_0;
   float beta_0;
   float alpha_1;
   float beta_1;
   float alpha_2;
   float beta_2;
-  int convert_storage_mode;
-  int image_num;
   int input_img_data_type;
   int output_img_data_type;
-  u64 output_img_addr;
+  u64 output_img_addr[3];
+  int is_packed;
 } __attribute__((packed)) bm_api_cv_convert_to_t;
+
+typedef struct bm_api_cv_convert_to_dual_t{
+    int channel;
+    unsigned long long input_img_addr[3];
+    int img_w[3];
+    int img_in_stride[3];
+    int img_out_stride[3];
+    int img_h[3];
+    float alpha_0;
+    float beta_0;
+    float alpha_1;
+    float beta_1;
+    float alpha_2;
+    float beta_2;
+    int input_img_data_type;
+    int output_img_data_type;
+    unsigned long long output_img_addr[3];
+    int is_packed;
+    int core_id;
+    int core_num;
+    int base_msg_id;
+} __attribute__((packed)) bm_api_cv_convert_to_dual_core_t;
 
 typedef struct bm_api_cv_axpy {
   u64 A_global_offset;
@@ -147,6 +185,25 @@ typedef struct bm_api_cv_add_weighted {
   float gamma;
 } __attribute__((packed)) bm_api_cv_add_weighted_t;
 
+typedef struct sg_api_cv_add_weighted_dual_core {
+  int channel;
+  unsigned long long input1_addr[3];
+  unsigned long long input2_addr[3];
+  unsigned long long output_addr[3];
+  int width[3];
+  int height[3];
+  int input1_str[3];
+  int input2_str[3];
+  int output_str[3];
+  int data_type;
+  float alpha;
+  float beta;
+  float gamma;
+  int core_id;
+  int core_num;
+  int base_msg_id;
+} __attribute__((packed)) sg_api_cv_add_weighted_dual_core_t;
+
 typedef struct bm_api_cv_bitwise {
   int channel;
   u64 input1_addr[3];
@@ -160,6 +217,22 @@ typedef struct bm_api_cv_bitwise {
   int op;
 } __attribute__((packed)) bm_api_cv_bitwise_t;
 
+typedef struct sg_api_cv_bitwise_dual_core{
+    int channel;
+    unsigned long long input1_addr[3];
+    unsigned long long input2_addr[3];
+    unsigned long long output_addr[3];
+    int width[3];
+    int height[3];
+    int input1_str[3];
+    int input2_str[3];
+    int output_str[3];
+    int op;
+    int core_id;
+    int core_num;
+    int base_msg_id;
+} __attribute__((packed)) sg_api_cv_bitwise_dual_core_t;
+
 typedef struct bm_api_cv_min_max {
   u64 inputAddr;
   u64 minAddr;
@@ -167,6 +240,17 @@ typedef struct bm_api_cv_min_max {
   int len;
   int mode;
 } __attribute__((packed)) bm_api_cv_min_max_t;
+
+typedef struct sg_api_cv_min_max_dual_core {
+    u64 inputAddr;
+    u64 buffer_dual_core_min_addr;
+    u64 buffer_dual_core_max_addr;
+    int len;
+    int mode;
+    int core_id;
+    int core_num;
+    int base_msg_id;
+} __attribute__((packed)) sg_api_cv_min_max_dual_core_t;
 
 typedef struct bm_api_cv_cmulp {
   u64 XR;
@@ -179,6 +263,20 @@ typedef struct bm_api_cv_cmulp {
   int len;
 } __attribute__((packed)) bm_api_cv_cmulp_t;
 
+typedef struct cmulp_dual_core {
+    u64 XR;
+    u64 XI;
+    u64 PR;
+    u64 PI;
+    u64 YR;
+    u64 YI;
+    int batch;
+    int len;
+    int core_id;
+    int core_num;
+    int base_msg_id;
+} __attribute__((packed)) sg_api_cv_cmulp_dual_core_t;
+
 typedef struct bm_api_cv_distance {
   u64 Xaddr;
   u64 Yaddr;
@@ -188,6 +286,18 @@ typedef struct bm_api_cv_distance {
   int dtype;
 } __attribute__((packed)) bm_api_cv_distance_t;
 
+typedef struct bm_api_cv_distance_dual_core {
+    u64 Xaddr;
+    u64 Yaddr;
+    int dim;
+    float pnt[8];
+    int len;
+    int dtype;
+    int core_id;
+    int core_num;
+    int base_msg_id;
+} __attribute__((packed)) bm_api_cv_distance_dual_core_t;
+
 typedef struct bm_api_cv_hamming_distance {
   u64 input_query_global_offset;
   u64 input_database_global_offset;
@@ -196,6 +306,41 @@ typedef struct bm_api_cv_hamming_distance {
   int left_row;
   int right_row;
 } __attribute__((packed)) bm_api_cv_hamming_distance_t;
+
+typedef struct {
+    u64 input_query_global_offset;
+    u64 input_database_global_offset;
+    u64 output_global_offset;
+    int bits_len;
+    int left_row;
+    int right_row;
+    int core_id;
+    int core_num;
+    int base_msg_id;
+} __attribute__((packed)) sg_api_hamming_distance_dual_core_t;
+
+typedef struct {
+    int data_type;
+    int data_count;
+    int per_row_num;
+    int max_space_points;
+    int time_range_min;
+    int time_range_max;
+    int attr3_flag;
+    int topk;
+    float threshold;
+    u64 space_bits_dev_mem;
+    u64 space_points_dev_mem;
+    u64 time_points_dev_mem;
+    u64 attributes_dev_mem;
+    u64 similarity_data_dev_mem;
+    u64 filtered_idx_dev_mem;
+    u64 filtered_similarity_data_dev_mem;
+    u64 topk_data_dev_mem;
+    u64 topk_idx_dev_mem;
+    int8_t attr_mask;
+    char __padding[3];
+} __attribute__((packed)) sg_api_attribute_filter_topk_t;
 
 typedef struct bm_api_cv_sort {
   u64 src_data_addr;
@@ -208,6 +353,23 @@ typedef struct bm_api_cv_sort {
   int index_enable;
   int auto_index;
 } __attribute__((packed)) bm_api_cv_sort_t;
+
+typedef struct sg_api_cv_sort_dual_core {
+    u64 src_data_addr;
+    u64 src_index_addr;
+    u64 dst_core0_data_addr;
+    u64 dst_core0_index_addr;
+    u64 dst_core1_data_addr;
+    u64 dst_core1_index_addr;
+    int data_cnt;
+    int sort_cnt;
+    int order;
+    int index_enable;
+    int auto_index;
+    int core_id;
+    int core_num;
+    int base_msg_id;
+} __attribute__((packed)) sg_api_cv_sort_dual_core_t;
 
 typedef struct bm_api_laplacian {
   int channel;
@@ -244,6 +406,20 @@ typedef struct bm_api_cv_as_strided {
   int col_stride;
 } __attribute__((packed)) bm_api_cv_as_strided_t;
 
+typedef struct as_strided_dual_core {
+    u64 input_addr;
+    u64 output_addr;
+    int input_row;
+    int input_col;
+    int output_row;
+    int output_col;
+    int row_stride;
+    int col_stride;
+    int core_id;
+    int core_num;
+    int base_msg_id;
+} __attribute__((packed)) sg_api_cv_as_strided_dual_core_t;
+
 typedef struct bm_api_cv_transpose {
   u64 input_global_mem_addr;
   u64 output_global_mem_addr;
@@ -275,6 +451,19 @@ typedef struct bm_api_cv_quantify {
   int input_str[3];
   int output_str[3];
 } __attribute__((packed)) bm_api_cv_quantify_t;
+
+typedef struct sg_api_cv_quantify_dual_core {
+    int channel;
+    u64 input_addr[3];
+    u64 output_addr[3];
+    int width[3];
+    int height[3];
+    int input_str[3];
+    int output_str[3];
+    int core_id;
+    int core_num;
+    int base_msg_id;
+} __attribute__((packed)) sg_api_cv_quantify_dual_core_t;
 
 typedef struct bm_api_cv_filter {
   int channel;
@@ -501,6 +690,19 @@ typedef struct bm_api_cv_calc_hist_index {
   float upper;
 }__attribute__((packed)) bm_api_cv_calc_hist_index_t;
 
+typedef struct {
+    unsigned long long Xaddr;
+    unsigned long long Yaddr;
+    float a;
+    float b;
+    int len;
+    int xdtype;
+    float upper;
+    int core_id;
+    int core_nums;
+    int base_msg_id;
+} __attribute__((packed)) bm_api_cv_calc_hist_dual_core_t;
+
 typedef struct bm_api_cv_gemm {
   u64 A_global_offset;
   u64 B_global_offset;
@@ -574,7 +776,7 @@ typedef struct {
     bool  normalize;
 } __attribute__((aligned(4))) bm_api_cv_fft_t;
 
-typedef struct {
+typedef struct indexflatIP {
     u64 input_query_global_addr;
     u64 database_global_addr;
     u64 buffer_global_addr;
@@ -589,7 +791,27 @@ typedef struct {
     int output_dtype;
 } __attribute__((packed)) faiss_api_indexflatIP_t;
 
-typedef struct {
+typedef struct indexflatIP_dual_core{
+    u64 input_query_global_addr;
+    u64 database_global_addr;
+    u64 buffer_global_addr;
+    u64 output_sorted_similarity_global_addr;
+    u64 output_sorted_index_global_addr;
+    u64 output_dual_core_sorted_similarity_global_addr;
+    u64 output_dual_core_sorted_index_global_addr;
+    int vec_dims;
+    int query_vecs_num;
+    int database_vecs_num;
+    int k;
+    int transpose;
+    int input_dtype;
+    int output_dtype;
+    int core_id;
+    int core_num;
+    int base_msg_id;
+} __attribute__((packed)) sg_api_indexflatIP_dual_core_t;
+
+typedef struct indexflatL2 {
     u64 input_query_global_addr;
     u64 database_global_addr;
     u64 query_L2norm_global_addr;
@@ -606,8 +828,29 @@ typedef struct {
     int output_dtype;
 } __attribute__((packed)) faiss_api_indexflatL2_t;
 
-typedef struct
-{
+typedef struct indexflatL2_dual_core {
+    u64 input_query_global_addr;
+    u64 database_global_addr;
+    u64 query_L2norm_global_addr;
+    u64 db_L2norm_global_addr;
+    u64 buffer_global_addr;
+    u64 output_sorted_similarity_global_addr;
+    u64 output_sorted_index_global_addr;
+    u64 output_dual_core_sorted_similarity_global_addr;
+    u64 output_dual_core_sorted_index_global_addr;
+    int vec_dims;
+    int query_vecs_num;
+    int database_vecs_num;
+    int k;
+    int transpose;
+    int input_dtype;
+    int output_dtype;
+    int core_id;
+    int core_num;
+    int base_msg_id;
+} __attribute__((packed)) sg_api_indexflatL2_dual_core_t;
+
+typedef struct indexPQ_ADC {
     unsigned long long centroids_global_addr;
     unsigned long long nxquery_global_addr;
     unsigned long long nycodes_global_addr;
@@ -624,8 +867,8 @@ typedef struct
     int input_dtype;
     int output_dtype;
 } __attribute__((packed)) faiss_api_indexPQ_ADC_t;
-typedef struct
-{
+
+typedef struct indexPQ_SDC {
     unsigned long long sdc_table_global_addr;
     unsigned long long nxcodes_global_addr;
     unsigned long long nycodes_global_addr;
@@ -641,8 +884,8 @@ typedef struct
     int input_dtype;
     int output_dtype;
 } __attribute__((packed)) faiss_api_indexPQ_SDC_t;
-typedef struct
-{
+
+typedef struct indexPQ_encode {
     unsigned long long vector_input_global_addr;
     unsigned long long centroids_global_addr;
     unsigned long long buffer_table_global_addr;

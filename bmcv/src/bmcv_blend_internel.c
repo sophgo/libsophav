@@ -53,4 +53,15 @@ bm_status_t bmcv_blending(
     }
     return ret;
 }
+#else
+#include "bmcv_internal.h"
+bm_status_t bmcv_blending(
+    bm_handle_t handle,
+    int       input_num,
+    bm_image* input,
+    bm_image  output,
+    struct stitch_param stitch_config){
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
+    return BM_NOT_SUPPORTED;
+};
 #endif

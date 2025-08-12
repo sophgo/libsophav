@@ -77,6 +77,10 @@ bmcv_sort
 
 2. 若需要使用auto index功能，前提是参数 index_enable 为 true。
 
+3. 该接口可通过设置环境变量启用双核计算，运行程序前：export TPU_CORES=2或export TPU_CORES=both即可。
+
+4. 由于TPU排序类计算的底层机制限制，该接口在输入参数sort_cnt>128时，输出数据地址和输出索引地址空间需要申请为data_num * sizeof(data_type)而不是sort_num * sizeof(data_type),否则接口输出将会出错。
+
 
 **示例代码**
 

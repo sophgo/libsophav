@@ -3,6 +3,7 @@
 # example (run in libsophav root dir)
 GCC_V="630"
 PLATFORM=soc
+DISABLE_BMCV_DOC=on
 if [ $# -ge 1 ]; then
     GCC_V=$1
 fi
@@ -26,13 +27,20 @@ else
     CMAKE_CXX_COMPILER=$(which aarch64-linux-gnu-g++)
 fi
 
+if ! git rev-parse --is-inside-work-tree > /dev/null 2>&1; then
+    echo "当前目录不是 git 仓库"
+elif [[ -n $(git status --porcelain bmcv/document/) ]]; then
+    echo "BMCV 文档内容有修改，启动编译"
+    DISABLE_BMCV_DOC=off
+fi
+
 rm -rf buildit install
 mkdir buildit
 pushd buildit
 cmake -DPLATFORM=${PLATFORM} -DSUBTYPE=asic -DCMAKE_INSTALL_PREFIX=../install -DDEBUG=on \
     -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER} \
     -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER} \
-    -DDISABLE_BMCV_DOC=off \
+    -DDISABLE_BMCV_DOC=${DISABLE_BMCV_DOC} \
     -DCHIP_NAME=bm1688 \
     -DCMAKE_BUILD_TYPE=Release \
     ..

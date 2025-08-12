@@ -217,8 +217,6 @@ bmcv_image_warp_perspective
       static int use_bilinear = 0;
       static bm_handle_t handle;
 
-      void inverse_matrix(int n, float arcs[3][3], float astar[3][3]);
-
       static int writeBin(const char* path, void* output_data, int size)
       {
           int len = 0;
@@ -258,17 +256,40 @@ bmcv_image_warp_perspective
           matrix[5] = sy[0];
       }
 
-      static unsigned char*  image_read(
-                            int            image_n,
-                            int            image_c,
-                            int            image_h,
-                            int            image_w) {
-          printf("image_n = %d,  image_c = %d,  image_h = %d,  image_w = %d\n", image_n, image_c, image_h, image_w);
-          unsigned char* res = (unsigned char*) malloc(image_n * image_c * image_h * image_w * sizeof(unsigned char));
-          for (int i = 0; i < image_n * image_c * image_h * image_w; i++)
-          {
-              res[i] = i % 255;
+      unsigned char* read_pixel_data(const char* filename, size_t* data_size) {
+          FILE* file = fopen(filename, "rb");
+          if (!file) {
+              fprintf(stderr, "Can not open: %s\n", filename);
+			  return NULL;
           }
+          fseek(file, 0, SEEK_END);
+		  long file_size = ftell(file);
+          fseek(file, 0, SEEK_SET);
+
+		  if (file_size <= 0) {
+              fprintf(stderr, "invalid file size: %ld\n", file_size);
+              fclose(file);
+              return NULL;
+          }
+
+		  unsigned char* res = (unsigned char*)malloc(file_size);
+          if (!res) {
+              fprintf(stderr, "malloc failed\n");
+              fclose(file);
+              return NULL;
+          }
+
+		  size_t bytes_read = fread(res, 1, file_size, file);
+          if (bytes_read != (size_t)file_size) {
+              fprintf(stderr, "Read file error: %s (expect %ld bytes, actual %zu bytes)\n",
+                      filename, file_size, bytes_read);
+              free(res);
+              fclose(file);
+              return NULL;
+          }
+
+		  fclose(file);
+          *data_size = (size_t)file_size;
           return res;
       }
 
@@ -359,8 +380,6 @@ bmcv_image_warp_perspective
           return BM_SUCCESS;
       }
 
-
-
       int main() {
           int dev_id = 0;
           bm_status_t ret = bm_dev_request(&handle, dev_id);
@@ -368,7 +387,6 @@ bmcv_image_warp_perspective
               printf("Create bm handle failed. ret = %d\n", ret);
               exit(-1);
           }
-          int image_c = 3;
           int matrix_num[4] = {1, 1, 1, 1};
           int image_n = 1;
 
@@ -377,7 +395,12 @@ bmcv_image_warp_perspective
               output_num += matrix_num[i];
           }
 
-          unsigned char*        src_data   = image_read(image_n, image_c, image_sh, image_sw);
+          const char* filename = "/home/linaro/output.bin";
+          size_t data_size = 0;
+          unsigned char* src_data = read_pixel_data(filename, &data_size);
+          if (src_data) {
+              printf("Get %zu bytes\n", data_size);
+          }
           float*  trans_mat  = (float*) malloc(output_num * 9 * sizeof(float));
           int*    coordinate = (int*) malloc(output_num * 8 * sizeof(int));
           float*  tensor_S   = (float*) malloc(image_dh *image_dw * 2 * sizeof(float));
@@ -437,12 +460,12 @@ bmcv_image_warp_perspective
               bm_image_copy_device_to_host(dst_img[i], (void **)&ptr);
           }
 
-          char *dst_name = "path/to/dst";
+          char *dst_name = "/home/linaro/output_warp.bin";
           writeBin(dst_name, temp_out, size);
-          writeBin("path/to/src", src_data, image_sh * image_sw * 3);
 
           free(temp_out);
           free(dst_img);
+          free(src_data);
 
           free(trans_mat);
           free(coordinate);

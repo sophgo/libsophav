@@ -354,8 +354,8 @@ void* test_bitwise(void* args) {
     struct frame_size frame;
     int loop = cv_bitwise_thread_arg->loop;
     int if_use_img = cv_bitwise_thread_arg->if_use_img;
-    frame.height = cv_bitwise_thread_arg->width;
-    frame.width = cv_bitwise_thread_arg->height;
+    frame.height = cv_bitwise_thread_arg->height;
+    frame.width = cv_bitwise_thread_arg->width;
     int format = cv_bitwise_thread_arg->format;
     int op = cv_bitwise_thread_arg->op;
     char* src1_name = cv_bitwise_thread_arg->src1_name;

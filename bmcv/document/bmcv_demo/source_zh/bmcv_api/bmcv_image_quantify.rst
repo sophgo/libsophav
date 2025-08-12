@@ -74,6 +74,8 @@ bmcv_image_quantify
 
 3. 该接口支持图像宽高范围为1x1～4096x4096。
 
+4. 该接口可通过设置环境变量启用双核计算，运行程序前：export TPU_CORES=2或export TPU_CORES=both即可。
+
 **代码示例：**
 
     .. code-block:: c

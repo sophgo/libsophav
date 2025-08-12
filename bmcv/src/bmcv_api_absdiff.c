@@ -5,7 +5,8 @@ static bm_status_t bmcv_absdiff_check(
         bm_handle_t handle,
         bm_image input1,
         bm_image input2,
-        bm_image output) {
+        bm_image output)
+{
     if (handle == NULL) {
         bmlib_log("ABSDIFF", BMLIB_LOG_ERROR, "Can not get handle!\r\n");
         return BM_ERR_PARAM;
@@ -64,12 +65,17 @@ bm_status_t bmcv_image_absdiff(
         bm_handle_t handle,
         bm_image input1,
         bm_image input2,
-        bm_image output) {
+        bm_image output)
+{
     bm_status_t ret = BM_SUCCESS;
+    int if_core0 = 1, if_core1 = 0;
+    const char *tpu_env;
+
     ret = bmcv_absdiff_check(handle, input1, input2, output);
     if (BM_SUCCESS != ret) {
         return ret;
     }
+
     bool output_alloc_flag = false;
     if (!bm_image_is_attached(output)) {
         ret = bm_image_alloc_dev_mem(output, BMCV_HEAP1_ID);
@@ -78,6 +84,7 @@ bm_status_t bmcv_image_absdiff(
         }
         output_alloc_flag = true;
     }
+
     // construct and send api
     int channel = bm_image_get_plane_num(input1);
     int input1_str[3], input2_str[3], output_str[3];
@@ -88,15 +95,21 @@ bm_status_t bmcv_image_absdiff(
     bm_device_mem_t input1_mem[3];
     if(bm_image_get_device_mem(input1, input1_mem) != BM_SUCCESS){
         printf("get input1 device mem error \n");
+        return BM_ERR_FAILURE;
     }
+
     bm_device_mem_t input2_mem[3];
     if(bm_image_get_device_mem(input2, input2_mem) != BM_SUCCESS){
         printf("get input2 device mem error \n");
+        return BM_ERR_FAILURE;
     }
+
     bm_device_mem_t output_mem[3];
     if(bm_image_get_device_mem(output, output_mem) != BM_SUCCESS){
         printf("get output device mem error \n");
+        return BM_ERR_FAILURE;
     }
+
     bm_api_cv_absdiff_t api;
     api.channel = channel;
     for (int i = 0; i < channel; i++) {
@@ -138,21 +151,84 @@ bm_status_t bmcv_image_absdiff(
         return BM_ERR_FAILURE;
     }
 
-    int core_id = 0;
-
     switch(chipid)
     {
         case BM1688_PREV:
         case BM1688:
-            ret = bm_tpu_kernel_launch(handle, "cv_absdiff", (u8 *)&api, sizeof(api), core_id);
-            if(BM_SUCCESS != ret){
-                bmlib_log("ABSDIFF", BMLIB_LOG_ERROR, "absdiff sync api error\n");
-                if (output_alloc_flag) {
-                    for (int i = 0; i < channel; i++) {
-                        bm_free_device(handle, output_mem[i]);
-                    }
+            tpu_env = getenv("TPU_CORES");
+            if (tpu_env) {
+                if (strcmp(tpu_env, "0") == 0) {
+                } else if (strcmp(tpu_env, "1") == 0) {
+                    if_core0 = 0;
+                    if_core1 = 1;
+                } else if (strcmp(tpu_env, "2") == 0 || strcmp(tpu_env, "both") == 0) {
+                    if_core1 = 1;
+                } else {
+                    fprintf(stderr, "Invalid TPU_CORES value: %s\n", tpu_env);
+                    fprintf(stderr, "Available options: 0, 1, 2/both\n");
+                    exit(EXIT_FAILURE);
                 }
-                return ret;
+            }
+
+            if (if_core0 && if_core1) {
+                bm_api_cv_absdiff_dual_core_t dual_api;
+                int core_list[BM1688_MAX_CORES];
+                int core_nums = 0;
+                int base_msg_id = 0;
+                bm_api_cv_absdiff_dual_core_t absdiff_params[BM1688_MAX_CORES];
+                tpu_launch_param_t tpu_params[BM1688_MAX_CORES];
+
+                if (if_core0) core_list[core_nums++] = 0;
+                if (if_core1) core_list[core_nums++] = 1;
+
+                dual_api.channel = api.channel;
+                for (int c = 0; c < api.channel; c++) {
+                    dual_api.input1_addr[c] = api.input1_addr[c];
+                    dual_api.input2_addr[c] = api.input2_addr[c];
+                    dual_api.output_addr[c] = api.output_addr[c];
+                    dual_api.width[c] = api.width[c];
+                    dual_api.height[c] = api.height[c];
+                    dual_api.input1_str[c] = api.input1_str[c];
+                    dual_api.input2_str[c] = api.input2_str[c];
+                    dual_api.output_str[c] = api.output_str[c];
+                }
+
+                dual_api.core_num = core_nums;
+
+                for (int n = 0; n < core_nums; n++)
+                    base_msg_id |= 1 << core_list[n];
+
+                dual_api.base_msg_id = base_msg_id;
+
+                for (int n = 0; n < core_nums; n++) {
+                    dual_api.core_id = n;
+
+                    absdiff_params[n] = dual_api;
+
+                    tpu_params[n].core_id = n;
+                    tpu_params[n].param_data = &absdiff_params[n];
+                    tpu_params[n].param_size = sizeof(bm_api_cv_absdiff_dual_core_t);
+                }
+
+                ret = bm_tpu_kernel_launch_dual_core(handle, "cv_absdiff_dual_core", tpu_params, core_list, core_nums);
+                if (ret != BM_SUCCESS) {
+                    bmlib_log("ABSDIFF", BMLIB_LOG_ERROR, "absdiff sync api error\n");
+                    return ret;
+                }
+
+            } else {
+                int core_id = if_core1 == 1 ? 1 : 0;
+
+                ret = bm_tpu_kernel_launch(handle, "cv_absdiff", (u8 *)&api, sizeof(api), core_id);
+                if(BM_SUCCESS != ret){
+                    bmlib_log("ABSDIFF", BMLIB_LOG_ERROR, "absdiff sync api error\n");
+                    if (output_alloc_flag) {
+                        for (int i = 0; i < channel; i++) {
+                            bm_free_device(handle, output_mem[i]);
+                        }
+                    }
+                    return ret;
+                }
             }
             break;
         default:

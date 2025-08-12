@@ -89,7 +89,7 @@ bmcv_faiss_indexflatL2
   输出参数。输出数据类型，支持 fp32 和 fp16, 5 表示 fp32, 3 表示 fp16。
 
 
-**返回值说明:**
+**返回值说明：**
 
 * BM_SUCCESS: 成功
 
@@ -98,22 +98,23 @@ bmcv_faiss_indexflatL2
 
 **注意事项：**
 
-1、输入数据(查询向量)和底库数据(底库向量)的数据类型为 float。
+1. 输入数据(查询向量)和底库数据(底库向量)的数据类型为 float。
 
-2、输出的排序后的相似度结果的数据类型为 float, 相对应的索引的数据类型为 int。
+2. 输出的排序后的相似度结果的数据类型为 float, 相对应的索引的数据类型为 int。
 
-3、假设输入数据和底库数据的 L2 范数的平方值已提前计算完成, 并存储在处理器上。
+3. 假设输入数据和底库数据的 L2 范数的平方值已提前计算完成, 并存储在处理器上。
 
-4、底库数据通常以 database_vecs_num * vec_dims 的形式排布在内存中。此时, 参数 is_transpose 需要设置为 1。
+4. 底库数据通常以 database_vecs_num * vec_dims 的形式排布在内存中。此时, 参数 is_transpose 需要设置为 1。
 
-5、查询向量和数据库向量 L2 距离的平方值越小, 表示两者的相似度越高。因此, 在 TopK 过程中对 L2 距离的平方值按升序排序。
+5. 查询向量和数据库向量 L2 距离的平方值越小, 表示两者的相似度越高。因此, 在 TopK 过程中对 L2 距离的平方值按升序排序。
 
-6、database_vecs_num与sort_cnt的取值需要满足条件：database_vecs_num > sort_cnt。
+6. database_vecs_num与sort_cnt的取值需要满足条件：database_vecs_num > sort_cnt。
 
-7、输入参数中 sort_cnt 和 query_vecs_num 需要小于或等于 database_vecs_num。
+7. 输入参数中 sort_cnt 和 query_vecs_num 需要小于或等于 database_vecs_num。
 
+8. 该接口可通过设置环境变量启用双核计算，运行程序前：export TPU_CORES=2或export TPU_CORES=both即可。
 
-**示例代码**
+**示例代码：**
 
     .. code-block:: c++
 

@@ -2,6 +2,7 @@
 #define BMCV_API_EXT_H
 #define BMCV_VERSION_MAJOR 2
 #define BMCV_VERSION_MINOR 1
+#include <stdint.h>
 #include "bmlib_runtime.h"
 #ifdef _WIN32
 #ifndef NULL
@@ -713,13 +714,15 @@ typedef enum bmcv_rot_mode_ {
 */
 typedef struct _bmcv_gdc_attr {
     bool bAspect; /* RW;Whether aspect ration  is keep */
+    bool bBgColor; /* RW;Whether use background color, default is green */
+    unsigned int u32BgColor; /* RW; Y: bits[0, 7], U: bits[8, 15], V: bits[16, 23],*/
     int s32XRatio; /* RW; Range: [0, 100], field angle ration of  horizontal,valid when bAspect=0.*/
     int s32YRatio; /* RW; Range: [0, 100], field angle ration of  vertical,valid when bAspect=0.*/
     int s32XYRatio; /* RW; Range: [0, 100], field angle ration of  all,valid when bAspect=1.*/
-    int s32CenterXOffset;
-    int s32CenterYOffset;
-    int s32DistortionRatio;
-    bm_device_mem_t grid_info;
+    int s32CenterXOffset;/*range :[-511, 511], distortion center point relative to the image center of the horizontal shift*/
+    int s32CenterYOffset;//range :[-511, 511],The vertical shift of the center of the distortion relative to the center of the image
+    int s32DistortionRatio;//Range :[-300, 500], distortion correction intensity parameter
+    bm_device_mem_t grid_info;//store infor about grid_info, including the size and data
     // char *grid_info;
 } bmcv_gdc_attr;
 
@@ -901,7 +904,7 @@ typedef enum bmcv_ive_sub_mode_e{
 
 /* sub attr struct */
 typedef struct bmcv_ive_sub_attr_s {
-    bmcv_ive_sub_mode en_mode;
+    bmcv_ive_sub_mode en_mode;//sub mode
 } bmcv_ive_sub_attr;
 
 /*
@@ -1945,7 +1948,7 @@ DECL_EXPORT bm_status_t bmcv_image_draw_rectangle(
 * img_num is bm_image num; input is input bm_image pointer;output is output bm_image pointer; crop_num_vec is each input image with crop num
 * crop_rect is output image crop attr in input_image; padding_attr is crop infor in dst image and padding value;
 * algorithm is resize algorithm selection; csc_type is color space convert type; matrix is CSC_USER_DEFINED_MATRIX with coefficient matrix
-* convert_to_attr is linear transformation coefficient
+* convert_to_attr is linear transformation coefficient;
 */
 DECL_EXPORT bm_status_t bmcv_image_csc_convert_to(
     bm_handle_t             handle,
@@ -2277,6 +2280,44 @@ DECL_EXPORT bm_status_t bmcv_hamming_distance(
     int input2_num);
 
 /*
+* Filter and get Top-K matches based on attributes
+* data_type is the input data type; data_count is the total number of input data;
+* max_space_points is the maximum number of points for spatial search; time_range_min/max is the time range interval;
+* attr3_flag is the attribute 3 filter option flag; attr3_flag is 1 to filter data with (attributes[i] & attr_mask) <= 0, and attr3_flag is 0 to filter data with (attributes[i] & attr_mask) != attr_mask;
+* topk indicates the number of output data;
+* threshold is the similarity threshold; attr_mask is the attribute mask control field
+* space_bits_dev_mem is the space point bitmap device memory;
+* space_points_dev_mem is the space point device memory;
+* time_points_dev_mem is the timestamp device memory;
+* attributes_dev_mem is the attribute feature device memory;
+* similarity_data_dev_mem is the similarity device memory;
+* filtered_idx_dev_mem is the buffer storage address of filtered index;
+* filtered_similarity_data_dev_mem is the buffer storage address of the filtered data;
+* topk_idx_dev_mem is the storage address of Top-K index results;
+* topk_data_dev_mem is the storage address of Top-K similarity results;
+*/
+DECL_EXPORT bm_status_t bmcv_attribute_filter_topk(
+    bm_handle_t handle,
+    int data_type,
+    int data_count,
+    int max_space_points,
+    int time_range_min,
+    int time_range_max,
+    int attr3_flag,
+    int topk,
+    float threshold,
+    int8_t attr_mask,
+    bm_device_mem_t space_bits_dev_mem,
+    bm_device_mem_t space_points_dev_mem,
+    bm_device_mem_t time_points_dev_mem,
+    bm_device_mem_t attributes_dev_mem,
+    bm_device_mem_t similarity_data_dev_mem,
+    bm_device_mem_t filtered_idx_dev_mem,
+    bm_device_mem_t filtered_similarity_data_dev_mem,
+    bm_device_mem_t topk_idx_dev_mem,
+    bm_device_mem_t topk_data_dev_mem);
+
+/*
 * Sorting of floating-point data (ascending/descending)
 * src_index_addr is enter the address of the index corresponding to the data
 * src_data_addr is address of the input data to be sorted
@@ -2320,7 +2361,7 @@ DECL_EXPORT bm_status_t bmcv_image_quantify(
     bm_image input,
     bm_image output);
 
-/**
+/*
  * @brief: calculate inner product distance between query vectors and database vectors, output the top K IP-values and the corresponding indices, return BM_SUCCESS if succeed.
  * @param handle                               [in]: the device handle.
  * @param input_data_global_addr               [in]: device addr information of the query matrix.
@@ -2351,7 +2392,23 @@ DECL_EXPORT bm_status_t bmcv_faiss_indexflatIP(
     int input_dtype,
     int output_dtype);
 
-/**
+// Support allocating device memory over 4G Byte
+DECL_EXPORT bm_status_t bmcv_faiss_indexflatIP_u64(
+    bm_handle_t handle,
+    bm_device_mem_u64_t input_data_global_addr,
+    bm_device_mem_u64_t db_data_global_addr,
+    bm_device_mem_u64_t buffer_global_addr,
+    bm_device_mem_u64_t output_sorted_similarity_global_addr,
+    bm_device_mem_u64_t output_sorted_index_global_addr,
+    int vec_dims,
+    int query_vecs_num,
+    int database_vecs_num,
+    int sort_cnt,
+    int is_transpose,
+    int input_dtype,
+    int output_dtype);
+
+/*
  * @brief: calculate squared L2 distance between query vectors and database vectors, output the top K L2sqr-values and the corresponding indices, return BM_SUCCESS if succeed.
  * @param handle                               [in]: the device handle.
  * @param input_data_global_addr               [in]: device addr information of the query matrix.
@@ -2378,6 +2435,24 @@ DECL_EXPORT bm_status_t bmcv_faiss_indexflatL2(
     bm_device_mem_t buffer_global_addr,
     bm_device_mem_t output_sorted_similarity_global_addr,
     bm_device_mem_t output_sorted_index_global_addr,
+    int vec_dims,
+    int query_vecs_num,
+    int database_vecs_num,
+    int sort_cnt,
+    int is_transpose,
+    int input_dtype,
+    int output_dtype);
+
+// Support allocating device memory over 4G Byte
+DECL_EXPORT bm_status_t bmcv_faiss_indexflatL2_u64(
+    bm_handle_t handle,
+    bm_device_mem_u64_t input_data_global_addr,
+    bm_device_mem_u64_t db_data_global_addr,
+    bm_device_mem_u64_t query_L2norm_global_addr,
+    bm_device_mem_u64_t db_L2norm_global_addr,
+    bm_device_mem_u64_t buffer_global_addr,
+    bm_device_mem_u64_t output_sorted_similarity_global_addr,
+    bm_device_mem_u64_t output_sorted_index_global_addr,
     int vec_dims,
     int query_vecs_num,
     int database_vecs_num,
@@ -2529,6 +2604,14 @@ DECL_EXPORT bm_status_t bmcv_faiss_indexPQ_SDC(
 DECL_EXPORT bm_status_t bmcv_min_max(
     bm_handle_t handle,
     bm_device_mem_t input,
+    float *minVal,
+    float *maxVal,
+    int len);
+
+// Support allocating device memory over 4G Byte
+DECL_EXPORT bm_status_t bmcv_min_max_u64(
+    bm_handle_t handle,
+    bm_device_mem_u64_t input,
     float *minVal,
     float *maxVal,
     int len);
@@ -2830,24 +2913,41 @@ DECL_EXPORT void bmcv_fft_destroy_plan(bm_handle_t handle, void *plan);
 /**
  * XRHost is Enter the real part of the data address
  * XIHost is Enter the address of the imaginary part of the data
+ * batch is the num of signal
+ * xlen is the length of signal
+ * fs is the Sampling frequency
+ * window is the desired window to use, including hanning and hamming
+ * nperseg is the length of each segment
+ * noverlap is the number of points to overlap between segments
+ * nfft is the length of the FFT used
+ * return_onesided if "true", return a one-sided spectrum for real data, if "false", return a two-sided spectrum
+ * boundary is whether the input signal is extended at both ends. Valid options are ['even', 'odd', 'constant', 'zeros', 'none']
+ * padded is whether the input signal is zero-padded at the end to make the signal fit exactly into an integer number of window segments
+ * real_input is the input signal whether real or complex
  * YRHost is Enter the real part of the data address;
  * YIHost is Enter the address of the imaginary part of the data
- * batch is the num of signal
- * L is the length of signal
- * realInput is the input signal whether real or complex
- * pad_mode is reflect or constant
- * n_fft is the stft do fft length
- * win_mode is hanning or hamming
- * normalize is normalize or not
+ * f is the array of sample frequencies
+ * t is the array of segment times
 **/
 DECL_EXPORT bm_status_t bmcv_stft(
     bm_handle_t handle,
-    float* XRHost, float* XIHost,
-    float* YRHost, float* YIHost,
-    int batch, int L,
-    bool realInput, int pad_mode,
-    int n_fft, int win_mode, int hop_len,
-    bool normalize);
+    float* XRHost,
+    float* XIHost,
+    int batch,
+    int xlen,
+    int fs,
+    int window,
+    int nperseg,
+    int noverlap,
+    int nfft,
+    bool return_onesided,
+    int boundary,
+    bool padded,
+    bool real_input,
+    float* YRHost,
+    float* YIHost,
+    float* f,
+    float* t);
 
 /**
  * XRHost is Enter the real part of the data address
@@ -2870,7 +2970,6 @@ DECL_EXPORT bm_status_t bmcv_istft(
     bool realInput, int pad_mode,
     int n_fft, int win_mode, int hop_len,
     bool normalize);
-
 /*
 * The Euclidean distance between multiple points and a particular point in dimensional space
 * input and output are device space that holds len point coordinates
@@ -2990,6 +3089,23 @@ DECL_EXPORT bm_status_t bmcv_matmul(
     float            alpha = 1,
     float            beta = 0);
 
+// Support allocating device memory over 4G Byte
+DECL_EXPORT bm_status_t bmcv_matmul_u64(
+    bm_handle_t      handle,
+    int              M,
+    int              N,
+    int              K,
+    bm_device_mem_u64_t  A,
+    bm_device_mem_u64_t  B,
+    bm_device_mem_u64_t  C,
+    int              A_sign, /*1: signed 0: unsigned */
+    int              B_sign,
+    int              rshift_bit,
+    int              result_type, /* 0:8bit 1:int16 2:fp32 */
+    bool             is_B_trans,
+    float            alpha = 1,
+    float            beta = 0);
+
 /**
  * histogram
  * @param [in] input input data
@@ -3058,6 +3174,23 @@ DECL_EXPORT bm_status_t bmcv_gemm(
     bm_device_mem_t C,
     int ldc);
 
+// Support allocating device memory over 4G Byte
+DECL_EXPORT bm_status_t bmcv_gemm_u64(
+    bm_handle_t handle,
+    bool is_A_trans,
+    bool is_B_trans,
+    int M,
+    int N,
+    int K,
+    float alpha,
+    bm_device_mem_u64_t A,
+    int lda,
+    bm_device_mem_u64_t B,
+    int ldb,
+    float beta,
+    bm_device_mem_u64_t C,
+    int ldc);
+
 /**
  * is_A_trans is_B_trans is transpose or not
  * M is A C Y line number;N is B C Y columns;K is A columns and B lines
@@ -3078,6 +3211,23 @@ DECL_EXPORT bm_status_t bmcv_gemm_ext(
     float beta,
     bm_device_mem_t C,
     bm_device_mem_t Y,
+    bm_image_data_format_ext in_dtype,
+    bm_image_data_format_ext out_dtype);
+
+// Support allocating device memory over 4G Byte
+DECL_EXPORT bm_status_t bmcv_gemm_ext_u64(
+    bm_handle_t handle,
+    bool is_A_trans,
+    bool is_B_trans,
+    int M,
+    int N,
+    int K,
+    float alpha,
+    bm_device_mem_u64_t A,
+    bm_device_mem_u64_t B,
+    float beta,
+    bm_device_mem_u64_t C,
+    bm_device_mem_u64_t Y,
     bm_image_data_format_ext in_dtype,
     bm_image_data_format_ext out_dtype);
 
@@ -3695,6 +3845,31 @@ DECL_EXPORT bm_status_t bmcv_ive_frame_diff_motion(
     bm_image                        input2,
     bm_image                        output,
     bmcv_ive_frame_diff_motion_attr attr);
+
+
+/**
+ * Abandoned macro definitions and interface, supports compatibility settings
+ * Not recommended for use
+*/
+
+typedef bmcv_padding_attr_t bmcv_padding_atrr_t;
+
+DECL_EXPORT bm_status_t bmcv_image_crop(
+    bm_handle_t         handle,
+    int                 crop_num,
+    bmcv_rect_t *       rects,
+    bm_image            input,
+    bm_image *          output);
+
+DECL_EXPORT bm_status_t bm_image_dev_mem_alloc(bm_image image, int heap_id = BMCV_HEAP_ANY);
+
+DECL_EXPORT bm_status_t bm_image_dettach_contiguous_mem(int image_num, bm_image *images);
+
+DECL_EXPORT bm_status_t bmcv_image_yuv2bgr_ext(
+    bm_handle_t handle,
+    int         image_num,
+    bm_image *  input,
+    bm_image *  output);
 
 #if defined(__cplusplus)
 }

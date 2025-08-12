@@ -21,18 +21,14 @@ typedef struct {
     bm_handle_t handle;
 } cv_quantify_thread_arg_t;
 
-static int quantify_cpu(
-        float* input,
-        unsigned char* output,
-        int size) {
+static int quantify_cpu (float* input, unsigned char* output, int size) {
     for(int i = 0; i < size; i++) {
         output[i] = (unsigned char)(input[i] < 0.0f ? 0 : (input[i] > 255.0f ? 255 : input[i]));
     }
 
     return 0;
 }
-static int parameters_check(int height, int width)
-{
+static int parameters_check(int height, int width) {
     if (height > 4096 || width > 4096){
         printf("Unsupported size : size_max = 4096 x 4096 \n");
         return -1;
@@ -40,8 +36,7 @@ static int parameters_check(int height, int width)
     return 0;
 }
 
-static void read_bin(const char *input_path, float *input_data, int size)
-{
+static void read_bin(const char *input_path, float *input_data, int size) {
     FILE *fp_src = fopen(input_path, "rb");
     if (fp_src == NULL)
     {
@@ -53,8 +48,7 @@ static void read_bin(const char *input_path, float *input_data, int size)
     fclose(fp_src);
 }
 
-static void write_bin(const char *output_path, unsigned char *output_data, int size)
-{
+static void write_bin(const char *output_path, unsigned char *output_data, int size) {
     FILE *fp_dst = fopen(output_path, "wb");
     if (fp_dst == NULL)
     {

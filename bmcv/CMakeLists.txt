@@ -103,6 +103,7 @@ if(NOT DISABLE_BMCV_DOC)
         COMMAND make clean
         COMMAND make LC_ALL=en_US.UTF-8 pdf
         COMMAND mv ${CMAKE_CURRENT_SOURCE_DIR}/document/bmcv_demo/build/SOPHON_BMCV_Technical_Reference_Manual.pdf ${CMAKE_BINARY_DIR}
+        COMMAND rm -rf ${CMAKE_CURRENT_SOURCE_DIR}/document/bmcv_demo/build/
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/document/bmcv_demo)
 else ()
     set(BMCV_DOC "")

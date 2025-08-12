@@ -198,33 +198,63 @@ bm_status_t bmcv_image_vpp_convert_padding(
 	return ret;
 }
 
+void resize_keep_aspect(int in_w, int in_h, int out_w, int out_h,
+	unsigned int* new_w, unsigned int* new_h, unsigned int* start_x, unsigned int* start_y) {
+	double scale_w = (double)out_w / in_w;
+	double scale_h = (double)out_h / in_h;
+	double scale = scale_w < scale_h ? scale_w : scale_h;
+
+	*new_w = (int)(in_w * scale);
+	*new_h = (int)(in_h * scale);
+
+	*start_x = (out_w - *new_w) / 2;
+	*start_y = (out_h - *new_h) / 2;
+}
+
 bm_status_t bmcv_image_resize(
-        bm_handle_t          handle,
-        int                  input_num,
-        bmcv_resize_image    resize_attr[],
-        bm_image *           input,
-        bm_image *           output) {
+	bm_handle_t          handle,
+	int                  input_num,
+	bmcv_resize_image    resize_attr[],
+	bm_image *           input,
+	bm_image *           output) {
+
 	bm_status_t ret = BM_SUCCESS;
 	bmcv_padding_attr_t padding_attr;
 	bmcv_resize_algorithm algorithm;
 	bmcv_rect_t crop_rect;
-	padding_attr.dst_crop_stx = 0;
-	padding_attr.dst_crop_sty = 0;
+	int out_idx = 0;
 
 	for (int i = 0; i < input_num; i++) {
-		padding_attr.dst_crop_w = resize_attr[i].resize_img_attr->out_width;
-		padding_attr.dst_crop_h = resize_attr[i].resize_img_attr->out_height;
-		padding_attr.if_memset = resize_attr[i].stretch_fit;
-		padding_attr.padding_r = resize_attr[i].padding_r;
-		padding_attr.padding_g = resize_attr[i].padding_g;
-		padding_attr.padding_b = resize_attr[i].padding_b;
-		algorithm = resize_attr[i].interpolation;
-		crop_rect.start_x = resize_attr[i].resize_img_attr->start_x;
-		crop_rect.start_y = resize_attr[i].resize_img_attr->start_y;
-		crop_rect.crop_w = resize_attr[i].resize_img_attr->in_width;
-		crop_rect.crop_h = resize_attr[i].resize_img_attr->in_height;
-		ret = bmcv_image_vpp_convert_padding(handle, 1, input[i],
-			output+i, &padding_attr, &crop_rect, algorithm);
+		for (int j = 0; j < resize_attr[i].roi_num; j++) {
+			if (!resize_attr[i].stretch_fit) {
+				padding_attr.if_memset = 1;
+				padding_attr.padding_r = resize_attr[i].padding_r;
+				padding_attr.padding_g = resize_attr[i].padding_g;
+				padding_attr.padding_b = resize_attr[i].padding_b;
+				resize_keep_aspect(resize_attr[i].resize_img_attr[j].in_width,
+					resize_attr[i].resize_img_attr[j].in_height, output[out_idx].width,
+					output[out_idx].height, &padding_attr.dst_crop_w, &padding_attr.dst_crop_h,
+					&padding_attr.dst_crop_stx, &padding_attr.dst_crop_sty);
+			} else {
+				padding_attr.dst_crop_stx = 0;
+				padding_attr.dst_crop_sty = 0;
+				padding_attr.dst_crop_w = output[out_idx].width;
+				padding_attr.dst_crop_h = output[out_idx].height;
+				padding_attr.if_memset = 0;
+			}
+			algorithm = resize_attr[i].interpolation;
+			crop_rect.start_x = resize_attr[i].resize_img_attr[j].start_x;
+			crop_rect.start_y = resize_attr[i].resize_img_attr[j].start_y;
+			crop_rect.crop_w = resize_attr[i].resize_img_attr[j].in_width;
+			crop_rect.crop_h = resize_attr[i].resize_img_attr[j].in_height;
+			resize_attr[i].resize_img_attr[j].out_width = padding_attr.dst_crop_w;
+			resize_attr[i].resize_img_attr[j].out_height = padding_attr.dst_crop_h;
+			ret = bmcv_image_vpp_convert_padding(handle, 1, input[i],
+				output+out_idx, &padding_attr, &crop_rect, algorithm);
+			if (ret != BM_SUCCESS)
+				return ret;
+			out_idx++;
+		}
 	}
 
 	return ret;

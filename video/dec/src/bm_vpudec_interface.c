@@ -118,13 +118,19 @@ BMVidDecRetStatus bmvpu_dec_dump_stream(BMVidCodHandle vidCodHandle, unsigned ch
     return BM_SUCCESS;
 }
 
-int bmvpu_dec_get_core_idx(BMVidCodHandle vidCodHandle)
-{
+int bmvpu_dec_get_core_idx(BMVidCodHandle vidCodHandle){
     int ret;
     int coreIdx = 0;
-    int VdChn = *((int *)vidCodHandle);
+    int VdChn;
     vdec_chn_status_s stDecStatus = {0};
 
+    if(vidCodHandle == NULL)
+    {
+        BMVPU_DEC_ERROR("invalid vdec handle.");
+        return BM_ERR_VDEC_INVALID_CHNID;
+    }
+
+    VdChn = *((int *)vidCodHandle);
     if(vpu_dec_chn[VdChn].is_used != 1)
     {
         BMVPU_DEC_ERROR("invalid vdec chn.");
@@ -152,7 +158,15 @@ int bmvpu_dec_get_core_idx(BMVidCodHandle vidCodHandle)
 
 int bmvpu_dec_get_inst_idx(BMVidCodHandle vidCodHandle)
 {
-    int VdChn = *((int *)vidCodHandle);
+    int VdChn;
+
+    if(vidCodHandle == NULL)
+    {
+        BMVPU_DEC_ERROR("invalid vdec handle.");
+        return BM_ERR_VDEC_INVALID_CHNID;
+    }
+
+    VdChn = *((int *)vidCodHandle);
     if(vpu_dec_chn[VdChn].is_used != 1)
     {
         BMVPU_DEC_ERROR("invalid vdec chn.");
@@ -170,8 +184,15 @@ int bmvpu_dec_get_inst_idx(BMVidCodHandle vidCodHandle)
 
 int bmvpu_dec_get_device_fd(BMVidCodHandle vidCodHandle)
 {
-    int VdChn = *((int *)vidCodHandle);
+    int VdChn;
 
+    if(vidCodHandle == NULL)
+    {
+        BMVPU_DEC_ERROR("invalid vdec handle.");
+        return BM_ERR_VDEC_INVALID_CHNID;
+    }
+
+    VdChn = *((int *)vidCodHandle);
     if(vpu_dec_chn[VdChn].is_used != 1)
     {
         BMVPU_DEC_ERROR("invalid vdec chn.");
@@ -239,7 +260,7 @@ BMVidDecRetStatus bmvpu_dec_create(BMVidCodHandle *pVidCodHandle, BMVidDecParam 
     }
     if(decParam.frame_buffer != NULL && decParam.Ytable_buffer != NULL && decParam.Ctable_buffer != NULL) {
         if(decParam.extraFrameBufferNum <= 0 || decParam.min_framebuf_cnt <= 0 ||
-            decParam.framebuf_delay <=0 || decParam.cmd_queue_depth <= 0 ) {
+            decParam.framebuf_delay < 0 || decParam.cmd_queue_depth <= 0 ) {
             BMVPU_DEC_ERROR("Invalid frame buffer count: extra frame buffer:%d mini frame buffer:%d frame delay:%d command queue depth:%d\n",
                 decParam.extraFrameBufferNum, decParam.min_framebuf_cnt, decParam.framebuf_delay, decParam.cmd_queue_depth);
             return BM_ERR_VDEC_ILLEGAL_PARAM;
@@ -378,8 +399,15 @@ BMVidDecRetStatus bmvpu_dec_decode(BMVidCodHandle vidCodHandle, BMVidStream vidS
     uint8_t *total_buf = NULL;
     int total_size;
 
-    int VdChn = *((int *)vidCodHandle);
+    int VdChn;
 
+    if(vidCodHandle == NULL)
+    {
+        BMVPU_DEC_ERROR("invalid vdec handle.");
+        return BM_ERR_VDEC_INVALID_CHNID;
+    }
+
+    VdChn = *((int *)vidCodHandle);
     if(vpu_dec_chn[VdChn].is_used != 1)
     {
         BMVPU_DEC_ERROR("invalid vdec chn.");
@@ -470,8 +498,15 @@ BMVidDecRetStatus bmvpu_dec_get_output(BMVidCodHandle vidCodHandle, BMVidFrame *
 {
     int ret;
     int dump_num;
-    int VdChn = *((int *)vidCodHandle);
+    int VdChn;
 
+    if(vidCodHandle == NULL)
+    {
+        BMVPU_DEC_ERROR("invalid vdec handle.");
+        return BM_ERR_VDEC_INVALID_CHNID;
+    }
+
+    VdChn = *((int *)vidCodHandle);
     if(vpu_dec_chn[VdChn].is_used != 1)
     {
         BMVPU_DEC_ERROR("invalid vdec chn.");
@@ -612,9 +647,16 @@ RET:
 BMVidDecRetStatus bmvpu_dec_clear_output(BMVidCodHandle vidCodHandle, BMVidFrame *frame)
 {
     int ret;
-    int VdChn = *((int *)vidCodHandle);
+    int VdChn;
     video_frame_info_s stFrameInfo = {0};
 
+    if(vidCodHandle == NULL)
+    {
+        BMVPU_DEC_ERROR("invalid vdec handle.");
+        return BM_ERR_VDEC_INVALID_CHNID;
+    }
+
+    VdChn = *((int *)vidCodHandle);
     if(vpu_dec_chn[VdChn].is_used != 1)
     {
         BMVPU_DEC_ERROR("invalid vdec chn.");
@@ -683,8 +725,15 @@ BMVidDecRetStatus bmvpu_dec_clear_output(BMVidCodHandle vidCodHandle, BMVidFrame
 BMVidDecRetStatus bmvpu_dec_flush(BMVidCodHandle vidCodHandle)
 {
     int ret;
-    int VdChn = *((int *)vidCodHandle);
+    int VdChn;
 
+    if(vidCodHandle == NULL)
+    {
+        BMVPU_DEC_ERROR("invalid vdec handle.");
+        return BM_ERR_VDEC_INVALID_CHNID;
+    }
+
+    VdChn = *((int *)vidCodHandle);
     if(vpu_dec_chn[VdChn].is_used != 1)
     {
         BMVPU_DEC_ERROR("invalid vdec chn.");
@@ -721,8 +770,15 @@ BMVidDecRetStatus bmvpu_dec_flush(BMVidCodHandle vidCodHandle)
 BMVidDecRetStatus bmvpu_dec_delete(BMVidCodHandle vidCodHandle)
 {
     int ret;
-    int VdChn = *((int *)vidCodHandle);
+    int VdChn;
 
+    if(vidCodHandle == NULL)
+    {
+        BMVPU_DEC_ERROR("invalid vdec handle.");
+        return BM_ERR_VDEC_INVALID_CHNID;
+    }
+
+    VdChn = *((int *)vidCodHandle);
     if(vpu_dec_chn[VdChn].is_used != 1)
     {
         BMVPU_DEC_ERROR("invalid vdec chn.");
@@ -789,8 +845,15 @@ BMDecStatus bmvpu_dec_get_status(BMVidCodHandle vidCodHandle)
     int ret;
     vdec_chn_status_s stDecStatus = {0};
     BMDecStatus state = 0;
-    int VdChn = *((int *)vidCodHandle);
+    int VdChn;
 
+    if(vidCodHandle == NULL)
+    {
+        BMVPU_DEC_ERROR("invalid vdec handle.");
+        return BM_ERR_VDEC_INVALID_CHNID;
+    }
+
+    VdChn = *((int *)vidCodHandle);
     if(vpu_dec_chn[VdChn].is_used != 1)
     {
         BMVPU_DEC_ERROR("invalid vdec chn.");
@@ -848,8 +911,15 @@ BMVidDecRetStatus bmvpu_dec_get_caps(BMVidCodHandle vidCodHandle, BMVidStreamInf
 {
     int ret;
     vdec_chn_status_s stDecStatus = {0};
-    int VdChn = *((int *)vidCodHandle);
+    int VdChn;
 
+    if(vidCodHandle == NULL)
+    {
+        BMVPU_DEC_ERROR("invalid vdec handle.");
+        return BM_ERR_VDEC_INVALID_CHNID;
+    }
+
+    VdChn = *((int *)vidCodHandle);
     if(vpu_dec_chn[VdChn].is_used != 1)
     {
         BMVPU_DEC_ERROR("invalid vdec chn.");
@@ -900,8 +970,15 @@ BMVidDecRetStatus bmvpu_dec_get_stream_info(BMVidCodHandle vidCodHandle, int* wi
 {
     int ret;
     vdec_chn_status_s stDecStatus = {0};
-    int VdChn = *((int *)vidCodHandle);
+    int VdChn;
 
+    if(vidCodHandle == NULL)
+    {
+        BMVPU_DEC_ERROR("invalid vdec handle.");
+        return BM_ERR_VDEC_INVALID_CHNID;
+    }
+
+    VdChn = *((int *)vidCodHandle);
     if(vpu_dec_chn[VdChn].is_used != 1)
     {
         BMVPU_DEC_ERROR("invalid vdec chn.");
@@ -938,8 +1015,15 @@ int bmvpu_dec_get_all_empty_input_buf_cnt(BMVidCodHandle vidCodHandle)
 {
     int ret;
     vdec_chn_status_s stDecStatus = {0};
-    int VdChn = *((int *)vidCodHandle);
+    int VdChn;
 
+    if(vidCodHandle == NULL)
+    {
+        BMVPU_DEC_ERROR("invalid vdec handle.");
+        return BM_ERR_VDEC_INVALID_CHNID;
+    }
+
+    VdChn = *((int *)vidCodHandle);
     if(vpu_dec_chn[VdChn].is_used != 1)
     {
         BMVPU_DEC_ERROR("invalid vdec chn.");
@@ -1003,8 +1087,15 @@ int bmvpu_dec_get_pkt_in_buf_cnt(BMVidCodHandle vidCodHandle)
 {
     int ret;
     vdec_chn_status_s stDecStatus = {0};
-    int VdChn = *((int *)vidCodHandle);
+    int VdChn;
 
+    if(vidCodHandle == NULL)
+    {
+        BMVPU_DEC_ERROR("invalid vdec handle.");
+        return BM_ERR_VDEC_INVALID_CHNID;
+    }
+
+    VdChn = *((int *)vidCodHandle);
     if(vpu_dec_chn[VdChn].is_used != 1)
     {
         BMVPU_DEC_ERROR("invalid vdec chn.");
@@ -1035,10 +1126,17 @@ int bmvpu_dec_get_pkt_in_buf_cnt(BMVidCodHandle vidCodHandle)
 BMVidDecRetStatus bmvpu_dec_get_all_frame_in_buffer(BMVidCodHandle vidCodHandle)
 {
     int ret;
-    int VdChn = *((int *)vidCodHandle);
+    int VdChn;
     vdec_stream_s stStream;
     vdec_stream_ex_s stStreamEx;
 
+    if(vidCodHandle == NULL)
+    {
+        BMVPU_DEC_ERROR("invalid vdec handle.");
+        return BM_ERR_VDEC_INVALID_CHNID;
+    }
+
+    VdChn = *((int *)vidCodHandle);
     if(vpu_dec_chn[VdChn].is_used != 1)
     {
         BMVPU_DEC_ERROR("invalid vdec chn.");

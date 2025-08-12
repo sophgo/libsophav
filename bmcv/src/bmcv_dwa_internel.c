@@ -153,4 +153,50 @@ bm_status_t bmcv_dwa_dewarp(bm_handle_t          handle,
     }
     return ret;
 }
+#else
+#include "bmcv_internal.h"
+bm_status_t bmcv_dwa_rot(
+    bm_handle_t          handle,
+    bm_image             input_image,
+    bm_image             output_image,
+    bmcv_rot_mode        rot_mode) {
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
+    return BM_NOT_SUPPORTED;
+}
+
+bm_status_t bmcv_dwa_gdc(
+    bm_handle_t          handle,
+    bm_image             input_image,
+    bm_image             output_image,
+    bmcv_gdc_attr        ldc_attr) {
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
+    return BM_NOT_SUPPORTED;
+}
+
+bm_status_t bmcv_dwa_affine(
+    bm_handle_t          handle,
+    bm_image             input_image,
+    bm_image             output_image,
+    bmcv_affine_attr_s   affine_attr) {
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
+    return BM_NOT_SUPPORTED;
+}
+
+bm_status_t bmcv_dwa_fisheye(
+    bm_handle_t          handle,
+    bm_image             input_image,
+    bm_image             output_image,
+    bmcv_fisheye_attr_s  fisheye_attr) {
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
+    return BM_NOT_SUPPORTED;
+}
+
+bm_status_t bmcv_dwa_dewarp(
+    bm_handle_t          handle,
+    bm_image             input_image,
+    bm_image             output_image,
+    bm_device_mem_t      grid_info) {
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
+    return BM_NOT_SUPPORTED;
+}
 #endif

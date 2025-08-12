@@ -1,23 +1,18 @@
 ﻿bmcv_blend
 ---------------------
 
-图片拼接介绍
-^^^^^^^^^^^^^^^^^^^^^^^^
-
-图片拼接包括对多路图像进行全景拼接。
+该接口可调用芯片上的stitch硬件模块，实现2～4路图像拼接功能，下图展示了2路图像拼接的示例。
 
 
 .. image:: ../_static/stitching-example.png
    :align: center
-   :alt: 双路拼接示例
+   :alt: 2路图像拼接示例
 
 .. centered::
-	图a：双路拼接示例
+	图a：2路图像拼接示例
 
 
-算法流程示例
-^^^^^^^^^^^^^^^^^^^^^^^^
-
+**算法流程示例：**
 
 .. image:: ../_static/Stitch-Algirhtm.png
    :align: center
@@ -32,8 +27,8 @@
 
 Image Blend模块接受双路图片作为输入，通过Image Blend算法根据相同的图像区间，将这些图片拼接在一起。
 
-加速原理介绍
-^^^^^^^^^^^^^^^^^^^^^^^^
+**加速原理介绍：**
+
 图片融合模块（Image Blend）用于加速影像拼接的相关计算。对于有着不同图片输入数量的图片拼接任务，拼接方式有多种方案。下图别展示了常用的2路与4路图片拼接方案。
 
 .. image:: ../_static/2way-example.png
@@ -52,14 +47,9 @@ Image Blend模块接受双路图片作为输入，通过Image Blend算法根据�
 	图d：Image Blend模块四路图片拼接方案示例
 
 
-接口函数介绍
-^^^^^^^^^^^^^^^^^^^^^^^^
+**接口函数介绍：**
 
-| 【描述】
-
-| 该 API 可以实现2~4路图片的融合拼接。
-
-| 【语法】
+| 【接口形式】
 
 .. code-block:: c
     :linenos:
@@ -212,8 +202,6 @@ Image Blend模块接受双路图片作为输入，通过Image Blend算法根据�
       - 权重图的字节数大小。
 
 
-
-
 .. code-block:: c
     :linenos:
     :lineno-start: 1
@@ -244,17 +232,24 @@ Image Blend模块接受双路图片作为输入，通过Image Blend算法根据�
 
 【格式支持】
 
-* 图像stride 要求16byte对齐。  输入图片最小像素支持 64x64，最大支持4608x8192。
-* 输入输出数据类型要求：DATA_TYPE_EXT_1N_BYTE。
-* 输入、输入格式支持：
+* 输入、输出图像格式支持：
     * FORMAT_RGBP_SEPARATE、FORMAT_BGRP_SEPARATE
     * FORMAT_YUV420P、FORMAT_YUV422P
     * FORMAT_YUV444P、FORMAT_GRAY
-* 输入输出格式需保持一致；输入输出图片高需要相等。
-* wgt_phy_mem 参数，请用bmlib相关api设置，不要直接赋值。例如：bm_malloc_device_byte，bm_memcpy_s2d等。
 
 
-**示例代码**
+**注意事项：**
+
+1、图像stride 要求16byte对齐。输入图片最小像素支持 64x64，最大支持4608x8192。
+
+2、输入输出数据类型要求：DATA_TYPE_EXT_1N_BYTE。
+
+3、输入输出格式需保持一致；输入输出图片高需要相等。
+
+4、wgt_phy_mem 参数，请用bmlib相关api设置，不要直接赋值。使用例如：bm_malloc_device_byte，bm_memcpy_s2d等接口。传入的权重数据须为char类型数据，对于重叠区域的每个像素，左权重+右权重数值须为255。
+
+
+**示例代码：**
 
 .. code-block:: c
 

@@ -23,6 +23,8 @@ static int fill_img_to_fb(unsigned int format, void *planes[3], unsigned int pla
 	FILE *fp;
 	int s32len;
 	unsigned int i, bmp_offset;
+	size_t len = strlen(filename);
+	const char *ext = filename + len - 4;
 
 	fp = fopen(filename, "r");
 	if (fp == NULL) {
@@ -55,11 +57,13 @@ static int fill_img_to_fb(unsigned int format, void *planes[3], unsigned int pla
 	case DRM_FORMAT_BGR888:
 	case DRM_FORMAT_RGB888:
 	case DRM_FORMAT_ARGB8888:
-		//bmp data offset
-		fseek(fp, 10, SEEK_SET);
-		fread(&bmp_offset, 1, 4, fp);
-		printf("bmp_offset = %u.\n", bmp_offset);
-		fseek(fp, bmp_offset, SEEK_SET);
+		if (strcasecmp(ext, ".bmp") == 0) {
+			//bmp data offset
+			fseek(fp, 10, SEEK_SET);
+			fread(&bmp_offset, 1, 4, fp);
+			printf("bmp_offset = %u.\n", bmp_offset);
+			fseek(fp, bmp_offset, SEEK_SET);
+		}
 		for(i = 0; i < plane_num; i++) {
 			s32len = fread(planes[i], 1, length[i], fp);
 			if (s32len <= 0) {

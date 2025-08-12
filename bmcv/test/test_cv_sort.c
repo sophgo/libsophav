@@ -4,7 +4,6 @@
 #include <time.h>
 #include <pthread.h>
 #include "bmcv_api_ext_c.h"
-
 #ifdef __linux__
   #include <unistd.h>
   #include <sys/time.h>
@@ -19,7 +18,6 @@
 
 typedef float bm_sort_data_type_t;
 typedef enum { ASCEND_ORDER, DESCEND_ORDER } cdma_sort_order_e;
-
 typedef struct {
     int loop_num;
     int data_num;
@@ -30,27 +28,89 @@ typedef struct {
 typedef struct {
     int   index;
     float val;
-} __attribute__((packed)) sort_t;
+} sort_t;
 
-extern void mergeSort(sort_t ref_res[], int left, int right, bool is_ascend);
+static void merge_ascend(sort_t ref_res[], int left, int mid, int right) {
+    int n1 = mid - left + 1;
+    int n2 = right - mid;
+    sort_t L[n1], R[n2];
 
-static int parameters_check(int data_num, int sort_num)
-{
-    int error = 0;
-    if (data_num > 500000) {
-        printf("Unsupported value : data_num_max = 500000 \n");
-        error = -1;
+    for (int i = 0; i < n1; i++) {
+        L[i] = ref_res[left + i];
     }
-    if (sort_num > 500000) {
-        printf("Unsupported value : sort_num_max = 500000 \n");
-        error = -1;
-    }
-    if (sort_num > data_num) {
-        printf("Unsupported value : sort_num <= data_num \n");
-        error = -1;
+    for (int j = 0; j < n2; j++) {
+        R[j] = ref_res[mid + 1 + j];
     }
 
-    return error;
+    int i = 0, j = 0, k = left;
+    while (i < n1 && j < n2) {
+        if (L[i].val <= R[j].val) {
+            ref_res[k] = L[i];
+            i++;
+        } else {
+        ref_res[k] = R[j];
+        j++;
+        }
+        k++;
+    }
+    while (i < n1) {
+        ref_res[k] = L[i];
+        i++;
+        k++;
+    }
+    while (j < n2) {
+        ref_res[k] = R[j];
+        j++;
+        k++;
+    }
+}
+
+static void merge_descend(sort_t ref_res[], int left, int mid, int right) {
+    int n1 = mid - left + 1;
+    int n2 = right - mid;
+    sort_t L[n1], R[n2];
+
+    for (int i = 0; i < n1; i++) {
+        L[i] = ref_res[left + i];
+    }
+    for (int j = 0; j < n2; j++) {
+        R[j] = ref_res[mid + 1 + j];
+    }
+
+    int i = 0, j = 0, k = left;
+    while (i < n1 && j < n2) {
+        if (L[i].val >= R[j].val) {
+            ref_res[k] = L[i];
+            i++;
+        } else {
+            ref_res[k] = R[j];
+            j++;
+        }
+        k++;
+    }
+    while (i < n1) {
+        ref_res[k] = L[i];
+        i++;
+        k++;
+    }
+    while (j < n2) {
+        ref_res[k] = R[j];
+        j++;
+        k++;
+    }
+}
+
+static void mergeSort(sort_t ref_res[], int left, int right, bool is_ascend) {
+    if (left < right) {
+        int mid = left + (right - left) / 2;
+        mergeSort(ref_res, left, mid, is_ascend);
+        mergeSort(ref_res, mid + 1, right, is_ascend);
+        if (is_ascend) {
+            merge_ascend(ref_res, left, mid, right);
+        }else{
+            merge_descend(ref_res, left, mid, right);
+        }
+    }
 }
 
 bool isEqual(sort_t *cdma_res, sort_t *ref_res, int size) {
@@ -105,7 +165,7 @@ static bool push_unstable_map(const sort_t  *cdma_iter,
     return true;
 }
 
-static bool get_cdma_result(bm_handle_t                 handle,
+static bool get_tpu_result(bm_handle_t                 handle,
                             cdma_sort_order_e           order,
                             int                         src_index[],
                             bm_sort_data_type_t        *src_data,
@@ -122,9 +182,7 @@ static bool get_cdma_result(bm_handle_t                 handle,
     int                 *dst_index_p = NULL;
     bm_sort_data_type_t *dst_data_p  = NULL;
     dst_index_p = (int*)malloc(sort_num * sizeof(int));
-    dst_data_p = (bm_sort_data_type_t*)malloc(sort_num * sizeof(int));
-
-    printf("index_enable: %d, auto_index: %d\n",index_enable, auto_index);
+    dst_data_p = (bm_sort_data_type_t*)malloc(sort_num * sizeof(float));
     gettimeofday(&t1, NULL);
     bmcv_sort(handle, bm_mem_from_system(src_index_p), bm_mem_from_system(src_data_p), data_cnt,
               bm_mem_from_system(dst_index_p), bm_mem_from_system(dst_data_p), sort_cnt, (int)order,
@@ -173,7 +231,12 @@ static bool result_compare(sort_t *cdma_res, sort_t *ref_res, bool index_enable,
 
     for (int i = 0; i < size; i++) {
         if (cdma_res[i].val != ref_res[i].val) {
-            printf("[val error] index: %d, got: %f, ref: %f\n", i, cdma_res[i].val, ref_res[i].val);
+            printf("idx:[%d], idx_cpu:%d, similarity_cpu:%f, idx_tpu:%d, similarity_tpu:%f\n",
+                       i, ref_res[i].index, ref_res[i].val, cdma_res[i].index, cdma_res[i].val);
+            for (int d = i+1; d < i+5; d++) {
+                printf("idx:[%d], idx_cpu:%d, similarity_cpu:%f, idx_tpu:%d, similarity_tpu:%f\n",
+                       d, ref_res[d].index, ref_res[d].val, cdma_res[d].index, cdma_res[d].val);
+            }
             return false;
         }
     }
@@ -201,8 +264,8 @@ int32_t cv_sort_test_rand(bm_handle_t handle, cdma_sort_order_e order, int data_
     int *dst_data_index = (int*)malloc(sort_num * sizeof(int));
     bool index_enable = rand() % 2 ? true : false;
     bool auto_index = rand() % 2 ? true : false;
-    printf("data num: %d, sort num: %d\n", data_num, sort_num);
-
+    printf("data num: %d, sort num: %d, order = %d, index_enable = %d, auto_index = %d\n",
+            data_num, sort_num, order, index_enable, auto_index);
     // produce src data and index
     for (int32_t i = 0; i < data_num; i++) {
         if(auto_index){
@@ -214,8 +277,8 @@ int32_t cv_sort_test_rand(bm_handle_t handle, cdma_sort_order_e order, int data_
         ref_res[i].val = ((float)(rand() % MAX_SORT_NUM)) / 100;
         src_data[i] = ref_res[i].val;
     }
-    // cdma_result
-    get_cdma_result(handle, order, src_data_index, src_data, cdma_res,
+    // tpu_result
+    get_tpu_result(handle, order, src_data_index, src_data, cdma_res,
                     index_enable, auto_index, data_num, sort_num);
     // ref result
     int size = data_num;
@@ -256,6 +319,10 @@ void* test_sort(void* args) {
     int data_num = sort_thread_arg->data_num;
     int sort_num = sort_thread_arg->sort_num;
     for (int i = 0; i < loop_num; i++) {
+        if(loop_num > 1) {
+            sort_num = 1 + rand() % 100000;
+            data_num = (sort_num * 2) + rand() % 500000;
+        }
         if (-1 == cv_sort_test_rand(handle, DESCEND_ORDER, data_num, sort_num)) {
             printf("TEST SORT FAILED\n");
             exit(-1);
@@ -277,10 +344,9 @@ int32_t main(int32_t argc, char **argv) {
     printf("seed = %d\n", seed);
     int test_loop_times = 1;
     int dev_id = 0;
-    int data_num = 1 + rand() % 500000;
-    int sort_num = 1 + rand() % data_num;
+    int sort_num = 1 + rand() % 100000;
+    int data_num = (sort_num * 2) + rand() % 500000;
     int test_threads_num = 1;
-    int check = 0;
     int ret = 0;
     bm_handle_t handle;
 
@@ -299,11 +365,6 @@ int32_t main(int32_t argc, char **argv) {
     if (argc > 2) test_loop_times = atoi(argv[2]);
     if (argc > 3) data_num = atoi(argv[3]);
     if (argc > 4) sort_num = atoi(argv[4]);
-    check = parameters_check(data_num, sort_num);
-    if (check) {
-        printf("Parameters Failed! \n");
-        return check;
-    }
 
     bm_status_t req = bm_dev_request(&handle, dev_id);
     if (req != BM_SUCCESS) {

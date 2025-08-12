@@ -5,7 +5,6 @@
 #include <string.h>
 #include <sys/time.h>
 #include <time.h>
-
 #include <pthread.h>
 
 #define ERR_MAX 1e-6
@@ -129,15 +128,8 @@ static int tpu_as_strided(float* input, float* output, struct row_col_para row_c
     int input_size = input_row * input_col;
     int output_size = output_row * output_col;
     bm_status_t ret = BM_SUCCESS;
-    // bm_handle_t handle;
     bm_device_mem_t input_dev_mem, output_dev_mem;
     struct timeval t1, t2;
-
-    // ret = bm_dev_request(&handle, 0);
-    // if (BM_SUCCESS != ret){
-    //     printf("request dev handle failed\n");
-    //     return BM_ERR_FAILURE;
-    // }
 
     ret = bm_malloc_device_byte(handle, &input_dev_mem, input_size * crit_val * sizeof(float));
     if (ret != BM_SUCCESS) {
@@ -173,7 +165,6 @@ static int tpu_as_strided(float* input, float* output, struct row_col_para row_c
 
     bm_free_device(handle, input_dev_mem);
     bm_free_device(handle, output_dev_mem);
-    // bm_dev_free(handle);
 
     return ret;
 }
@@ -191,7 +182,8 @@ static int test_as_strided_random(struct row_col_para row_col, bm_handle_t handl
     int ret = 0;
     int crit_val;
     struct timeval t1, t2;
-
+    printf("input_row = %d, input_col = %d, output_row = %d, output_col = %d, row_stride = %d, col_stride = %d\n",
+            input_row, input_col, output_row, output_col, row_stride, col_stride);
     crit_val = DIV_UP((1 + (output_col - 1) * col_stride + (output_row - 1) * row_stride),
                     input_row * input_col);
 
@@ -261,8 +253,15 @@ void* test_as_strided(void* args) {
     row_col.row.row_stride = cv_as_strided_thread_arg->row_stride;
     row_col.col.col_stride = cv_as_strided_thread_arg->col_stride;
     bm_handle_t handle = cv_as_strided_thread_arg->handle;
-
     for (int i = 0; i < loop; ++i) {
+        if(loop > 1) {
+            row_col.row.input_row = 1 + rand() % 4096;
+            row_col.col.input_col = 1 + rand() % 4096;
+            row_col.row.output_row = 1 + rand() % 4096;
+            row_col.col.output_col = 1 + rand() % 4096;
+            row_col.row.row_stride = 1 + rand() % 4096;
+            row_col.col.col_stride = 1 + rand() % 4096;
+        }
         int ret = test_as_strided_random(row_col, handle);
         if (ret) {
             printf("------Test as_strided Failed!------\n");

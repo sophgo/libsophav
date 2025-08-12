@@ -3,7 +3,7 @@ bmcv_ive_gmm
 
 | 【描述】
 
-| 该 API 使用ive硬件资源, 创建 GMM 背景建模任务，支持灰度图、 RGB_PACKAGE 图像的 GMM 背景建模， 高斯模型个数为 3 或者 5。
+| 该 API 使用ive硬件资源, 创建 GMM 背景建模任务，支持灰度图、 RGB_PACKED 图像的 GMM 背景建模， 高斯模型个数为 3 或者 5。
 
 | 【语法】
 

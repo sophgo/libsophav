@@ -6,12 +6,15 @@
 
 #define M_PI 3.14159265358979323846
 
-enum Pad_mode {
-    CONSTANT = 0,
-    REFLECT = 1,
+enum bdry{
+    zeros = 0,
+    constant,
+    even,
+    odd,
+    none,
 };
 
-enum Win_mode {
+enum win{
     HANN = 0,
     HAMM = 1,
 };
@@ -65,10 +68,8 @@ static bm_status_t bmcv_win(bm_device_mem_t XR, bm_device_mem_t XI, bm_device_me
 }
 
 static bm_status_t bmcv_fft_apply(bm_handle_t handle, bm_device_mem_t inputReal,
-                                bm_device_mem_t inputImag, bm_device_mem_t outputReal,
-                                bm_device_mem_t outputImag, const void *plan, bool realInput,
-                                int trans, bool normalize)
-{
+                                       bm_device_mem_t inputImag, bm_device_mem_t outputReal,
+                                       bm_device_mem_t outputImag, const void *plan, bool realInput) {
     bm_status_t ret = BM_SUCCESS;
     bm_api_cv_fft_t api;
     struct FFT1DPlan* P = (struct FFT1DPlan*)plan;
@@ -82,24 +83,22 @@ static bm_status_t bmcv_fft_apply(bm_handle_t handle, bm_device_mem_t inputReal,
     api.YI = bm_mem_get_device_addr(outputImag);
     api.ER = bm_mem_get_device_addr(P->ER);
     api.EI = bm_mem_get_device_addr(P->EI);
+    api.realInput = realInput ? 1 : 0;
     api.batch = P->batch;
     api.len = P->L;
     api.forward = P->forward ? 1 : 0;
-    api.realInput = realInput ? 1 : 0;
-    api.trans = trans;
+    api.trans = 0;
     api.factorSize = P->factors_size;
-    api.normalize = normalize;
+    api.normalize = false;
 
-    for (i = 0; i < P->factors_size; ++i) {
+    for (i = 0; i < P->factors_size; i++) {
         api.factors[i] = P->factors[i];
     }
-
     ret = bm_get_chipid(handle, &chipid);
     if (ret) {
-        printf("get chipid is error !\n");
+        printf("get chipid is error!\n");
         return BM_ERR_FAILURE;
     }
-
     switch(chipid) {
         case BM1688_PREV:
         case BM1688:
@@ -118,132 +117,168 @@ static bm_status_t bmcv_fft_apply(bm_handle_t handle, bm_device_mem_t inputReal,
     return ret;
 }
 
-static bm_status_t bmcv_fft_calculate(bm_handle_t handle, float* XRHost, float* XIHost, float* YR,
-                                    float* YI, int batch, int L, bool realInput,
-                                    int pad_mode, int n_fft, int win_mode, int hop_len,
-                                    bool normalize)
-{
+static bm_status_t bmcv_fft_calculate(bm_handle_t handle, float *XRHost, float* XIHost, float* YR,
+                                      float* YI, int batch, int xlen, int xlen_, int L, int window, int nperseg,
+                                      int noverlap, int padded_len, int nfft, int boundary, bool real_input) {
     bm_status_t ret = BM_SUCCESS;
+    int hop = nperseg - noverlap;
     void* plan = NULL;
-    int hop, i, j;
-    int pad_len = n_fft / 2;
-    int pad_sig_len = L + 2 * pad_len;
-    // int hop_len = n_fft / 4;
-    int num_frm = 1 + L / hop_len; /* YRHost col*/
-    bm_device_mem_t XRDev, XIDev, YRDev, YIDev, WinDev;
-    float* input_XR = (float*)malloc(pad_sig_len * sizeof(float));
-    float* input_XI = (float*)malloc(pad_sig_len * sizeof(float));
-    float* window = (float*)malloc(n_fft * sizeof(float));
+    float* input_XR = (float*)malloc(xlen_ * sizeof(float));
+    float* input_XI = (float*)malloc(xlen_ * sizeof(float));
+    float* window_X = (float*)calloc(nfft, sizeof(float));
 
-    ret = bm_malloc_device_byte(handle, &YRDev, batch * n_fft * num_frm * sizeof(float));
+    bm_device_mem_t XRDev, XIDev, YRDev, YIDev, WinDev;
+    ret = bm_malloc_device_byte(handle, &YRDev, batch * L * nfft * sizeof(float));
     if (ret != BM_SUCCESS) {
-        printf("bm_malloc_device_byte failed!\n");
+        printf("bm_malloc_device_byte YRDev failed!\n");
         goto exit0;
     }
-
-    ret = bm_malloc_device_byte(handle, &YIDev, batch * n_fft * num_frm * sizeof(float));
+    ret = bm_malloc_device_byte(handle, &YIDev, batch * L * nfft * sizeof(float));
     if (ret != BM_SUCCESS) {
-        printf("bm_malloc_device_byte failed!\n");
+        printf("bm_malloc_device_byte YIDev failed!\n");
         goto exit1;
     }
-
-    ret = bm_malloc_device_byte(handle, &WinDev, n_fft * sizeof(float));
+    ret = bm_malloc_device_byte(handle, &WinDev, nfft * sizeof(float));
     if (ret != BM_SUCCESS) {
-        printf("bm_malloc_device_byte failed!\n");
+        printf("bm_malloc_device_byte WinDev failed!\n");
         goto exit2;
     }
 
-    ret = bmcv_fft_1d_create_plan(handle, batch * num_frm, n_fft, true, &plan);
+    ret = bmcv_fft_1d_create_plan(handle, batch * L, nfft, true, &plan);
     if (ret != BM_SUCCESS) {
         printf("bmcv_fft_1d_create_plan failed!\n");
         goto exit3;
     }
 
-    /* pad the input signal */
-    memset(input_XR, 0, pad_sig_len * sizeof(float));
-    if (!realInput) {
-        memset(input_XI, 0, pad_sig_len * sizeof(float));
-    }
+    for (int j = 0; j < batch; ++j) {
+        /* Initialize the input signal */
+        memset(input_XR, 0, xlen_ * sizeof(float));
+        memset(input_XI, 0, xlen_ * sizeof(float));
 
-    for (j = 0; j < batch; ++j) {
-        if (pad_mode == REFLECT) {
-            memcpy(input_XR + pad_len, XRHost + j * L, L * sizeof(float));
-            if (!realInput) {
-                memcpy(input_XI + pad_len, XIHost + j * L, L * sizeof(float));
+        switch (boundary) {
+        case zeros:
+            // Zero-padding at both ends
+            for (int i = 0; i < hop; i++) {
+                input_XR[i] = 0.0f;                     // Left zero-padding
+                input_XR[xlen_ - padded_len - hop + i] = 0.0f; // Right zero-padding
+                input_XI[i] = 0.0f;                     // Left zero-padding
+                input_XI[xlen_ - padded_len - hop + i] = 0.0f; // Right zero-padding
+            }
+            // Copy original signal to the center
+            memcpy(input_XR + hop, XRHost + j * xlen, xlen * sizeof(float));
+            memcpy(input_XI + hop, XIHost + j * xlen, xlen * sizeof(float));
+            break;
+        case constant:
+            for (int i = 0; i < hop; i++) {
+                input_XR[i] = *(XRHost + j * xlen + hop);
+                input_XR[xlen_ - padded_len - hop + i] = *(XRHost + j * xlen + xlen - 1);
+                input_XI[i] = *(XIHost + j * xlen + hop);
+                input_XI[xlen_ - padded_len - hop + i] = *(XIHost + j * xlen + xlen - 1);
+            }
+            memcpy(input_XR + hop, XRHost + j * xlen, xlen * sizeof(float));
+            memcpy(input_XI + hop, XIHost + j * xlen, xlen * sizeof(float));
+            break;
+        case even:
+            // Even symmetry padding (mirroring with repetition of last element)
+
+            for (int i = 0; i < hop; i++) {
+                // Left padding: mirror from start
+                input_XR[i] = *(XRHost + j * xlen + hop - 1 - i);
+                input_XI[i] = *(XIHost + j * xlen + hop - 1 - i);
+                // Right padding: mirror from end
+                input_XR[xlen_ - padded_len - hop + i] = *(XRHost + j * xlen + xlen - 1 - i);
+                input_XI[xlen_ - padded_len - hop + i] = *(XIHost + j * xlen + xlen - 1 - i);
             }
 
-            for (i = 0; i < pad_len; ++i) {
-                input_XR[pad_len - i - 1] = XRHost[j * L + i];
-                input_XR[pad_sig_len - pad_len + i] = XRHost[j * L + L - i - 1];
-                if (!realInput) {
-                    input_XI[pad_len - i - 1] = XIHost[j * L + i];
-                    input_XI[pad_sig_len - pad_len + i] = XIHost[j * L + L - i - 1];
-                }
+            // Copy original signal to the center
+            memcpy(input_XR + hop, XRHost + j * xlen, xlen * sizeof(float));
+            memcpy(input_XI + hop, XIHost + j * xlen, xlen * sizeof(float));
+            break;
+
+        case odd:
+            // Odd symmetry padding (mirroring with sign flip)
+            for (int i = 0; i < hop; i++) {
+                // Left padding: mirror with sign flip
+                input_XR[i] = -*(XRHost + j * xlen + hop - i);  // Note: different indexing for odd symmetry
+                input_XI[i] = -*(XIHost + j * xlen + hop - i);
+                // Right padding: mirror with sign flip
+                input_XR[xlen_ - padded_len - hop + i] = -*(XRHost + j * xlen + xlen - 2 - i);
+                input_XI[xlen_ - padded_len - hop + i] = -*(XIHost + j * xlen + xlen - 2 - i);
             }
-        } else if (pad_mode == CONSTANT) {
-            memcpy(input_XR + pad_len, XRHost + j * L, L * sizeof(float));
-            if (!realInput) {
-                memcpy(input_XI + pad_len, XIHost + j * L, L * sizeof(float));
-            }
+            // Copy original signal to the center
+            memcpy(input_XR + hop, XRHost + j * xlen, xlen * sizeof(float));
+            memcpy(input_XI + hop, XIHost + j * xlen, xlen * sizeof(float));
+            break;
+        case none:
+            memcpy(input_XR, XRHost + j * xlen, xlen * sizeof(float));
+            memcpy(input_XI, XIHost + j * xlen, xlen * sizeof(float));
+            break;
+        default:
+            printf("Unsupported boundary value! Use original signal.\n");
+            memcpy(input_XR, XRHost + j * xlen, xlen * sizeof(float));
+            memcpy(input_XI, XIHost + j * xlen, xlen * sizeof(float));
+            break;
+        }
+        for (int i = 0; i < padded_len; i++) {
+            input_XR[xlen_ - padded_len + i] = 0;
+            input_XI[xlen_ - padded_len + i] = 0;
         }
 
-        for (hop = 0; hop < num_frm; ++hop) {
-            memcpy(&YR[j * num_frm * n_fft + hop * n_fft], &input_XR[hop * hop_len], n_fft * sizeof(float));
-            if (!realInput) {
-            memcpy(&YI[j * num_frm * n_fft + hop * n_fft], &input_XI[hop * hop_len], n_fft * sizeof(float));
+        for (int l = 0; l < L; l++) {
+            memcpy(YR + j * L * nfft + l * nfft, input_XR + hop * l, nperseg * sizeof(float));
+            memset(YR + j * L * nfft + l * nfft + nperseg, 0, (nfft - nperseg) * sizeof(float));
+            if (!real_input) {
+                memcpy(YI + j * L * nfft + l * nfft, input_XI + hop * l, nperseg * sizeof(float));
+                memset(YI + j * L * nfft + l * nfft + nperseg, 0, (nfft - nperseg) * sizeof(float));
             }
         }
     }
 
-    ret = bm_malloc_device_byte(handle, &XRDev, batch * n_fft * num_frm * sizeof(float));
+    ret = bm_malloc_device_byte(handle, &XRDev, batch * L * nfft * sizeof(float));
     if (ret != BM_SUCCESS) {
-        printf("bm_malloc_device_byte failed!\n");
+        printf("bm_malloc_device_byte XRDev failed!\n");
         goto exit4;
     }
-
     ret = bm_memcpy_s2d(handle, XRDev, YR);
     if (ret != BM_SUCCESS) {
         printf("bm_memcpy_s2d failed!\n");
         goto exit5;
     }
-
-    if (!realInput) {
-        ret = bm_malloc_device_byte(handle, &XIDev, batch * n_fft * num_frm * sizeof(float));
+    if (!real_input) {
+        ret = bm_malloc_device_byte(handle, &XIDev, batch * L * nfft * sizeof(float));
         if (ret != BM_SUCCESS) {
-            printf("bm_malloc_device_byte failed!\n");
-            goto exit5;
+            printf("bm_malloc_device_byte XIDev failed!\n");
+            goto exit6;
         }
-
         ret = bm_memcpy_s2d(handle, XIDev, YI);
         if (ret != BM_SUCCESS) {
             printf("bm_memcpy_s2d failed!\n");
             goto exit6;
         }
     }
-
-    if (win_mode == HANN) {
-        for (i = 0; i < n_fft; i++) {
-            window[i] = 0.5 * (1 - cos(2 * M_PI * (float)i / n_fft));
+    if (window == HANN) {
+        for (int i = 0; i < nperseg; i++) {
+            window_X[i] = 0.5 * (1 - cos(2 * M_PI * (float)i / (nperseg - 1)));
         }
-    } else if (win_mode == HAMM) {
-        for (i = 0; i < n_fft; i++) {
-            window[i] = 0.54 - 0.46 * cos(2 * M_PI * (float)i / n_fft);
+    } else if (window == HAMM) {
+        for (int i = 0; i < nperseg; i++) {
+            window_X[i] = 0.54 - 0.46 * cos(2 * M_PI * (float)i / (nperseg - 1));
         }
     }
 
-    ret = bm_memcpy_s2d(handle, WinDev, window);
+    ret = bm_memcpy_s2d(handle, WinDev, window_X);
     if (ret != BM_SUCCESS) {
-        printf("bm_memcpy_s2d failed!\n");
+        printf("bm_memcpy_s2d WinDev failed!\n");
         goto exit6;
     }
 
-    ret = bmcv_win(XRDev, XIDev, WinDev, batch * num_frm, n_fft, realInput, handle);
+    ret = bmcv_win(XRDev, XIDev, WinDev, batch * L, nfft, real_input, handle);
     if (ret != BM_SUCCESS) {
         printf("bmcv_win failed!\n");
         goto exit6;
     }
 
-    ret = bmcv_fft_apply(handle, XRDev, XIDev, YRDev, YIDev, plan, realInput, 0, normalize);
+    ret = bmcv_fft_apply(handle, XRDev, XIDev, YRDev, YIDev, plan, real_input);
     if (ret != BM_SUCCESS) {
         printf("bmcv_fft_execute failed!\n");
         goto exit6;
@@ -262,7 +297,7 @@ static bm_status_t bmcv_fft_calculate(bm_handle_t handle, float* XRHost, float* 
     }
 
 exit6:
-    if (!realInput) {
+    if (!real_input) {
         bm_free_device(handle, XIDev);
     }
 exit5:
@@ -276,22 +311,22 @@ exit2:
 exit1:
     bm_free_device(handle, YRDev);
 exit0:
-    free(input_XI);
     free(input_XR);
-    free(window);
+    free(input_XI);
+    free(window_X);
     return ret;
 }
 
-static bm_status_t bmcv_tran_res(bm_handle_t handle, float* YR, float* YI, int batch, int num_frm, int n_fft)
+static bm_status_t bmcv_tran_res(bm_handle_t handle, float* YR, float* YI, int batch, int L, int nfft)
 {
     bm_status_t ret = BM_SUCCESS;
     int i, j;
     bm_image input_img, output_img;
-    int stride_byte = n_fft * sizeof(float);
+    int stride_byte = nfft * sizeof(float);
     unsigned char** host;
     float* Y_tmp;
 
-    ret = bm_image_create(handle, num_frm, n_fft, FORMAT_GRAY, DATA_TYPE_EXT_FLOAT32, &input_img, &stride_byte);
+    ret = bm_image_create(handle, L, nfft, FORMAT_GRAY, DATA_TYPE_EXT_FLOAT32, &input_img, &stride_byte);
     if (ret != BM_SUCCESS) {
         printf("ERROR: Cannot create input_bm_image\n");
         goto exit0;
@@ -303,7 +338,7 @@ static bm_status_t bmcv_tran_res(bm_handle_t handle, float* YR, float* YI, int b
         goto exit0;
     }
 
-    ret = bm_image_create(handle, n_fft, num_frm, FORMAT_GRAY, DATA_TYPE_EXT_FLOAT32, &output_img, NULL);
+    ret = bm_image_create(handle, nfft, L, FORMAT_GRAY, DATA_TYPE_EXT_FLOAT32, &output_img, NULL);
     if (ret != BM_SUCCESS) {
         printf("ERROR: Cannot create output_bm_image\n");
         goto exit1;
@@ -316,7 +351,7 @@ static bm_status_t bmcv_tran_res(bm_handle_t handle, float* YR, float* YI, int b
     }
 
     for (j = 0; j < batch; ++j) {
-        Y_tmp = YR + j * num_frm * n_fft;
+        Y_tmp = YR + j * L * nfft;
         host = (unsigned char**)&Y_tmp;
         for (i = 0; i < input_img.image_private->plane_num; i++) {
             ret = bm_memcpy_s2d(input_img.image_private->handle, input_img.image_private->data[i], host[i]);
@@ -342,7 +377,7 @@ static bm_status_t bmcv_tran_res(bm_handle_t handle, float* YR, float* YI, int b
             } /* host = host + image.image_private->plane_byte_size[i]; */
         }
 
-        Y_tmp = YI + j * num_frm * n_fft;
+        Y_tmp = YI + j * L * nfft;
         host = (unsigned char**)&Y_tmp;
         for (i = 0; i < input_img.image_private->plane_num; i++) {
             ret = bm_memcpy_s2d(input_img.image_private->handle, input_img.image_private->data[i], host[i]);
@@ -377,34 +412,48 @@ exit0:
     return ret;
 }
 
-bm_status_t bmcv_stft(bm_handle_t handle, float* XRHost, float* XIHost, float* YRHost,
-                    float* YIHost, int batch, int L, bool realInput,
-                    int pad_mode, int n_fft, int win_mode, int hop_len, bool normalize)
+bm_status_t bmcv_stft(bm_handle_t handle, float* XRHost, float* XIHost, int batch, int xlen, int fs, int window, int nperseg, int noverlap,
+                        int nfft, bool return_onesided, int boundary, bool padded, bool real_input, float* YRHost, float* YIHost, float* f, float* t)
 {
     bm_status_t ret = BM_SUCCESS;
-    // int hop_len = n_fft / 4;
-    int num_frm = 1 + L / hop_len;
-    int num_len = n_fft / 2 + 1;
-    int i;
+    int hop = nperseg - noverlap;
+    int xlen_ = 0;
+    if (boundary == zeros || boundary == constant || boundary == even || boundary == odd) {
+        xlen_ = xlen + 2 * hop;
+    } else {
+        xlen_ = xlen;
+    }
+    int padded_len = 0;
+    if (padded) {
+        padded_len = (xlen_ - nperseg) % hop == 0 ? 0 : hop  - (xlen_ - nperseg) % hop;
+    }
+    xlen_ += padded_len;
+    int L = 1 + (xlen_ - nperseg) / hop;
+    int row_num = return_onesided ? nfft / 2 + 1 : nfft;
 
-    float* YR = (float*)malloc(batch * n_fft * num_frm * sizeof(float));
-    float* YI = (float*)malloc(batch * n_fft * num_frm * sizeof(float));
+    for (int i = 0; i < row_num; i++) {
+        f[i] = i * ((float)fs / nfft);
+    }
+    for (int l = 0; l < L; l++) {
+        t[l] = (nperseg / 2.0 + l * hop) / fs;
+    }
 
-    ret = bmcv_fft_calculate(handle, XRHost, XIHost, YR, YI, batch, L, realInput,
-                            pad_mode, n_fft, win_mode, hop_len, normalize);
+    float* YR = (float*)malloc(batch * L * nfft * sizeof(float));
+    float* YI = (float*)malloc(batch * L * nfft * sizeof(float));
+
+    ret = bmcv_fft_calculate(handle, XRHost, XIHost, YR, YI, batch, xlen, xlen_, L, window, nperseg, noverlap, padded_len, nfft, boundary, real_input);
     if (ret != BM_SUCCESS) {
         printf("bmcv_fft_calculate failed!\n");
         goto exit;
     }
-
-    ret = bmcv_tran_res(handle, YR, YI, batch, num_frm, n_fft);
+    ret = bmcv_tran_res(handle, YR, YI, batch, L, nfft);
     if (ret != BM_SUCCESS) {
         printf("bmcv_tran_res failed!\n");
         goto exit;
     }
-    for (i = 0; i <  batch; ++i) {
-        memcpy(YRHost + i * num_len * num_frm, YR + i * num_frm * n_fft, num_len * num_frm * sizeof(float));
-        memcpy(YIHost + i * num_len * num_frm, YI + i * num_frm * n_fft, num_len * num_frm * sizeof(float));
+    for (int i = 0; i <  batch; ++i) {
+        memcpy(YRHost + i * row_num * L, YR + i * L * nfft, row_num * L * sizeof(float));
+        memcpy(YIHost + i * row_num * L, YI + i * L * nfft, row_num * L * sizeof(float));
     }
 
 exit:

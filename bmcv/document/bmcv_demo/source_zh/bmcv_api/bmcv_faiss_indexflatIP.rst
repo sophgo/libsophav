@@ -79,7 +79,7 @@ bmcv_faiss_indexflatIP
   输出参数。输出数据类型，支持 fp32,fp16,char, 5 表示fp32， 3 表示fp16，9 表示char。
 
 
-**返回值说明:**
+**返回值说明：**
 
 * BM_SUCCESS: 成功
 
@@ -88,18 +88,20 @@ bmcv_faiss_indexflatIP
 
 **注意事项：**
 
-1、输入数据(查询向量)和底库数据(底库向量)的数据类型为 fp32，fp16 或 char。
+1. 输入数据(查询向量)和底库数据(底库向量)的数据类型为 fp32，fp16 或 char。
 
-2、输出的排序后的相似度的数据类型为 fp32，fp16或int, 相对应的索引的数据类型为 int。
+2. 输出的排序后的相似度的数据类型为 fp32，fp16或int, 相对应的索引的数据类型为 int。
 
-3、底库数据通常以 database_vecs_num * vec_dims 的形式排布在内存中。此时, 参数 is_transpose 需要设置为 1。
+3. 底库数据通常以 database_vecs_num * vec_dims 的形式排布在内存中。此时, 参数 is_transpose 需要设置为 1。
 
-4、查询向量和数据库向量内积距离值越大, 表示两者的相似度越高。因此, 在 TopK 过程中对内积距离值按降序排序。
+4. 查询向量和数据库向量内积距离值越大, 表示两者的相似度越高。因此, 在 TopK 过程中对内积距离值按降序排序。
 
-5、输入参数中 sort_cnt 和 query_vecs_num 需要小于或等于 database_vecs_num。
+5. 输入参数中 sort_cnt 和 query_vecs_num 需要小于或等于 database_vecs_num。
+
+6. 该接口可通过设置环境变量启用双核计算，运行程序前：export TPU_CORES=2或export TPU_CORES=both即可。
 
 
-**示例代码**
+**示例代码：**
 
     .. code-block:: c++
 

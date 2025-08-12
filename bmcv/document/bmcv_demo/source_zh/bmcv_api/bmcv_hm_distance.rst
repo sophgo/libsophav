@@ -3,7 +3,7 @@ bmcv_hm_distance
 
 **描述：**
 
-该接口用来计算两个向量中各个元素的汉明距离。
+该接口用来计算两个向量中各个元素的汉明距离，该接口支持启用双核处理。
 
 **语法：**
 
@@ -59,7 +59,9 @@ bmcv_hm_distance
 
 1. bits_len支持到4, 8, 16, 32。
 
-2. input1_num最大支持到16，input2_num最大支持到50000000。
+2. input1_num支持1～16，input2_num支持2～50000000，但因TPU能调度的存储空间容量有限，不同bits_len和input1_num的组合下，input2_num能支持的最大值可能受限。
+
+3. 该接口支持启用双核处理，在运行程序前可通过设置环境变量来改变使用的TPU core，例如：export TPU_CORES=0/1/2/both，如不设置环境变量，默认使用core0处理。其中TPU_CORES=0代表仅启用TPU core0进行处理，TPU_CORES=1代表仅启用TPU core1进行处理，TPU_CORES=2和TPU_CORES=both代表启用双核进行处理。
 
 **代码示例：**
 

@@ -24,6 +24,7 @@ typedef struct{
     int real_data;
     char* input;
     int loopout_times;
+    int original_len;
 } base64_thread_arg_t;
 
 char const *base64std =
@@ -427,7 +428,7 @@ static void *test_base64_thread(void *args) {
     int real_data = base64_thread->real_data;
     char* input = base64_thread->input;
     for (int i = 0; i < loop_times; i++) {
-        int original_len, encoded_len;
+        int original_len = base64_thread->original_len, encoded_len;
         char *a, *b;
         printf("test_loopout_times = %d\n\n", i);
         if (1 == real_data){
@@ -439,7 +440,8 @@ static void *test_base64_thread(void *args) {
                 a[j] = input[j];
             }
         } else {
-            original_len = (rand() % 134217728) + 1; //128M
+            original_len =
+                (original_len != 0) ? original_len : ((rand() % 134217728) + 1); //128M
             encoded_len = (original_len + 2) / 3 * 4;
             a = (char *)malloc((original_len + 3) * sizeof(char));
             b = (char *)malloc((encoded_len + 3) * sizeof(char));
@@ -485,21 +487,31 @@ int main(int argc, char **argv) {
     int test_threads_num = 1;
     int real_data = 0;
     char * input = NULL;
+    int original_len = 0;
 
     if (argc == 2 && atoi(argv[1]) == -1) {
         printf("usage: %d\n", argc);
-        printf("%s test_loopin_times test_threads_num use_real_data(when use_real_data = 0, input = NULL) input(when use_real_data = 1,need to set input) loopout_times\n", argv[0]);
+        printf("%s test_loopin_times test_threads_num use_real_data input(when use_real_data = 1)/len(when use_real_data = 0) loopout_times\n", argv[0]);
         printf("example:\n");
         printf("%s \n", argv[0]);
         printf("%s 1 1\n", argv[0]);
+        printf("%s 1 1 0 10000 1\n", argv[0]);
         printf("%s 1 1 1 FHJNUHI 1\n", argv[0]);
         return 0;
     }
     if (argc > 1) test_loop_times = atoi(argv[1]);
     if (argc > 2) test_threads_num =  atoi(argv[2]);
-    if (argc > 3) {real_data = atoi(argv[3]);
-    if (real_data < 0 || real_data > 1) printf("real_data can  only be 0 or 1\n");};
-    if (argc > 4) input = argv[4];
+    if (argc > 3) {
+        real_data = atoi(argv[3]);
+        if (real_data < 0 || real_data > 1)
+            printf("real_data can  only be 0 or 1\n");
+    };
+    if (argc > 4) {
+        if(real_data)
+            input = argv[4];
+        else
+            original_len = atoi(argv[4]);
+    }
     if (argc > 5) test_out_loop_times = atoi(argv[5]);
 
     if (test_loop_times > 1000000 || test_loop_times < 1) {
@@ -519,6 +531,7 @@ int main(int argc, char **argv) {
         base64_thread[i].real_data = real_data;
         base64_thread[i].input = input;
         base64_thread[i].loopout_times = test_out_loop_times;
+        base64_thread[i].original_len = original_len;
         if (pthread_create(
             &pid[i], NULL, test_base64_thread, &base64_thread[i])) {
             printf("create thread failed\n");

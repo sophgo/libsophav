@@ -70,6 +70,7 @@ static int tpu_nms(face_rect_t* proposals, const float nms_threshold, nms_propos
 
 static int test_nms(int num, float nms_threshold, bm_handle_t handle)
 {
+    printf("num = %d, nms_threshold = %f\n", num, nms_threshold);
     int ret = 0;
     int result_size = 0;
     int i;
@@ -121,6 +122,9 @@ void* test_thread_nms(void* args) {
     bm_handle_t handle = cv_nms_thread_arg->handle;
 
     for (int i = 0; i < loop; ++i) {
+        if(loop > 1) {
+            num = 1 + rand() % SCORE_RAND_LEN_MAX;
+        }
         int ret = test_nms(num, nms_threshold, handle);
         if (ret) {
             printf("------Test NMS Failed!------\n");
