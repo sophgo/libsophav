@@ -927,6 +927,9 @@ typedef struct
     void *video_enc_ctx;
 } BmVpuEncoder;
 
+/* Obtain the compilation version information and time of the dynamic library */
+DECL_EXPORT void bmvpu_enc_get_commit_version();
+
 /* Returns a human-readable description of the error code.
  * Useful for logging. */
 DECL_EXPORT char const * bmvpu_enc_error_string(BmVpuEncReturnCodes code);

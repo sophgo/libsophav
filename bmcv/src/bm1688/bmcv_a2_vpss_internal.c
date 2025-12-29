@@ -1213,7 +1213,7 @@ bm_status_t bm_vpss_asic(
 #endif
 		}
 		if (ctx[i].ret != BM_SUCCESS) {
-			bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "ret(0x%lx), bm_send_frame fail\n", (unsigned long)ret);
+			bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "ret(%d), bm_send_frame fail\n", ctx[i].ret);
 		}
 		ret |= ctx[i].ret;
 	}

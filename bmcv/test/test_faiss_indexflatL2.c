@@ -46,10 +46,19 @@ typedef struct {
 } topk_t;
 
 void fvec_norm_L2sqr_ref(float* vec, float* matrix, int row_num, int col_num) {
-    for (int i = 0; i < row_num; i++)
+    for (int i = 0; i < row_num; i++) {
+        float data_tmp[col_num];
+        float l2_norm = 0.0;
         for (int j = 0; j < col_num; j++) {
-            vec[i] += matrix[i * col_num + j] * matrix[i * col_num + j];
+            data_tmp[j] = ((float)rand() / (float)RAND_MAX);
+            l2_norm += data_tmp[j] * data_tmp[j];
         }
+        float norm = sqrt(l2_norm);
+        for (int j = 0; j < col_num; j++) {
+            matrix[i * col_num + j] = data_tmp[j] / norm;
+        }
+        vec[i] = 1.0f;
+    }
 }
 
 void matrix_trans(void* src, void* dst, int row_num, int col_num, enum bm_data_type_t dtype) {
@@ -67,12 +76,6 @@ void matrix_trans(void* src, void* dst, int row_num, int col_num, enum bm_data_t
                 ((fp16*)dst)[j * row_num + i] = ((fp16*)src)[i * col_num + j];
             }
         }
-    }
-}
-
-void matrix_gen_data(float* data, u32 len) {
-    for (u32 i = 0; i < len; i++) {
-        data[i] = ((float)rand() / (float)RAND_MAX);
     }
 }
 
@@ -237,21 +240,19 @@ void gen_topk_reference_fp16(float* input_data,
     free(bottom_vec);
 }
 
-void matrix_gen_data_norm(fp16* data, fp16* vec, int row_num, int col_num){
-    for (int i = 0; i < row_num; i++){
-        // rand gen data & L2 norm
+void matrix_gen_data_norm(fp16* data, fp16* vec, int row_num, int col_num) {
+    for (int i = 0; i < row_num; i++) {
         float data_tmp[col_num];
         float l2_norm = 0.0;
         for (int j = 0; j < col_num; j++) {
             data_tmp[j] = ((float)rand() / (float)RAND_MAX);
             l2_norm += data_tmp[j] * data_tmp[j];
         }
-
-        // get L2 norm array
+        float norm = sqrt(l2_norm);
         for (int j = 0; j < col_num; j++) {
-            data[i * col_num + j] = fp32tofp16(data_tmp[j] / l2_norm, 1);
+            data[i * col_num + j] = fp32tofp16(data_tmp[j] / norm, 1);
         }
-        vec[i] = fp32tofp16(sqrt(l2_norm), 1);
+        vec[i] = fp32tofp16(1.0f, 1);
     }
 }
 
@@ -312,7 +313,7 @@ static bm_status_t result_compare_fp16(fp16* tpu_result_similarity,
                           int query_vecs_num) {
     for (int query_cnt = 0; query_cnt < query_vecs_num; query_cnt++) {
         for (int sort_indx = 0; sort_indx < sort_cnt; sort_indx++) {
-            if (fabs(fp16tofp32(tpu_result_similarity[query_cnt * sort_cnt + sort_indx]) - fp16tofp32(ref_similarity[query_cnt * sort_cnt + sort_indx])) > (5*1e-1)) {
+            if (fabs(fp16tofp32(tpu_result_similarity[query_cnt * sort_cnt + sort_indx]) - fp16tofp32(ref_similarity[query_cnt * sort_cnt + sort_indx])) > (1e-1)) {
                 printf("faiss_indexflatL2 fp16 cpu && tpu result compare failed!\n");
                 printf("tpu_res[%d][%d][%d] %f ref_result[%d][%d][%d] %f\n",
                     query_cnt, sort_indx, tpu_result_index[query_cnt * sort_cnt + sort_indx],
@@ -572,12 +573,9 @@ bm_status_t test_faiss_indexflatL2_fp32(bm_handle_t handle,
     float* blob_Y_ref = (float*)malloc(query_vecs_num * database_vecs_num * sizeof(float));
     unsigned char *blob_dis_ref = (unsigned char*)malloc(query_vecs_num * sort_cnt * dtype_size((enum bm_data_type_t)output_dtype)); //???
     int *blob_inx_ref = (int*)malloc(query_vecs_num * sort_cnt * sizeof(int));
-
-    matrix_gen_data(input_data, query_vecs_num * vec_dims);
-    matrix_gen_data(db_data, vec_dims * database_vecs_num);
-    matrix_trans(db_data, db_data_trans, database_vecs_num, vec_dims, (enum bm_data_type_t)input_dtype);
     fvec_norm_L2sqr_ref(vec_query, input_data, query_vecs_num, vec_dims);
     fvec_norm_L2sqr_ref(vec_db, db_data, database_vecs_num, vec_dims);
+    matrix_trans(db_data, db_data_trans, database_vecs_num, vec_dims, (enum bm_data_type_t)input_dtype);
     bm_device_mem_t query_data_dev_mem,
                     db_data_dev_mem,
                     query_L2norm_dev_mem,
@@ -763,18 +761,6 @@ free_mem1:
     return ret;
 }
 
-int param_check(int database_vecs_num, int query_vecs_num, int sort_cnt, int vec_dims){
-    if(sort_cnt > database_vecs_num) {
-        printf("sort_cnt cannot be greater than database_vecs_num!\n");
-        return -1;
-    }
-    if(query_vecs_num > database_vecs_num) {
-        printf("query_vecs_num cannot be greater than database_vecs_num!\n");
-        return -1;
-    }
-    return 0;
-}
-
 void* test_faiss_indexflatL2(void* args) {
     faiss_indexflatL2_thread_arg_t* faiss_indexflatL2_thread_arg = (faiss_indexflatL2_thread_arg_t*)args;
     int loop = faiss_indexflatL2_thread_arg->loop;
@@ -788,10 +774,12 @@ void* test_faiss_indexflatL2(void* args) {
     bm_handle_t handle = faiss_indexflatL2_thread_arg->handle;
     for (int i = 0; i < loop; i++) {
         if(loop > 1) {
-            sort_cnt = rand() % 50 + 1;
-            database_vecs_num = rand() % 100000 + 1 + sort_cnt;
+            query_vecs_num = 2 + rand() % 50;
+            sort_cnt = rand() % 30 + 1;
+            database_vecs_num = rand() % 100000 + 1 + query_vecs_num + sort_cnt * 2;
             input_dtype = (rand() % 2 == 0) ? 3 : 5;
             output_dtype = (rand() % 2 == 0) ? 3 : 5;
+            is_transpose = input_dtype == 3 ? 0 : is_transpose;
         }
         switch (input_dtype) {
             case DT_FP32:
@@ -823,13 +811,14 @@ int main(int argc, char *args[]) {
     printf("random seed = %u\n", seed);
     int thread_num = 1;
     int loop = 1;
-    int sort_cnt = 1;
-    int database_vecs_num = 10000;
-    int query_vecs_num = 1;
+    int sort_cnt = rand() % 30 + 1;
+    int query_vecs_num = 1 + rand() % 50;
+    int database_vecs_num = rand() % 100000 + 1 + query_vecs_num + sort_cnt * 2;
     int vec_dims = 256;
-    int is_transpose = 1;
-    int input_dtype = 5;
-    int output_dtype = 5;
+    int input_dtype = (rand() % 2 == 0) ? 3 : 5;
+    int output_dtype = (rand() % 2 == 0) ? 3 : 5;
+    int is_transpose = rand() % 2;
+    is_transpose = input_dtype == 3 ? 0 : is_transpose;
 
     if (argc == 2 && atoi(args[1]) == -1) {
         printf("usage: %d\n", argc);
@@ -849,10 +838,6 @@ int main(int argc, char *args[]) {
     printf("thread_num:        %d\n", thread_num);
     printf("loop:              %d\n", loop);
     int ret = 0;
-    ret = param_check(database_vecs_num, query_vecs_num, sort_cnt, vec_dims);
-    if(ret != 0) {
-        return -1;
-    }
     bm_handle_t handle;
     ret = bm_dev_request(&handle, 0);
     if (BM_SUCCESS != ret) {

@@ -75,16 +75,10 @@ static int cpu_nms(face_rect_t* proposals, const float nms_threshold, face_rect_
 bm_status_t bmcv_nms(bm_handle_t handle, bm_device_mem_t input_proposal_addr, int proposal_size,
                     float nms_threshold, bm_device_mem_t output_proposal_addr)
 {
-    bm_api_cv_nms_t api;
-    bm_device_mem_t input_proposal_buf_device;
-    bm_device_mem_t output_buf_device;
-    bm_device_mem_t iou_buf_device;
     face_rect_t* input_proposals = NULL;
     nms_proposal_t* output_proposals = NULL;
     face_rect_t* nms_proposal;
-    int nms_type = HARD_NMS;
     bm_status_t ret = BM_SUCCESS;
-    unsigned int chipid;
     int result_size = 0;
 
     if (handle == NULL) {
@@ -97,135 +91,41 @@ bm_status_t bmcv_nms(bm_handle_t handle, bm_device_mem_t input_proposal_addr, in
         return BM_NOT_SUPPORTED;
     }
 
-    ret = bm_get_chipid(handle, &chipid);
-    if (ret) {
-        printf("get chipid is error !\n");
-        return ret;
-    }
-
-    if (proposal_size > MAX_PROPOSAL_NUM_TPU) {
-        if (bm_mem_get_type(input_proposal_addr) == BM_MEM_TYPE_DEVICE) {
-            input_proposals = (face_rect_t*)malloc(proposal_size * sizeof(face_rect_t));
-            ret = bm_memcpy_d2s(handle, input_proposals, input_proposal_addr);
-            if (ret != BM_SUCCESS) {
-                BMCV_ERR_LOG("bm_memcpy_d2s error\r\n");
-                free(input_proposals);
-                return BM_ERR_FAILURE;
-            }
-        } else {
-            input_proposals = (face_rect_t *)bm_mem_get_system_addr(input_proposal_addr);
-        }
-
-        if (bm_mem_get_type(output_proposal_addr) == BM_MEM_TYPE_DEVICE) {
-            output_proposals = (nms_proposal_t*)malloc(sizeof(nms_proposal_t));
-        } else {
-            output_proposals = (nms_proposal_t*)bm_mem_get_system_addr(output_proposal_addr);
-        }
-
-        nms_proposal = (face_rect_t*)malloc(proposal_size * sizeof(face_rect_t));
-        cpu_nms(input_proposals, nms_threshold, nms_proposal, proposal_size, &result_size);
-
-        output_proposals->size = result_size;
-        memcpy(output_proposals->face_rect, nms_proposal, output_proposals->size * sizeof(face_rect_t));
-
-        if (bm_mem_get_type(output_proposal_addr) == BM_MEM_TYPE_DEVICE) {
-            ret = bm_memcpy_s2d(handle, output_proposal_addr, output_proposals);
-            if (ret != BM_SUCCESS) {
-                BMCV_ERR_LOG("bm_memcpy_s2d error\r\n");
-                return BM_ERR_FAILURE;
-            }
-            free(output_proposals);
-        }
-
-        if (bm_mem_get_type(input_proposal_addr) == BM_MEM_TYPE_DEVICE) {
-            free(input_proposals);
-        }
-
-        return BM_SUCCESS;
-    }
-
-    if (proposal_size <= MAX_PROPOSAL_NUM_TPU) {
-        if (bm_mem_get_type(input_proposal_addr) == BM_MEM_TYPE_SYSTEM) {
-            ret = bm_malloc_device_byte(handle, &input_proposal_buf_device, sizeof(face_rect_t) * proposal_size);
-            if (ret != BM_SUCCESS) {
-                BMCV_ERR_LOG("bm_malloc_device_byte error\r\n");
-                goto err0;
-            }
-            ret = bm_memcpy_s2d(handle, input_proposal_buf_device, bm_mem_get_system_addr(input_proposal_addr));
-            if (ret != BM_SUCCESS) {
-                BMCV_ERR_LOG("bm_memcpy_s2d error\r\n");
-                goto err1;
-            }
-        } else {
-            input_proposal_buf_device = input_proposal_addr;
-        }
-
-        if (bm_mem_get_type(output_proposal_addr) == BM_MEM_TYPE_SYSTEM) {
-            ret = bm_malloc_device_byte(handle, &output_buf_device, sizeof(nms_proposal_t));
-            if (ret != BM_SUCCESS) {
-                BMCV_ERR_LOG("bm_malloc_device_byte error\r\n");
-                goto err1;
-            }
-        } else {
-            output_buf_device = output_proposal_addr;
-        }
-
-        api.input_proposal_addr = bm_mem_get_device_addr(input_proposal_buf_device);
-        api.output_proposal_addr = bm_mem_get_device_addr(output_buf_device);
-        api.proposal_size = proposal_size;
-        api.nms_threshold = nms_threshold;
-        api.nms_type = nms_type;
-        api.score_threshold = 0;
-        api.iou_addr = 0;
-        api.sigma = 0;
-        api.weighting_method = 0;
-        api.eta = 0;
-        api.hard_nms_version = 1;
-        api.keep_top_k = proposal_size;
-
-        ret = bm_malloc_device_byte(handle, &iou_buf_device, proposal_size * sizeof(float));
+    if (bm_mem_get_type(input_proposal_addr) == BM_MEM_TYPE_DEVICE) {
+        input_proposals = (face_rect_t*)malloc(proposal_size * sizeof(face_rect_t));
+        ret = bm_memcpy_d2s(handle, input_proposals, input_proposal_addr);
         if (ret != BM_SUCCESS) {
-            BMCV_ERR_LOG("bm_malloc_device_byte error\r\n");
-            goto err2;
+            BMCV_ERR_LOG("bm_memcpy_d2s error\r\n");
+            free(input_proposals);
+            return BM_ERR_FAILURE;
         }
-        api.iou_addr = bm_mem_get_device_addr(iou_buf_device);
-        api.all_mask_addr = 0;
+    } else {
+        input_proposals = (face_rect_t *)bm_mem_get_system_addr(input_proposal_addr);
+    }
 
-        switch(chipid) {
-            case BM1688_PREV:
-            case BM1688:
-                ret = bm_kernel_main_launch(handle, SG_API_ID_NMS, (void *)&api, sizeof(api));
-                if (ret != BM_SUCCESS) {
-                    printf("bm_tpu_kernel_launch failed!\n");
-                    goto err3;
-                }
-                break;
-            default:
-                printf("BM_NOT_SUPPORTED!\n");
-                ret = BM_NOT_SUPPORTED;
-                break;
+    if (bm_mem_get_type(output_proposal_addr) == BM_MEM_TYPE_DEVICE) {
+        output_proposals = (nms_proposal_t*)malloc(sizeof(nms_proposal_t));
+    } else {
+        output_proposals = (nms_proposal_t*)bm_mem_get_system_addr(output_proposal_addr);
+    }
+
+    nms_proposal = (face_rect_t*)malloc(proposal_size * sizeof(face_rect_t));
+    cpu_nms(input_proposals, nms_threshold, nms_proposal, proposal_size, &result_size);
+
+    output_proposals->size = result_size;
+    memcpy(output_proposals->face_rect, nms_proposal, output_proposals->size * sizeof(face_rect_t));
+
+    if (bm_mem_get_type(output_proposal_addr) == BM_MEM_TYPE_DEVICE) {
+        ret = bm_memcpy_s2d(handle, output_proposal_addr, output_proposals);
+        if (ret != BM_SUCCESS) {
+            BMCV_ERR_LOG("bm_memcpy_s2d error\r\n");
+            return BM_ERR_FAILURE;
         }
-        if (bm_mem_get_type(output_proposal_addr) == BM_MEM_TYPE_SYSTEM) {
-            ret = bm_memcpy_d2s(handle, bm_mem_get_system_addr(output_proposal_addr), output_buf_device);
-            if (ret != BM_SUCCESS) {
-                BMCV_ERR_LOG("bm_memcpy_d2s error\r\n");
-                goto err3;
-            }
-        }
+        free(output_proposals);
+    }
 
-        err3:
-            bm_free_device(handle, iou_buf_device);
-        err2:
-            if (bm_mem_get_type(output_proposal_addr) == BM_MEM_TYPE_SYSTEM) {
-                bm_free_device(handle, output_buf_device);
-            }
-
-        err1:
-            if (bm_mem_get_type(input_proposal_addr) == BM_MEM_TYPE_SYSTEM) {
-                bm_free_device(handle, input_proposal_buf_device);
-            }
-        err0:
-            return ret;
+    if (bm_mem_get_type(input_proposal_addr) == BM_MEM_TYPE_DEVICE) {
+        free(input_proposals);
     }
 
     return BM_SUCCESS;

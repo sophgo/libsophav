@@ -456,7 +456,7 @@ void* test_add_weighted(void* args) {
             printf("------Test add_weighted Failed!------\n");
             exit(-1);
         }
-        printf("------Test add_weighted Successed!------\n");
+        printf("------Test add_weighted Succeed!------\n");
     }
     return (void*)0;
 }

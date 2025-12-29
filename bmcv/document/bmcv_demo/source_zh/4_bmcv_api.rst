@@ -8,6 +8,7 @@ BMCV API
 
    bmcv_api/bmcv_base64.rst
    bmcv_api/bmcv_as_strided.rst
+   bmcv_api/bmcv_attribute_filter_topk.rst
    bmcv_api/bmcv_batch_topk.rst
    bmcv_api/bmcv_calc_hist.rst
    bmcv_api/bmcv_cmulp.rst

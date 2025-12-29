@@ -23,6 +23,7 @@ int src_h = 1080, src_w = 1920, dst_w = 1920, dst_h = 1080, dev_id = 0;
 bm_image_format_ext src_fmt = FORMAT_YUV420P, dst_fmt = FORMAT_RGB_PACKED;
 char *src_name = "/opt/sophon/libsophon-current/bin/res/1920x1080_yuv420.bin", *dst_name = "dst.bin";
 bmcv_rect_t rect = {.start_x = 0, .start_y = 0, .crop_w = 1920, .crop_h = 1080};
+char stretch_fit = 1;
 bmcv_resize_algorithm algorithm = BMCV_INTER_LINEAR;
 bm_handle_t handle = NULL;
 pthread_mutex_t mutex;
@@ -31,18 +32,17 @@ int counter = 0;
 char *md5 = "6f031f59d34fa7c9252fa9ccebe13a8a";
 
 static void wait_pthread(void){
-    // 加锁，确保对counter的操作是互斥的
+    // Lock to ensure that operations on the counter are mutually exclusive
     pthread_mutex_lock(&mutex);
     counter++;
     if (counter == test_threads_num) {
-        // 当所有线程都到达节点时，发送信号通知其他线程
+        // When all threads reach the node, send a signal to notify other threads
         pthread_cond_broadcast(&condition);
         counter = 0;
     } else {
-        // 等待，直到所有线程都到达节点
+        // Wait until all threads have reached the node
         pthread_cond_wait(&condition, &mutex);
     }
-    // 解锁
     pthread_mutex_unlock(&mutex);
 }
 
@@ -79,10 +79,23 @@ static void * convert(void* arg) {
     }
     bm_read_bin(src,src_name);
 
+    bmcv_resize_image attr[1];
+    attr[0].stretch_fit = stretch_fit;
+    attr[0].interpolation = algorithm;
+    attr[0].roi_num = 1;
+    attr[0].padding_r = 255;
+    attr[0].padding_g = 0;
+    attr[0].padding_b = 0;
+    attr[0].resize_img_attr = (bmcv_resize_t*)malloc(sizeof(bmcv_resize_t));
+    attr[0].resize_img_attr->start_x = rect.start_x;
+    attr[0].resize_img_attr->start_y = rect.start_y;
+    attr[0].resize_img_attr->in_width = rect.crop_w;
+    attr[0].resize_img_attr->in_height = rect.crop_h;
+
     for(i = 0;i < loop_time; i++){
         gettimeofday(&tv_start, NULL);
 
-        bmcv_image_vpp_csc_matrix_convert(handle, 1, src, &dst, CSC_MAX_ENUM, NULL, algorithm, &rect);
+        bmcv_image_resize(handle, 1, attr, &src, &dst);
 
         gettimeofday(&tv_end, NULL);
         timediff.tv_sec  = tv_end.tv_sec - tv_start.tv_sec;
@@ -100,6 +113,7 @@ static void * convert(void* arg) {
         if(time_single<time_min){time_min = time_single;}
         time_total = time_total + time_single;
     }
+    free(attr[0].resize_img_attr);
     time_avg = time_total / loop_time;
     fps_actual = 1000000 / time_avg;
     pixel_per_sec = src_w * src_h * fps_actual/1024/1024;
@@ -342,21 +356,27 @@ static void * convert_list(void* arg){
 
 static void print_help(char **argv){
     printf("please follow this order:\n \
-        %s src_w src_h src_fmt src_name start_x start_y crop_w crop_h dst_w dst_h dst_fmt dst_name algorithm dev_id thread_num loop_num md5\n \
+        %s src_w src_h src_fmt src_name start_x start_y crop_w crop_h dst_w dst_h dst_fmt dst_name algorithm dev_id stretch_fit thread_num loop_num md5\n \
         %s thread_num loop_num\n", argv[0], argv[0]);
 };
 
 int main(int argc, char **argv) {
-    if (argc >= 18) {
-        md5 = argv[17];
+    if (argc >= 19) {
+        md5 = argv[18];
     } else if(argc > 3){
         md5 = NULL;
     }
-    if (argc >= 17) {
-        test_threads_num = atoi(argv[15]);
-        test_loop_times  = atoi(argv[16]);
+    if (argc >= 18) {
+        test_threads_num = atoi(argv[16]);
+        test_loop_times  = atoi(argv[17]);
     }
+    if (argc >= 16)
+        stretch_fit = atoi(argv[15]);
     if (argc >= 15) {
+        algorithm = (bmcv_resize_algorithm)(atoi(argv[13]));
+        dev_id = atoi(argv[14]);
+    }
+    if (argc >= 13) {
         src_w = atoi(argv[1]);
         src_h = atoi(argv[2]);
         src_fmt = (bm_image_format_ext)atoi(argv[3]);
@@ -369,8 +389,6 @@ int main(int argc, char **argv) {
         dst_h = atoi(argv[10]);
         dst_fmt = (bm_image_format_ext)atoi(argv[11]);
         dst_name = argv[12];
-        algorithm = (bmcv_resize_algorithm)(atoi(argv[13]));
-        dev_id = atoi(argv[14]);
     }
     if (argc == 2){
         if (atoi(argv[1]) < 0){
@@ -382,7 +400,7 @@ int main(int argc, char **argv) {
     else if (argc == 3){
         test_threads_num = atoi(argv[1]);
         test_loop_times  = atoi(argv[2]);
-    } else if (argc > 3 && argc < 15) {
+    } else if (argc > 3 && argc < 13) {
         printf("command input error\n");
         print_help(argv);
         exit(-1);

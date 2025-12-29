@@ -5,8 +5,8 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 include(GitUtils)
 
 get_version_from_tag(LIBSOPHAV_VERSION COMMIT_HASH COMMIT_COUNT BRANCH COMMIT_DATE)
-
-add_compile_definitions(LIBSOPHAV_VERSION="${LIBSOPHAV_VERSION}")
+set(GIT_VERSION "2.1.0")
+add_compile_definitions(LIBSOPHAV_VERSION="${GIT_VERSION}")
 add_compile_definitions(COMMIT_HASH="${COMMIT_HASH}")
 add_compile_definitions(COMMIT_COUNT="${COMMIT_COUNT}")
 add_compile_definitions(BRANCH="${BRANCH}")
@@ -97,7 +97,6 @@ endif()
 
 set(LIBSOPHAV_OUT_PATH ${CMAKE_CURRENT_BINARY_DIR}/release CACHE STRING "bmvid compile output location")
 # set project name and version after setting cmake toolchains
-set(GIT_VERSION "1.9.0")
 if(NOT "${GIT_VERSION}" STREQUAL "")
     STRING(REGEX REPLACE "[\n\t\r]" "" GIT_VERSION ${GIT_VERSION})
     STRING(REGEX REPLACE "([0-9][0-9]*)\\..*" "\\1" MAJOR_VERSION ${GIT_VERSION})
@@ -144,3 +143,4 @@ if(NOT "${PCIE_MODE}" STREQUAL "on")
     add_subdirectory(vglite)
     add_subdirectory(tde)
 endif()
+add_subdirectory(samples)

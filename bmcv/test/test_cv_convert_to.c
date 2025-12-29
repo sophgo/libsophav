@@ -50,6 +50,79 @@ typedef struct {
 #define ALIGN(x, a) __ALIGN_MASK(x, (int)(a)-1)
 #endif
 
+
+int32_t convert_to_ref_packed_int8( signed char            *src,
+                             signed char            *dst,
+                             convert_to_arg_t *convert_to_arg,
+                             int               image_num,
+                             int               image_channel,
+                             int               image_h,
+                             int               image_w_stride,
+                             int               image_w,
+                             int               convert_format){
+    int image_len = image_num * image_channel * image_w_stride * image_h;
+    signed char *temp_old_buf = malloc(image_len * sizeof(signed char));
+    memcpy(temp_old_buf, src, sizeof(signed char) * image_len);
+
+    for(int n_idx = 0; n_idx < image_num; n_idx++){
+        for(int y = 0; y < image_h; y++){
+            for(int x = 0; x < image_w; x++){
+                for(int c_idx = 0; c_idx < image_channel; c_idx++){
+                    int check_idx = n_idx * image_channel * image_w * image_h +
+                                     y * image_w * image_channel + x * image_channel + c_idx;
+                    int src_check_idx = n_idx * image_channel * image_w_stride * image_h +
+                                     y * image_w_stride * image_channel + x * image_channel + c_idx;
+                    float temp = 0.0;
+                    temp = (temp_old_buf[src_check_idx]) * convert_to_arg[c_idx].alpha +
+                            convert_to_arg[c_idx].beta;
+                    temp = (temp > 127) ? (127)
+                                            : ((temp < -128) ? (-128) : (temp));
+                    dst[check_idx] = (signed char) round (temp);
+                }
+            }
+        }
+    }
+
+    free(temp_old_buf);
+    return 0;
+}
+
+
+int32_t convert_to_ref_packed_float( float            *src,
+                              float            *dst,
+                              convert_to_arg_t *convert_to_arg,
+                              int               image_num,
+                              int               image_channel,
+                              int               image_h,
+                              int               image_w_stride,
+                              int               image_w,
+                              int               convert_format){
+    int image_len = image_num * image_channel * image_w_stride * image_h;
+    float *temp_old_buf = malloc(image_len * sizeof(float));
+    memcpy(temp_old_buf, src, sizeof(float) * image_len);
+
+    for(int n_idx = 0; n_idx < image_num; n_idx++){
+        for(int y = 0; y < image_h; y++){
+            for(int x = 0; x < image_w; x++){
+                for(int c_idx = 0; c_idx < image_channel; c_idx++){
+                    int check_idx = n_idx * image_channel * image_w * image_h +
+                                     y * image_w * image_channel + x * image_channel + c_idx;
+                    int src_check_idx = n_idx * image_channel * image_w_stride * image_h +
+                                     y * image_w_stride * image_channel + x * image_channel + c_idx;
+                    float temp = 0.0;
+                    temp = (temp_old_buf[src_check_idx]) * convert_to_arg[c_idx].alpha +
+                            convert_to_arg[c_idx].beta;
+                    dst[check_idx] = (float) round (temp);
+                }
+            }
+        }
+    }
+
+    free(temp_old_buf);
+    return 0;
+}
+
+
 extern int32_t convert_to_ref_float( float            *src,
                               float            *dst,
                               convert_to_arg_t *convert_to_arg,
@@ -211,6 +284,7 @@ static int32_t convert_to_test_rand_int8(bm_handle_t       handle,
                                         int               input_data_type,
                                         int               output_data_type,
                                         image_shape_t     image_shape,
+                                        int               img_format,
                                         convert_to_arg_t *convert_to_arg,
                                         int               convert_format,
                                         int               if_set_stride) {
@@ -239,21 +313,40 @@ static int32_t convert_to_test_rand_int8(bm_handle_t       handle,
     memset(ref_res, 0x0, image_len);
 
     if(if_set_stride){
-        for(int n_idx = 0; n_idx < image_num; n_idx++){
-            for(int c_idx = 0; c_idx < image_channel; c_idx++){
+        if (img_format == FORMAT_BGR_PLANAR) {
+            for(int n_idx = 0; n_idx < image_num; n_idx++){
+                for(int c_idx = 0; c_idx < image_channel; c_idx++){
+                    for(int h_idx = 0; h_idx < image_h; h_idx++){
+                        for(int w_idx = 0; w_idx < image_w; w_idx++){
+                            input[w_idx + h_idx * image_w_stride +
+                                c_idx * image_h * image_w_stride +
+                                n_idx * image_channel * image_h * image_w_stride] = rand() % 255;
+                        }
+                        // padding
+                        signed char *tmp = &input[image_w + h_idx * image_w_stride +
+                                            c_idx * image_h * image_w_stride +
+                                            n_idx * image_channel * image_h * image_w_stride];
+                        memset(tmp,
+                            0,
+                            sizeof(signed char) * (image_w_stride - image_w));
+                    }
+                }
+            }
+        } else {
+            for(int n_idx = 0; n_idx < image_num; n_idx++){
                 for(int h_idx = 0; h_idx < image_h; h_idx++){
                     for(int w_idx = 0; w_idx < image_w; w_idx++){
-                        input[w_idx + h_idx * image_w_stride +
-                              c_idx * image_h * image_w_stride +
-                              n_idx * image_channel * image_h * image_w_stride] = rand() % 255;
+                        for(int c_idx = 0; c_idx < image_channel; c_idx++){
+                            input[c_idx + h_idx * image_w_stride * 3 +
+                                w_idx * 3 + n_idx * image_channel * image_h * image_w_stride] = rand() % 255;
+                        }
+                        // padding
+                        signed char *tmp = &input[image_w * 3 + h_idx * image_w_stride * 3 +
+                                            n_idx * image_channel * image_h * image_w_stride];
+                        memset(tmp,
+                            0,
+                            sizeof(signed char) * (image_w_stride * 3 - image_w * 3));
                     }
-                    // padding
-                    signed char *tmp = &input[image_w + h_idx * image_w_stride +
-                                        c_idx * image_h * image_w_stride +
-                                        n_idx * image_channel * image_h * image_w_stride];
-                    memset(tmp,
-                           0,
-                           sizeof(signed char) * (image_w_stride - image_w));
                 }
             }
         }
@@ -283,28 +376,54 @@ static int32_t convert_to_test_rand_int8(bm_handle_t       handle,
     int input_num = image_num;
     int output_num = image_num;
 
-    if(if_set_stride){
-        for(int img_idx = 0; img_idx < input_num; img_idx++){
-            int set_w_stride = image_w_stride * sizeof(signed char);
-            bm_image_create(handle,
-                            image_h,
-                            image_w,
-                            FORMAT_BGR_PLANAR,
-                            input_data_format_ext,
-                            &input_images[img_idx],
-                            &set_w_stride);
+    if (img_format == FORMAT_BGR_PLANAR) {
+        if(if_set_stride){
+            for(int img_idx = 0; img_idx < input_num; img_idx++){
+                int set_w_stride = image_w_stride * sizeof(signed char);
+                bm_image_create(handle,
+                                image_h,
+                                image_w,
+                                FORMAT_BGR_PLANAR,
+                                input_data_format_ext,
+                                &input_images[img_idx],
+                                &set_w_stride);
+            }
+        } else {
+            for(int img_idx = 0; img_idx < input_num; img_idx++){
+                bm_image_create(handle,
+                                image_h,
+                                image_w,
+                                FORMAT_BGR_PLANAR,
+                                input_data_format_ext,
+                                &input_images[img_idx],
+                                NULL);
+            }
         }
     } else {
-        for(int img_idx = 0; img_idx < input_num; img_idx++){
-            bm_image_create(handle,
-                            image_h,
-                            image_w,
-                            FORMAT_BGR_PLANAR,
-                            input_data_format_ext,
-                            &input_images[img_idx],
-                            NULL);
+        if(if_set_stride){
+            for(int img_idx = 0; img_idx < input_num; img_idx++){
+                int set_w_stride = image_w_stride * 3 * sizeof(signed char);
+                bm_image_create(handle,
+                                image_h,
+                                image_w,
+                                FORMAT_BGR_PACKED,
+                                input_data_format_ext,
+                                &input_images[img_idx],
+                                &set_w_stride);
+            }
+        } else {
+            for(int img_idx = 0; img_idx < input_num; img_idx++){
+                bm_image_create(handle,
+                                image_h,
+                                image_w,
+                                FORMAT_BGR_PACKED,
+                                input_data_format_ext,
+                                &input_images[img_idx],
+                                NULL);
+            }
         }
     }
+
 
     int is_contiguous = rand() % 2;
     if(is_contiguous){
@@ -322,13 +441,24 @@ static int32_t convert_to_test_rand_int8(bm_handle_t       handle,
     }
 
     for(int img_idx = 0; img_idx < output_num; img_idx++){
-        bm_image_create(handle,
+        if (img_format == FORMAT_BGR_PLANAR) {
+            bm_image_create(handle,
                         image_h,
                         image_w,
                         FORMAT_BGR_PLANAR,
                         output_data_format_ext,
                         &output_images[img_idx],
                         NULL);
+        } else {
+            bm_image_create(handle,
+                        image_h,
+                        image_w,
+                        FORMAT_BGR_PACKED,
+                        output_data_format_ext,
+                        &output_images[img_idx],
+                        NULL);
+        }
+
     }
 
     bm_image_alloc_contiguous_mem(output_num, output_images, BMCV_HEAP0_ID);
@@ -353,7 +483,9 @@ static int32_t convert_to_test_rand_int8(bm_handle_t       handle,
         bm_image_copy_device_to_host(output_images[img_idx], (void **)&res_img_data);
     }
     gettimeofday(&t3, NULL);
-    convert_to_ref_int8(input,
+
+    if (input_images->image_format == FORMAT_BGR_PLANAR) {
+        convert_to_ref_int8(input,
                         ref_res,
                         convert_to_arg,
                         image_num,
@@ -362,6 +494,18 @@ static int32_t convert_to_test_rand_int8(bm_handle_t       handle,
                         image_w_stride,
                         image_w,
                         convert_format);
+    } else {
+        convert_to_ref_packed_int8(input,
+                        ref_res,
+                        convert_to_arg,
+                        image_num,
+                        image_channel,
+                        image_h,
+                        image_w_stride,
+                        image_w,
+                        convert_format);
+    }
+
     gettimeofday(&t4, NULL);
     printf("Convert_to test_rand_int8 CPU using time = %ld(us)\n", TIME_COST_US(t3, t4));
     ret = bmcv_convert_to_cmp_int8(ref_res, bmcv_res, image_num, image_channel, image_h, image_w);
@@ -401,6 +545,7 @@ static int32_t convert_to_test_rand_float(bm_handle_t       handle,
                                           int               input_data_type,
                                           int               output_data_type,
                                           image_shape_t     image_shape,
+                                          int               img_format,
                                           convert_to_arg_t *convert_to_arg,
                                           int               convert_format,
                                           int               if_set_stride) {
@@ -429,21 +574,40 @@ static int32_t convert_to_test_rand_float(bm_handle_t       handle,
     memset(ref_res, 0x0, image_len);
 
     if(if_set_stride){
-        for(int n_idx = 0; n_idx < image_num; n_idx++){
-            for(int c_idx = 0; c_idx < image_channel; c_idx++){
+        if (img_format == FORMAT_BGR_PLANAR) {
+            for(int n_idx = 0; n_idx < image_num; n_idx++){
+                for(int c_idx = 0; c_idx < image_channel; c_idx++){
+                    for(int h_idx = 0; h_idx < image_h; h_idx++){
+                        for(int w_idx = 0; w_idx < image_w; w_idx++){
+                            input[w_idx + h_idx * image_w_stride +
+                                c_idx * image_h * image_w_stride +
+                                n_idx * image_channel * image_h * image_w_stride] = rand() % 255;
+                        }
+                        // padding
+                        float *tmp = &input[image_w + h_idx * image_w_stride +
+                                            c_idx * image_h * image_w_stride +
+                                            n_idx * image_channel * image_h * image_w_stride];
+                        memset(tmp,
+                            0,
+                            sizeof(float) * (image_w_stride - image_w));
+                    }
+                }
+            }
+        } else {
+            for(int n_idx = 0; n_idx < image_num; n_idx++){
                 for(int h_idx = 0; h_idx < image_h; h_idx++){
                     for(int w_idx = 0; w_idx < image_w; w_idx++){
-                        input[w_idx + h_idx * image_w_stride +
-                              c_idx * image_h * image_w_stride +
-                              n_idx * image_channel * image_h * image_w_stride] = rand() % 255;
+                        for(int c_idx = 0; c_idx < image_channel; c_idx++){
+                            input[c_idx + h_idx * image_w_stride * 3 +
+                                w_idx * 3 + n_idx * image_channel * image_h * image_w_stride] = rand() % 255;
+                        }
+                        // padding
+                        float *tmp = &input[image_w * 3 + h_idx * image_w_stride * 3 +
+                                            n_idx * image_channel * image_h * image_w_stride];
+                        memset(tmp,
+                            0,
+                            sizeof(float) * (image_w_stride * 3 - image_w * 3));
                     }
-                    // padding
-                    float *tmp = &input[image_w + h_idx * image_w_stride +
-                                        c_idx * image_h * image_w_stride +
-                                        n_idx * image_channel * image_h * image_w_stride];
-                    memset(tmp,
-                           0,
-                           sizeof(float) * (image_w_stride - image_w));
                 }
             }
         }
@@ -473,26 +637,51 @@ static int32_t convert_to_test_rand_float(bm_handle_t       handle,
     int input_num = image_num;
     int output_num = image_num;
 
-    if(if_set_stride){
-        for(int img_idx = 0; img_idx < input_num; img_idx++){
-            int set_w_stride = image_w_stride * sizeof(float);
-            bm_image_create(handle,
-                            image_h,
-                            image_w,
-                            FORMAT_BGR_PLANAR,
-                            input_data_format_ext,
-                            &input_images[img_idx],
-                            &set_w_stride);
+if (img_format == FORMAT_BGR_PLANAR) {
+        if(if_set_stride){
+            for(int img_idx = 0; img_idx < input_num; img_idx++){
+                int set_w_stride = image_w_stride * sizeof(float);
+                bm_image_create(handle,
+                                image_h,
+                                image_w,
+                                FORMAT_BGR_PLANAR,
+                                input_data_format_ext,
+                                &input_images[img_idx],
+                                &set_w_stride);
+            }
+        } else {
+            for(int img_idx = 0; img_idx < input_num; img_idx++){
+                bm_image_create(handle,
+                                image_h,
+                                image_w,
+                                FORMAT_BGR_PLANAR,
+                                input_data_format_ext,
+                                &input_images[img_idx],
+                                NULL);
+            }
         }
     } else {
-        for(int img_idx = 0; img_idx < input_num; img_idx++){
-            bm_image_create(handle,
-                            image_h,
-                            image_w,
-                            FORMAT_BGR_PLANAR,
-                            input_data_format_ext,
-                            &input_images[img_idx],
-                            NULL);
+        if(if_set_stride){
+            for(int img_idx = 0; img_idx < input_num; img_idx++){
+                int set_w_stride = image_w_stride * 3 * sizeof(float);
+                bm_image_create(handle,
+                                image_h,
+                                image_w,
+                                FORMAT_BGR_PACKED,
+                                input_data_format_ext,
+                                &input_images[img_idx],
+                                &set_w_stride);
+            }
+        } else {
+            for(int img_idx = 0; img_idx < input_num; img_idx++){
+                bm_image_create(handle,
+                                image_h,
+                                image_w,
+                                FORMAT_BGR_PACKED,
+                                input_data_format_ext,
+                                &input_images[img_idx],
+                                NULL);
+            }
         }
     }
 
@@ -511,14 +700,27 @@ static int32_t convert_to_test_rand_float(bm_handle_t       handle,
         bm_image_copy_host_to_device(input_images[img_idx], (void **)&input_img_data);
     }
 
+
+
     for(int img_idx = 0; img_idx < output_num; img_idx++){
-        bm_image_create(handle,
+        if (img_format == FORMAT_BGR_PLANAR) {
+            bm_image_create(handle,
                         image_h,
                         image_w,
                         FORMAT_BGR_PLANAR,
                         output_data_format_ext,
                         &output_images[img_idx],
                         NULL);
+        } else {
+            bm_image_create(handle,
+                        image_h,
+                        image_w,
+                        FORMAT_BGR_PACKED,
+                        output_data_format_ext,
+                        &output_images[img_idx],
+                        NULL);
+        }
+
     }
 
     bm_image_alloc_contiguous_mem(output_num, output_images, BMCV_HEAP0_ID);
@@ -543,15 +745,27 @@ static int32_t convert_to_test_rand_float(bm_handle_t       handle,
         bm_image_copy_device_to_host(output_images[img_idx], (void **)&res_img_data);
     }
     gettimeofday(&t3, NULL);
-    convert_to_ref_float(input,
-                         ref_res,
-                         convert_to_arg,
-                         image_num,
-                         image_channel,
-                         image_h,
-                         image_w_stride,
-                         image_w,
-                         convert_format);
+    if (input_images->image_format == FORMAT_BGR_PLANAR) {
+        convert_to_ref_float(input,
+                        ref_res,
+                        convert_to_arg,
+                        image_num,
+                        image_channel,
+                        image_h,
+                        image_w_stride,
+                        image_w,
+                        convert_format);
+    } else {
+        convert_to_ref_packed_float(input,
+                        ref_res,
+                        convert_to_arg,
+                        image_num,
+                        image_channel,
+                        image_h,
+                        image_w_stride,
+                        image_w,
+                        convert_format);
+    }
     gettimeofday(&t4, NULL);
     printf("Convert_to test_rand_float CPU using time = %ld(us)\n", TIME_COST_US(t3, t4));
     ret = bmcv_convert_to_cmp_float(ref_res, bmcv_res, image_num, image_channel, image_h, image_w);
@@ -657,160 +871,179 @@ DWORD WINAPI test_convert_to_thread(LPVOID arg)
 
         unsigned int chipid = 0x1686a200;
         bm_get_chipid(handle, &chipid);
-        switch(chipid){
-            case 0x1686a200:
-                printf("---------CONVERT TO CLASSICAL SIZE TEST---------- \n");
-                convert_format = CONVERT_1N_TO_1N;
-                printf("CONVERT TO 1N int8 TO 1N int8 \n");
-                convert_to_test_rand_int8(handle,
-                                         INT8_C3,
-                                         INT8_C3,
-                                         image_shape,
-                                         convert_to_arg,
-                                         convert_format,
-                                         0);
-                printf("result of %d compare pass \n", test_cnt++);
+        for (int i = 0; i < 2; i++) {
+            int img_format = 0;
+            if (i == 0) img_format = 0;
+            if (i == 1) img_format = 9;
+            switch(chipid){
+                case 0x1686a200:
+                    printf("---------CONVERT TO CLASSICAL SIZE TEST---------- \n");
+                    convert_format = CONVERT_1N_TO_1N;
+                    printf("CONVERT TO 1N int8 TO 1N int8 \n");
+                    convert_to_test_rand_int8(handle,
+                                            INT8_C3,
+                                            INT8_C3,
+                                            image_shape,
+                                            img_format,
+                                            convert_to_arg,
+                                            convert_format,
+                                            0);
+                    printf("result of %d compare pass \n", test_cnt++);
 
-                printf("[WITH STRIDE] CONVERT TO 1N int8 TO 1N int8 \n");
-                convert_to_test_rand_int8(handle,
-                                         INT8_C3,
-                                         INT8_C3,
-                                         image_shape,
-                                         convert_to_arg,
-                                         convert_format,
-                                         1);
-                printf("result of %d compare pass \n", test_cnt++);
+                    printf("[WITH STRIDE] CONVERT TO 1N int8 TO 1N int8 \n");
+                    convert_to_test_rand_int8(handle,
+                                            INT8_C3,
+                                            INT8_C3,
+                                            image_shape,
+                                            img_format,
+                                            convert_to_arg,
+                                            convert_format,
+                                            1);
+                    printf("result of %d compare pass \n", test_cnt++);
 
-                printf("[SAME PARA] CONVERT TO 1N int8 TO 1N int8 \n");
-                convert_to_test_rand_int8(handle,
-                                         INT8_C3,
-                                         INT8_C3,
-                                         image_shape,
-                                         same_convert_to_arg,
-                                         convert_format,
-                                         0);
-                printf("result of %d compare pass \n", test_cnt++);
+                    printf("[SAME PARA] CONVERT TO 1N int8 TO 1N int8 \n");
+                    convert_to_test_rand_int8(handle,
+                                            INT8_C3,
+                                            INT8_C3,
+                                            image_shape,
+                                            img_format,
+                                            same_convert_to_arg,
+                                            convert_format,
+                                            0);
+                    printf("result of %d compare pass \n", test_cnt++);
 
-                printf("CONVERT TO 1N FP32 TO 1N FP32 \n");
-                convert_to_test_rand_float(handle,
-                                           FLOAT32_C3,
-                                           FLOAT32_C3,
-                                           image_shape,
-                                           convert_to_arg,
-                                           convert_format,
-                                           0);
-                printf("result of %d compare pass \n", test_cnt++);
+                    printf("CONVERT TO 1N FP32 TO 1N FP32 \n");
+                    convert_to_test_rand_float(handle,
+                                            FLOAT32_C3,
+                                            FLOAT32_C3,
+                                            image_shape,
+                                            img_format,
+                                            convert_to_arg,
+                                            convert_format,
+                                            0);
+                    printf("result of %d compare pass \n", test_cnt++);
 
-                printf("[WITH STRIDE] CONVERT TO 1N FP32 TO 1N FP32 \n");
-                convert_to_test_rand_float(handle,
-                                           FLOAT32_C3,
-                                           FLOAT32_C3,
-                                           image_shape,
-                                           convert_to_arg,
-                                           convert_format,
-                                           1);
-                printf("result of %d compare pass \n", test_cnt++);
+                    printf("[WITH STRIDE] CONVERT TO 1N FP32 TO 1N FP32 \n");
+                    convert_to_test_rand_float(handle,
+                                               FLOAT32_C3,
+                                               FLOAT32_C3,
+                                               image_shape,
+                                               img_format,
+                                               convert_to_arg,
+                                               convert_format,
+                                               1);
+                    printf("result of %d compare pass \n", test_cnt++);
 
-                printf("[SAME PARA] CONVERT TO 1N FP32 TO 1N FP32 \n");
-                convert_to_test_rand_float(handle,
-                                           FLOAT32_C3,
-                                           FLOAT32_C3,
-                                           image_shape,
-                                           same_convert_to_arg,
-                                           convert_format,
-                                           0);
-                printf("result of %d compare pass \n", test_cnt++);
+                    printf("[SAME PARA] CONVERT TO 1N FP32 TO 1N FP32 \n");
+                    convert_to_test_rand_float(handle,
+                                            FLOAT32_C3,
+                                            FLOAT32_C3,
+                                            image_shape,
+                                            img_format,
+                                            same_convert_to_arg,
+                                            convert_format,
+                                            0);
+                    printf("result of %d compare pass \n", test_cnt++);
 
-                printf("[SAME PARA] [WITH STRIDE] CONVERT TO 1N FP32 TO 1N FP32 \n");
-                convert_to_test_rand_float(handle,
-                                           FLOAT32_C3,
-                                           FLOAT32_C3,
-                                           image_shape,
-                                           same_convert_to_arg,
-                                           convert_format,
-                                           1);
-                printf("result of %d compare pass \n", test_cnt++);
+                    printf("[SAME PARA] [WITH STRIDE] CONVERT TO 1N FP32 TO 1N FP32 \n");
+                    convert_to_test_rand_float(handle,
+                                               FLOAT32_C3,
+                                               FLOAT32_C3,
+                                               image_shape,
+                                               img_format,
+                                               same_convert_to_arg,
+                                               convert_format,
+                                               1);
+                    printf("result of %d compare pass \n", test_cnt++);
 
-                printf("---------CONVERT TO CORNER TEST---------- \n");
-                int rand_loop_num = 2;
-                for(int rand_loop_idx = 0; rand_loop_idx < rand_loop_num; rand_loop_idx++){
-                    for(int rand_mode = 0; rand_mode < my_MAX_RAND_MODE; rand_mode++){
-                        gen_test_size(chipid,
-                                      &image_shape.w,
-                                      &image_shape.h,
-                                      &image_shape.n,
-                                      &image_shape.c,
-                                      rand_mode);
-                        printf("rand_mode: %d , img_w: %d ,img_h: %d , img_c: %d img_n: %d\n",
-                                rand_mode, image_shape.w, image_shape.h, image_shape.c, image_shape.n);
-                        test_cnt = 0;
-                        convert_format = CONVERT_1N_TO_1N;
-                        printf("CONVERT TO 1N fp32 TO 1N fp32");
-                        convert_to_test_rand_float(handle,
-                                           FLOAT32_C3,
-                                           FLOAT32_C3,
-                                           image_shape,
-                                           convert_to_arg,
-                                           convert_format,
-                                           0);
-                        printf("result of %d compare pass \n", test_cnt++);
+                    printf("---------CONVERT TO CORNER TEST---------- \n");
+                    int rand_loop_num = 2;
+                    for(int rand_loop_idx = 0; rand_loop_idx < rand_loop_num; rand_loop_idx++){
+                        for(int rand_mode = 0; rand_mode < my_MAX_RAND_MODE; rand_mode++){
+                            gen_test_size(chipid,
+                                        &image_shape.w,
+                                        &image_shape.h,
+                                        &image_shape.n,
+                                        &image_shape.c,
+                                        rand_mode);
+                            printf("rand_mode: %d , img_w: %d ,img_h: %d , img_c: %d img_n: %d\n",
+                                    rand_mode, image_shape.w, image_shape.h, image_shape.c, image_shape.n);
+                            test_cnt = 0;
+                            convert_format = CONVERT_1N_TO_1N;
+                            printf("CONVERT TO 1N fp32 TO 1N fp32");
+                            convert_to_test_rand_float(handle,
+                                            FLOAT32_C3,
+                                            FLOAT32_C3,
+                                            image_shape,
+                                            img_format,
+                                            convert_to_arg,
+                                            convert_format,
+                                            0);
+                            printf("result of %d compare pass \n", test_cnt++);
 
-                        printf("[WITH STRIDE] CONVERT TO 1N int8 TO 1N int8 \n");
-                        convert_to_test_rand_int8(handle,
-                                           INT8_C3,
-                                           INT8_C3,
-                                           image_shape,
-                                           convert_to_arg,
-                                           convert_format,
-                                           1);
-                        printf("result of %d compare pass \n", test_cnt++);
+                            printf("[WITH STRIDE] CONVERT TO 1N int8 TO 1N int8 \n");
+                            convert_to_test_rand_int8(handle,
+                                               INT8_C3,
+                                               INT8_C3,
+                                               image_shape,
+                                               img_format,
+                                               convert_to_arg,
+                                               convert_format,
+                                               1);
+                            printf("result of %d compare pass \n", test_cnt++);
 
-                        printf("[WITH STRIDE] CONVERT TO 1N fp32 TO 1N fp32 \n");
-                        convert_to_test_rand_float(handle,
-                                           FLOAT32_C3,
-                                           FLOAT32_C3,
-                                           image_shape,
-                                           convert_to_arg,
-                                           convert_format,
-                                           1);
-                        printf("result of %d compare pass \n", test_cnt++);
+                            printf("[WITH STRIDE] CONVERT TO 1N fp32 TO 1N fp32 \n");
+                            convert_to_test_rand_float(handle,
+                                               FLOAT32_C3,
+                                               FLOAT32_C3,
+                                               image_shape,
+                                               img_format,
+                                               convert_to_arg,
+                                               convert_format,
+                                               1);
+                            printf("result of %d compare pass \n", test_cnt++);
 
-                        printf("[SAME PARA] CONVERT TO 1N FP32 TO 1N FP32 \n");
-                        convert_to_test_rand_float(handle,
-                                           FLOAT32_C3,
-                                           FLOAT32_C3,
-                                           image_shape,
-                                           same_convert_to_arg,
-                                           convert_format,
-                                           0);
-                        printf("result of %d compare pass \n", test_cnt++);
+                            printf("[SAME PARA] CONVERT TO 1N FP32 TO 1N FP32 \n");
+                            convert_to_test_rand_float(handle,
+                                            FLOAT32_C3,
+                                            FLOAT32_C3,
+                                            image_shape,
+                                            img_format,
+                                            same_convert_to_arg,
+                                            convert_format,
+                                            0);
+                            printf("result of %d compare pass \n", test_cnt++);
 
-                        printf("[SAME PARA] CONVERT TO 1N int8 TO 1N int8 \n");
-                        convert_to_test_rand_int8(handle,
-                                         INT8_C3,
-                                         INT8_C3,
-                                         image_shape,
-                                         same_convert_to_arg,
-                                         convert_format,
-                                         0);
-                        printf("result of %d compare pass \n", test_cnt++);
+                            printf("[SAME PARA] CONVERT TO 1N int8 TO 1N int8 \n");
+                            convert_to_test_rand_int8(handle,
+                                            INT8_C3,
+                                            INT8_C3,
+                                            image_shape,
+                                            img_format,
+                                            same_convert_to_arg,
+                                            convert_format,
+                                            0);
+                            printf("result of %d compare pass \n", test_cnt++);
 
-                        printf("[SAME PARA] [WITH STRIDE] CONVERT TO 1N FP32 TO 1N FP32 \n");
-                        convert_to_test_rand_float(handle,
-                                           FLOAT32_C3,
-                                           FLOAT32_C3,
-                                           image_shape,
-                                           same_convert_to_arg,
-                                           convert_format,
-                                           1);
-                        printf("result of %d compare pass \n", test_cnt++);
+                            printf("[SAME PARA] [WITH STRIDE] CONVERT TO 1N FP32 TO 1N FP32 \n");
+                            convert_to_test_rand_float(handle,
+                                               FLOAT32_C3,
+                                               FLOAT32_C3,
+                                               image_shape,
+                                               img_format,
+                                               same_convert_to_arg,
+                                               convert_format,
+                                               1);
+                            printf("result of %d compare pass \n", test_cnt++);
+                        }
                     }
-                }
 
-                break;
-            default:
-                printf("Chipid Is Not Support !\n");
-                break;
+                    break;
+                default:
+                    printf("Chipid Is Not Support !\n");
+                    break;
+            }
+
         }
 
     }

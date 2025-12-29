@@ -509,6 +509,7 @@ NOTE: For setting specific values of 128 bit endiness, please refer to the 'WAVE
 typedef void* BMVidCodHandle;
 
 DECL_EXPORT void bmvpu_dec_set_logging_threshold(BmVpuDecLogLevel log_level);
+DECL_EXPORT void bmvpu_dec_get_commit_version();
 DECL_EXPORT BMVidDecRetStatus bmvpu_dec_create(BMVidCodHandle* pVidCodHandle, BMVidDecParam decParam);
 #ifdef BM_PCIE_MODE
 DECL_EXPORT BMVidDecRetStatus bmvpu_dec_read_memory(int soc_idx, u64 src_addr, unsigned char *dst_addr, int size);

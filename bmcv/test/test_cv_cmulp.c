@@ -17,15 +17,6 @@ typedef struct {
 extern int cpu_cmul(float* XRHost, float* XIHost, float* PRHost, float* PIHost,
                     float* cpu_YR, float* cpu_YI, int L, int batch);
 
-static int parameters_check(int len, int batch)
-{
-    if (len > 4096 || batch > 1980){
-        printf("Unsupported size : len_max = 4096, batch_max = 1980 \n");
-        return -1;
-    }
-    return 0;
-}
-
 static int tpu_cmul(float* XRHost, float* XIHost, float* PRHost, float* PIHost,
                     float* tpu_YR, float* tpu_YI, int L, int batch, bm_handle_t handle)
 {
@@ -133,7 +124,7 @@ static int cmp_result(float* cpu_YR, float* cpu_YI, float* tpu_YR, float* tpu_YI
 }
 
 static int test_cmulp_random(int L, int batch, bm_handle_t handle) {
-
+    printf("batch = %d, len = %d\n", batch, L);
     float* XRHost = (float*)malloc(L * batch * sizeof(float));
     float* XIHost = (float*)malloc(L * batch * sizeof(float));
     float* PRHost = (float*)malloc(L * sizeof(float));
@@ -195,6 +186,10 @@ void* test_thread_cmulp(void* args) {
     int batch = cv_cmulp_thread_arg->batch;
     bm_handle_t handle = cv_cmulp_thread_arg->handle;
     for (int i = 0; i < loop; ++i) {
+        if (loop > 1) {
+            L = 1 + rand() % 4096;
+            batch = 2 + rand() % 1980;
+        }
         int ret = test_cmulp_random(L, batch, handle);
         if (ret) {
             printf("------Test Cmulp Failed!------\n");
@@ -205,7 +200,6 @@ void* test_thread_cmulp(void* args) {
     return (void*)0;
 }
 
-
 int main(int argc, char *args[]) {
     struct timespec tp;
     clock_gettime(0, &tp);
@@ -214,9 +208,8 @@ int main(int argc, char *args[]) {
     int thread_num = 1;
     int loop = 1;
     int L = 1 + rand() % 4096;
-    int batch = 1 + rand() % 1980;
+    int batch = 2 + rand() % 1980;
     int ret = 0;
-    int check = 0;
     bm_handle_t handle;
     ret = bm_dev_request(&handle, 0);
     if (ret != BM_SUCCESS) {
@@ -238,11 +231,6 @@ int main(int argc, char *args[]) {
     if (argc > 3) L = atoi(args[3]);
     if (argc > 4) batch = atoi(args[4]);
 
-    check = parameters_check(L, batch);
-    if (check) {
-        printf("Parameters Failed! \n");
-        return check;
-    }
     printf("seed = %d\n", seed);
     // test for multi-thread
     pthread_t pid[thread_num];

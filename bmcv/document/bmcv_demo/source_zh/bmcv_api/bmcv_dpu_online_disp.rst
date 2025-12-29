@@ -110,4 +110,4 @@ bmcv_dpu_online_disp
 
 1. 左右图像的 height 和 width 必须相同。
 
-1. 左右图像的 width 要求 4 对齐，height 要求 2 对齐，输入图 stride 需要 16 对齐，输出图 stride 需要 32对齐。
+1. 左右图像的 width 要求 16 对齐，height 要求 2 对齐，输入图 stride 需要 16 对齐，输出图 stride 需要 32对齐。

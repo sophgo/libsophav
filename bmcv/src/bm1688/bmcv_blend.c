@@ -513,31 +513,30 @@ static int bm_stitch_SendChnFrame(stitch_grp stitchGrpIdx, const video_frame_inf
 
 static int bm_stitch_GetChnFrame(stitch_grp stitchGrpIdx, video_frame_info_s *VideoFrame, int MilliSec)
 {
-  int fd = -1;
-  int s32Ret = BM_SUCCESS;
-  struct stitch_grp_chn_frm_cfg cfg;
+    int fd = -1;
+    int s32Ret = BM_SUCCESS;
+    struct stitch_grp_chn_frm_cfg cfg;
 
-  if (get_stitch_fd(&fd) != BM_SUCCESS)
-    return BM_ERR_FAILURE;
+    if (get_stitch_fd(&fd) != BM_SUCCESS) {
+        return BM_ERR_FAILURE;
+    }
+    if (NULL == VideoFrame) {
+        BMCV_ERR_LOG("bm_stitch_GetChnFrame, bm_image output NULL\n");
+        return BM_ERR_FAILURE;
+    }
 
-  if(NULL == VideoFrame)
-  {
-    BMCV_ERR_LOG("bm_stitch_GetChnFrame, bm_image output NULL\n");
-    return BM_ERR_FAILURE;
-  }
+    memset(&cfg, 0, sizeof(cfg));
+    cfg.grp_id = stitchGrpIdx;
+    cfg.cfg.milli_sec = MilliSec;
 
-  memset(&cfg, 0, sizeof(cfg));
-  cfg.grp_id = stitchGrpIdx;
-  cfg.cfg.milli_sec = MilliSec;
+    s32Ret = stitch_get_chn_frame(fd, &cfg);
+    if (s32Ret != BM_SUCCESS) {
+        BMCV_ERR_LOG("stitch, get chn frame fail\n");
+        return s32Ret;
+    }
+    memcpy(VideoFrame, &cfg.cfg.video_frame, sizeof(*VideoFrame));
 
-  s32Ret = stitch_get_chn_frame(fd, &cfg);
-  if (s32Ret != BM_SUCCESS) {
-    BMCV_ERR_LOG("stitch, get chn frame fail\n");
-    return s32Ret;
-  }
-  memcpy(VideoFrame, &cfg.cfg.video_frame, sizeof(*VideoFrame));
-
-  return BM_SUCCESS;
+    return BM_SUCCESS;
 }
 
 __attribute__((unused)) static int bm_stitch_ReleaseChnFrame(stitch_grp stitchGrpIdx, video_frame_info_s *VideoFrame)
@@ -807,30 +806,24 @@ static inline int check_fmt_param(bm_image image, bm_image_format_ext fmt, int w
 }
 static inline int check_input_output_fmt(bm_image_format_ext input_fmt, bm_image_format_ext output_fmt)
 {
-  int s32Ret = BLEND_SUCCESS;
-  switch (input_fmt){
-    case FORMAT_RGBP_SEPARATE:
-    case FORMAT_BGRP_SEPARATE:
-      if(input_fmt != output_fmt)
+    int s32Ret = BLEND_SUCCESS;
+    switch (input_fmt){
+        case FORMAT_RGBP_SEPARATE:
+        case FORMAT_BGRP_SEPARATE:
+        case FORMAT_GRAY:
+        case FORMAT_YUV422P:
+        case FORMAT_YUV444P:
+        case FORMAT_YUV420P:
+        if (input_fmt != output_fmt) {
+            BMCV_ERR_LOG("bmcv blend input&&output image format should be same\n");
+            s32Ret = BLEND_INCORRECT_FMT;
+        }
+        break;
+        default:
+        BMCV_ERR_LOG("bmcv blend not support input_fmt(%d), output_fmt(%d)\n", input_fmt,output_fmt);
         s32Ret = BLEND_INCORRECT_FMT;
-      break;
-
-    case FORMAT_GRAY:
-    case FORMAT_YUV422P:
-    case FORMAT_YUV444P:
-    case FORMAT_YUV420P:
-      if((FORMAT_GRAY != output_fmt) && (FORMAT_YUV422P != output_fmt) && (FORMAT_YUV444P != output_fmt) && (FORMAT_YUV420P != output_fmt))
-        s32Ret = BLEND_INCORRECT_FMT;
-      break;
-
-    default:
-      s32Ret = BLEND_INCORRECT_FMT;
-  }
-  if(BLEND_SUCCESS != s32Ret)
-  {
-    BMCV_ERR_LOG("bmcv blend not support input_fmt(%d), output_fmt(%d)\n", input_fmt,output_fmt);
-  }
-  return s32Ret;
+    }
+    return s32Ret;
 }
 
 static int inline check_blend_param(bm_handle_t handle, int input_num, bm_image* input,bm_image output,struct stitch_param stitch_config)

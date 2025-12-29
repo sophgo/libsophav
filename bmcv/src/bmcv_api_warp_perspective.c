@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include <stdio.h>
+#include <math.h>
 #include "bmcv_common.h"
 #include "bmcv_internal.h"
 #define NO_USE 0
@@ -148,10 +149,33 @@ static bm_status_t bmcv_perspective_check(
             }
         }
     }
+
     for (int i = 0; i < image_num; i++) {
         for (int j = 0; j < matrix[i].matrix_num; j++) {
             for(int a=0;a<9;a++)
                 m[a]=matrix[i].matrix[j].m[a];
+
+            double denom_1 = m[6] * 0 + m[7] * 0 + m[8];
+            if (fabs(denom_1) < 1e-7) {
+                printf("Division by zero at point (0, 0)\n");
+                return BM_NOT_SUPPORTED;
+            }
+            double denom_2 = m[6] * 0 + m[7] * (image_dh - 1) + m[8];
+            if (fabs(denom_2) < 1e-7) {
+                printf("Division by zero at point (0, image_dh - 1)\n");
+                return BM_NOT_SUPPORTED;
+            }
+            double denom_3 = m[6] * (image_dw - 1) + m[7] * 0 + m[8];
+            if (fabs(denom_3) < 1e-7) {
+                printf("Division by zero at point (image_dw - 1, 0)\n");
+                return BM_NOT_SUPPORTED;
+            }
+            double denom_4 = m[6] * (image_dw - 1) + m[7] * (image_dh - 1) + m[8];
+            if (fabs(denom_4) < 1e-7) {
+                printf("Division by zero at point (image_dw - 1, image_dh - 1)\n");
+                return BM_NOT_SUPPORTED;
+            }
+
             int left_top_x = (int)((m[0] * 0 + m[1] * 0 + m[2]) / (m[6] * 0 + m[7] * 0 + m[8]));
             int left_top_y = (int)((m[3] * 0 + m[4] * 0 + m[5]) / (m[6] * 0 + m[7] * 0 + m[8]));
             int left_btm_x = (int)((m[0] * 0 + m[1] * (image_dh - 1) + m[2]) / (m[6] * 0 + m[7] * (image_dh - 1) + m[8]));
@@ -160,14 +184,14 @@ static bm_status_t bmcv_perspective_check(
             int right_top_y = (int)((m[3] * (image_dw - 1) + m[4] * 0 + m[5]) / (m[6] * (image_dw - 1) + m[7] * 0 + m[8]));
             int right_btm_x = (int)((m[0] * (image_dw - 1) + m[1] * (image_dh - 1) + m[2]) / (m[6] * (image_dw - 1) + m[7] * (image_dh - 1) + m[8]));
             int right_btm_y = (int)((m[3] * (image_dw - 1) + m[4] * (image_dh - 1) + m[5]) / (m[6] * (image_dw - 1) + m[7] * (image_dh - 1) + m[8]));
-            if (left_top_x < 0 || left_top_x > image_sw ||
-                left_top_y < 0 || left_top_y > image_sh ||
-                left_btm_x < 0 || left_btm_x > image_sw ||
-                left_btm_y < 0 || left_btm_y > image_sh ||
-                right_top_x < 0 || right_top_x > image_sw ||
-                right_top_y < 0 || right_top_y > image_sh ||
-                right_btm_x < 0 || right_btm_x > image_sw ||
-                right_btm_y < 0 || right_btm_y > image_sh) {
+            if (left_top_x < 0 || left_top_x >= image_sw ||
+                left_top_y < 0 || left_top_y >= image_sh ||
+                left_btm_x < 0 || left_btm_x >= image_sw ||
+                left_btm_y < 0 || left_btm_y >= image_sh ||
+                right_top_x < 0 || right_top_x >= image_sw ||
+                right_top_y < 0 || right_top_y >= image_sh ||
+                right_btm_x < 0 || right_btm_x >= image_sw ||
+                right_btm_y < 0 || right_btm_y >= image_sh) {
 
                 printf("Output image is out of input image range\n");
                 return BM_NOT_SUPPORTED;

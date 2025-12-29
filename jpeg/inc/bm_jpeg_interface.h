@@ -439,6 +439,9 @@ typedef struct {
     size_t framebuffer_size;
 } BmJpuJPEGDecInfo;
 
+/* Obtain the compilation version information and time of the dynamic library */
+DECL_EXPORT void bm_jpu_get_commit_version();
+
 /* Convenience function which calculates various sizes out of the given width & height and image format.
  * The results are stored in "calculated_sizes". The given frame width and height will be aligned if
  * they aren't already, and the aligned value will be stored in calculated_sizes. Width & height must be

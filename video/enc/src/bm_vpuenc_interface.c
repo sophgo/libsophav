@@ -49,6 +49,13 @@
 #include "bmlib_runtime.h"
 
 #define MAX_SOC_NUM 64
+#define VENC_GIT_COMMIT_HASH "a6efb9688d"
+#define VENC_GIT_BRANCH "HEAD"
+#define VENC_SDK_VERSION "2.1.0"
+
+__attribute__((visibility("default")))
+static const char _venc_commit_info[] = "SDK version: " VENC_SDK_VERSION "  commit hash: " VENC_GIT_COMMIT_HASH "   branch: " VENC_GIT_BRANCH;
+
 typedef struct _BMLIB_HANDLE{
     bm_handle_t bm_handle;
     unsigned int count;
@@ -300,6 +307,10 @@ static inline void get_pic_buffer_config_internal(unsigned int width, unsigned i
 }
 
 
+void bmvpu_enc_get_commit_version()
+{
+    printf("VENC %s, compile time: %s %s\n", _venc_commit_info, __DATE__, __TIME__);
+}
 
 int bmvpu_enc_get_core_idx(int soc_idx)
 {

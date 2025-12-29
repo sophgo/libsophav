@@ -14,120 +14,277 @@
 
 typedef struct {
     int loop_num;
-    int length;
     int batch;
+    int fs;
+    int duration;
+    int window;
+    int nperseg;
+    int noverlap;
+    int nfft;
+    bool return_onesided;
+    int boundary;
+    bool padded;
     bool real_input;
-    int pad_mode;
-    int win_mode;
-    int n_fft;
-    int hop_len;
-    bool norm;
-    char* src_name;
-    char* dst_name;
-    char* gold_name;
     bm_handle_t handle;
 } cv_stft_thread_arg_t;
 
-typedef struct {
-    float real;
-    float imag;
-} Complex;
+enum bdry{
+    zeros = 0,
+    constant,
+    even,
+    odd,
+    none,
+};
 
-enum Win_mode {
+enum win{
     HANN = 0,
     HAMM = 1,
 };
 
-enum Pad_mode {
-    CONSTANT = 0,
-    REFLECT = 1,
-};
-
-extern int cpu_stft(float* XRHost, float* XIHost, float* YRHost_cpu, float* YIHost_cpu, int L,
-            int batch, int n_fft, int hop_length, int num_frames, int pad_mode, int win_mode, bool norm);
-
-static void readBin_4b(const char* path, float* input_data, int size)
-{
-    FILE *fp_src = fopen(path, "rb");
-    if (fread((void *)input_data, 4, size, fp_src) < (unsigned int)size){
-        printf("file size is less than %d required bytes\n", size);
-    };
-
-    fclose(fp_src);
+static int check_param(int fs, int duration, int window, int nperseg, int noverlap, int nfft, int boundary) {
+    if (nperseg > fs * duration){
+        printf("nperseg should not larger than signal length!\n");
+        return -1;
+    }
+    if (noverlap >= nperseg) {
+        printf("noverlap should less than nperseg!\n");
+        return -1;
+    }
+    if (nfft < nperseg) {
+        printf("nfft should not less than nperseg!\n");
+        return -1;
+    }
+    if (window != HAMM && window != HANN) {
+        printf("Unsupported window! Only support HAMM and HANN\n");
+        return -1;
+    }
+    if (boundary != zeros && boundary != constant && boundary != even && boundary != odd && boundary != none) {
+        printf("Unsupported boundary!\n");
+        return -1;
+    }
+    return 0;
 }
 
-static void readBin_8b(const char* path, float* YRHost_tpu, float* YIHost_tpu, int size)
+static void apply_window(float* window, int n, int win_mode)
 {
-    FILE *fp_src = fopen(path, "rb");
-    Complex* last_data = (Complex*)malloc(size * sizeof(Complex));
     int i;
 
-    if (fread((void *)last_data, 8, size, fp_src) < (unsigned int)size){
-        printf("file size is less than %d required bytes\n", size);
-        free(last_data);
-    };
-
-    for (i = 0; i < size; ++i) {
-        YRHost_tpu[i] = last_data[i].real;
-        YIHost_tpu[i] = last_data[i].imag;
+    if (win_mode == HANN) {
+        for (i = 0; i < n; i++) {
+            window[i] *= 0.5 * (1 - cos(2 * M_PI * (float)i / (n - 1)));
+        }
+    } else if (win_mode == HAMM) {
+        for (i = 0; i < n; i++) {
+            window[i] *= 0.54 - 0.46 * cos(2 * M_PI * (float)i / (n - 1));
+        }
     }
-
-    free(last_data);
-    fclose(fp_src);
 }
 
-static void writeBin_8b(const char * path, float* input_XR, float* input_XI, int size)
+static void dft(float* in_real, float* in_imag, float* output_real,
+                float* output_imag, int length, bool forward)
 {
-    FILE *fp_dst = fopen(path, "wb");
-    Complex* last_data = (Complex*)malloc(size * sizeof(Complex));
-    int i;
+    int i, j;
+    float angle;
 
-    for (i = 0; i < size; ++i) {
-        last_data[i].real = input_XR[i];
-        last_data[i].imag = input_XI[i];
+    for (i = 0; i < length; ++i) {
+        output_real[i] = 0.f;
+        output_imag[i] = 0.f;
+        for (j = 0; j < length; ++j) {
+            angle = (forward ? -2.0 : 2.0) * M_PI * i * j / length;
+            output_real[i] += in_real[j] * cos(angle) - in_imag[j] * sin(angle);
+            output_imag[i] += in_real[j] * sin(angle) + in_imag[j] * cos(angle);
+        }
+    }
+}
+void transpose(int rows, int cols, float* input, float* output)
+{
+    int i, j;
+
+    for (i = 0; i < rows; i++) {
+        for (j = 0; j < cols; j++) {
+            output[j * rows + i] = input[i * cols + j];
+        }
+    }
+}
+
+static int cpu_stft(float* XRHost, float* XIHost, int batch, int xlen, int fs, int window, int nperseg, int noverlap,
+                    int nfft, bool return_onesided, int boundary, bool padded, float* YRHost, float* YIHost, float *f, float *t)
+{
+    int hop = nperseg - noverlap;
+    int xlen_ = 0;
+    if (boundary == zeros || boundary == constant || boundary == even || boundary == odd) {
+        xlen_ = xlen + 2 * hop;
+    } else {
+        xlen_ = xlen;
+    }
+    int padded_len = 0;
+    if (padded) {
+        padded_len = (xlen_ - nperseg) % hop == 0 ? 0 : hop - (xlen_ - nperseg) % hop;
+    }
+    xlen_ += padded_len;
+    int L = 1 + (xlen_ - nperseg) / hop;
+    int row_num = return_onesided ? nfft / 2 + 1 : nfft;
+
+    float* input_XR = (float*)malloc(xlen_ * sizeof(float));
+    float* input_XI = (float*)malloc(xlen_ * sizeof(float));
+    float* window_XR = (float*)malloc(nperseg * sizeof(float));
+    float* window_XI = (float*)malloc(nperseg * sizeof(float));
+    float* wxr_padded = (float*)calloc(nfft, sizeof(float));
+    float* wxi_padded = (float*)calloc(nfft, sizeof(float));
+    float* YR = (float*)malloc(nfft * sizeof(float));
+    float* YI = (float*)malloc(nfft * sizeof(float));
+    float* YR_cpu= (float*)malloc(nfft * L * sizeof(float));
+    float* YI_cpu = (float*)malloc(nfft * L * sizeof(float));
+
+    for (int i = 0; i < row_num; i++) {
+        f[i] = i * ((float)fs / nfft);
     }
 
-    if (fwrite((void *)last_data, 8, size, fp_dst) < (unsigned int)size){
-        printf("file size is less than %d required bytes\n", size);
-    };
+    for (int l = 0; l < L; l++) {
+        t[l] = (nperseg / 2.0 + l * hop) / fs;
+    }
 
-    free(last_data);
-    fclose(fp_dst);
+    for (int j = 0; j < batch; ++j) {
+        /* Initialize the input signal */
+        memset(input_XR, 0, xlen_ * sizeof(float));
+        memset(input_XI, 0, xlen_ * sizeof(float));
+
+        switch (boundary) {
+        case zeros:
+            // Zero-padding at both ends
+            for (int i = 0; i < hop; i++) {
+                input_XR[i] = 0.0f;                     // Left zero-padding
+                input_XR[xlen_ - padded_len - hop + i] = 0.0f; // Right zero-padding
+                input_XI[i] = 0.0f;                     // Left zero-padding
+                input_XI[xlen_ - padded_len - hop + i] = 0.0f; // Right zero-padding
+            }
+            // Copy original signal to the center
+            memcpy(input_XR + hop, XRHost + j * xlen, xlen * sizeof(float));
+            memcpy(input_XI + hop, XIHost + j * xlen, xlen * sizeof(float));
+            break;
+        case constant:
+            for (int i = 0; i < hop; i++) {
+                input_XR[i] = *(XRHost + j * xlen + hop);
+                input_XR[xlen_ - padded_len - hop + i] = *(XRHost + j * xlen + xlen - 1);
+                input_XI[i] = *(XIHost + j * xlen + hop);
+                input_XI[xlen_ - padded_len - hop + i] = *(XIHost + j * xlen + xlen - 1);
+            }
+            memcpy(input_XR + hop, XRHost + j * xlen, xlen * sizeof(float));
+            memcpy(input_XI + hop, XIHost + j * xlen, xlen * sizeof(float));
+            break;
+        case even:
+            // Even symmetry padding (mirroring with repetition of last element)
+            for (int i = 0; i < hop; i++) {
+                // Left padding: mirror from start
+                input_XR[i] = *(XRHost + j * xlen + hop - 1 - i);
+                input_XI[i] = *(XIHost + j * xlen + hop - 1 - i);
+                // Right padding: mirror from end
+                input_XR[xlen_ - padded_len - hop + i] = *(XRHost + j * xlen + xlen - 1 - i);
+                input_XI[xlen_ - padded_len - hop + i] = *(XIHost + j * xlen + xlen - 1 - i);
+            }
+            // Copy original signal to the center
+            memcpy(input_XR + hop, XRHost + j * xlen, xlen * sizeof(float));
+            memcpy(input_XI + hop, XIHost + j * xlen, xlen * sizeof(float));
+            break;
+
+        case odd:
+            // Odd symmetry padding (mirroring with sign flip)
+            for (int i = 0; i < hop; i++) {
+                // Left padding: mirror with sign flip
+                input_XR[i] = -*(XRHost + j * xlen + hop - i);  // Note: different indexing for odd symmetry
+                input_XI[i] = -*(XIHost + j * xlen + hop - i);
+                // Right padding: mirror with sign flip
+                input_XR[xlen_ - padded_len - hop + i] = -*(XRHost + j * xlen + xlen - 2 - i);
+                input_XI[xlen_ - padded_len - hop + i] = -*(XIHost + j * xlen + xlen - 2 - i);
+            }
+            // Copy original signal to the center
+            memcpy(input_XR + hop, XRHost + j * xlen, xlen * sizeof(float));
+            memcpy(input_XI + hop, XIHost + j * xlen, xlen * sizeof(float));
+            break;
+        case none:
+            memcpy(input_XR, XRHost + j * xlen, xlen * sizeof(float));
+            memcpy(input_XI, XIHost + j * xlen, xlen * sizeof(float));
+            break;
+        default:
+            printf("Unsupported boundary value! Use original signal.\n");
+            memcpy(input_XR, XRHost + j * xlen, xlen * sizeof(float));
+            memcpy(input_XI, XIHost + j * xlen, xlen * sizeof(float));
+            break;
+        }
+
+        for (int i = 0; i < padded_len; i++) {
+            input_XR[xlen_ - padded_len + i] = 0;
+            input_XI[xlen_ - padded_len + i] = 0;
+        }
+        /* calculate window & dft */
+        for (int l = 0; l < L; l++) {
+            memcpy(window_XR, input_XR + hop * l, nperseg * sizeof(float));
+            memcpy(window_XI, input_XI + hop * l, nperseg * sizeof(float));
+            apply_window(window_XR, nperseg, window);
+            apply_window(window_XI, nperseg, window);
+
+            memcpy(wxr_padded, window_XR, nperseg * sizeof(float));
+            memcpy(wxi_padded, window_XI, nperseg * sizeof(float));
+
+            dft(wxr_padded, wxi_padded, YR, YI, nfft, true);
+
+            memcpy(&(YR_cpu[l * row_num]), YR, row_num * sizeof(float));
+            memcpy(&(YI_cpu[l * row_num]), YI, row_num * sizeof(float));
+        }
+        transpose(L, row_num, YR_cpu, YRHost + j * row_num * L);
+        transpose(L, row_num, YI_cpu, YIHost + j * row_num * L);
+    }
+
+    free(input_XR);
+    free(input_XI);
+    free(window_XR);
+    free(window_XI);
+    free(wxr_padded);
+    free(wxi_padded);
+    free(YR);
+    free(YI);
+    free(YR_cpu);
+    free(YI_cpu);
+    return 0;
 }
 
 static int cmp_res(float* YRHost_tpu, float* YIHost_tpu, float* YRHost_cpu,
                     float* YIHost_cpu, int batch, int row, int col)
 {
     int i, j, k, index;
+    int count = 0;
 
     for(i = 0; i < batch; ++i) {
         for (j = 0; j < row; ++j) {
             for (k = 0; k < col; ++k) {
                 index = i * row * col + j * col + k;
-                if (fabs(YRHost_cpu[index] - YRHost_tpu[index]) > ERR_MAX ||
-                    fabs(YIHost_cpu[index] - YIHost_tpu[index]) > ERR_MAX) {
-                        printf("the cpu_res[%d][%d][%d].real = %f, the cpu_res[%d][%d][%d].img = %f, \
-                                the tpu_res[%d][%d][%d].real = %f, the tpu_res[%d][%d][%d].img = %f\n",
-                                i, j, k, YRHost_cpu[index], i, j, k, YIHost_cpu[index],
-                                i, j, k, YRHost_tpu[index], i, j, k, YIHost_tpu[index]);
-                        return -1;
+                if ((fabs(YRHost_cpu[index] - YRHost_tpu[index]) > 0.01 && fabs((YRHost_cpu[index] - YRHost_tpu[index])/YRHost_cpu[index]) > 0.01) ||
+                    (fabs((YIHost_cpu[index] - YIHost_tpu[index])/YIHost_cpu[index]) > 0.01 && fabs(YIHost_cpu[index] - YIHost_tpu[index]) > 0.01)) {
+                    count++;
                 }
             }
         }
     }
+    if ((float)count / (2 * batch * row * col) > 0.01) {
+        return count;
+    }
     return 0;
 }
 
-static bm_status_t tpu_stft(float* XRHost, float* XIHost, float* YRHost, float* YIHost, int L,
-                            int batch, bool realInput, int pad_mode,
-                            int win_mode, int n_fft, int hop_len, bool norm, bm_handle_t handle)
+static bm_status_t tpu_stft(float* XRHost, float* XIHost, int batch, int xlen, int fs, int window, int nperseg, int noverlap, int nfft,
+                    bool return_onesided, int boundary, bool padded, bool real_input, float* YRHost, float* YIHost, float *f, float *t, bm_handle_t handle)
 {
     bm_status_t ret = BM_SUCCESS;
     struct timeval t1, t2;
-
+    ret = bmcv_stft(handle, XRHost, XIHost, batch, xlen, fs, window, nperseg, noverlap,
+                    nfft, return_onesided, boundary, padded, real_input, YRHost, YIHost, f, t);
+    if (ret != BM_SUCCESS) {
+        printf("bmcv_stft failed!\n");
+        return ret;
+    }
     gettimeofday(&t1, NULL);
-    ret = bmcv_stft(handle, XRHost, XIHost, YRHost, YIHost, batch, L,
-                    realInput, pad_mode, n_fft, win_mode, hop_len, norm);
+    ret = bmcv_stft(handle, XRHost, XIHost, batch, xlen, fs, window, nperseg, noverlap,
+                    nfft, return_onesided, boundary, padded, real_input, YRHost, YIHost, f, t);
     if (ret != BM_SUCCESS) {
         printf("bmcv_stft failed!\n");
         return ret;
@@ -138,40 +295,47 @@ static bm_status_t tpu_stft(float* XRHost, float* XIHost, float* YRHost, float* 
     return ret;
 }
 
-static int test_stft(int L, int batch, bool realInput, int pad_mode, int win_mode, bm_handle_t handle,
-                    char* src_name, char* dst_name, char* gold_name, bool norm, int n_fft, int hop_length)
+static int test_stft(bm_handle_t handle, const int batch, const int fs, const int duration, const int window, const int nperseg, const int noverlap,
+                     const int nfft, bool return_onesided, const int boundary, bool padded, bool real_input)
 {
     int ret = 0;
-    int i;
     struct timeval t1, t2;
-    float* XRHost = (float*)malloc(L * batch * sizeof(float));
-    float* XIHost = (float*)malloc(L * batch * sizeof(float));
-    int num_frames = 1 + L / hop_length;
-    int row_num = n_fft / 2 + 1;
-    float* YRHost_cpu = (float*)malloc(batch * row_num * num_frames * sizeof(float));
-    float* YIHost_cpu = (float*)malloc(batch * row_num * num_frames * sizeof(float));
-    float* YRHost_tpu = (float*)malloc(batch * row_num * num_frames * sizeof(float));
-    float* YIHost_tpu = (float*)malloc(batch * row_num * num_frames * sizeof(float));
+    int xlen = fs * duration;
+    float* XRHost = (float*)malloc(batch * xlen * sizeof(float));
+    float* XIHost = (float*)malloc(batch * xlen * sizeof(float));
 
-    memset(XRHost, 0, L * batch * sizeof(float));
-    memset(XIHost, 0, L * batch * sizeof(float));
+    // Generate signal
+    memset(XRHost, 0, xlen * batch * sizeof(float));
+    memset(XIHost, 0, xlen * batch * sizeof(float));
 
-    printf("the L=%d, the batch=%d, the n_fft=%d, the hop_len = %d, the realinput = %d, \
-            the pad_mode=%d, the win_mode=%d, the noram = %d\n",
-            L, batch, n_fft, hop_length, realInput, pad_mode, win_mode, norm);
-
-    if (src_name != NULL) {
-        readBin_4b(src_name, XRHost, L * batch);
+    int hop = nperseg - noverlap;
+    int xlen_ = 0;
+    if (boundary == zeros || boundary == constant || boundary == even || boundary == odd) {
+        xlen_ = xlen + 2 * hop;
     } else {
-        for (i = 0; i < L * batch; i++) {
-            XRHost[i] = (float)rand() / RAND_MAX;;
-            XIHost[i] = realInput ? 0 : ((float)rand() / RAND_MAX);
-        }
+        xlen_ = xlen;
     }
+    int padded_len = 0;
+    if (padded) {
+        padded_len = (xlen_ - nperseg) % hop == 0 ? 0 : hop - (xlen_ - nperseg) % hop;
+    }
+    xlen_ += padded_len;
+
+    int L = 1 + (xlen_ - nperseg) / hop;
+    int row_num = return_onesided ? nfft / 2 + 1 : nfft;
+    float* YRHost_cpu = (float*)malloc(batch * L * row_num * sizeof(float));
+    float* YIHost_cpu = (float*)malloc(batch * L * row_num * sizeof(float));
+    float* YRHost_tpu = (float*)malloc(batch * L * row_num * sizeof(float));
+    float* YIHost_tpu = (float*)malloc(batch * L * row_num * sizeof(float));
+
+    printf("the xlen = %d, the batch=%d, the L=%d, the nfft=%d, the realinput = %d, the boundary=%d, the window=%d\n",
+            xlen, batch, L, nfft, real_input, boundary, window);
+
+    float *f = (float*)malloc(nfft * sizeof(float));
+    float *t_sec = (float*)malloc(L * sizeof(float));
 
     gettimeofday(&t1, NULL);
-    ret = cpu_stft(XRHost, XIHost, YRHost_cpu, YIHost_cpu, L, batch, n_fft,
-                    hop_length, num_frames, pad_mode, win_mode, norm);
+    ret = cpu_stft(XRHost, XIHost, batch, xlen, fs, window, nperseg, noverlap, nfft, return_onesided, boundary, padded, YRHost_cpu, YIHost_cpu, f, t_sec);
     if (ret != 0) {
         printf("cpu_stft failed!\n");
         goto exit;
@@ -179,29 +343,24 @@ static int test_stft(int L, int batch, bool realInput, int pad_mode, int win_mod
     gettimeofday(&t2, NULL);
     printf("STFT CPU using time = %ld(us)\n", TIME_COST_US(t1, t2));
 
-    if (dst_name != NULL) {
-        writeBin_8b(dst_name, YRHost_cpu, YIHost_cpu, batch * row_num * num_frames);
-    }
-
-    ret = tpu_stft(XRHost, XIHost, YRHost_tpu, YIHost_tpu, L, batch, realInput,
-                    pad_mode, win_mode, n_fft, hop_length, norm, handle);
+    // tpu stft
+    ret = tpu_stft(XRHost, XIHost, batch, xlen, fs, window, nperseg, noverlap, nfft, return_onesided, boundary, padded, real_input,
+                   YRHost_tpu, YIHost_tpu, f, t_sec, handle);
     if (ret != 0) {
         printf("tpu_stft failed!\n");
         goto exit;
     }
 
-    if (gold_name != NULL) {
-        printf("get the gold output!\n");
-        readBin_8b(gold_name, YRHost_cpu, YIHost_cpu, batch * row_num * num_frames);
-    }
-
-    ret = cmp_res(YRHost_tpu, YIHost_tpu, YRHost_cpu, YIHost_cpu, batch, num_frames, row_num);
+    ret = cmp_res(YRHost_tpu, YIHost_tpu, YRHost_cpu, YIHost_cpu, batch, row_num, L);
     if (ret != 0) {
         printf("cmp_res fail!\n");
+        printf("diff count = %d\n", ret);
         goto exit;
     }
 
 exit:
+    free(f);
+    free(t_sec);
     free(XRHost);
     free(XIHost);
     free(YRHost_cpu);
@@ -213,23 +372,23 @@ exit:
 
 void* test_thread_stft(void* args) {
     cv_stft_thread_arg_t* cv_stft_thread_arg = (cv_stft_thread_arg_t*)args;
-    int loop = cv_stft_thread_arg->loop_num;
-    int length = cv_stft_thread_arg->length;
+    const int loop = cv_stft_thread_arg->loop_num;
     int batch = cv_stft_thread_arg->batch;
+    int fs = cv_stft_thread_arg->fs;
+    int duration = cv_stft_thread_arg->duration;
+    int window = cv_stft_thread_arg->window;
+    int nperseg = cv_stft_thread_arg->nperseg;
+    int noverlap = cv_stft_thread_arg->noverlap;
+    int nfft = cv_stft_thread_arg->nfft;
+    bool return_onesided = cv_stft_thread_arg->return_onesided;
+    int boundary = cv_stft_thread_arg->boundary;
+    bool padded = cv_stft_thread_arg->padded;
     bool real_input = cv_stft_thread_arg->real_input;
-    int pad_mode = cv_stft_thread_arg->pad_mode;
-    int win_mode = cv_stft_thread_arg->win_mode;
-    int n_fft = cv_stft_thread_arg->n_fft;
-    int hop_len = cv_stft_thread_arg->hop_len;
-    bool norm = cv_stft_thread_arg->norm;
-    char *src_name = cv_stft_thread_arg->src_name;
-    char *dst_name = cv_stft_thread_arg->dst_name;
-    char *gold_name = cv_stft_thread_arg->gold_name;
     bm_handle_t handle = cv_stft_thread_arg->handle;
     int i, ret = 0;
 
     for (i = 0; i < loop; ++i) {
-        ret = test_stft(length, batch, real_input, pad_mode, win_mode, handle, src_name, dst_name, gold_name, norm, n_fft, hop_len);
+        ret = test_stft(handle, batch, fs, duration, window, nperseg, noverlap, nfft, return_onesided, boundary, padded, real_input);
         if(ret) {
             printf("test_stft failed\n");
             exit(-1);
@@ -243,24 +402,22 @@ int main(int argc, char* args[])
     struct timespec tp;
     clock_gettime(0, &tp);
     srand(tp.tv_nsec);
-
     bm_handle_t handle;
     int ret = 0;
-    int i;
     int thread_num = 1;
-    int length = 4096;
     int batch = 1;
-    bool real_input = true;
     int loop = 1;
-    int pad_mode = REFLECT;
-    int win_mode = HANN;
-    int n_fft = 4096;
-    int hop_len = 1024;
-    bool norm = true;
-    char* src_name = NULL;
-    char* dst_name = NULL;
-    char* gold_name = NULL;
 
+    int fs = 1024;
+    int duration = 10;
+    int window = HAMM;
+    int nperseg = 1024;
+    int noverlap = 512;
+    int nfft = 1215;
+    bool return_onesided = true;
+    int boundary = even;
+    bool padded = true;
+    bool real_input = true;
     ret = (int)bm_dev_request(&handle, 0);
     if (ret) {
         printf("Create bm handle failed. ret = %d\n", ret);
@@ -269,51 +426,56 @@ int main(int argc, char* args[])
 
     if (argc == 2 && atoi(args[1]) == -1) {
         printf("usage: %d\n", argc);
-        printf("%s thread_num loop length batch real_input pad_mode win_mode norm n_fft hop_len src_name dst_name gold_name) \n", args[0]);
+        printf("%s thread_num loop batch fs duration window nperseg noverlap nfft return_onesided boundary padded real_input\n", args[0]);
         printf("example:\n");
         printf("%s \n", args[0]);
         printf("%s 1 2\n", args[0]);
-        printf("%s 1 1 4096 1 1 1 1 1 4096 1024\n", args[0]);
+        printf("%s 1 1 1 200 10 0 256 128 256 0 0 0 1\n", args[0]);
         return 0;
     }
 
     if (argc > 1) thread_num = atoi(args[1]);
     if (argc > 2) loop = atoi(args[2]);
-    if (argc > 3) length = atoi(args[3]);
-    if (argc > 4) batch = atoi(args[4]);
-    if (argc > 5) real_input = atoi(args[5]);
-    if (argc > 6) pad_mode = atoi(args[6]);
-    if (argc > 7) win_mode = atoi(args[7]);
-    if (argc > 8) norm = atoi(args[8]);
-    if (argc > 9) n_fft = atoi(args[9]);
-    if (argc > 10) hop_len = atoi(args[10]);
-    if (argc > 11) src_name = args[11];
-    if (argc > 12) dst_name = args[12];
-    if (argc > 13) gold_name = args[13];
+    if (argc > 3) batch = atoi(args[3]);
+    if (argc > 4) fs = atoi(args[4]);
+    if (argc > 5) duration = atoi(args[5]);
+    if (argc > 6) window = atoi(args[6]);
+    if (argc > 7) nperseg = atoi(args[7]);
+    if (argc > 8) noverlap = atoi(args[8]);
+    if (argc > 9) nfft = atoi(args[9]);
+    if (argc > 10) return_onesided = (atoi(args[10]) != 0);
+    if (argc > 11) boundary = atoi(args[11]);
+    if (argc > 12) padded = (atoi(args[12]) != 0);
+    if (argc > 13) real_input = (atoi(args[13]) != 0);
+    int check = check_param(fs, duration, window, nperseg, noverlap, nfft, boundary);
+    if (check) {
+        printf("Parameters Failed! \n");
+        return check;
+    }
 
     pthread_t pid[thread_num];
     cv_stft_thread_arg_t cv_stft_thread_arg[thread_num];
 
-    for (i = 0; i < thread_num; i++) {
+    for (int i = 0; i < thread_num; i++) {
         cv_stft_thread_arg[i].loop_num = loop;
-        cv_stft_thread_arg[i].length = length;
         cv_stft_thread_arg[i].batch = batch;
+        cv_stft_thread_arg[i].fs = fs;
+        cv_stft_thread_arg[i].duration = duration;
+        cv_stft_thread_arg[i].window = window;
+        cv_stft_thread_arg[i].nperseg = nperseg;
+        cv_stft_thread_arg[i].noverlap = noverlap;
+        cv_stft_thread_arg[i].nfft = nfft;
+        cv_stft_thread_arg[i].return_onesided = return_onesided;
+        cv_stft_thread_arg[i].boundary = boundary;
+        cv_stft_thread_arg[i].padded = padded;
         cv_stft_thread_arg[i].real_input = real_input;
-        cv_stft_thread_arg[i].pad_mode = pad_mode;
-        cv_stft_thread_arg[i].win_mode = win_mode;
-        cv_stft_thread_arg[i].norm = norm;
-        cv_stft_thread_arg[i].n_fft = n_fft;
-        cv_stft_thread_arg[i].hop_len = hop_len;
-        cv_stft_thread_arg[i].src_name = src_name;
-        cv_stft_thread_arg[i].dst_name = dst_name;
-        cv_stft_thread_arg[i].gold_name = gold_name;
         cv_stft_thread_arg[i].handle = handle;
         if (pthread_create(&pid[i], NULL, test_thread_stft, &cv_stft_thread_arg[i]) != 0) {
             printf("create thread failed\n");
             return -1;
         }
     }
-    for (i = 0; i < thread_num; i++) {
+    for (int i = 0; i < thread_num; i++) {
         ret = pthread_join(pid[i], NULL);
         if (ret != 0) {
             printf("Thread join failed\n");

@@ -803,7 +803,6 @@ bm_status_t faiss_indexflatIP_fp32_single_test(bm_handle_t handle,
     }
     float** db_content_vec = (float**)malloc((is_transpose ? database_vecs_num : vec_dims) * sizeof(float*));
     float** db_content_vec_trans = (float**)malloc((is_transpose ? vec_dims : database_vecs_num) * sizeof(float*));
-
     if (is_transpose) {
         for(i = 0; i < vec_dims; i++) {
             db_content_vec_trans[i] = (float*)malloc(database_vecs_num * sizeof(float));
@@ -840,13 +839,11 @@ bm_status_t faiss_indexflatIP_fp32_single_test(bm_handle_t handle,
             }
         }
     }
-
     for (i = 0; i < query_vecs_num; ++i) {
         for (j = 0; j < vec_dims; ++j) {
             input_data[i * vec_dims + j] = input_content_vec[i][j];
         }
     }
-
     for (i = 0; i < database_vecs_num; ++i) {
         for (j = 0; j < vec_dims; ++j) {
             db_data[i * vec_dims + j] = db_content_vec[i][j];
@@ -1041,18 +1038,6 @@ free_mem1:
     return ret;
 }
 
-int param_check(int database_vecs_num, int query_vecs_num, int sort_cnt, int vec_dims){
-    if(sort_cnt > database_vecs_num) {
-        printf("sort_cnt cannot be greater than database_vecs_num!\n");
-        return -1;
-    }
-    if(query_vecs_num > database_vecs_num) {
-        printf("query_vecs_num cannot be greater than database_vecs_num!\n");
-        return -1;
-    }
-    return 0;
-}
-
 void* test_faiss_indexflatIP(void* args) {
     faiss_indexflatIP_thread_arg_t* faiss_indexflatIP_thread_arg = (faiss_indexflatIP_thread_arg_t*)args;
     int loop = faiss_indexflatIP_thread_arg->loop;
@@ -1066,7 +1051,7 @@ void* test_faiss_indexflatIP(void* args) {
     bm_handle_t handle = faiss_indexflatIP_thread_arg->handle;
     for(int i = 0; i < loop; i++){
         if(loop > 1) {
-            sort_cnt = rand() % 50 + 1;
+            sort_cnt = rand() % 30 + 1;
             query_vecs_num = rand() % 50 + 1;
             database_vecs_num = rand() % 10000 + query_vecs_num + sort_cnt;
             int flag = rand() % 3;
@@ -1117,7 +1102,7 @@ int main(int argc, char* args[]) {
     printf("random seed = %u\n", seed);
     int thread_num = 1;
     int loop = 1;
-    int sort_cnt = rand() % 50 + 1;
+    int sort_cnt = rand() % 30 + 1;
     int query_vecs_num = rand() % 50 + 1;
     int database_vecs_num = rand() % 10000 + query_vecs_num + sort_cnt;
     int vec_dims = 256;
@@ -1142,11 +1127,7 @@ int main(int argc, char* args[]) {
 
     printf("thread_num:        %d\n", thread_num);
     printf("loop:              %d\n", loop);
-    int ret = 0;
-    ret = param_check(database_vecs_num, query_vecs_num, sort_cnt, vec_dims);
-    if(ret != 0) {
-        return -1;
-    }
+    bm_status_t ret = 0;
     bm_handle_t handle;
     ret = bm_dev_request(&handle, 0);
     if (BM_SUCCESS != ret) {

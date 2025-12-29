@@ -204,6 +204,47 @@ bm_status_t bm_tpu_kernel_launch(bm_handle_t handle,
     return ret;
 }
 
+bm_status_t bm_tpu_kernel_launch_dual_core(
+        bm_handle_t handle,
+        const char *func_name,
+        tpu_launch_param_t* launch_params,
+        int* core_list,
+        int core_nums) {
+    tpu_kernel_module_t tpu_module[BM1688_MAX_CORES] = {0};
+    tpu_kernel_function_t func_id[BM1688_MAX_CORES] = {0};
+    bm_status_t ret = BM_SUCCESS;
+    for (int i = 0; i < BM1688_MAX_CORES; i++) {
+        ret = bm_load_tpu_module(handle, &tpu_module[i], core_list[i]);
+        if (ret != BM_SUCCESS) {
+            printf("%s bm_load_tpu_module failed!\n", func_name);
+            return ret;
+        }
+        func_id[i] = tpu_kernel_get_function_from_core(handle, tpu_module[i], func_name, i);
+    }
+    for (int core_idx = 0; core_idx < core_nums; core_idx++) {
+        launch_params[core_idx].func_id = func_id[core_list[core_idx]];
+    }
+    ret = tpu_kernel_launch_async_multicores(handle, launch_params, core_nums);
+    if (ret != BM_SUCCESS) {
+        printf("%s tpu_kernel_launch_async_multicores failed!\n", func_name);
+        return BM_ERR_FAILURE;
+    }
+    for(int i = 0; i < core_nums; i++){
+        ret = bm_thread_sync_from_core(handle, core_list[i]);
+        if (ret != BM_SUCCESS) {
+            printf("%s bm_thread_sync_from_core error!\n", func_name);
+            return BM_ERR_FAILURE;
+        }
+    }
+    for(int i = 0; i < core_nums; i++){
+        if (BM_SUCCESS != tpu_kernel_free_module(handle, tpu_module[i])) {
+            printf("%s tpu_kernel_free_module failed!\n", func_name);
+            return BM_ERR_FAILURE;
+        }
+    }
+    return ret;
+}
+
 bm_status_t bm_kernel_main_launch(bm_handle_t handle, int api_id, void *param, size_t size)
 {
     bm_status_t ret = BM_SUCCESS;
@@ -569,7 +610,6 @@ void bmcv_err_log_internal(char *      log_buffer,
 }
 
 plane_layout set_plane_layout(int n, int c, int h, int w, int Dsize){
-
     int pitch_stride = Dsize * w;
     int channel_stride = pitch_stride * h;
     int batch_stride = channel_stride * c;
@@ -660,6 +700,21 @@ bm_status_t update_memory_layout(bm_handle_t     handle,
                                  dst_layout.pitch_stride / dst_layout.data_size,
                                  src_layout.data_size
                                  };
+
+  bm_api_cv_width_align_dual_core_t api_dual_core = {bm_mem_get_device_addr(src),
+                                           bm_mem_get_device_addr(dst),
+                                           N,
+                                           C,
+                                           H,
+                                           W,
+                                           src_layout.batch_stride / src_layout.data_size,
+                                           src_layout.channel_stride / src_layout.data_size,
+                                           src_layout.pitch_stride / src_layout.data_size,
+                                           dst_layout.batch_stride / dst_layout.data_size,
+                                           dst_layout.channel_stride / dst_layout.data_size,
+                                           dst_layout.pitch_stride / dst_layout.data_size,
+                                           src_layout.data_size
+                                           };
     int core_id = 0;
     unsigned int chipid;
     bm_status_t ret = BM_SUCCESS;
@@ -669,21 +724,77 @@ bm_status_t update_memory_layout(bm_handle_t     handle,
         printf("get chipid is error !\n");
         return BM_ERR_DEVNOTREADY;
     }
+    tpu_launch_param_t launch_params[BM1688_MAX_CORES];
+    int if_core0 = 1;
+    int if_core1 = 0;
+    const char* tpu_env = getenv("TPU_CORES");
+    if (tpu_env == NULL) {
+        printf("Using the default TPU core configuration: core0\n");
+    } else {
+        if (strcmp(tpu_env, "0") == 0) {
+            printf("Use TPU core0\n");
+        } else if (strcmp(tpu_env, "1") == 0) {
+            printf("Use TPU core1\n");
+            if_core0 = 0;
+            if_core1 = 1;
+        } else if (strcmp(tpu_env, "2") == 0 || strcmp(tpu_env, "both") == 0) {
+            printf("Use all TPU cores (0 and 1))\n");
+            if_core1 = 1;
+        } else {
+            fprintf(stderr, "Invalid TPU_CORES value: %s\n", tpu_env);
+            fprintf(stderr, "Available options: 0, 1, 2/both\n");
+            exit(EXIT_FAILURE);
+        }
+    }
+    if (if_core0 == 1 && if_core1 == 1) {
+        int base_msg_id = 0;
+        int core_list[BM1688_MAX_CORES];
+        int core_nums = 0;
+        if (if_core0) core_list[core_nums++] = 0;
+        if (if_core1) core_list[core_nums++] = 1;
+        for (int i = 0; i < core_nums; i++) {
+            base_msg_id |= 1 << core_list[i];
+        }
+        api_dual_core.base_msg_id = base_msg_id;
+        api_dual_core.core_num = core_nums;
+        bm_api_cv_width_align_dual_core_t params[BM1688_MAX_CORES];
+        for (int core_idx = 0; core_idx < core_nums; core_idx++) {
+            api_dual_core.core_id = core_idx;
+            params[core_idx] = api_dual_core;
+            launch_params[core_idx].core_id = core_list[core_idx];
+            launch_params[core_idx].param_data = &params[core_idx];
+            launch_params[core_idx].param_size = sizeof(bm_api_cv_width_align_dual_core_t);
+        }
+        switch (chipid) {
+            case BM1688_PREV:
+            case BM1688:
+                ret = bm_tpu_kernel_launch_dual_core(handle, "cv_width_align_bm1688", launch_params, core_list, core_nums);
+                if(BM_SUCCESS != ret) {
+                    bmlib_log("QUANTIFY", BMLIB_LOG_ERROR, "quantify sync api error\n");
+                    return ret;
+                }
+                break;
+            default:
+                ret = BM_NOT_SUPPORTED;
+                printf("BM_NOT_SUPPORTED!\n");
+                break;
+        }
+    } else {
+        switch (chipid) {
+            case BM1688_PREV:
+            case BM1688:
+                ret = bm_tpu_kernel_launch(handle, "cv_width_align", (u8*)&api, sizeof(api), core_id);
+                if(BM_SUCCESS != ret){
+                    bmlib_log("WIDTH_ALIGN", BMLIB_LOG_ERROR, "width_align sync api error\n");
+                    return ret;
+                }
+                break;
 
-    switch(chipid) {
-        case BM1688_PREV:
-        case BM1688:
-            ret = bm_tpu_kernel_launch(handle, "cv_width_align", (u8 *)&api, \
-                                                sizeof(api), core_id);
-            if(BM_SUCCESS != ret){
-                bmlib_log("WIDTH_ALIGN", BMLIB_LOG_ERROR, "width_align sync api error\n");
-                return ret;
-            }
-            break;
-        default:
-            printf("BM_NOT_SUPPORTED!\n");
-            ret = BM_ERR_NOFEATURE;
-            break;
+            default:
+                printf("ChipID is NOT supported\n");
+                ret = BM_ERR_NOFEATURE;
+                break;
+        }
     }
 
     return ret;
@@ -1303,4 +1414,365 @@ bm_status_t bm_image_zeros(bm_image image)
       bm_memset_device(image.image_private->handle, 0, image.image_private->data[i]);
     }
     return BM_SUCCESS;
+}
+
+typedef struct {
+    int value;
+    int index;
+} HeapNode_int;
+
+static void min_heapify_int(int *values, int *idx, int heap_size, int i) {
+    int smallest = i;
+    int l = 2*i + 1;
+    int r = 2*i + 2;
+    if (l < heap_size) {
+        if (values[l] < values[smallest] ||
+           (values[l] == values[smallest] && idx[l] > idx[smallest])) {
+            smallest = l;
+        }
+    }
+    if (r < heap_size) {
+        if (values[r] < values[smallest] ||
+           (values[r] == values[smallest] && idx[r] > idx[smallest])) {
+            smallest = r;
+        }
+    }
+    if (smallest != i) {
+        int tv = values[i]; values[i] = values[smallest]; values[smallest] = tv;
+        int ti = idx[i];   idx[i]   = idx[smallest];   idx[smallest]   = ti;
+        min_heapify_int(values, idx, heap_size, smallest);
+    }
+}
+
+static void build_min_heap_int(int *values, int *idx, int heap_size) {
+    for (int i = heap_size/2 - 1; i >= 0; --i) {
+        min_heapify_int(values, idx, heap_size, i);
+    }
+}
+
+static int compare_descend_int(const void *a, const void *b) {
+    const HeapNode_int *pa = a;
+    const HeapNode_int *pb = b;
+    if (pa->value < pb->value) return  1;
+    if (pa->value > pb->value) return -1;
+    return pa->index - pb->index;
+}
+
+void find_topk_int(
+    int *multicore_values,
+    int *multicore_index,
+    int *topk_values,
+    int *topk_index,
+    int  topk,
+    int  use_tpu_num) {
+    int total = use_tpu_num * topk;
+    int *temp_values = (int*)malloc(total * sizeof(int));
+    int *temp_idx    = (int*)malloc(total * sizeof(int));
+    memcpy(temp_values, multicore_values, total * sizeof(int));
+    memcpy(temp_idx,    multicore_index,  total * sizeof(int));
+
+    build_min_heap_int(temp_values, temp_idx, topk);
+
+    for (int i = topk; i < total; ++i) {
+        if (temp_values[i] > temp_values[0] ||
+           (temp_values[i] == temp_values[0] && temp_idx[i] < temp_idx[0])) {
+            temp_values[0] = temp_values[i];
+            temp_idx[0]    = temp_idx[i];
+            min_heapify_int(temp_values, temp_idx, topk, 0);
+        }
+    }
+
+    HeapNode_int *nodes = (HeapNode_int*)malloc(topk * sizeof(HeapNode_int));
+    for (int i = 0; i < topk; ++i) {
+        nodes[i].value = temp_values[i];
+        nodes[i].index = temp_idx[i];
+    }
+    qsort(nodes, topk, sizeof(HeapNode_int), compare_descend_int);
+    for (int i = 0; i < topk; ++i) {
+        topk_values[i] = nodes[i].value;
+        topk_index[i]  = nodes[i].index;
+    }
+
+    free(nodes);
+    free(temp_values);
+    free(temp_idx);
+}
+
+typedef struct {
+    fp16  value;
+    int   index;
+} HeapNode_fp16;
+
+static void max_heapify_fp16(fp16 *values, int *idx, int heap_size, int i) {
+    int largest = i;
+    int l = 2*i + 1;
+    int r = 2*i + 2;
+    if (l < heap_size) {
+        float vl = fp16tofp32(values[l]);
+        float vs = fp16tofp32(values[largest]);
+        if (vl > vs || (fabsf(vl - vs) < 1e-6f && idx[l] < idx[largest])) {
+            largest = l;
+        }
+    }
+    if (r < heap_size) {
+        float vr = fp16tofp32(values[r]);
+        float vs = fp16tofp32(values[largest]);
+        if (vr > vs || (fabsf(vr - vs) < 1e-6f && idx[r] < idx[largest])) {
+            largest = r;
+        }
+    }
+    if (largest != i) {
+        fp16 tmp_v = values[i];   values[i] = values[largest];   values[largest] = tmp_v;
+        int  tmp_i = idx[i];      idx[i]   = idx[largest];       idx[largest]   = tmp_i;
+        max_heapify_fp16(values, idx, heap_size, largest);
+    }
+}
+
+static void min_heapify_fp16(fp16 *values, int *idx, int heap_size, int i) {
+    int smallest = i;
+    int l = 2*i + 1;
+    int r = 2*i + 2;
+    if (l < heap_size) {
+        float vl = fp16tofp32(values[l]);
+        float vs = fp16tofp32(values[smallest]);
+        if (vl < vs || (fabsf(vl - vs) < 1e-6f && idx[l] > idx[smallest])) {
+            smallest = l;
+        }
+    }
+    if (r < heap_size) {
+        float vr = fp16tofp32(values[r]);
+        float vs = fp16tofp32(values[smallest]);
+        if (vr < vs || (fabsf(vr - vs) < 1e-6f && idx[r] > idx[smallest])) {
+            smallest = r;
+        }
+    }
+    if (smallest != i) {
+        fp16 tmp_v = values[i];   values[i] = values[smallest];   values[smallest] = tmp_v;
+        int   tmp_i = idx[i];     idx[i]   = idx[smallest];       idx[smallest]   = tmp_i;
+        min_heapify_fp16(values, idx, heap_size, smallest);
+    }
+}
+
+static void build_max_heap_fp16(fp16 *values, int *idx, int heap_size) {
+    for (int i = heap_size/2 - 1; i >= 0; --i) {
+        max_heapify_fp16(values, idx, heap_size, i);
+    }
+}
+static void build_min_heap_fp16(fp16 *values, int *idx, int heap_size) {
+    for (int i = heap_size/2 - 1; i >= 0; --i) {
+        min_heapify_fp16(values, idx, heap_size, i);
+    }
+}
+
+static int compare_ascend_fp16(const void *a, const void *b) {
+    const HeapNode_fp16 *pa = a;
+    const HeapNode_fp16 *pb = b;
+    float fa = fp16tofp32(pa->value);
+    float fb = fp16tofp32(pb->value);
+    if (fa > fb) return  1;
+    if (fa < fb) return -1;
+    return pa->index - pb->index;
+}
+static int compare_descend_fp16(const void *a, const void *b) {
+    const HeapNode_fp16 *pa = a;
+    const HeapNode_fp16 *pb = b;
+    float fa = fp16tofp32(pa->value);
+    float fb = fp16tofp32(pb->value);
+    if (fa < fb) return  1;
+    if (fa > fb) return -1;
+    return pa->index - pb->index;
+}
+
+void find_topk_fp16(
+    fp16 *multicore_values,
+    int  *multicore_index,
+    fp16 *topk_values,
+    int  *topk_index,
+    int   topk,
+    int   use_tpu_num,
+    int   order) {
+    int total = use_tpu_num * topk;
+    fp16 *temp_values = (fp16*)malloc(total * sizeof(fp16));
+    int  *temp_idx    = (int *)malloc(total * sizeof(int));
+    memcpy(temp_values, multicore_values, total * sizeof(fp16));
+    memcpy(temp_idx,    multicore_index,  total * sizeof(int));
+    if (order == 1) {
+        build_min_heap_fp16(temp_values, temp_idx, topk);
+        for (int i = topk; i < total; ++i) {
+            float vi   = fp16tofp32(temp_values[i]);
+            float vtop = fp16tofp32(temp_values[0]);
+            if (vi > vtop || (fabsf(vi - vtop) < 1e-6f && temp_idx[i] < temp_idx[0])) {
+                temp_values[0] = temp_values[i];
+                temp_idx[0]    = temp_idx[i];
+                min_heapify_fp16(temp_values, temp_idx, topk, 0);
+            }
+        }
+    } else {
+        build_max_heap_fp16(temp_values, temp_idx, topk);
+        for (int i = topk; i < total; ++i) {
+            float vi   = fp16tofp32(temp_values[i]);
+            float vtop = fp16tofp32(temp_values[0]);
+            if (vi < vtop || (fabsf(vi - vtop) < 1e-6f && temp_idx[i] < temp_idx[0])) {
+                temp_values[0] = temp_values[i];
+                temp_idx[0]    = temp_idx[i];
+                max_heapify_fp16(temp_values, temp_idx, topk, 0);
+            }
+        }
+    }
+    HeapNode_fp16 *nodes = (HeapNode_fp16*)malloc(topk * sizeof(HeapNode_fp16));
+    for (int i = 0; i < topk; ++i) {
+        nodes[i].value = temp_values[i];
+        nodes[i].index = temp_idx[i];
+    }
+    qsort(nodes, topk, sizeof(HeapNode_fp16), (order == 1) ? compare_descend_fp16 : compare_ascend_fp16);
+    for (int i = 0; i < topk; ++i) {
+        topk_values[i] = nodes[i].value;
+        topk_index[i]  = nodes[i].index;
+    }
+
+    free(nodes);
+    free(temp_values);
+    free(temp_idx);
+}
+
+typedef struct {
+    float value;
+    int index;
+} HeapNode_fp32;
+
+static void swap_nodes(float* heap, int* index, int i, int j) {
+    float temp_value = heap[i];
+    heap[i] = heap[j];
+    heap[j] = temp_value;
+    int temp_index = index[i];
+    index[i] = index[j];
+    index[j] = temp_index;
+}
+static void max_heapify_float(float* heap, int* index, int heap_size, int i) {
+    int largest = i;
+    int left = 2 * i + 1;
+    int right = 2 * i + 2;
+
+    if (left < heap_size) {
+        if (heap[left] > heap[largest] ||
+            (fabs(heap[left] - heap[largest]) < 1e-6 && index[left] < index[largest])) {
+            largest = left;
+        }
+    }
+
+    if (right < heap_size) {
+        if (heap[right] > heap[largest] ||
+            (fabs(heap[right] - heap[largest]) < 1e-6 && index[right] < index[largest])) {
+            largest = right;
+        }
+    }
+
+    if (largest != i) {
+        swap_nodes(heap, index, i, largest);
+        max_heapify_float(heap, index, heap_size, largest);
+    }
+}
+
+static void min_heapify_float(float* heap, int* index, int heap_size, int i) {
+    int smallest = i;
+    int left = 2 * i + 1;
+    int right = 2 * i + 2;
+    if (left < heap_size) {
+        if (heap[left] < heap[smallest] ||
+            (fabs(heap[left] - heap[smallest]) < 1e-6 && index[left] < index[smallest])) {
+            smallest = left;
+        }
+    }
+    if (right < heap_size) {
+        if (heap[right] < heap[smallest] ||
+            (fabs(heap[right] - heap[smallest]) < 1e-6 && index[right] < index[smallest])) {
+            smallest = right;
+        }
+    }
+    if (smallest != i) {
+        float temp_value = heap[i];
+        heap[i] = heap[smallest];
+        heap[smallest] = temp_value;
+        int temp_index = index[i];
+        index[i] = index[smallest];
+        index[smallest] = temp_index;
+        min_heapify_float(heap, index, heap_size, smallest);
+    }
+}
+
+static void build_max_heap_float(float* heap, int* index, int heap_size) {
+    for (int i = heap_size / 2 - 1; i >= 0; i--) {
+        max_heapify_float(heap, index, heap_size, i);
+    }
+}
+
+static void build_min_heap_float(float* heap, int* index, int heap_size) {
+    for (int i = heap_size / 2 - 1; i >= 0; i--) {
+        min_heapify_float(heap, index, heap_size, i);
+    }
+}
+
+static int compare_descend(const void *a, const void *b) {
+    HeapNode_fp32* node_a = (HeapNode_fp32*)a;
+    HeapNode_fp32* node_b = (HeapNode_fp32*)b;
+    if (node_a->value > node_b->value) return -1;
+    else if (node_a->value < node_b->value) return 1;
+    else return node_a->index - node_b->index;
+}
+
+static int compare_ascend(const void *a, const void *b) {
+    HeapNode_fp32* node_a = (HeapNode_fp32*)a;
+    HeapNode_fp32* node_b = (HeapNode_fp32*)b;
+    if (node_a->value < node_b->value) return -1;
+    else if (node_a->value > node_b->value) return 1;
+    else return node_a->index - node_b->index;
+}
+
+void find_topk_fp32(
+        float *multicore_values,
+        int *multicore_index,
+        float *topk_values,
+        int *topk_index,
+        int topk,
+        int use_tpu_num,
+        int order) {
+    int total_elements = use_tpu_num * topk;
+    float* temp_values = (float*)malloc(total_elements * sizeof(float));
+    int* temp_idx = (int*)malloc(total_elements * sizeof(int));
+    memcpy(temp_values, multicore_values, total_elements * sizeof(float));
+    memcpy(temp_idx, multicore_index, total_elements * sizeof(int));
+    if (order == 1) {
+        build_min_heap_float(temp_values, temp_idx, topk);
+        for (int i = topk; i < total_elements; ++i) {
+            if (temp_values[i] > temp_values[0] ||
+                (fabs(temp_values[i] - temp_values[0]) < 1e-6 && temp_idx[i] < temp_idx[0])) {
+                temp_values[0] = temp_values[i];
+                temp_idx[0] = temp_idx[i];
+                min_heapify_float(temp_values, temp_idx, topk, 0);
+            }
+        }
+    } else {
+        build_max_heap_float(temp_values, temp_idx, topk);
+        for (int i = topk; i < total_elements; ++i) {
+            if (temp_values[i] < temp_values[0] ||
+                (fabs(temp_values[i] - temp_values[0]) < 1e-6 && temp_idx[i] < temp_idx[0])) {
+                temp_values[0] = temp_values[i];
+                temp_idx[0] = temp_idx[i];
+                max_heapify_float(temp_values, temp_idx, topk, 0);
+            }
+        }
+    }
+    HeapNode_fp32* topk_nodes = (HeapNode_fp32*)malloc(topk * sizeof(HeapNode_fp32));
+    for (int i = 0; i < topk; ++i) {
+        topk_nodes[i].value = temp_values[i];
+        topk_nodes[i].index = temp_idx[i];
+    }
+    qsort(topk_nodes, topk, sizeof(HeapNode_fp32), (order == 1) ? compare_descend : compare_ascend);
+    for (int i = 0; i < topk; ++i) {
+        topk_values[i] = topk_nodes[i].value;
+        topk_index[i] = topk_nodes[i].index;
+    }
+    free(topk_nodes);
+    free(temp_values);
+    free(temp_idx);
 }

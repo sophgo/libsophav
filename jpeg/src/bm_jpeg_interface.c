@@ -33,10 +33,23 @@
 #define MAX_NUM_DEV 64
 #define JPEG_CHN_START 64
 #define VDEC_MAX_CHN_NUM_INF    64
+#define JPEG_GIT_COMMIT_HASH "a6efb9688d"
+#define JPEG_GIT_BRANCH "HEAD"
+#define JPEG_SDK_VERSION "2.1.0"
+
+__attribute__((visibility("default")))
+static const char _jpeg_commit_info[] = "SDK version: " JPEG_SDK_VERSION "  commit hash: " JPEG_GIT_COMMIT_HASH "   branch: " JPEG_GIT_BRANCH;
+
 typedef struct _BMLIB_HANDLE{
     bm_handle_t bm_handle;
     unsigned int count;
 } BMLIB_HANDLE;
+
+void bm_jpu_get_commit_version()
+{
+    printf("JEPG %s, compile time: %s %s\n", _jpeg_commit_info, __DATE__, __TIME__);
+}
+
 
 BmJpuDecReturnCodes bm_jpu_calc_framebuffer_sizes(unsigned int frame_width,
                                    unsigned int frame_height,

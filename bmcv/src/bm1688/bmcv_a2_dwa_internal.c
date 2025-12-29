@@ -3025,6 +3025,7 @@ static bm_status_t bm_dwa_add_ldc_task(bm_handle_t handle, int fd, GDC_HANDLE hH
     memcpy(&attr.ldc_attr, pstLDCAttr, sizeof(*pstLDCAttr));
     attr.reserved = pstTask->reserved;
     attr.private_data[0] = dwa_tskMesh[idx].mem.u.device.device_addr;
+    attr.private_data[3] = pstTask->privatedata[3];
 
     pstTask->privatedata[0] = dwa_tskMesh[idx].mem.u.device.device_addr;
     pstTask->privatedata[1] = (u64)((uintptr_t)dwa_tskMesh[idx].mem.u.system.system_addr);
@@ -3203,6 +3204,7 @@ static bm_status_t bm_dwa_add_correction_task(bm_handle_t handle, int fd, GDC_HA
     memcpy(&attr.fisheye_attr, pstFishEyeAttr, sizeof(*pstFishEyeAttr));
     attr.reserved = pstTask->reserved;
     attr.private_data[0] = dwa_tskMesh[idx].mem.u.device.device_addr;
+    attr.private_data[3] = pstTask->privatedata[3];
 
     pstTask->privatedata[0] = dwa_tskMesh[idx].mem.u.device.device_addr;
     pstTask->privatedata[1] = (u64)((uintptr_t)dwa_tskMesh[idx].mem.u.system.system_addr);
@@ -3734,6 +3736,8 @@ bm_status_t bmcv_dwa_gdc_internel(bm_handle_t          handle,
     param.identity.id = 0;
 
     param.identity.sync_io = true;
+    if (ldc_attr.bBgColor == true)
+        param.stTask.privatedata[3] = ldc_attr.u32BgColor;
     param.op = DWA_TEST_LDC;
 
     if (ldc_attr.grid_info.size == 0) {
@@ -3808,6 +3812,8 @@ bm_status_t bmcv_dwa_fisheye_internel(bm_handle_t          handle,
     param.identity.mod_id = ID_GDC;
     param.identity.id = 0;
     param.identity.sync_io = true;
+    if (fisheye_attr.bBgColor == true)
+        param.stTask.privatedata[3] = fisheye_attr.u32BgColor;
 
     param.op = DWA_TEST_FISHEYE;
 

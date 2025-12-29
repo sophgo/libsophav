@@ -583,7 +583,7 @@ static void paint_mat(unsigned char* font_buff, unsigned long offset, int datasi
     return;
 }
 
-static void bilinear_downscale_argb8888(
+static void bilinear_argb8888(
     const ARGB8888* src, int src_w, int src_h,
     ARGB8888* dst, int dst_w, int dst_h, bmcv_color_t color)
 {
@@ -661,7 +661,7 @@ static bm_status_t resize_watermark(bm_handle_t handle, bm_image *out, bm_image 
     virt_addr = (unsigned long long)malloc(pmem.size);
 #endif
 
-    bilinear_downscale_argb8888((const ARGB8888*)in_vaddr, in->image_private->memory_layout->pitch_stride/4,
+    bilinear_argb8888((const ARGB8888*)in_vaddr, in->image_private->memory_layout->pitch_stride/4,
         in->height, (ARGB8888*)virt_addr, resize_w, resize_h, color);
 
 #ifndef BM_PCIE_MODE
@@ -690,6 +690,10 @@ fail:
     return ret;
 }
 
+static bool is_integer_fp32(float x) {
+    return fabsf(x - roundf(x)) < 1e-6f;
+}
+
 bm_status_t bmcv_gen_text_watermark(
     bm_handle_t handle,
     const wchar_t* hexcode,
@@ -705,8 +709,8 @@ bm_status_t bmcv_gen_text_watermark(
     unsigned char fontscale_u8 = (unsigned char)fontscale;
     unsigned char *ASCII = bmcv_test_res_1624_ez;
     unsigned char *HZK = bmcv_test_res_2424_unicode_1;
-    unsigned char need_down_resize =
-        (fontscale < 1 && fontscale > 0 && format == FORMAT_ARGB_PACKED);
+    unsigned char need_resize =
+        ((!is_integer_fp32(fontscale)) && fontscale > 0 && fontscale < 10 && format == FORMAT_ARGB_PACKED);
     bm_device_mem_t pmem;
     bm_image resize_bmimg;
 
@@ -770,14 +774,14 @@ bm_status_t bmcv_gen_text_watermark(
     }
     output->width = idx;
 
-    if (need_down_resize) {
-        ret = resize_watermark(handle, &resize_bmimg, output, fontscale, virt_addr, color);
+    if (need_resize) {
+        ret = resize_watermark(handle, &resize_bmimg, output, fontscale / (float)fontscale_u8, virt_addr, color);
         if (ret != BM_SUCCESS)
             goto fail;
     }
 
 #ifndef BM_PCIE_MODE
-    if (!need_down_resize) {
+    if (!need_resize) {
         ret = bm_mem_flush_device_mem(handle, &pmem);
         if (ret != BM_SUCCESS)
             goto fail;
@@ -795,7 +799,7 @@ bm_status_t bmcv_gen_text_watermark(
     }
 #endif
 
-    if (need_down_resize) {
+    if (need_resize) {
         bm_image_destroy(output);
         output[0] = resize_bmimg;
     }

@@ -9,7 +9,7 @@ function(get_version_from_tag ver_var commit_hash_var commit_count_var branch_va
         message(WARNING "Git not found.")
     else()
         execute_process(
-            COMMAND ${GIT_EXECUTABLE} rev-parse --short HEAD OUTPUT_VARIABLE commit_hash
+            COMMAND ${GIT_EXECUTABLE} rev-parse --short=10 HEAD OUTPUT_VARIABLE commit_hash
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
             OUTPUT_STRIP_TRAILING_WHITESPACE)
         execute_process(

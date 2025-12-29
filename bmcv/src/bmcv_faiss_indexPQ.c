@@ -1,17 +1,6 @@
 #include "bmcv_api_ext_c.h"
 #include "bmcv_internal.h"
 #include "bmcv_common.h"
-typedef enum {
-    DT_INT8   = (0 << 1) | 1,
-    DT_UINT8  = (0 << 1) | 0,
-    DT_INT16  = (3 << 1) | 1,
-    DT_UINT16 = (3 << 1) | 0,
-    DT_FP16   = (1 << 1) | 1,
-    DT_BFP16  = (5 << 1) | 1,
-    DT_INT32  = (4 << 1) | 1,
-    DT_UINT32 = (4 << 1) | 0,
-    DT_FP32   = (2 << 1) | 1
-} data_type_t;
 
 static int param_check_adc(int database_vecs_num, int query_vecs_num, int sort_cnt, int vec_dims, int centroids_num){
     if(sort_cnt > database_vecs_num) {

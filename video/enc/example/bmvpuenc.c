@@ -142,35 +142,35 @@ int g_exit_flag = 0;
 
 
 /* Obtain a backtrace and print it to stdout. */
-void
-print_trace (void)
-{
-  void *array[10];
-  char **strings;
-  int size, i;
+//void
+//print_trace (void)
+//{
+//  void *array[10];
+//  char **strings;
+//  int size, i;
 
-  size = backtrace (array, 10);
-  strings = backtrace_symbols (array, size);
-  if (strings != NULL)
-  {
-      printf ("Obtained %d stack frames.\n", size);
-      for (i = 0; i < size; i++)
-          printf ("%s\n", strings[i]);
-  }
+//  size = backtrace (array, 10);
+//  strings = backtrace_symbols (array, size);
+//  if (strings != NULL)
+//  {
+//      printf ("Obtained %d stack frames.\n", size);
+//      for (i = 0; i < size; i++)
+//          printf ("%s\n", strings[i]);
+//  }
 
-  free (strings);
-}
+//  free (strings);
+//}
 
 
 void signal_handler(int signum) {
    // Release handle before crash in case we cannot reopen it again.
    g_exit_flag = 1;     // exit all threads
    int try_count = 100;
-   printf( "signal=%d\n", signum);
+//   printf( "signal=%d\n", signum);
 
    signal(signum, SIG_IGN);
 
-   print_trace();
+//   print_trace();
    /* wait thread quit for 1s */
    while (try_count--){
      bool exit_all = true;
@@ -195,7 +195,7 @@ void signal_handler(int signum) {
    // Reset the signal handler as default
    signal(signum, SIG_DFL);
 
-   _exit(signum);
+//   _exit(signum);
 }
 
 

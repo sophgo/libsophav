@@ -46,6 +46,9 @@ bmcv_min_max
 * 其他: 失败
 
 
+**注意事项：**
+
+1. 该接口可通过设置环境变量启用双核计算，运行程序前：export TPU_CORES=2或export TPU_CORES=both即可。
 
 
 **示例代码**

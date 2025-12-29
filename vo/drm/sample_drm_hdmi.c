@@ -46,7 +46,7 @@ int main(int argc, char *argv[])
 	uint32_t conn_id;
 	uint32_t mode_id;
 	uint32_t fmt_id;
-	if (argc < 3) {
+	if (argc < 6) {
 		print_usage(argv[0]);
 		return 0;
 	} else {
@@ -83,16 +83,16 @@ int main(int argc, char *argv[])
 
 	conn = drmModeGetConnector(fd, conn_id);
 
-		bo_obj = bo_create(fd, disp_formats[fmt_id],
-			conn->modes[mode_id].hdisplay, conn->modes[mode_id].vdisplay, filename);
+	bo_obj = bo_create(fd, disp_formats[fmt_id],
+		conn->modes[mode_id].hdisplay, conn->modes[mode_id].vdisplay, filename);
 
-		drmModeSetCrtc(fd, crtc_id, bo_obj->fb_id,
-				0, 0, &conn_id, 1, &conn->modes[mode_id]);
+	drmModeSetCrtc(fd, crtc_id, bo_obj->fb_id,
+			0, 0, &conn_id, 1, &conn->modes[mode_id]);
 
-		printf("drmModeSetCrtc\n");
-		getchar();
+	printf("drmModeSetCrtc\n");
+	getchar();
 
-		bo_destroy(bo_obj);
+	bo_destroy(bo_obj);
 
 	drmModeFreeConnector(conn);
 	drmModeFreeResources(res);

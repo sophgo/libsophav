@@ -1331,9 +1331,7 @@ void bmcv_print_version() {
     }
     const char *fw_fname = "libbm1688_kernel_module.so";
     static char fw_path[512] = {0};
-    static char bmcv_path[512] = {0};
     char cmd[1024] = {0};
-    char *ptr;
     int ret = 0;
 #ifdef __linux__
     Dl_info dl_info;
@@ -1348,26 +1346,9 @@ void bmcv_print_version() {
         return;
     }
 
-    ptr = (char*)strrchr(dl_info.dli_fname, '/');
-    if (!ptr){
-        printf("Invalid absolute path name of libbmcv.so\n");
-        return;
-    }
-
-    int dirname_len = ptr - dl_info.dli_fname + 1;
-    if (dirname_len <= 0){
-        printf("Invalid length of folder name\n");
-        return;
-    }
-
-    strncpy(bmcv_path, dl_info.dli_fname, dirname_len);
-    strcat(bmcv_path, ptr + 1);
-    printf("libbmcv_path:%s\n", bmcv_path);
-    sprintf(cmd, "strings %s | grep -E \"libbmcv_version:.*, branch:.*, minor version:.*, commit hash:.*\" | sed -n \'2p\'", bmcv_path);
-    ret = system(cmd);
-    if (ret != 0) {
-        printf("Error print tpu_firmware_version!\n");
-    }
+    printf("libbmcv_path: %s, compile_time: %s %s\n", dl_info.dli_fname, __DATE__, __TIME__);
+    printf("libbmcv_version: %s, branch: %s, minor_version: %s, commit: %s, commit_date: %s\n\n",
+        LIBSOPHAV_VERSION, BRANCH, COMMIT_COUNT, COMMIT_HASH, COMMIT_DATE);
 
     if (0 != find_tpufirmaware_path(fw_path, fw_fname)) {
         printf("libbm1684x_kernel_module.so does not exist\n");
@@ -1375,7 +1356,7 @@ void bmcv_print_version() {
     }
 
     printf("tpu_firmware_path:%s\n", fw_path);
-    memset (cmd, 0, sizeof(cmd));
+    memset(cmd, 0, sizeof(cmd));
     sprintf(cmd, "strings %s | grep -E \"tpu_firmware_version:.*, branch:.*, minor version:.*, commit:.*\"", fw_path);
     ret = system(cmd);
     if (ret != 0) {
