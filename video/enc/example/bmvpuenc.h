@@ -44,7 +44,7 @@ enum
     RETVAL_EOS = 2
 };
 
-static void logging_fn(BmVpuEncLogLevel level,
+static void bmvpu_enc_logging_fn(BmVpuEncLogLevel level,
                        char const *file,
                        int const line,
                        char const *fn,

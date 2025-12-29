@@ -42,7 +42,18 @@ run_vpss() {
   run_command "test_vpss_padding_thread"
   run_command "test_vpss_stitch_thread"
   run_command "test_vpss_water_thread"
+  run_command "test_vpss_point_thread"
+  run_command "test_vpss_csc_overlay_thread"
+  run_command "test_gen_text_watermark"
+  run_command "test_gen_text_watermark sophgo 255 0 0 0.8 out/text1.bmp 4ea7c1adcd8486388c87abc078b35ef8"
+  run_command "test_gen_text_watermark sophgo 255 0 0 0.8 out/text2.bmp 1612a8c95b32310d2478114e5ab439d1 /opt/sophon/libsophon-current/bin/res/1920x1080_nv12.bin 1920 1080 3 99 99"
+  run_command "test_gen_text_watermark sophgo 255 0 0 2 out/text3.bmp eda2b2de92dc1b1dfeb6fc686ab35a3a /opt/sophon/libsophon-current/bin/res/1920x1080_yuv420.bin 1920 1080 0 1810 100"
+  run_command "test_vpss_random_thread 10 1000"
+  run_command "test_vpss_random_thread 1920 1080 0 0 0 1917 1077 1917 1077 3 0 0"
+  run_command "test_vpss_random_thread 1917 1077 0 0 0 1917 1077 1920 1080 3 0 0"
+  run_command "test_vpss_random_thread 1917 1077 0 0 0 1917 1077 1917 1077 3 0 0"
 
+  run_command "test_vpss_convert_thread 1920 1080 0 /opt/sophon/libsophon-current/bin/res/1920x1080_yuv420.bin 0 0 1917 1077 1917 1077 5 out/crop_1917x1077.nv16 1 0"
   run_command "test_vpss_convert_thread 1920 1080 10 /opt/sophon/libsophon-current/bin/res/1920x1080_rgb.bin 0 0 1920 1080 800 600 10 out/resize_800x600.rgb 1 0"
   run_command "test_vpss_convert_thread 1920 1080 0 /opt/sophon/libsophon-current/bin/res/1920x1080_yuv420.bin 0 0 1920 1080 1920 1080 10 out/convert_1920x1080.rgb 1 0"
   run_command "test_vpss_convert_thread 1920 1080 0 /opt/sophon/libsophon-current/bin/res/1920x1080_yuv420.bin 0 0 800 600 800 600 0 out/crop_800x600.yuv420 1 0"
@@ -53,6 +64,7 @@ run_vpss() {
   run_command "test_vpss_fill_rectangle_thread 1920 1080 0 /opt/sophon/libsophon-current/bin/res/1920x1080_yuv420.bin 100 100 200 200 out/fill_rect_1920x1080_yuv420.bin 0"
   run_command "test_vpss_mosaic_thread 1920 1080 10 /opt/sophon/libsophon-current/bin/res/1920x1080_rgb.bin 100 100 500 500 out/mosaic_1920x1080.rgb 0"
   run_command "test_vpss_padding_thread 1920 1080 0 /opt/sophon/libsophon-current/bin/res/1920x1080_yuv420.bin 0 0 1920 1080 2048 2048 0 out/pad_2048x2048_yuv420.bin 1 0"
+  run_command "test_vpss_padding_thread 1920 1080 0 /opt/sophon/libsophon-current/bin/res/1920x1080_yuv420.bin 0 0 150 150 150 220 0 out/pad_150x220_yuv420.bin 1 0 1 1 14f7de62b33736eda6eb95a4b81c69e7"
   run_command "test_vpss_stitch_thread 1920 1080 0 /opt/sophon/libsophon-current/bin/res/1920x1080_yuv420.bin 0 0 1920 1080 0 1080 1920 1080 1920 2160 out/stitch_1920x2160_yuv420.bin 0"
   run_command "test_vpss_water_thread 1920 1080 0 /opt/sophon/libsophon-current/bin/res/1920x1080_yuv420.bin /opt/sophon/libsophon-current/bin/res/128x128_sophgo.bin 16384 128 0 100 100 out/water_1920x1080.yuv420 0"
   run_command "test_vpss_overlay_thread 1920 1080 10 300 300 17 20 20 /opt/sophon/libsophon-current/bin/res/car_rgb888.rgb /opt/sophon/libsophon-current/bin/res/300x300_argb8888_dog.rgb 663ce7ae1f1b3154a66a6366a6332559"
@@ -61,6 +73,9 @@ run_vpss() {
   run_command "test_vpss_flip_thread 1920 1080 0 /opt/sophon/libsophon-current/bin/res/1920x1080_yuv420.bin 1 h_flip.bin 0 1 1 37890f4ab5d6458b57824de9e24ba94f"
   run_command "test_vpss_flip_thread 1920 1080 0 /opt/sophon/libsophon-current/bin/res/1920x1080_yuv420.bin 2 v_flip.bin 0 1 1 a3a86425b349c6517a2506e4df2334f0"
   run_command "test_vpss_flip_thread 1920 1080 0 /opt/sophon/libsophon-current/bin/res/1920x1080_yuv420.bin 3 hv_flip.bin 0 1 1 80062a883675498f41d3309cfc6ddb52"
+  run_command "test_vpss_circle_thread 1920 1080 0 /opt/sophon/libsophon-current/bin/res/1920x1080_yuv420.bin 960 540 250 -2 empty.bin 0 1 1 94a364c93d13aad8db3d38146c5ba4fa"
+  run_command "test_vpss_circle_thread 1920 1080 0 /opt/sophon/libsophon-current/bin/res/1920x1080_yuv420.bin 960 540 250 -1 shape.bin 0 1 1 d2c467732a8021d3f212e27dd0a98677"
+  run_command "test_vpss_circle_thread 1920 1080 0 /opt/sophon/libsophon-current/bin/res/1920x1080_yuv420.bin 960 540 250 10 line.bin 0 1 1 583e2f078ceccfa73b4b084d7cf74aca"
 }
 
 run_tpu(){
@@ -159,6 +174,11 @@ run_tpu(){
 }
 
 run_dpu(){
+  if [ ! -d "dpu_data" ]; then
+    echo "Error: Directory 'dpu_data' does not exist"
+    echo "please prepare test data"
+    return 1
+  fi
   run_command "test_dpu_sgbm_thread 512 284 3 dpu_data/sofa_left_img_512x284.bin dpu_data/sofa_right_img_512x284.bin  dpu_data/205pU8Disp_ref_512x284.bin"
   run_command "test_dpu_sgbm_thread 1920 1080 3 dpu_data/pendulum_left_img_1920x1080.bin dpu_data/pendulum_right_img_1920x1080.bin dpu_data/pU8Disp_ref1_1920x1080.bin"
   run_command "test_dpu_sgbm_thread 804 540 3 dpu_data/804_left_img.bin dpu_data/804_right_img.bin dpu_data/804_sgbm_u8_median_res.bin"
@@ -174,6 +194,11 @@ run_dpu(){
 }
 
 run_ive(){
+  if [ ! -d "ive_data" ]; then
+    echo "Error: Directory 'ive_data' does not exist"
+    echo "please prepare test data"
+    return 1
+  fi
   run_command "test_ive_add_thread 352 288 14 14 19584 45952 ive_data/00_352x288_y.yuv ive_data/01_352x288_y.yuv ive_data/result/sample_Add.yuv 0 1 1 0"
   run_command "test_ive_and_thread 352 288 14 14 ive_data/00_352x288_y.yuv ive_data/01_352x288_y.yuv ive_data/result/sample_And.yuv 0 1 1 0"
   run_command "test_ive_dilate_thread 640 480 0 ive_data/sky_640x480.yuv ive_data/result/sample_tile_Dilate_3x3.yuv 0 1 1 0"
@@ -295,6 +320,11 @@ run_ive(){
 }
 
 run_blend(){
+  if [ ! -d "stitch" ]; then
+    echo "Error: Directory 'stitch' does not exist"
+    echo "please prepare test data"
+    return 1
+  fi
   run_command "test_2way_blending -a stitch/c01_img1__2304x288-lft.yuv -b stitch/c01_img2__4608x288-lft.yuv -c 2304 -d 288 -e 4608 -f 288 -g 0 -h out/2way-4608x288.yuv420p -i 4608 -j 288 -k 0 -l 0 -m 2303 -r stitch/c01_alpha12_444p_m2__0_288x2304.bin -s stitch/c01_beta12_444p_m2__0_288x2304.bin -z stitch/c01_result_420p_c2_4608x288_lft_ovlp.yuv"
   run_command "test_2way_blending -a stitch/c01_img1__4608x288.yuv -b stitch/c01_img2__2304x288.yuv -c 4608 -d 288 -e 2304 -f 288 -g 0 -h out/2way-4608x288.yuv420p -i 4608 -j 288 -k 0 -l 2304 -m 4607 -r stitch/c01_alpha12_444p_m2__0_288x2304.bin -s stitch/c01_beta12_444p_m2__0_288x2304.bin -z stitch/c01_result_420p_c2_4608x288_rht_ovlp.yuv"
   run_command "test_2way_blending -a stitch/c01_lft__1536x384_pure_color.yuv -b stitch/c01_rht__1088x384_pure_color.yuv -c 1536 -d 384 -e 1088 -f 384 -g 0 -h out/2way-2400x384.yuv420p -i 2400 -j 384 -k 0 -l 1312 -m 1535 -r stitch/c01_alpha_444p_m2__0_384x224.bin -s stitch/c01_beta_444p_m2__0_384x224.bin -z stitch/c01_result_c2_2400x384_pure_color.yuv"
@@ -317,6 +347,11 @@ run_blend(){
 }
 
 run_ldc(){
+  if [ ! -d "ldc_data" ]; then
+    echo "Error: Directory 'ldc_data' does not exist"
+    echo "please prepare test data"
+    return 1
+  fi
   run_command "test_ldc_rot_thread ldc_data/1920x1088_nv21.bin ldc_data/out_1920x1088_rot0.yuv 1920 1088 0 4 4 1 1"
   run_command "test_ldc_rot_thread ldc_data/1920x1088_nv21.bin ldc_data/out_1920x1088_rot90.yuv 1920 1088 1 4 4 1 1"
   run_command "test_ldc_rot_thread ldc_data/1920x1088_nv21.bin ldc_data/out_1920x1088_rot270.yuv 1920 1088 3 4 4 1 1"
@@ -366,6 +401,11 @@ run_ldc(){
 }
 
 run_dwa(){
+  if [ ! -d "dwa_data" ]; then
+    echo "Error: Directory 'dwa_data' does not exist"
+    echo "please prepare test data"
+    return 1
+  fi
   run_command "test_dwa_rot_thread 128 128 14 dwa_data/128x128_sophgo.bin 128 128 dwa_data/out_128x128_rot0.bin 0 1 1 e001fc14213febf4751fbd8d739d8f28"
   run_command "test_dwa_rot_thread 128 128 14 dwa_data/128x128_sophgo.bin 128 128 dwa_data/out_128x128_rot90.bin 1 1 1 49361e51b503d001848b769f7dff6e87"
   run_command "test_dwa_rot_thread 128 128 14 dwa_data/128x128_sophgo.bin 128 128 dwa_data/out_128x128_rot270.bin 3 1 1 b47f8bc0f5dbf60ff8cbe8fab5ca9cf6"
@@ -403,6 +443,11 @@ run_dwa(){
 }
 
 run_tde(){
+  if [ ! -d "tde_data" ]; then
+    echo "Error: Directory 'tde_data' does not exist"
+    echo "please prepare test data"
+    return 1
+  fi
   run_command "rm -rf ./out/result_bmp; mkdir ./out/result_bmp"
   run_command "cp /opt/sophon/libsophon-current/bin/test_tde ./out/"
   run_command "pushd ./out/"
@@ -493,19 +538,19 @@ run_kill_vpss(){
 
 
 run_kill_tpu(){
-  COMMAND1="test_cv_absdiff &
-            test_cv_absdiff &
-            test_cv_absdiff &
-            test_cv_absdiff &
-            test_cv_absdiff &
-            test_cv_absdiff &
-            test_cv_absdiff &
-            test_cv_absdiff &
+  COMMAND1="test_cv_absdiff 1 1 0 10 1080 1920 &
+            test_cv_absdiff 1 1 0 10 1080 1920 &
+            test_cv_absdiff 1 1 0 10 1080 1920 &
+            test_cv_absdiff 1 1 0 10 1080 1920 &
+            test_cv_absdiff 1 1 0 10 1080 1920 &
+            test_cv_absdiff 1 1 0 10 1080 1920 &
+            test_cv_absdiff 1 1 0 10 1080 1920 &
+            test_cv_absdiff 1 1 0 10 1080 1920 &
             "
-  COMMAND2="test_cv_add_weight & \
-            test_cv_add_weight & \
-            test_cv_add_weight & \
-            test_cv_add_weight &
+  COMMAND2="test_cv_add_weight 1 1 0 1920 1080 10 & \
+            test_cv_add_weight 1 1 0 1920 1080 10 & \
+            test_cv_add_weight 1 1 0 1920 1080 10 & \
+            test_cv_add_weight 1 1 0 1920 1080 10 &
             "
 
   start_command1() {
@@ -540,6 +585,11 @@ run_kill_tpu(){
 }
 
 run_kill_dpu(){
+  if [ ! -d "dpu_data" ]; then
+    echo "Error: Directory 'dpu_data' does not exist"
+    echo "please prepare test data"
+    return 1
+  fi
   COMMAND1="test_dpu_sgbm_thread 512 284 3 dpu_data/sofa_left_img_512x284.bin dpu_data/sofa_right_img_512x284.bin dpu_data/205pU8Disp_ref_512x284.bin 1 0 1 1500 &
             test_dpu_sgbm_thread 512 284 3 dpu_data/sofa_left_img_512x284.bin dpu_data/sofa_right_img_512x284.bin dpu_data/205pU8Disp_ref_512x284.bin 1 0 1 1500 &
             "
@@ -579,6 +629,11 @@ run_kill_dpu(){
 }
 
 run_kill_ldc(){
+  if [ ! -d "ldc_data" ]; then
+    echo "Error: Directory 'ldc_data' does not exist"
+    echo "please prepare test data"
+    return 1
+  fi
   COMMAND1="test_ldc_rot_thread ldc_data/1920x1088_nv21.bin ldc_data/out_1920x1088_rot0.yuv 1920 1088 0 4 4 1 1 &
             test_ldc_rot_thread ldc_data/1920x1088_nv21.bin ldc_data/out_1920x1088_rot0.yuv 1920 1088 0 4 4 1 1 &
             test_ldc_rot_thread ldc_data/1920x1088_nv21.bin ldc_data/out_1920x1088_rot0.yuv 1920 1088 0 4 4 1 1 &
@@ -626,6 +681,11 @@ run_kill_ldc(){
 }
 
 run_kill_dwa(){
+  if [ ! -d "dwa_data" ]; then
+    echo "Error: Directory 'dwa_data' does not exist"
+    echo "please prepare test data"
+    return 1
+  fi
   COMMAND1="test_dwa_rot_thread 128 128 14 dwa_data/128x128_sophgo.bin 128 128 dwa_data/out_128x128_rot0.bin 0 1 1 e001fc14213febf4751fbd8d739d8f28 &
             test_dwa_rot_thread 128 128 14 dwa_data/128x128_sophgo.bin 128 128 dwa_data/out_128x128_rot0.bin 0 1 1 e001fc14213febf4751fbd8d739d8f28 &
             test_dwa_rot_thread 128 128 14 dwa_data/128x128_sophgo.bin 128 128 dwa_data/out_128x128_rot0.bin 0 1 1 e001fc14213febf4751fbd8d739d8f28 &
@@ -673,6 +733,11 @@ run_kill_dwa(){
 }
 
 run_kill_ive(){
+  if [ ! -d "ive_data" ]; then
+    echo "Error: Directory 'ive_data' does not exist"
+    echo "please prepare test data"
+    return 1
+  fi
   COMMAND1="test_ive_add_thread 352 288 14 14 19584 45952 ive_data/00_352x288_y.yuv ive_data/01_352x288_y.yuv ive_data/result/sample_Add.yuv 0 1 1 0 &
             test_ive_add_thread 352 288 14 14 19584 45952 ive_data/00_352x288_y.yuv ive_data/01_352x288_y.yuv ive_data/result/sample_Add.yuv 0 1 1 0 &
             test_ive_add_thread 352 288 14 14 19584 45952 ive_data/00_352x288_y.yuv ive_data/01_352x288_y.yuv ive_data/result/sample_Add.yuv 0 1 1 0 &
@@ -720,47 +785,57 @@ run_kill_ive(){
 }
 
 run_kill_blend(){
- COMMAND1="test_2way_blending -a stitch/c01_lft__1536x384_pure_color.yuv -b stitch/c01_rht__1088x384_pure_color.yuv -c 1536 -d 384 -e 1088 -f 384 -g 0 -h out/2way-2400x384.yuv420p -i 2400 -j 384 -k 0 -l 1312 -m 1535 -r stitch/c01_alpha_m2__384x224_short.bin -s stitch/c01_beta_m2__384x224_short.bin -z stitch/c01_result_c2_2400x384_pure_color1.yuv &
-           test_2way_blending -a stitch/c01_lft__1536x384_pure_color.yuv -b stitch/c01_rht__1088x384_pure_color.yuv -c 1536 -d 384 -e 1088 -f 384 -g 0 -h out/2way-2400x384.yuv420p -i 2400 -j 384 -k 0 -l 1312 -m 1535 -r stitch/c01_alpha_m2__384x224_short.bin -s stitch/c01_beta_m2__384x224_short.bin -z stitch/c01_result_c2_2400x384_pure_color1.yuv &
-           test_2way_blending -a stitch/c01_lft__1536x384_pure_color.yuv -b stitch/c01_rht__1088x384_pure_color.yuv -c 1536 -d 384 -e 1088 -f 384 -g 0 -h out/2way-2400x384.yuv420p -i 2400 -j 384 -k 0 -l 1312 -m 1535 -r stitch/c01_alpha_m2__384x224_short.bin -s stitch/c01_beta_m2__384x224_short.bin -z stitch/c01_result_c2_2400x384_pure_color1.yuv &
-           test_2way_blending -a stitch/c01_lft__1536x384_pure_color.yuv -b stitch/c01_rht__1088x384_pure_color.yuv -c 1536 -d 384 -e 1088 -f 384 -g 0 -h out/2way-2400x384.yuv420p -i 2400 -j 384 -k 0 -l 1312 -m 1535 -r stitch/c01_alpha_m2__384x224_short.bin -s stitch/c01_beta_m2__384x224_short.bin -z stitch/c01_result_c2_2400x384_pure_color1.yuv &
-           "
- COMMAND2="test_4way_blending -N 2 -a stitch/c01_lft__128x128.yuv -b stitch/c01_rht__128x128.yuv -e 128 -f 128 -g 0 -h out/2way-192x128.yuv420p -i 192 -j 128 -k 0 -l 64 -m 127 -r stitch/c01_alpha_444p_m2__0_128x64.bin -s stitch/c01_beta_444p_m2__0_128x64.bin -z stitch/c01_result_c2_192x128.yuv & \
-           test_4way_blending -N 2 -a stitch/c01_lft__128x128.yuv -b stitch/c01_rht__128x128.yuv -e 128 -f 128 -g 0 -h out/2way-192x128.yuv420p -i 192 -j 128 -k 0 -l 64 -m 127 -r stitch/c01_alpha_444p_m2__0_128x64.bin -s stitch/c01_beta_444p_m2__0_128x64.bin -z stitch/c01_result_c2_192x128.yuv &
-           "
- start_command1() {
-   if ! pgrep -f "test_2way_blending" >/dev/null; then
-     eval "$COMMAND1" &
-     eval "$COMMAND1" &
-   fi
- }
+  if [ ! -d "stitch" ]; then
+    echo "Error: Directory 'stitch' does not exist"
+    echo "please prepare test data"
+    return 1
+  fi
+  COMMAND1="test_2way_blending -a stitch/c01_lft__1536x384_pure_color.yuv -b stitch/c01_rht__1088x384_pure_color.yuv -c 1536 -d 384 -e 1088 -f 384 -g 0 -h out/2way-2400x384.yuv420p -i 2400 -j 384 -k 0 -l 1312 -m 1535 -r stitch/c01_alpha_m2__384x224_short.bin -s stitch/c01_beta_m2__384x224_short.bin -z stitch/c01_result_c2_2400x384_pure_color1.yuv &
+            test_2way_blending -a stitch/c01_lft__1536x384_pure_color.yuv -b stitch/c01_rht__1088x384_pure_color.yuv -c 1536 -d 384 -e 1088 -f 384 -g 0 -h out/2way-2400x384.yuv420p -i 2400 -j 384 -k 0 -l 1312 -m 1535 -r stitch/c01_alpha_m2__384x224_short.bin -s stitch/c01_beta_m2__384x224_short.bin -z stitch/c01_result_c2_2400x384_pure_color1.yuv &
+            test_2way_blending -a stitch/c01_lft__1536x384_pure_color.yuv -b stitch/c01_rht__1088x384_pure_color.yuv -c 1536 -d 384 -e 1088 -f 384 -g 0 -h out/2way-2400x384.yuv420p -i 2400 -j 384 -k 0 -l 1312 -m 1535 -r stitch/c01_alpha_m2__384x224_short.bin -s stitch/c01_beta_m2__384x224_short.bin -z stitch/c01_result_c2_2400x384_pure_color1.yuv &
+            test_2way_blending -a stitch/c01_lft__1536x384_pure_color.yuv -b stitch/c01_rht__1088x384_pure_color.yuv -c 1536 -d 384 -e 1088 -f 384 -g 0 -h out/2way-2400x384.yuv420p -i 2400 -j 384 -k 0 -l 1312 -m 1535 -r stitch/c01_alpha_m2__384x224_short.bin -s stitch/c01_beta_m2__384x224_short.bin -z stitch/c01_result_c2_2400x384_pure_color1.yuv &
+            "
+  COMMAND2="test_4way_blending -N 2 -a stitch/c01_lft__128x128.yuv -b stitch/c01_rht__128x128.yuv -e 128 -f 128 -g 0 -h out/2way-192x128.yuv420p -i 192 -j 128 -k 0 -l 64 -m 127 -r stitch/c01_alpha_444p_m2__0_128x64.bin -s stitch/c01_beta_444p_m2__0_128x64.bin -z stitch/c01_result_c2_192x128.yuv & \
+            test_4way_blending -N 2 -a stitch/c01_lft__128x128.yuv -b stitch/c01_rht__128x128.yuv -e 128 -f 128 -g 0 -h out/2way-192x128.yuv420p -i 192 -j 128 -k 0 -l 64 -m 127 -r stitch/c01_alpha_444p_m2__0_128x64.bin -s stitch/c01_beta_444p_m2__0_128x64.bin -z stitch/c01_result_c2_192x128.yuv &
+            "
+  start_command1() {
+    if ! pgrep -f "test_2way_blending" >/dev/null; then
+      eval "$COMMAND1" &
+      eval "$COMMAND1" &
+    fi
+  }
 
- start_command2() {
-   eval "$COMMAND2" &
-   eval "$COMMAND2" &
- }
+  start_command2() {
+    eval "$COMMAND2" &
+    eval "$COMMAND2" &
+  }
 
- kill_processes() {
-     pkill -9 -f "test_2way_blending"
- }
+  kill_processes() {
+    pkill -9 -f "test_2way_blending"
+  }
 
- END=$(( $(date +%s) + 5*60 ))
+  END=$(( $(date +%s) + 5*60 ))
 
- while [ $(date +%s) -lt $END ]; do
-   start_command1
-   start_command2
+  while [ $(date +%s) -lt $END ]; do
+    start_command1
+    start_command2
 
-   if [ $(( $(date +%s) % 20 )) -lt 2 ]; then
-     kill_processes
-   fi
+    if [ $(( $(date +%s) % 20 )) -lt 2 ]; then
+      kill_processes
+    fi
 
-   sleep 10
- done
- kill_processes
+    sleep 10
+  done
+  kill_processes
 }
 
 if [ $bmcv_case = "all" ]; then
   eval "mkdir -p out"
+  if [ ! -d "out" ]; then
+    echo "Error: Directory 'out' does not exist after creation attempt"
+    echo "please check the current directory permissions"
+    return 1
+  fi
   while [ $count -le $loop ]
   do
       run_all
@@ -770,6 +845,11 @@ fi
 
 if [ $bmcv_case = "kill" ]; then
   eval "mkdir -p out"
+  if [ ! -d "out" ]; then
+    echo "Error: Directory 'out' does not exist after creation attempt"
+    echo "please check the current directory permissions"
+    return 1
+  fi
   while [ $count -le $loop ]
   do
       run_kill
@@ -779,6 +859,11 @@ fi
 
 if [ $bmcv_case = "vpss" ]; then
   eval "mkdir -p out"
+  if [ ! -d "out" ]; then
+    echo "Error: Directory 'out' does not exist after creation attempt"
+    echo "please check the current directory permissions"
+    return 1
+  fi
   while [ $count -le $loop ]
   do
       run_vpss
@@ -788,6 +873,11 @@ fi
 
 if [ $bmcv_case = "tpu" ]; then
   eval "mkdir -p out"
+  if [ ! -d "out" ]; then
+    echo "Error: Directory 'out' does not exist after creation attempt"
+    echo "please check the current directory permissions"
+    return 1
+  fi
   while [ $count -le $loop ]
   do
       run_tpu
@@ -797,6 +887,11 @@ fi
 
 if [ $bmcv_case = "dpu" ]; then
   eval "mkdir -p out"
+  if [ ! -d "out" ]; then
+    echo "Error: Directory 'out' does not exist after creation attempt"
+    echo "please check the current directory permissions"
+    return 1
+  fi
   while [ $count -le $loop ]
   do
       run_dpu
@@ -806,6 +901,11 @@ fi
 
 if [ $bmcv_case = "ldc" ]; then
   eval "mkdir -p out"
+  if [ ! -d "out" ]; then
+    echo "Error: Directory 'out' does not exist after creation attempt"
+    echo "please check the current directory permissions"
+    return 1
+  fi
   while [ $count -le $loop ]
   do
       run_ldc
@@ -815,6 +915,11 @@ fi
 
 if [ $bmcv_case = "dwa" ]; then
   eval "mkdir -p out"
+  if [ ! -d "out" ]; then
+    echo "Error: Directory 'out' does not exist after creation attempt"
+    echo "please check the current directory permissions"
+    return 1
+  fi
   while [ $count -le $loop ]
   do
       run_dwa
@@ -824,6 +929,11 @@ fi
 
 if [ $bmcv_case = "blend" ]; then
   eval "mkdir -p out"
+  if [ ! -d "out" ]; then
+    echo "Error: Directory 'out' does not exist after creation attempt"
+    echo "please check the current directory permissions"
+    return 1
+  fi
   while [ $count -le $loop ]
   do
       run_blend
@@ -833,6 +943,11 @@ fi
 
 if [ $bmcv_case = "ive" ]; then
   eval "mkdir -p out"
+  if [ ! -d "out" ]; then
+    echo "Error: Directory 'out' does not exist after creation attempt"
+    echo "please check the current directory permissions"
+    return 1
+  fi
   while [ $count -le $loop ]
   do
       run_ive
@@ -842,6 +957,11 @@ fi
 
 if [ $bmcv_case = "tde" ]; then
   eval "mkdir -p out"
+  if [ ! -d "out" ]; then
+    echo "Error: Directory 'out' does not exist after creation attempt"
+    echo "please check the current directory permissions"
+    return 1
+  fi
   while [ $count -le $loop ]
   do
       run_tde
@@ -851,6 +971,11 @@ fi
 
 if [ $bmcv_case = "kill_vpss" ]; then
   eval "mkdir -p out"
+  if [ ! -d "out" ]; then
+    echo "Error: Directory 'out' does not exist after creation attempt"
+    echo "please check the current directory permissions"
+    return 1
+  fi
   while [ $count -le $loop ]
   do
       run_kill_vpss
@@ -860,6 +985,11 @@ fi
 
 if [ $bmcv_case = "kill_tpu" ]; then
   eval "mkdir -p out"
+  if [ ! -d "out" ]; then
+    echo "Error: Directory 'out' does not exist after creation attempt"
+    echo "please check the current directory permissions"
+    return 1
+  fi
   while [ $count -le $loop ]
   do
       run_kill_tpu
@@ -869,6 +999,11 @@ fi
 
 if [ $bmcv_case = "kill_dpu" ]; then
   eval "mkdir -p out"
+  if [ ! -d "out" ]; then
+    echo "Error: Directory 'out' does not exist after creation attempt"
+    echo "please check the current directory permissions"
+    return 1
+  fi
   while [ $count -le $loop ]
   do
       run_kill_dpu
@@ -878,6 +1013,11 @@ fi
 
 if [ $bmcv_case = "kill_ldc" ]; then
   eval "mkdir -p out"
+  if [ ! -d "out" ]; then
+    echo "Error: Directory 'out' does not exist after creation attempt"
+    echo "please check the current directory permissions"
+    return 1
+  fi
   while [ $count -le $loop ]
   do
       run_kill_ldc
@@ -887,6 +1027,11 @@ fi
 
 if [ $bmcv_case = "kill_dwa" ]; then
   eval "mkdir -p out"
+  if [ ! -d "out" ]; then
+    echo "Error: Directory 'out' does not exist after creation attempt"
+    echo "please check the current directory permissions"
+    return 1
+  fi
   while [ $count -le $loop ]
   do
       run_kill_dwa
@@ -896,6 +1041,11 @@ fi
 
 if [ $bmcv_case = "kill_ive" ]; then
   eval "mkdir -p out"
+  if [ ! -d "out" ]; then
+    echo "Error: Directory 'out' does not exist after creation attempt"
+    echo "please check the current directory permissions"
+    return 1
+  fi
   while [ $count -le $loop ]
   do
       run_kill_ive
@@ -904,12 +1054,17 @@ if [ $bmcv_case = "kill_ive" ]; then
 fi
 
 if [ $bmcv_case = "kill_blend" ]; then
- eval "mkdir -p out"
- while [ $count -le $loop ]
- do
-     run_kill_blend
-     ((count++))
- done
+  eval "mkdir -p out"
+  if [ ! -d "out" ]; then
+    echo "Error: Directory 'out' does not exist after creation attempt"
+    echo "please check the current directory permissions"
+    return 1
+  fi
+  while [ $count -le $loop ]
+  do
+      run_kill_blend
+      ((count++))
+  done
 fi
 
 if [ $failed_count -gt 0 ]; then
@@ -918,6 +1073,3 @@ if [ $failed_count -gt 0 ]; then
 else
   echo "All tests pass!"
 fi
-
-
-

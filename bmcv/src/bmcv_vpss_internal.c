@@ -159,7 +159,8 @@ bm_status_t bmcv_image_storage_convert(
 	bm_status_t ret = BM_SUCCESS;
 	csc_type_t csc_type = CSC_MAX_ENUM;
 
-	ret = bmcv_image_storage_convert_with_csctype(handle, image_num, input_, output_, csc_type);
+	ret = bmcv_image_storage_convert_with_csctype(handle, image_num,
+		input_, output_, csc_type);
 	return ret;
 }
 
@@ -222,7 +223,8 @@ bm_status_t bmcv_image_resize(
 		crop_rect.start_y = resize_attr[i].resize_img_attr->start_y;
 		crop_rect.crop_w = resize_attr[i].resize_img_attr->in_width;
 		crop_rect.crop_h = resize_attr[i].resize_img_attr->in_height;
-		ret = bmcv_image_vpp_convert_padding(handle, 1, input[i], output+i, &padding_attr, &crop_rect, algorithm);
+		ret = bmcv_image_vpp_convert_padding(handle, 1, input[i],
+			output+i, &padding_attr, &crop_rect, algorithm);
 	}
 
 	return ret;
@@ -252,7 +254,8 @@ bm_status_t bmcv_image_draw_rectangle(
 	{
 		case BM1688_PREV:
 		case BM1688:
-			ret = bm_vpss_draw_rectangle(handle, image, rect_num, rects, line_width, draw_val[0], draw_val[1], draw_val[2]);
+			ret = bm_vpss_draw_rectangle(handle, image, rect_num, rects,
+				line_width, draw_val[0], draw_val[1], draw_val[2]);
 			break;
 
 		default:
@@ -289,8 +292,8 @@ bm_status_t bmcv_image_csc_convert_to(
 	{
 		case BM1688_PREV:
 		case BM1688:
-			ret = bm_vpss_csc_convert_to(handle, img_num, input,
-					output, crop_num_vec, crop_rect, padding_attr, algorithm, csc_type, matrix, convert_to_attr);
+			ret = bm_vpss_csc_convert_to(handle, img_num, input, output, crop_num_vec,
+				crop_rect, padding_attr, algorithm, csc_type, matrix, convert_to_attr);
 			break;
 
 		default:
@@ -324,7 +327,8 @@ bm_status_t bmcv_image_copy_to_vpss(
 		case BM1688:
 			if ((data_type == DATA_TYPE_EXT_1N_BYTE)) {
 				ret = bm_vpss_copy_to(handle, copy_to_attr, input, output);
-			} else if ((data_type == DATA_TYPE_EXT_FLOAT32) || (data_type == DATA_TYPE_EXT_1N_BYTE_SIGNED)) {
+			} else if ((data_type == DATA_TYPE_EXT_FLOAT32) ||
+				(data_type == DATA_TYPE_EXT_1N_BYTE_SIGNED)) {
 				// ret = bmcv_image_copy_to_(handle, copy_to_attr, input, output);
 				bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
 				"not support, %s: %s: %d\n",
@@ -425,9 +429,13 @@ static bm_status_t bmcv_image_mosaic_check(
 		}
 		if (crop_rect[i].start_x < 0 || crop_rect[i].start_y < 0 || \
 				crop_rect[i].crop_w < 8 || crop_rect[i].crop_h < 8 || \
-				crop_rect[i].crop_w + crop_rect[i].start_x > input.width || crop_rect[i].crop_h + crop_rect[i].start_y > input.height) {
-			bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "mosaic_rect out of range, i=%d, stx=%d, sty=%d, crop_w=%d, crop_h=%d, image_w=%d, image_h=%d, %s: %s: %d\n",
-						i, crop_rect[i].start_x, crop_rect[i].start_y, crop_rect[i].crop_w, crop_rect[i].crop_h, input.width, input.height, filename(__FILE__), __func__, __LINE__);
+				crop_rect[i].crop_w + crop_rect[i].start_x > input.width ||
+				crop_rect[i].crop_h + crop_rect[i].start_y > input.height) {
+			bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
+				"mosaic_rect out of range, i=%d, stx=%d, sty=%d,\
+				crop_w=%d, crop_h=%d, image_w=%d, image_h=%d, %s: %s: %d\n",
+				i, crop_rect[i].start_x, crop_rect[i].start_y, crop_rect[i].crop_w,
+				crop_rect[i].crop_h, input.width, input.height, filename(__FILE__), __func__, __LINE__);
 			return BM_ERR_FAILURE;
 		}
 	}
@@ -526,29 +534,47 @@ static bm_status_t bmcv_vpss_bitmap_mem_to_argb8888(
 	bm_image *			  overlay_image)
 {
 	bm_status_t ret = BM_SUCCESS;
-	int overlay_mem_pitch = (bitmap_type == BITMAP_1BIT) ? (pitch << 3) : pitch;
-	int overlay_height = bitmap_mem->size / pitch;
-	bm_image_create(handle, overlay_height, overlay_mem_pitch, FORMAT_ARGB_PACKED, DATA_TYPE_EXT_1N_BYTE, overlay_image, NULL);
-	ret = bm_image_alloc_dev_mem(overlay_image[0], BMCV_HEAP1_ID);
-	if (ret != BM_SUCCESS) {
-		bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "bm_image_alloc_dev_mem fail, %s: %s: %d\n", filename(__FILE__), __func__, __LINE__);
-		return ret;
-	}
-	int overlay_size = overlay_height * overlay_mem_pitch * 4;
+	int overlay_size = overlay_image->height * overlay_image->width * 4;
 	int bitmap_size = bitmap_mem->size;
-	unsigned char* overlay_mem = (unsigned char *)malloc(overlay_size);
-	unsigned char* bitmap_buffer = (unsigned char *)malloc(bitmap_size);
+	unsigned char *overlay_mem, *bitmap_buffer;
+#ifdef BM_PCIE_MODE
+	overlay_mem = (unsigned char *)malloc(overlay_size);
+	bitmap_buffer = (unsigned char *)malloc(bitmap_size);
 #ifdef _FPGA
 	ret = bm_memcpy_d2s_fpga(handle, (void*)bitmap_buffer, bitmap_mem[0]);
 #else
 	ret = bm_memcpy_d2s(handle, (void*)bitmap_buffer, bitmap_mem[0]);
 #endif
 	if (ret != BM_SUCCESS) {
-		bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "bm_memcpy_d2s fail, %s: %s: %d\n", filename(__FILE__), __func__, __LINE__);
-		goto fail;
+		bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
+		"bm_memcpy_d2s fail, %s: %s: %d\n", filename(__FILE__), __func__, __LINE__);
+		free(overlay_mem);
+		free(bitmap_buffer);
+		return ret;
 	}
+#else
+	bm_device_mem_t dmem;
+	unsigned long long overlay_addr, bitmap_addr;
+	bm_image_get_device_mem(overlay_image[0], &dmem);
+	ret = bm_mem_mmap_device_mem(handle, bitmap_mem, &bitmap_addr);
+	if (ret != BM_SUCCESS) {
+		bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
+		"mmap bitmap_mem(0x%lx) fail, %s: %s: %d\n",
+		bitmap_mem->u.device.device_addr, (__FILE__), __func__, __LINE__);
+		return ret;
+	}
+	ret = bm_mem_mmap_device_mem(handle, &dmem, &overlay_addr);
+	if (ret != BM_SUCCESS) {
+		bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
+		"mmap overlay_mem(0x%lx) fail, %s: %s: %d\n",
+		dmem.u.device.device_addr, filename(__FILE__), __func__, __LINE__);
+		return ret;
+	}
+	overlay_mem = (unsigned char *)overlay_addr;
+	bitmap_buffer = (unsigned char *)bitmap_addr;
+#endif
 	if (bitmap_type == BITMAP_1BIT) {
-		for (int j = 0; j < overlay_height; j++) {
+		for (int j = 0; j < overlay_image->height; j++) {
 			for (int k = 0; k < pitch; k++) {
 				int idx = j*pitch+k;
 				int watermark_idx = idx / 8;
@@ -556,11 +582,12 @@ static bm_status_t bmcv_vpss_bitmap_mem_to_argb8888(
 				overlay_mem[((j*pitch*4)+k*4)] = color.b; //FORMAT_ARGB_PACKED排列方式为BGRABGRA
 				overlay_mem[((j*pitch*4)+k*4+1)] = color.g;
 				overlay_mem[((j*pitch*4)+k*4+2)] = color.r;
-				overlay_mem[((j*pitch*4)+k*4+3)] = ((bitmap_buffer[watermark_idx] >> binary_idx) & 1) * 255;
+				overlay_mem[((j*pitch*4)+k*4+3)] =
+					((bitmap_buffer[watermark_idx] >> binary_idx) & 1) * 255;
 			}
 		}
 	} else {
-		for (int j = 0; j < overlay_height; j++) {
+		for (int j = 0; j < overlay_image->height; j++) {
 			for (int k = 0; k < pitch; k++) {
 				overlay_mem[((j*pitch*4)+k*4)] = color.b;
 				overlay_mem[((j*pitch*4)+k*4+1)] = color.g;
@@ -569,13 +596,18 @@ static bm_status_t bmcv_vpss_bitmap_mem_to_argb8888(
 			}
 		}
 	}
+#ifdef BM_PCIE_MODE
 	void* in_ptr[4] = {(void*)overlay_mem, NULL, NULL, NULL};
 	ret = bm_image_copy_host_to_device(overlay_image[0], (void **)in_ptr);
 	if (ret != BM_SUCCESS)
-		bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "bm_image_copy_host_to_device fail, %s: %s: %d\n", filename(__FILE__), __func__, __LINE__);
-fail:
-	free(overlay_mem);
-	free(bitmap_buffer);
+		bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
+		"bm_image_copy_host_to_device fail, %s: %s: %d\n",
+		filename(__FILE__), __func__, __LINE__);
+#else
+	bm_mem_flush_device_mem(handle, &dmem);
+	bm_mem_unmap_device_mem(handle, (void*)bitmap_buffer, bitmap_size);
+	bm_mem_unmap_device_mem(handle, (void*)overlay_mem, overlay_size);
+#endif
 	return ret;
 }
 
@@ -590,21 +622,34 @@ static bm_status_t bmcv_vpss_watermark_superpose(
 	bmcv_color_t          color)
 {
 	bm_status_t ret = BM_SUCCESS;
-	bm_image * overlay_image = (bm_image *)malloc(sizeof(bm_image) * bitmap_num);
+	bm_image overlay_image;
 	for (int i = 0; i < bitmap_num; i++) {
-		ret = bmcv_vpss_bitmap_mem_to_argb8888(handle, bitmap_mem + i, bitmap_type, pitch, color, overlay_image + i);
+		int overlay_mem_pitch = (bitmap_type == BITMAP_1BIT) ? (pitch << 3) : pitch;
+		int overlay_height = bitmap_mem[i].size / pitch;
+		bm_image_create(handle, overlay_height, overlay_mem_pitch, FORMAT_ARGB_PACKED,
+			DATA_TYPE_EXT_1N_BYTE, &overlay_image, NULL);
+		ret = bm_image_alloc_dev_mem(overlay_image, BMCV_HEAP1_ID);
 		if (ret != BM_SUCCESS) {
-			bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "bitmap_mem(%d)_to_argb8888 fail, %s: %s: %d\n", i, filename(__FILE__), __func__, __LINE__);
+			bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
+			"bm_image_alloc_dev_mem fail, %s: %s: %d\n", filename(__FILE__), __func__, __LINE__);
+			return ret;
+		}
+		ret = bmcv_vpss_bitmap_mem_to_argb8888(handle, bitmap_mem + i,
+			bitmap_type, pitch, color, &overlay_image);
+		if (ret != BM_SUCCESS) {
+			bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
+				"bitmap_mem(%d)_to_argb8888 fail, %s: %s: %d\n",
+				i, filename(__FILE__), __func__, __LINE__);
 			goto fail;
 		}
-	}
-	for (int i = 0; i < bitmap_num; i++) {
-		ret = bm_vpss_overlay(handle, image[i], 1, rects + i, overlay_image + i);
+		ret = bm_vpss_overlay(handle, image[i], 1, rects + i, &overlay_image);
+		if (ret != BM_SUCCESS)
+			goto fail;
+		bm_image_destroy(&overlay_image);
 	}
 fail:
-	for (int i = 0; i < bitmap_num; i++)
-		bm_image_destroy(overlay_image + i);
-	free(overlay_image);
+	if(ret != BM_SUCCESS)
+		bm_image_destroy(&overlay_image);
 	return ret;
 }
 
@@ -620,9 +665,21 @@ static bm_status_t bmcv_vpss_watermark_repeat_superpose(
 {
 	bm_status_t ret = BM_SUCCESS;
 	bm_image overlay_image[bitmap_num];
-	ret = bmcv_vpss_bitmap_mem_to_argb8888(handle, &bitmap_mem, bitmap_type, pitch, color, overlay_image);
+	int overlay_mem_pitch = (bitmap_type == BITMAP_1BIT) ? (pitch << 3) : pitch;
+	int overlay_height = bitmap_mem.size / pitch;
+	bm_image_create(handle, overlay_height, overlay_mem_pitch, FORMAT_ARGB_PACKED,
+		DATA_TYPE_EXT_1N_BYTE, overlay_image, NULL);
+	ret = bm_image_alloc_dev_mem(overlay_image[0], BMCV_HEAP1_ID);
 	if (ret != BM_SUCCESS) {
-		bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "bitmap_mem_to_argb8888 fail, %s: %s: %d\n", filename(__FILE__), __func__, __LINE__);
+		bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
+		"bm_image_alloc_dev_mem fail, %s: %s: %d\n", filename(__FILE__), __func__, __LINE__);
+		return ret;
+	}
+	ret = bmcv_vpss_bitmap_mem_to_argb8888(handle, &bitmap_mem,
+		bitmap_type, pitch, color, overlay_image);
+	if (ret != BM_SUCCESS) {
+		bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "bitmap_mem_to_argb8888 fail, %s: %s: %d\n",
+			filename(__FILE__), __func__, __LINE__);
 		goto fail;
 	}
 	for (int i = 1; i < bitmap_num; i++)
@@ -655,7 +712,8 @@ bm_status_t bmcv_image_watermark_superpose(
 	{
 		case BM1688_PREV:
 		case BM1688:
-			ret = bmcv_vpss_watermark_superpose(handle, image, bitmap_mem, bitmap_num, bitmap_type, pitch, rects, color);
+			ret = bmcv_vpss_watermark_superpose(handle, image, bitmap_mem,
+				bitmap_num, bitmap_type, pitch, rects, color);
 			break;
 
 		default:
@@ -687,7 +745,8 @@ bm_status_t bmcv_image_watermark_repeat_superpose(
 	{
 		case BM1688_PREV:
 		case BM1688:
-			ret = bmcv_vpss_watermark_repeat_superpose(handle, image, bitmap_mem, bitmap_num, bitmap_type, pitch, rects, color);
+			ret = bmcv_vpss_watermark_repeat_superpose(handle, image, bitmap_mem,
+				bitmap_num, bitmap_type, pitch, rects, color);
 			break;
 
 		default:
@@ -746,6 +805,119 @@ bm_status_t bmcv_image_flip(
 		case BM1688_PREV:
 		case BM1688:
 			ret = bm_vpss_flip(handle, input, output, flip_mode);
+			break;
+
+		default:
+			ret = BM_ERR_NOFEATURE;
+			break;
+	}
+	return ret;
+}
+
+bm_status_t bmcv_image_circle(
+	bm_handle_t         handle,
+	bm_image            image,
+	bmcv_point_t        center,
+	int                 radius,
+	bmcv_color_t        color,
+	int                 line_width)
+{
+	unsigned int chipid = BM1688;
+	bm_status_t ret = BM_SUCCESS;
+	int cir_mode = 0;
+#ifndef _FPGA
+	ret = bm_get_chipid(handle, &chipid);
+	if (BM_SUCCESS != ret)
+		return ret;
+#endif
+
+	switch(chipid)
+	{
+		case BM1688_PREV:
+		case BM1688:
+			if (line_width == CIR_EMPTY || line_width == CIR_SHAPE) cir_mode = line_width;
+			ret = bm_vpss_circle(handle, image, cir_mode, center, radius,
+				line_width, color.r, color.g, color.b);
+			break;
+
+		default:
+			ret = BM_ERR_NOFEATURE;
+			break;
+	}
+	return ret;
+}
+
+bm_status_t bmcv_image_draw_point(
+	bm_handle_t         handle,
+	bm_image            image,
+	int                 point_num,
+	bmcv_point_t*       coord,
+	int                 length,
+	unsigned char       r,
+	unsigned char       g,
+	unsigned char       b)
+{
+	bm_status_t ret = BM_SUCCESS;
+	unsigned int chipid = BM1688;
+	bmcv_rect_t rects;
+#ifndef _FPGA
+	ret = bm_get_chipid(handle, &chipid);
+	if (BM_SUCCESS != ret)
+		return ret;
+#endif
+
+	switch(chipid)
+	{
+		case BM1688_PREV:
+		case BM1688:
+			for (int i = 0; i < point_num; i++) {
+				rects.start_x = coord[i].x;
+				rects.start_y = coord[i].y;
+				rects.crop_w = length;
+				rects.crop_h = length;
+				ret = bm_vpss_fill_rectangle(handle, &image, 1, &rects, r, g, b);
+				if (ret != BM_SUCCESS) break;
+			}
+			break;
+
+		default:
+			ret = BM_ERR_NOFEATURE;
+			break;
+	}
+	return ret;
+}
+
+bm_status_t bmcv_image_csc_overlay(
+	bm_handle_t             handle,
+	int                     crop_num,
+	bm_image                input,
+	bm_image*               output,
+	bmcv_rect_t*            crop_rect,
+	bmcv_padding_attr_t*    padding_attr,
+	bmcv_resize_algorithm   algorithm,
+	csc_type_t              csc_type,
+	bmcv_flip_mode          flip_mode,
+	bmcv_convert_to_attr*   convert_to_attr,
+	bmcv_overlay_attr*      overlay_attr,
+	bmcv_draw_rect_attr*    draw_rect_attr,
+	bmcv_fill_rect_attr*    fill_rect_attr,
+	bmcv_circle_attr*       circle_attr)
+{
+	bm_status_t ret = BM_SUCCESS;
+	unsigned int chipid = BM1688;
+#ifndef _FPGA
+	ret = bm_get_chipid(handle, &chipid);
+	if (BM_SUCCESS != ret)
+		return ret;
+#endif
+
+	switch(chipid)
+	{
+		case BM1688_PREV:
+		case BM1688:
+			ret = bm_vpss_all_func(handle, crop_num, input, output, crop_rect,
+				padding_attr, algorithm, csc_type, flip_mode, convert_to_attr,
+				overlay_attr, draw_rect_attr, fill_rect_attr, circle_attr);
 			break;
 
 		default:

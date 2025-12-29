@@ -7,9 +7,15 @@
 #include "signal.h"
 #include "bmcv_api_ext_c.h"
 #include <stdatomic.h>
+#include "bmcv_internal.h"
+extern bm_status_t bm_blend_image_calc_stride(bm_handle_t handle,
+                                     int img_h,
+                                     int img_w,
+                                     bm_image_format_ext image_format,
+                                     bm_image_data_format_ext data_type,
+                                     int *stride);
 
 
-#define ALIGN(x, a)      (((x) + ((a)-1)) & ~((a)-1))
 extern void bm_read_bin(bm_image src, const char *input_name);
 extern void bm_write_bin(bm_image dst, const char *output_name);
 
@@ -186,6 +192,8 @@ int main(int argc, char *argv[]) {
 
   bm_handle_t handle = NULL;
   bm_image    src[2], dst;
+  int src_stride[2][4] = {0};
+  int dst_stride[4] = {0};
   int src_h[2] = {0}, src_w[2] = {0}, dst_w = 6912, dst_h = 288, wgtWidth, wgtHeight;
   bm_image_format_ext src_fmt = FORMAT_YUV420P, dst_fmt = FORMAT_YUV420P;
   char *src_name[2] = {NULL}, *dst_name = NULL, *wgt_name[2] = {NULL},*compare_name=NULL;
@@ -273,12 +281,20 @@ int main(int argc, char *argv[]) {
       exit(-1);
   }
 
+  // calc image stride
+  for (int i = 0; i < 2; i++)
+  {
+    bm_blend_image_calc_stride(handle, src_h[i], src_w[i], src_fmt, DATA_TYPE_EXT_1N_BYTE, src_stride[i]);
+  }
+  bm_blend_image_calc_stride(handle, dst_h, dst_w, dst_fmt, DATA_TYPE_EXT_1N_BYTE, dst_stride);
+
+
   wgtWidth = ALIGN(stitch_config.ovlap_attr.ovlp_rx[0] - stitch_config.ovlap_attr.ovlp_lx[0] + 1, 16);
   wgtHeight = src_h[0];
 
   for(i = 0;i < 2; i++)
   {
-    bm_image_create(handle, src_h[i], src_w[i], src_fmt, DATA_TYPE_EXT_1N_BYTE, &src[i],NULL);
+    bm_image_create(handle, src_h[i], src_w[i], src_fmt, DATA_TYPE_EXT_1N_BYTE, &src[i], src_stride[i]);
     bm_image_alloc_dev_mem(src[i],1);
     bm_read_bin(src[i],src_name[i]);
     wgt_len = wgtWidth * wgtHeight;
@@ -287,7 +303,7 @@ int main(int argc, char *argv[]) {
 
     bm_dem_read_bin(handle, &stitch_config.wgt_phy_mem[0][i], wgt_name[i],  wgt_len);
   }
-  bm_image_create(handle, dst_h, dst_w, dst_fmt, DATA_TYPE_EXT_1N_BYTE, &dst,NULL);
+  bm_image_create(handle, dst_h, dst_w, dst_fmt, DATA_TYPE_EXT_1N_BYTE, &dst, dst_stride);
   bm_image_alloc_dev_mem(dst, 1);
 
 

@@ -205,6 +205,13 @@ ___________
 
           ret = bmcv_fft_2d_create_plan(handle, L, batch, forward, &plan);
 
+          ret = bmcv_fft_execute(handle, XRDev, XIDev, YRDev, YIDev, plan);
+          if (ret != BM_SUCCESS) {
+              printf("bmcv_fft_execute failed!\n");
+              if (plan != NULL) {
+                  bmcv_fft_destroy_plan(handle, plan);
+              }
+          }
           ret = bm_memcpy_d2s(handle, (void*)YRHost_tpu, YRDev);
           ret = bm_memcpy_d2s(handle, (void*)YIHost_tpu, YIDev);
 

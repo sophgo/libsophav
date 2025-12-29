@@ -49,7 +49,7 @@ int cpu_add_weighted_float(float* input1, float* input2, float* output,
     return 0;
 }
 
-static void readBin_uint(const char* path, unsigned char* input_data, int size)
+static void readBin_uchar(const char* path, unsigned char* input_data, int size)
 {
     FILE *fp_src = fopen(path, "rb");
     if (fread((void *)input_data, 1, size, fp_src) < (unsigned int)size) {
@@ -69,7 +69,7 @@ static void readBin_float(const char* path, float* input_data, int size)
     fclose(fp_src);
 }
 
-static void writeBin_uint(const char * path, unsigned char* input_data, int size)
+static void writeBin_uchar(const char * path, unsigned char* input_data, int size)
 {
     FILE *fp_dst = fopen(path, "wb");
     if (fwrite((void *)input_data, 1, size, fp_dst) < (unsigned int)size){
@@ -89,7 +89,7 @@ static void writeBin_float(const char * path, float* input_data, int size)
     fclose(fp_dst);
 }
 
-static void fill_img_uint(unsigned char* input, int img_size)
+static void fill_img_uchar(unsigned char* input, int img_size)
 {
     int i;
 
@@ -107,7 +107,7 @@ static void fill_img_float(float* input, int img_size)
     }
 }
 
-static int tpu_add_weighted_uint(unsigned char* input1, unsigned char* input2,
+static int tpu_add_weighted_uchar(unsigned char* input1, unsigned char* input2,
                             unsigned char* output, int height, int width,
                             int format, float alpha, float beta, float gamma, bm_handle_t handle)
 {
@@ -152,12 +152,23 @@ static int tpu_add_weighted_uint(unsigned char* input1, unsigned char* input2,
                             (void *)((unsigned char*)output + image_byte_size[0] + image_byte_size[1]),
                             (void *)((unsigned char*)output + image_byte_size[0] + image_byte_size[1] + image_byte_size[2])};
 
-     bm_image_copy_host_to_device(input1_img, (void **)input_addr1);
-     bm_image_copy_host_to_device(input2_img, (void **)input_addr2);
+    bm_image_copy_host_to_device(input1_img, (void **)input_addr1);
+    bm_image_copy_host_to_device(input2_img, (void **)input_addr2);
 
-     ret = bmcv_image_add_weighted(handle, input1_img, alpha, input2_img, beta, gamma, output_img);
+    struct timeval t1, t2;
+    gettimeofday(&t1, NULL);
+    ret = bmcv_image_add_weighted(handle, input1_img, alpha, input2_img, beta, gamma, output_img);
+    gettimeofday(&t2, NULL);
+    printf("add_weighted TPU using time: %ld(us)\n", TIME_COST_US(t1, t2));
+    if (BM_SUCCESS != ret) {
+        printf("bmcv_add_weighted error !!!\n");
+        bm_image_destroy(&input1_img);
+        bm_image_destroy(&input2_img);
+        bm_image_destroy(&output_img);
+        return -1;
+    }
 
-     bm_image_copy_device_to_host(output_img, (void **)out_addr);
+    bm_image_copy_device_to_host(output_img, (void **)out_addr);
 
     bm_image_destroy(&input1_img);
     bm_image_destroy(&input2_img);
@@ -211,12 +222,23 @@ static int tpu_add_weighted_float(float* input1, float* input2,
                             (void *)((float*)output + (image_byte_size[0] + image_byte_size[1])/sizeof(float)),
                             (void *)((float*)output + (image_byte_size[0] + image_byte_size[1] + image_byte_size[2])/sizeof(float))};
 
-     bm_image_copy_host_to_device(input1_img, (void **)input_addr1);
-     bm_image_copy_host_to_device(input2_img, (void **)input_addr2);
+    bm_image_copy_host_to_device(input1_img, (void **)input_addr1);
+    bm_image_copy_host_to_device(input2_img, (void **)input_addr2);
 
-     ret = bmcv_image_add_weighted(handle, input1_img, alpha, input2_img, beta, gamma, output_img);
+    struct timeval t1, t2;
+    gettimeofday(&t1, NULL);
+    ret = bmcv_image_add_weighted(handle, input1_img, alpha, input2_img, beta, gamma, output_img);
+    gettimeofday(&t2, NULL);
+    printf("add_weighted TPU using time: %ld(us)\n", TIME_COST_US(t1, t2));
+    if (BM_SUCCESS != ret) {
+        printf("bmcv_add_weighted error !!!\n");
+        bm_image_destroy(&input1_img);
+        bm_image_destroy(&input2_img);
+        bm_image_destroy(&output_img);
+        return -1;
+    }
 
-     bm_image_copy_device_to_host(output_img, (void **)out_addr);
+    bm_image_copy_device_to_host(output_img, (void **)out_addr);
 
     bm_image_destroy(&input1_img);
     bm_image_destroy(&input2_img);
@@ -225,11 +247,11 @@ static int tpu_add_weighted_float(float* input1, float* input2,
     return 0;
 }
 
-static int cmp_result_uint(unsigned char* got, unsigned char* exp, int len)
+static int cmp_result_uchar(unsigned char* got, unsigned char* exp, int len)
 {
     for (int i = 0; i < len; ++i) {
         if (abs(got[i] - exp[i]) > 1) {
-            printf("uint cmp error: idx=%d  exp=%d  got=%d\n", i, exp[i], got[i]);
+            printf("uchar cmp error: idx=%d  exp=%d  got=%d\n", i, exp[i], got[i]);
             return -1;
         }
     }
@@ -323,12 +345,12 @@ static int test_add_weighted_random(int if_use_img, void* frame, int format, int
 
         if (if_use_img) {
             printf("test real img \n");
-            readBin_uint(src1_name, input1_data, img_size);
-            readBin_uint(src2_name, input2_data, img_size);
+            readBin_uchar(src1_name, input1_data, img_size);
+            readBin_uchar(src2_name, input2_data, img_size);
         } else {
             printf("test random data !\n");
-            fill_img_uint(input1_data, img_size);
-            fill_img_uint(input2_data, img_size);
+            fill_img_uchar(input1_data, img_size);
+            fill_img_uchar(input2_data, img_size);
         }
         memset(output_tpu, 0, img_size * sizeof(unsigned char));
         memset(output_cpu, 0, img_size * sizeof(unsigned char));
@@ -342,20 +364,20 @@ static int test_add_weighted_random(int if_use_img, void* frame, int format, int
         gettimeofday(&t2, NULL);
         printf("add_weighted CPU using time = %ld(us)\n", TIME_COST_US(t1, t2));
 
-        ret = tpu_add_weighted_uint(input1_data, input2_data, output_tpu, height, width, format, alpha, beta, gamma, handle);
+        ret = tpu_add_weighted_uchar(input1_data, input2_data, output_tpu, height, width, format, alpha, beta, gamma, handle);
         if (ret) {
             printf("tpu_add_weighted failed!\n");
             return ret;
         }
 
-        ret = cmp_result_uint(output_tpu, output_cpu, img_size);
+        ret = cmp_result_uchar(output_tpu, output_cpu, img_size);
         if (ret) {
             printf("add_weighted cpu & tpu cmp failed!\n");
             return ret;
         }
         if(if_use_img){
             printf("output img by tpu\n");
-            writeBin_uint(dst_name, output_tpu, img_size);
+            writeBin_uchar(dst_name, output_tpu, img_size);
         }
         free(input1_data);
         free(input2_data);
@@ -455,7 +477,7 @@ int main(int argc, char* args[])
     int size = sizeof(format_num) / sizeof(format_num[0]);
     int rand_num = rand() % size;
     int format = format_num[rand_num];
-    int data_type = 0;  //0: float; 1: uint;
+    int data_type = 0;  //0: float; 1: uchar;
     float alpha = roundf((float)rand() / RAND_MAX * 10)/ 10.0;
     float beta = 1.0f - alpha;
     float gamma = ((float)rand()/RAND_MAX) * 255.0f;

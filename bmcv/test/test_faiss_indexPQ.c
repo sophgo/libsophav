@@ -708,7 +708,7 @@ int main(int argc, char *args[]) {
     int thread_num = 1;
     int loop = 1;
     int sort_cnt = 10;
-    int database_vecs_num = rand() % 10000 + 1000 + sort_cnt;
+    int database_vecs_num = 10000;
     int query_vecs_num = 1;
     int vec_dims = 256;
     int slice_num = 32;

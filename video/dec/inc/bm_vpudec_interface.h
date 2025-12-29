@@ -511,7 +511,7 @@ typedef void* BMVidCodHandle;
 DECL_EXPORT void bmvpu_dec_set_logging_threshold(BmVpuDecLogLevel log_level);
 DECL_EXPORT BMVidDecRetStatus bmvpu_dec_create(BMVidCodHandle* pVidCodHandle, BMVidDecParam decParam);
 #ifdef BM_PCIE_MODE
-DECL_EXPORT BMVidDecRetStatus bmvpu_dec_read_memory(BMVidCodHandle vidCodHandle, u64 src_addr, u64 dst_addr, int size);
+DECL_EXPORT BMVidDecRetStatus bmvpu_dec_read_memory(int soc_idx, u64 src_addr, unsigned char *dst_addr, int size);
 #endif
 DECL_EXPORT BMVidDecRetStatus bmvpu_dec_get_caps(BMVidCodHandle vidCodHandle, BMVidStreamInfo* streamInfo);
 DECL_EXPORT BMVidDecRetStatus bmvpu_dec_decode(BMVidCodHandle vidCodHandle, BMVidStream vidStream);
@@ -526,8 +526,9 @@ DECL_EXPORT BMVidDecRetStatus bmvpu_dec_get_all_frame_in_buffer(BMVidCodHandle v
 DECL_EXPORT int bmvpu_dec_get_all_empty_input_buf_cnt(BMVidCodHandle vidCodHandle);
 DECL_EXPORT int bmvpu_dec_get_pkt_in_buf_cnt(BMVidCodHandle vidCodHandle);
 DECL_EXPORT BMVidDecRetStatus bmvpu_dec_reset(int devIdx, int coreIdx);
-DECL_EXPORT int bmvpu_dec_get_core_idx(BMVidCodHandle handle);
+DECL_EXPORT int bmvpu_dec_get_core_idx(BMVidCodHandle vidCodHandle);
 DECL_EXPORT BMVidDecRetStatus bmvpu_dec_dump_stream(BMVidCodHandle vidCodHandle, unsigned char *p_stream, int size);
+DECL_EXPORT BMVidDecRetStatus bmvpu_dec_get_stream_info(BMVidCodHandle vidCodHandle, int* width, int* height, int* mini_fb, int* frame_delay);
 DECL_EXPORT int bmvpu_dec_get_inst_idx(BMVidCodHandle vidCodHandle);
 DECL_EXPORT int bmvpu_dec_get_device_fd(BMVidCodHandle vidCodHandle);
 

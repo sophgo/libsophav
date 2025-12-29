@@ -96,6 +96,8 @@ bmcv_faiss_indexflatIP
 
 4、查询向量和数据库向量内积距离值越大, 表示两者的相似度越高。因此, 在 TopK 过程中对内积距离值按降序排序。
 
+5、输入参数中 sort_cnt 和 query_vecs_num 需要小于或等于 database_vecs_num。
+
 
 **示例代码**
 

@@ -16,9 +16,7 @@ typedef struct border {
 	u16 st_y;
 	u16 width;
 	u16 height;
-	u8 value_r;
-	u8 value_g;
-	u8 value_b;
+	u32 color;
 	u16 thickness;
 } border_t;
 
@@ -77,6 +75,37 @@ typedef struct stitch_ctx_{
 	bmcv_resize_algorithm algorithm;
 	bmcv_padding_attr_t padding_attr;
 } stitch_ctx;
+
+typedef struct vpss_thread_ctx_{
+	u16 idx;
+	u8 fd;
+	bm_status_t ret;
+	bm_handle_t handle;
+	bm_vpss_cfg vpss_cfg;
+	bm_image output;
+} vpss_thread_ctx;
+
+typedef struct bmcv_circle_cfg {
+	union{
+		struct {
+			u32 value_r    : 8;
+			u32 value_g    : 8;
+			u32 value_b    : 8;
+			u32 line_width : 4;
+			u32 mode       : 3;
+			u32 enable     : 1;
+		} b;
+		u32 raw;
+	} cfg0;
+	union{
+		struct {
+			u32 center_x : 16;
+			u32 center_y : 16;
+		} b;
+		u32 raw;
+	} cfg1;
+	u16 radius;
+} bmcv_circle_cfg;
 
 #ifdef BM_PCIE_MODE
 struct vpp_batch_n {

@@ -7,8 +7,8 @@
 #define BOTH        2
 
 static bm_status_t bmcv_min_max_check(int len) {
-    if (len > 260144 || len < 50) {
-        bmlib_log("min_max", BMLIB_LOG_ERROR, "Unsupported size! len_size range : 50 ~ 260144 \n");
+    if (len < 0) {
+        bmlib_log("min_max", BMLIB_LOG_ERROR, "Unsupported size! len_size must larger than 0! \n");
         return BM_ERR_PARAM;
     }
     return BM_SUCCESS;
@@ -20,7 +20,6 @@ bm_status_t bmcv_min_max(bm_handle_t handle, bm_device_mem_t input, float* minVa
     bm_status_t ret = BM_SUCCESS;
     bm_device_mem_t minDev, maxDev;
     unsigned int chipid;
-    uint8_t npu_num;
     int core_id = 0;
     float* min_npu = NULL;
     float* max_npu = NULL;
@@ -46,27 +45,20 @@ bm_status_t bmcv_min_max(bm_handle_t handle, bm_device_mem_t input, float* minVa
         return ret;
     }
 
-    if (chipid == BM1688) {
-        npu_num = 32;
-    } else {
-        npu_num = 64;
-    }
-
-    min_npu = (float*)malloc(npu_num * sizeof(float));
-    max_npu = (float*)malloc(npu_num * sizeof(float));
+    min_npu = (float*)malloc(sizeof(float));
+    max_npu = (float*)malloc(sizeof(float));
 
     if (maxVal != NULL)
-        ret = bm_malloc_device_byte(handle, &maxDev, npu_num * sizeof(float));
+        ret = bm_malloc_device_byte(handle, &maxDev, sizeof(float));
 
     if (minVal != NULL)
-        ret = bm_malloc_device_byte(handle, &minDev, npu_num * sizeof(float));
+        ret = bm_malloc_device_byte(handle, &minDev, sizeof(float));
 
     api.inputAddr = bm_mem_get_device_addr(input);
     api.minAddr = bm_mem_get_device_addr(minDev);
     api.maxAddr = bm_mem_get_device_addr(maxDev);
     api.len = len;
     api.mode = maxVal == NULL ? ONLY_MIN : (minVal == NULL ? ONLY_MAX : BOTH);
-
 
     switch(chipid) {
         case BM1688_PREV:
@@ -86,17 +78,13 @@ bm_status_t bmcv_min_max(bm_handle_t handle, bm_device_mem_t input, float* minVa
 
     if (maxVal != NULL) {
         ret = bm_memcpy_d2s(handle, max_npu, maxDev);
-        *maxVal = max_npu[0];
-        for (int i = 1; i < npu_num; ++i)
-            *maxVal = *maxVal > max_npu[i] ? *maxVal : max_npu[i];
+        *maxVal = *max_npu;
         bm_free_device(handle, maxDev);
     }
 
     if (minVal != NULL) {
         ret = bm_memcpy_d2s(handle, min_npu, minDev);
-        *minVal = min_npu[0];
-        for (int i = 1; i < npu_num; ++i)
-            *minVal = *minVal < min_npu[i] ? *minVal : min_npu[i];
+        *minVal = *min_npu;
         bm_free_device(handle, minDev);
     }
 

@@ -79,6 +79,15 @@ BMCV 硬件介绍
     * - 13
       - bmcv_image_vpp_stitch
       - VPSS
+    * - 14
+      - bmcv_image_circle
+      - VPSS
+    * - 15
+      - bmcv_image_draw_point
+      - VPSS
+    * - 16
+      - bmcv_image_csc_overlay
+      - VPSS
 
 .. list-table:: JPEG实现接口
     :widths: 5 45 15
@@ -243,6 +252,9 @@ BMCV 硬件介绍
       - TPU
     * - 28
       - bmcv_distance
+      - TPU
+    * - 29
+      - bmcv_image_width_align
       - TPU
 
 .. list-table:: IVE实现接口
@@ -453,10 +465,10 @@ BMCV 硬件介绍
       - bmcv_ldc_gdc_gen_mesh
       - CPU
     * - 4
-      - bm_image_write_to_bmp
+      - bmcv_gen_text_watermark
       - CPU
     * - 5
-      - bmcv_gen_text_watermark
+      - bm_image_write_to_bmp
       - CPU
     * - 6
       - bm_read_bin

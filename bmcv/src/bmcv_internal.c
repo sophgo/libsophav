@@ -878,18 +878,52 @@ void bm_read_bin(bm_image src, const char *input_name)
                      (void*)((char*)input_ptr + image_byte_size[0]),
                      (void*)((char*)input_ptr + image_byte_size[0] + image_byte_size[1]),
                      (void*)((char*)input_ptr + image_byte_size[0] + image_byte_size[1] + image_byte_size[2])};
-    // bm_image_copy_device_to_host(src, in_ptr);
     FILE *fp_src = fopen(input_name, "rb");
-    // for (int i = 0; i < src.image_private->plane_num; i++) {
-    //     if (fread((void *)in_ptr[i], 1, image_byte_size[i], fp_src) < (unsigned int)image_byte_size[i]){
-    //         printf("file size is less than %d required bytes\n", image_byte_size[i]);
-    //         printf("0x%lx, 0x%llx\n", src.image_private->data[i].u.device.device_addr, (unsigned long long)in_ptr[i]);
-    //     }
-    //     CVI_SYS_Munmap(in_ptr[i], image_byte_size[i]);
-    // }
     if (fread((void *)input_ptr, 1, byte_size, fp_src) < (unsigned int)byte_size){
         printf("file size is less than %d required bytes\n", byte_size);
     };
+    fclose(fp_src);
+    bm_image_copy_host_to_device(src, (void **)in_ptr);
+    free(input_ptr);
+    return;
+}
+
+void bm_read_compact_bin(bm_image src, const char *input_name)
+{
+    int total_size = 0;
+    int image_byte_size[4] = {0};
+    for (int i = 0; i < src.image_private->plane_num; i++) {
+        image_byte_size[i] = src.image_private->memory_layout[i].size;
+        total_size += image_byte_size[i];
+    }
+
+    uint8_t *input_ptr = (uint8_t *)malloc(total_size);
+    void *in_ptr[4] = {
+        (void *)input_ptr,
+        (void *)input_ptr + image_byte_size[0],
+        (void *)input_ptr + image_byte_size[0] + image_byte_size[1],
+        (void *)input_ptr + image_byte_size[0] + image_byte_size[1] + image_byte_size[2]
+    };
+
+    FILE *fp_src = fopen(input_name, "rb");
+    if (fp_src == NULL) {
+        printf("open input image fail, input name: %s, %s: %s: %d\n", input_name, __FILE__, __func__, __LINE__);
+        free(input_ptr);
+        return;
+    }
+
+    for (int i = 0; i < src.image_private->plane_num; i++) {
+        int dsize = src.image_private->memory_layout[i].data_size;
+        int width = src.image_private->memory_layout[i].W;
+        int height = src.image_private->memory_layout[i].H * src.image_private->memory_layout[i].C;
+        int stride = src.image_private->memory_layout[i].pitch_stride;
+        for (int j = 0; j < height; j++) {
+            if (fread(in_ptr[i] + j * stride, dsize, width, fp_src) < (unsigned int)width) {
+                printf("fread is less than %d required bytes\n", width);
+            }
+        }
+    }
+
     fclose(fp_src);
     bm_image_copy_host_to_device(src, (void **)in_ptr);
     free(input_ptr);
@@ -915,6 +949,47 @@ void bm_write_bin(bm_image dst, const char *output_name)
     md5_get(output_ptr, byte_size, md5_str, 1);
     FILE *fp_dst = fopen(output_name, "wb");
     fwrite((void *)output_ptr, 1, byte_size, fp_dst);
+    fclose(fp_dst);
+    free(output_ptr);
+    return;
+}
+
+void bm_write_compact_bin(bm_image dst, const char *output_name)
+{
+    int total_size = 0;
+    int image_byte_size[4] = {0};
+    for (int i = 0; i < dst.image_private->plane_num; i++) {
+        image_byte_size[i] = dst.image_private->memory_layout[i].size;
+        total_size += image_byte_size[i];
+    }
+
+    uint8_t *output_ptr = (uint8_t *)malloc(total_size);
+    void *out_ptr[4] = {
+        (void *)output_ptr,
+        (void *)output_ptr + image_byte_size[0],
+        (void *)output_ptr + image_byte_size[0] + image_byte_size[1],
+        (void *)output_ptr + image_byte_size[0] + image_byte_size[1] + image_byte_size[2]
+    };
+
+    bm_image_copy_device_to_host(dst, (void **)out_ptr);
+
+    FILE *fp_dst = fopen(output_name, "wb");
+    if (fp_dst == NULL) {
+        printf("open output image fail, output name: %s, %s: %s: %d\n", output_name, __FILE__, __func__, __LINE__);
+        free(output_ptr);
+        return;
+    }
+
+    for (int i = 0; i < dst.image_private->plane_num; i++) {
+        int dsize = dst.image_private->memory_layout[i].data_size;
+        int width = dst.image_private->memory_layout[i].W;
+        int height = dst.image_private->memory_layout[i].H * dst.image_private->memory_layout[i].C;
+        int stride = dst.image_private->memory_layout[i].pitch_stride;
+        for (int j = 0; j < height; j++) {
+            fwrite(out_ptr[i] + j * stride, dsize, width, fp_dst);
+        }
+    }
+
     fclose(fp_dst);
     free(output_ptr);
     return;

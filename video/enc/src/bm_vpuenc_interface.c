@@ -41,6 +41,7 @@
 #endif
 
 #include <signal.h>     /* SIG_SETMASK */
+#include <pthread.h>
 
 #include "bm_vpuenc_interface.h"
 #include "bm_ioctl.h"
@@ -400,7 +401,7 @@ static int __attribute__((unused)) bmvpu_enc_free_proc(void *enc_ctx,
 
 
 static void bmvpu_enc_load_bmlib_handle(int soc_idx){
-    if (soc_idx > MAX_SOC_NUM)
+    if (soc_idx >= MAX_SOC_NUM)
     {
         BMVPU_ENC_ERROR("soc_idx excess MAX_SOC_NUM!\n");
         exit(0);
@@ -429,7 +430,7 @@ static void bmvpu_enc_load_bmlib_handle(int soc_idx){
 
 
 static void bmvpu_enc_unload_bmlib_handle(int soc_idx){
-    if (soc_idx > MAX_SOC_NUM)
+    if (soc_idx >= MAX_SOC_NUM)
     {
       BMVPU_ENC_ERROR("soc_idx excess MAX_SOC_NUM!\n");
       exit(0);
@@ -459,7 +460,7 @@ static void bmvpu_enc_unload_bmlib_handle(int soc_idx){
 bm_handle_t bmvpu_enc_get_bmlib_handle(int soc_idx)
 {
     bm_handle_t handle = 0;
-    if (soc_idx > MAX_SOC_NUM)
+    if (soc_idx >= MAX_SOC_NUM)
     {
         BMVPU_ENC_ERROR("soc_idx excess MAX_SOC_NUM!\n");
         exit(0);
@@ -893,7 +894,6 @@ int bmvpu_enc_open(BmVpuEncoder **encoder,
     venc_chn_attr_s stAttr = {0};
     venc_recv_pic_param_s stRecvParam = {0};
     BmVpuEncoderCtx *video_enc_ctx = NULL;
-
     if((encoder == NULL) || (open_params == NULL) || (initial_info == NULL)) {
         BMVPU_ENC_ERROR("bmvpu_enc_open params err: encoder(0X%x), open_params(0X%x), initial_info(0X%x).", encoder, open_params, initial_info);
         return BM_VPU_ENC_RETURN_CODE_INVALID_PARAMS;
@@ -941,6 +941,7 @@ int bmvpu_enc_open(BmVpuEncoder **encoder,
 
     // 1.2 check chn_id is using
     if (VeChn >= VENC_MAX_SOC_NUM) {
+        bmenc_chn_close(chn_fd);
         BMVPU_ENC_ERROR("enc open is more than DRV_ENCODER_DEV_NAME(%s).\n", DRV_ENCODER_DEV_NAME);
         pthread_mutex_unlock(&enc_chn_mutex);
         return BM_VPU_ENC_RETURN_CODE_INVALID_HANDLE;
@@ -960,6 +961,8 @@ int bmvpu_enc_open(BmVpuEncoder **encoder,
     if ((*encoder) == NULL) {
         BMVPU_ENC_ERROR("allocating memory for encoder object failed");
         bmenc_chn_close(chn_fd);
+        g_enc_chn[VeChn].is_used = 0;
+        g_enc_chn[VeChn].chn_fd  = 0;
         pthread_mutex_unlock(&enc_chn_mutex);
         return BM_VPU_ENC_RETURN_CODE_ERROR;
     }
@@ -972,6 +975,9 @@ int bmvpu_enc_open(BmVpuEncoder **encoder,
     // 1.4 alloc video enc ctx
     video_enc_ctx = (BmVpuEncoderCtx *)calloc(1, sizeof(BmVpuEncoderCtx));
     if (video_enc_ctx == NULL) {
+        pthread_mutex_unlock(&enc_chn_mutex);
+        bmvpu_enc_close(*encoder);
+        *encoder = NULL;
         BMVPU_ENC_ERROR("malloc video_enc_ctx failed\n");
         return BM_VPU_ENC_RETURN_CODE_ERROR;
     }
@@ -988,6 +994,8 @@ int bmvpu_enc_open(BmVpuEncoder **encoder,
     } else {
         BMVPU_ENC_ERROR("params err open_params->codec_format=%d\n", open_params->codec_format);
         pthread_mutex_unlock(&enc_chn_mutex);
+        bmvpu_enc_close(*encoder);
+        *encoder = NULL;
         return BM_VPU_ENC_RETURN_CODE_ERROR;
     }
     stAttr.stVencAttr.u32MaxPicWidth     = open_params->frame_width;
@@ -1018,11 +1026,10 @@ int bmvpu_enc_open(BmVpuEncoder **encoder,
         stAttr.stRcAttr.stH264FixQp.u32PQp           = open_params->cqp;
     } else {
         if (open_params->bitrate <= 1000) {
-            bmenc_chn_close(g_enc_chn[VeChn].chn_fd);
-            g_enc_chn[VeChn].is_used = 0;
-
             BMVPU_ENC_ERROR("bmvpu_enc_open enc params is err(bitrate=%d). \n", open_params->bitrate);
             pthread_mutex_unlock(&enc_chn_mutex);
+            bmvpu_enc_close(*encoder);
+            *encoder = NULL;
             return BM_VPU_ENC_RETURN_CODE_INVALID_PARAMS;   // 0 or -1
         }
 
@@ -1051,9 +1058,9 @@ int bmvpu_enc_open(BmVpuEncoder **encoder,
     if (ret != 0) {
         BMVPU_ENC_ERROR("bmenc create chn failed %d\n", ret);
         ret = -1;
-        bmenc_chn_close(g_enc_chn[VeChn].chn_fd);
-        g_enc_chn[VeChn].is_used = 0;
         pthread_mutex_unlock(&enc_chn_mutex);
+        bmvpu_enc_close(*encoder);
+        *encoder = NULL;
         return ret;
     }
 
@@ -1102,8 +1109,8 @@ int bmvpu_enc_open(BmVpuEncoder **encoder,
             BMVPU_ENC_ERROR("bmenc set h264 vui failed %d\n", ret);
             pthread_mutex_unlock(&enc_chn_mutex);
             bmvpu_enc_close(*encoder);
+            *encoder = NULL;
             ret = -1;
-            g_enc_chn[VeChn].is_used = 0;
             return ret;
         }
     } else if (open_params->codec_format == BM_VPU_CODEC_FORMAT_H265) {
@@ -1122,8 +1129,8 @@ int bmvpu_enc_open(BmVpuEncoder **encoder,
             BMVPU_ENC_ERROR("bmenc set h265 vui failed %d\n", ret);
             pthread_mutex_unlock(&enc_chn_mutex);
             bmvpu_enc_close(*encoder);
+            *encoder = NULL;
             ret = -1;
-            g_enc_chn[VeChn].is_used = 0;
             return ret;
         }
     }
@@ -1131,6 +1138,8 @@ int bmvpu_enc_open(BmVpuEncoder **encoder,
     ret = bmenc_ioctl_start_recv_frame(g_enc_chn[VeChn].chn_fd, &stRecvParam);
     if (ret != 0) {
         pthread_mutex_unlock(&enc_chn_mutex);
+        bmvpu_enc_close(*encoder);
+        *encoder = NULL;
         BMVPU_ENC_ERROR("bmvpu_enc_open start recv frame failed.");
         return BM_VPU_ENC_RETURN_CODE_ERROR;
     }
@@ -1145,7 +1154,7 @@ int bmvpu_enc_open(BmVpuEncoder **encoder,
     ret =  bmvpu_enc_get_initial_info(*encoder, initial_info, &min_bs_buf_size);
     if (ret != BM_VPU_ENC_RETURN_CODE_OK) {
         bmvpu_enc_close(*encoder);
-        g_enc_chn[VeChn].is_used = 0;
+        *encoder = NULL;
         BMVPU_ENC_ERROR("bmvpu_enc_open get  initial info failed.");
         return BM_VPU_ENC_RETURN_CODE_ERROR;
     }
@@ -1154,7 +1163,7 @@ int bmvpu_enc_open(BmVpuEncoder **encoder,
     if (bs_dmabuffer != NULL) {
         if (min_bs_buf_size > bs_dmabuffer->size) {
             bmvpu_enc_close(*encoder);
-            g_enc_chn[VeChn].is_used = 0;
+            *encoder = NULL;
             BMVPU_ENC_ERROR("bmenc open input bs_dma_buf size(%d) is small than min_bs_buf_size(%d). \n", bs_dmabuffer->size, min_bs_buf_size);
             return BM_VPU_ENC_RETURN_CODE_ERROR;
         }
@@ -1165,13 +1174,19 @@ int bmvpu_enc_open(BmVpuEncoder **encoder,
         ret = bmenc_ioctl_enc_set_extern_buf(g_enc_chn[VeChn].chn_fd, &extern_buf);
         if (ret != BM_VPU_ENC_RETURN_CODE_OK) {
             bmvpu_enc_close(*encoder);
-            g_enc_chn[VeChn].is_used = 0;
+            *encoder = NULL;
             BMVPU_ENC_ERROR("bmenc open set bs buff addr failed.\n");
             return BM_VPU_ENC_RETURN_CODE_ERROR;
         }
     }
 
-    bmvpu_enc_encode_header(*encoder);
+    ret = bmvpu_enc_encode_header(*encoder);
+    if (ret != BM_VPU_ENC_RETURN_CODE_OK) {
+        bmvpu_enc_close(*encoder);
+        *encoder = NULL;
+        BMVPU_ENC_ERROR("encode header faile. ret=%d \n", ret);
+        return BM_VPU_ENC_RETURN_CODE_ERROR;
+    }
 
     return BM_VPU_ENC_RETURN_CODE_OK;
 }
@@ -1182,6 +1197,7 @@ int bmvpu_enc_close(BmVpuEncoder *encoder)
     HANDLE VeChn = (HANDLE)(intptr_t)encoder->handle;
     pthread_mutex_lock(&enc_chn_mutex);
     if (g_enc_chn[VeChn].is_used == 0) {
+        g_enc_chn[VeChn].chn_fd = 0;
         pthread_mutex_unlock(&enc_chn_mutex);
         return BM_VPU_ENC_RETURN_CODE_ERROR;
     }
@@ -1217,9 +1233,11 @@ int bmvpu_enc_close(BmVpuEncoder *encoder)
     }
     g_enc_chn[VeChn].p_pkt_list = NULL;
 
-
-    bmenc_chn_close(g_enc_chn[VeChn].chn_fd);
+    if (g_enc_chn[VeChn].chn_fd > 0) {
+        bmenc_chn_close(g_enc_chn[VeChn].chn_fd);
+    }
     g_enc_chn[VeChn].is_used = 0;
+    g_enc_chn[VeChn].chn_fd = 0;
     pthread_mutex_unlock(&enc_chn_mutex);
     if (encoder != NULL) {
         free(encoder);
@@ -1323,9 +1341,13 @@ int bmvpu_enc_encode_header(BmVpuEncoder *encoder)
     ret = bmenc_ioctl_encode_header(g_enc_chn[VeChn].chn_fd, &stEncodeHeader);
     if (ret != 0) {
         BMVPU_ENC_ERROR("bmvpu_enc_encode_header failed(ret=%x).\n", ret);
-        return -1;
+        return ret;
     }
 
+    if (stEncodeHeader.u32Len <= 0) {
+        BMVPU_ENC_ERROR("bmvpu_enc_encode_header stEncodeHeader.u32Len(%d).\n", stEncodeHeader.u32Len);
+        return BM_VPU_ENC_RETURN_CODE_ERROR;
+    }
 
     BM_AVPKT * pPktHeader            = &(g_enc_chn[VeChn].p_pkt_header);
     if (stEncodeHeader.u32Len > pPktHeader->pkt_data.data_size) {
@@ -1513,19 +1535,47 @@ int bmvpu_enc_get_stream(BmVpuEncoder *encoder,
     {
         venc_pack_s *pkt_drv;
         pkt_drv = &g_enc_chn[VeChn].stStream.pstPack[i];
+
         // 2. map bs data
         BmVpuEncDMABuffer dma_buf;
         dma_buf.phys_addr = pkt_drv->u64PhyAddr;
         dma_buf.size = pkt_drv->u32Len;
+#ifndef BM_PCIE_MODE
         ret = bmvpu_dma_buffer_map(0, &dma_buf, BM_VPU_ENC_MAPPING_FLAG_READ|BM_VPU_ENC_MAPPING_FLAG_WRITE);
         if (ret != BM_VPU_ENC_RETURN_CODE_OK) {
             continue;
         }
         pkt_drv->pu8Addr = (unsigned char *)dma_buf.virt_addr;
         if (pkt_drv->pu8Addr == NULL) {
-            BMVPU_ENC_DEBUG("bmenc get stream map fiaile.\n");
+            BMVPU_ENC_DEBUG("bmenc get stream map failed.\n");
             continue;
         }
+
+#else
+        uint8_t * host_va = malloc(sizeof(uint8_t)*dma_buf.size);
+        if (host_va==NULL)
+        {
+            fprintf(stderr, "malloc failed\n");
+            free(host_va);
+            return BM_VPU_ENC_RETURN_CODE_ERROR;
+        }
+
+        u64 vpu_pa = bmvpu_enc_dma_buffer_get_physical_address(&dma_buf);
+
+        ret = bmvpu_enc_read_memory(0 , vpu_pa, host_va, dma_buf.size);
+        if (ret < 0){
+            BMVPU_ENC_ERROR("bmvpu_enc_read_memory failed, ret=%d\n", ret);
+            free(host_va);
+            continue;
+        } else if(pkt_drv->pu8Addr == NULL) {
+            BMVPU_ENC_ERROR("bmenc get stream map failed.\n");
+            free(host_va);
+            continue;
+        }
+
+        pkt_drv->pu8Addr = host_va;
+
+#endif
         // 3. sps  pps sei save local
         if ((pkt_drv->DataType.enH264EType == H264E_NALU_SEI) || (pkt_drv->DataType.enH264EType == H264E_NALU_SPS) || \
             (pkt_drv->DataType.enH264EType == H264E_NALU_PPS) || \
@@ -1591,8 +1641,12 @@ int bmvpu_enc_get_stream(BmVpuEncoder *encoder,
             }
         }
 
+#ifndef BM_PCIE_MODE
         // 5. unmap
         bmvpu_dma_buffer_unmap(0, &dma_buf);
+#else
+        free(host_va);
+#endif
     }
 
     // 4. call ioctl release stream
@@ -1825,5 +1879,21 @@ unsigned int bmvpu_enc_dma_buffer_get_size(BmVpuEncDMABuffer* buf)
     return 0;
 }
 
+#ifdef BM_PCIE_MODE
+int bmvpu_enc_read_memory(int soc_idx, u64 src_addr, unsigned char *dst_addr, int size)
+{
+    //return vdi_read_memory(coreIdx, addr, data, len, endian);
+    bm_device_mem_t src_mem = bm_mem_from_device(src_addr, size);
+    int ret = bm_memcpy_d2s_partial(bmvpu_enc_get_bmlib_handle(soc_idx), dst_addr, src_mem, size);
+    return ret;
+}
+
+int bmvpu_enc_write_memory(int soc_idx, u64 dst_addr, unsigned char *src_addr, int size)
+{
+    bm_device_mem_t dst_mem = bm_mem_from_device(dst_addr, size);
+    int ret = bm_memcpy_s2d_partial(bmvpu_enc_get_bmlib_handle(soc_idx), dst_mem, src_addr, size);
+    return ret;
+}
+#endif
 
 

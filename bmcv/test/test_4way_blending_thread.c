@@ -8,6 +8,7 @@
 #include <stdatomic.h>
 #include "signal.h"
 #include "bmcv_api_ext_c.h"
+#include "bmcv_internal.h"
 
 #ifdef __linux__
 #include <sys/time.h>
@@ -16,9 +17,14 @@
 #include "time.h"
 #endif
 
-#define ALIGN(x, a)      (((x) + ((a)-1)) & ~((a)-1))
 extern void bm_read_bin(bm_image src, const char *input_name);
 extern void bm_write_bin(bm_image dst, const char *output_name);
+extern bm_status_t bm_blend_image_calc_stride(bm_handle_t handle,
+                                     int img_h,
+                                     int img_w,
+                                     bm_image_format_ext image_format,
+                                     bm_image_data_format_ext data_type,
+                                     int *stride);
 
 pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
 _Atomic int threads_running = 1;
@@ -232,6 +238,8 @@ static int test_4way_blending(int input_num, char** src_name, int src_w, int src
   int wgtWidth, wgtHeight;
   bm_image src[4];
   bm_image dst;
+  int src_stride[4][4] = {0};
+  int dst_stride[4] = {0};
   int ret = 0;
   #ifdef __linux__
     struct timeval tv_start;
@@ -242,9 +250,16 @@ static int test_4way_blending(int input_num, char** src_name, int src_w, int src
   unsigned long long time_max = 0, time_min = 10000, fps = 0, pixel_per_sec = 0;
   atomic_fetch_add(&num_threads, 1);
 
+  // calc image stride
+  for (int i = 0; i < 4; i++)
+  {
+    bm_blend_image_calc_stride(handle, src_h, src_w, src_fmt, DATA_TYPE_EXT_1N_BYTE, src_stride[i]);
+  }
+  bm_blend_image_calc_stride(handle, dst_h, dst_w, dst_fmt, DATA_TYPE_EXT_1N_BYTE, dst_stride);
+
   for(int i = 0;i < input_num; i++)
   {
-    bm_image_create(handle, src_h, src_w, src_fmt, DATA_TYPE_EXT_1N_BYTE, &src[i],NULL);
+    bm_image_create(handle, src_h, src_w, src_fmt, DATA_TYPE_EXT_1N_BYTE, &src[i], src_stride[i]);
     bm_image_alloc_dev_mem(src[i],1);
     bm_read_bin(src[i],src_name[i]);
   }
@@ -257,10 +272,10 @@ static int test_4way_blending(int input_num, char** src_name, int src_w, int src
     wgt_len = wgtWidth * wgtHeight;
     if (stitch_config.wgt_mode == BM_STITCH_WGT_UV_SHARE)
       wgt_len = wgt_len << 1;
-    bm_dem_read_bin(handle, &stitch_config.wgt_phy_mem[j][i%2], wgt_name[i],  wgt_len);
+    bm_dem_read_bin(handle, &stitch_config.wgt_phy_mem[j][i%2], wgt_name[i], wgt_len);
   }
 
-  bm_image_create(handle, dst_h, dst_w, dst_fmt, DATA_TYPE_EXT_1N_BYTE, &dst,NULL);
+  bm_image_create(handle, dst_h, dst_w, dst_fmt, DATA_TYPE_EXT_1N_BYTE, &dst, dst_stride);
   bm_image_alloc_dev_mem(dst, 1);
 
 

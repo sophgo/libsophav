@@ -21,10 +21,16 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 
-bm_status_t fill_image_private(bm_image *res, int *stride) {
+bm_status_t fill_default_image_private(
+    bm_image_private        *image_private,
+    int                      H,
+    int                      W,
+    bm_image_format_ext      image_format,
+    bm_image_data_format_ext data_type) {
+
     bm_status_t ret = BM_SUCCESS;
     int data_size = 1;
-    switch (res->data_type) {
+    switch (data_type) {
         case DATA_TYPE_EXT_FLOAT32:
         case DATA_TYPE_EXT_U32:
             data_size = 4;
@@ -39,11 +45,7 @@ bm_status_t fill_image_private(bm_image *res, int *stride) {
             data_size = 1;
             break;
     }
-    bool              use_default_stride = stride ? false : true;
-    bm_image_private *image_private      = res->image_private;
-    int               H                  = res->height;
-    int               W                  = res->width;
-    switch (res->image_format) {
+    switch (image_format) {
         case FORMAT_YUV420P: {
             image_private->plane_num = 3;
             image_private->memory_layout[0] = set_plane_layout(1, 1, H, W, data_size);
@@ -152,13 +154,26 @@ bm_status_t fill_image_private(bm_image *res, int *stride) {
             printf("UNKONW IMAGE FORMAT! \n");
             ret = BM_ERR_DATA;
             break;
-
     }
+    return ret;
+}
+
+bm_status_t fill_image_private(bm_image *res, int *stride) {
+    bm_status_t ret = BM_SUCCESS;
+    bool              use_default_stride = stride ? false : true;
+    ret = fill_default_image_private(
+        res->image_private, res->height, res->width, res->image_format, res->data_type);
+    if (ret != BM_SUCCESS)
+        return ret;
 
     if (!use_default_stride) {
         for(int p = 0; p < res->image_private->plane_num; p++){
-            image_private->memory_layout[p] =
-                stride_width(image_private->memory_layout[p], stride[p]);
+            if (stride[p] >= res->image_private->memory_layout[p].pitch_stride)
+                res->image_private->memory_layout[p] =
+                    stride_width(res->image_private->memory_layout[p], stride[p]);
+            else
+                res->image_private->memory_layout[p] =
+                    align_width(res->image_private->memory_layout[p], stride[p]);
         }
     }
 
@@ -887,160 +902,12 @@ bm_status_t bm_image_tensor_alloc_dev_mem(bm_image_tensor image_tensor,
 }
 
 static void fill_image_private_tensor(bm_image_tensor res) {
-    int data_size = 1;
-    switch (res.image.data_type) {
-        case DATA_TYPE_EXT_FLOAT32:
-        case DATA_TYPE_EXT_U32:
-            data_size = 4 * res.image_n;
-            break;
-        case DATA_TYPE_EXT_FP16:
-        case DATA_TYPE_EXT_BF16:
-        case DATA_TYPE_EXT_U16:
-        case DATA_TYPE_EXT_S16:
-            data_size = 2 * res.image_n;
-            break;
-        default:
-            data_size = 1 * res.image_n;
-            break;
-    }
-
     int  H             = res.image.height;
     int  W             = res.image.width;
     bm_image_private* image_private = res.image.image_private;
-    switch (res.image.image_format) {
-        case FORMAT_YUV420P: {
-            image_private->plane_num = 3;
-            image_private->memory_layout[0] = set_plane_layout(1, 1, H, W, data_size);
-            image_private->memory_layout[1] = set_plane_layout(
-                   1, 1, ALIGN(H, 2) >> 1, ALIGN(W, 2) >> 1, data_size);
-            image_private->memory_layout[2] = set_plane_layout(
-                   1, 1, ALIGN(H, 2) >> 1, ALIGN(W, 2) >> 1, data_size);
-            break;
-        }
-        case FORMAT_YUV422P: {
-            image_private->plane_num = 3;
-            image_private->memory_layout[0] =
-                set_plane_layout(1, 1, H, W, data_size);
-            image_private->memory_layout[1] =
-                set_plane_layout(1, 1, H, ALIGN(W, 2) >> 1, data_size);
-            image_private->memory_layout[2] =
-                set_plane_layout(1, 1, H, ALIGN(W, 2) >> 1, data_size);
-            break;
-        }
-        case FORMAT_YUV444P: {
-            image_private->plane_num = 3;
-            image_private->memory_layout[0] =
-                set_plane_layout(1, 1, H, W, data_size);
-            image_private->memory_layout[1] =
-                set_plane_layout(1, 1, H, W, data_size);
-            image_private->memory_layout[2] =
-                set_plane_layout(1, 1, H, W, data_size);
-            break;
-        }
-        case FORMAT_NV24: {
-            image_private->plane_num = 2;
-            image_private->memory_layout[0] =
-                set_plane_layout(1, 1, H, W, data_size);
-            image_private->memory_layout[1] =
-                set_plane_layout(1, 1, H, ALIGN(W, 2), data_size);
-            break;
-        }
-        case FORMAT_NV12:
-        case FORMAT_NV21: {
-            image_private->plane_num = 2;
-            image_private->memory_layout[0] =
-                set_plane_layout(1, 1, H, W, data_size);
-            image_private->memory_layout[1] = set_plane_layout(
-                1, 1, ALIGN(H, 2) >> 1, ALIGN(W, 2), data_size);
-            break;
-        }
-        case FORMAT_NV16:
-        case FORMAT_NV61: {
-            image_private->plane_num = 2;
-            image_private->memory_layout[0] =
-                set_plane_layout(1, 1, H, W, data_size);
-            image_private->memory_layout[1] =
-                set_plane_layout(1, 1, H, ALIGN(W, 2), data_size);
-            break;
-        }
-        case FORMAT_GRAY: {
-            image_private->plane_num = 1;
-            image_private->memory_layout[0] =
-                set_plane_layout(1, 1, H, W, data_size);
-            break;
-        }
-        case FORMAT_YUV444_PACKED:
-        case FORMAT_YVU444_PACKED:
-        case FORMAT_HSV180_PACKED:
-        case FORMAT_HSV256_PACKED:
-        case FORMAT_BGR_PACKED:
-        case FORMAT_RGB_PACKED: {
-            image_private->plane_num = 1;
-            image_private->memory_layout[0] =
-                set_plane_layout(1, 1, H, W * 3, data_size);
-            break;
-        }
-        case FORMAT_ABGR_PACKED:
-        case FORMAT_ARGB_PACKED: {
-            image_private->plane_num = 1;
-            image_private->memory_layout[0] =
-                set_plane_layout(1, 1, H, W * 4, data_size);
-            break;
-        }
-        case FORMAT_BGR_PLANAR:
-        case FORMAT_RGB_PLANAR: {
-            image_private->plane_num = 1;
-            image_private->memory_layout[0] =
-                set_plane_layout(1, 3, H, W, data_size);
-            break;
-        }
-        case FORMAT_BGRP_SEPARATE:
-        case FORMAT_RGBP_SEPARATE: {
-            image_private->plane_num = 3;
-            image_private->memory_layout[0] =
-                set_plane_layout(1, 1, H, W, data_size);
-            image_private->memory_layout[1] =
-                set_plane_layout(1, 1, H, W, data_size);
-            image_private->memory_layout[2] =
-                set_plane_layout(1, 1, H, W, data_size);
-            break;
-        }
-        case FORMAT_HSV_PLANAR: {
-            image_private->plane_num = 3;
-            image_private->memory_layout[0] =
-                set_plane_layout(1, 1, H, W, data_size);
-            image_private->memory_layout[1] =
-                set_plane_layout(1, 1, H, W, data_size);
-            image_private->memory_layout[2] =
-                set_plane_layout(1, 1, H, W, data_size);
-            break;
-        }
-        case FORMAT_RGBYP_PLANAR: {
-            image_private->plane_num = 4;
-            image_private->memory_layout[0] =
-                set_plane_layout(1, 1, H, W, data_size);
-            image_private->memory_layout[1] =
-                set_plane_layout(1, 1, H, W, data_size);
-            image_private->memory_layout[2] =
-                set_plane_layout(1, 1, H, W, data_size);
-            image_private->memory_layout[3] =
-                set_plane_layout(1, 1, H, W, data_size);
-            break;
-        }
-        case FORMAT_YUV422_YUYV:
-        case FORMAT_YUV422_YVYU:
-        case FORMAT_YUV422_UYVY:
-        case FORMAT_YUV422_VYUY: {
-            image_private->plane_num = 1;
-            image_private->memory_layout[0] =
-                set_plane_layout(1, 1, H, W * 2, data_size);
-            break;
-        }
-        default:
-            image_private->plane_num = 1;
-            image_private->memory_layout[0] =
-                set_plane_layout(1, 1, H, W, data_size);
-    }
+    fill_default_image_private(image_private, H, W,
+        res.image.image_format, res.image.data_type);
+    return;
 }
 
 bm_status_t bm_image_tensor_attach(bm_image_tensor  image_tensor,
@@ -1457,36 +1324,6 @@ bm_status_t bmcv_width_align(bm_handle_t handle,
     return BM_SUCCESS;
 }
 
-/**
- * Abandoned interface, supports compatibility settings
- * Not recommended for use
-*/
-
-bm_status_t bmcv_image_crop(
-    bm_handle_t         handle,
-    int                 crop_num,
-    bmcv_rect_t *       rects,
-    bm_image            input,
-    bm_image *          output){
-    return bmcv_image_vpp_convert(handle, crop_num, input, output, rects, BMCV_INTER_LINEAR);
-}
-
-bm_status_t bm_image_dev_mem_alloc(bm_image image, int heap_id){
-    return bm_image_alloc_dev_mem(image, heap_id);
-}
-
-bm_status_t bm_image_dettach_contiguous_mem(int image_num, bm_image *images){
-    return bm_image_detach_contiguous_mem(image_num, images);
-}
-
-bm_status_t bmcv_image_yuv2bgr_ext(
-    bm_handle_t handle,
-    int         image_num,
-    bm_image *  input,
-    bm_image *  output){
-    return bmcv_image_storage_convert(handle, image_num, input, output);
-}
-
 void bmcv_print_version() {
     const char *env_val = getenv("BMCV_PRINT_VERSION");
     if (env_val == NULL || strcmp(env_val, "1") != 0) {
@@ -1546,4 +1383,34 @@ void bmcv_print_version() {
     }
 #endif
     return;
+}
+
+/**
+ * Abandoned interface, supports compatibility settings
+ * Not recommended for use
+*/
+
+bm_status_t bmcv_image_crop(
+    bm_handle_t         handle,
+    int                 crop_num,
+    bmcv_rect_t *       rects,
+    bm_image            input,
+    bm_image *          output){
+    return bmcv_image_vpp_convert(handle, crop_num, input, output, rects, BMCV_INTER_LINEAR);
+}
+
+bm_status_t bm_image_dev_mem_alloc(bm_image image, int heap_id){
+    return bm_image_alloc_dev_mem(image, heap_id);
+}
+
+bm_status_t bm_image_dettach_contiguous_mem(int image_num, bm_image *images){
+    return bm_image_detach_contiguous_mem(image_num, images);
+}
+
+bm_status_t bmcv_image_yuv2bgr_ext(
+    bm_handle_t handle,
+    int         image_num,
+    bm_image *  input,
+    bm_image *  output){
+    return bmcv_image_storage_convert(handle, image_num, input, output);
 }

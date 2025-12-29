@@ -5,7 +5,7 @@
 #include <time.h>
 #include "bmcv_api_ext_c.h"
 #include <pthread.h>
-
+#include <stdint.h>
 #ifdef __linux__
 #include <sys/time.h>
 #else
@@ -24,27 +24,12 @@ typedef struct {
     bm_handle_t handle;
 } hm_distance_thread_arg_t;
 
-extern void native_cal_hammingDistance(int *input1, int *input2, int *output, int bits_len,
+extern void native_cal_hammingDistance(uint32_t *input1, uint32_t *input2, uint32_t *output, int bits_len,
                                        int input1_num, int input2_num);
 
-static int parameters_check(int input1_num, int input2_num)
-{
-    int error = 0;
-    if (input1_num > 100) {
-        printf("Unsupported value : input1_num_max = 100 \n");
-        error = -1;
-    }
-    if (input2_num > 2500) {
-        printf("Unsupported value : input2_num_max = 2500 \n");
-        error = -1;
-    }
-
-    return error;
-}
-
-static int array_cmp_int32(int *p_exp, int *p_got, int len, const char *info_label, int delta) {
+static int array_cmp_int32(uint32_t *p_exp, uint32_t *p_got, int len, const char *info_label, int delta) {
     for (int idx = 0; idx < len; idx++) {
-        if ((int)fabs(p_exp[idx] - (int)p_got[ idx]) > delta) {
+        if ((uint32_t)fabs(p_exp[idx] - (uint32_t)p_got[ idx]) > delta) {
             printf("%s abs error at index %d exp %d got %d\n", info_label, idx, p_exp[idx], p_got[idx]);
             return -1;
         }
@@ -59,18 +44,18 @@ static int hamming_distance_single_test(bm_handle_t handle, int bits_len, int in
     bm_device_mem_t output_dev_mem;
     struct timeval t1, t2, t3, t4;
 
-    int* input1_data = (int*)malloc(input1_num * bits_len * sizeof(int));
-    int* input2_data = (int*)malloc(input2_num * bits_len * sizeof(int));
-    int* output_ref  = (int*)malloc(input1_num * input2_num * sizeof(int));
-    int* output_tpu  = (int*)malloc(input1_num * input2_num * sizeof(int));
+    uint32_t* input1_data = (uint32_t*)malloc(input1_num * bits_len * sizeof(uint32_t));
+    uint32_t* input2_data = (uint32_t*)malloc(input2_num * bits_len * sizeof(uint32_t));
+    uint32_t* output_ref  = (uint32_t*)malloc(input1_num * input2_num * sizeof(uint32_t));
+    uint32_t* output_tpu  = (uint32_t*)malloc(input1_num * input2_num * sizeof(uint32_t));
 
     printf("bits_len is %u\n", bits_len);
     printf("input1_data len is %u\n", input1_num);
     printf("input2_data len is %u\n", input2_num);
-    memset(input1_data, 0, input1_num * bits_len * sizeof(int));
-    memset(input2_data, 0, input2_num * bits_len * sizeof(int));
-    memset(output_ref,  0,  input1_num * input2_num * sizeof(int));
-    memset(output_tpu,  0,  input1_num * input2_num * sizeof(int));
+    memset(input1_data, 0, input1_num * bits_len * sizeof(uint32_t));
+    memset(input2_data, 0, input2_num * bits_len * sizeof(uint32_t));
+    memset(output_ref,  0,  input1_num * input2_num * sizeof(uint32_t));
+    memset(output_tpu,  0,  input1_num * input2_num * sizeof(uint32_t));
 
     // fill data
     if (rdm) {
@@ -96,9 +81,9 @@ static int hamming_distance_single_test(bm_handle_t handle, int bits_len, int in
     gettimeofday(&t2, NULL);
     printf("Hm_distance CPU using time = %ld(us)\n", TIME_COST_US(t1, t2));
     // tpu_cal
-    bm_malloc_device_byte(handle, &input1_dev_mem, input1_num * bits_len * sizeof(int));
-    bm_malloc_device_byte(handle, &input2_dev_mem, input2_num * bits_len * sizeof(int));
-    bm_malloc_device_byte(handle, &output_dev_mem, input1_num * input2_num * sizeof(int));
+    bm_malloc_device_byte(handle, &input1_dev_mem, input1_num * bits_len * sizeof(uint32_t));
+    bm_malloc_device_byte(handle, &input2_dev_mem, input2_num * bits_len * sizeof(uint32_t));
+    bm_malloc_device_byte(handle, &output_dev_mem, input1_num * input2_num * sizeof(uint32_t));
     bm_memcpy_s2d(handle, input1_dev_mem, input1_data);
     bm_memcpy_s2d(handle, input2_dev_mem, input2_data);
     gettimeofday(&t3, NULL);
@@ -147,11 +132,10 @@ int main(int argc, char *argv[]) {
     printf("seed = %d\n", seed);
     int loop = 1;
     int random = 1;
-    int bits_len = 8;
-    int input1_num = 1 + rand() % 100;
-    int input2_num = 1 + rand() % 2500;
+    int bits_len = 8;  //support 4 8 16 32
+    int input1_num = 1 + rand() % 16;
+    int input2_num = 1 + rand() % 100000;
     int thread_num = 1;
-    int check = 0;
     bm_handle_t handle;
     bm_status_t ret = bm_dev_request(&handle, 0);
     if (ret != BM_SUCCESS) {
@@ -166,7 +150,7 @@ int main(int argc, char *argv[]) {
         printf("%s \n", argv[0]);
         printf("%s 2\n", argv[0]);
         printf("%s 2 1\n", argv[0]);
-        printf("%s 1 1 1 3 50 100 \n", argv[0]);
+        printf("%s 1 1 1 8 16 1000 \n", argv[0]);
         return 0;
     }
 
@@ -176,11 +160,6 @@ int main(int argc, char *argv[]) {
     if(argc > 4) bits_len = atoi(argv[4]);
     if(argc > 5) input1_num = atoi(argv[5]);
     if(argc > 6) input2_num = atoi(argv[6]);
-    check = parameters_check(input1_num, input2_num);
-    if (check) {
-        printf("Parameters Failed! \n");
-        return check;
-    }
 
     // test for multi-thread
     pthread_t pid[thread_num];

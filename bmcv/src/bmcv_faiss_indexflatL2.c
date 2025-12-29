@@ -32,6 +32,26 @@ bm_status_t bmcv_faiss_indexflatL2(bm_handle_t handle,
     api.transpose = is_transpose;
     api.input_dtype = input_dtype;
     api.output_dtype = output_dtype;
+    switch (input_dtype) {
+        case 5:
+            if (output_dtype != 3 && output_dtype != 5) {
+                bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "faiss_api_indexflatL2 when input_dtype = fp32, output_dtype should be fp16/fp32! %s: %s: %d\n",
+                        filename(__FILE__), __func__, __LINE__);
+                return BM_NOT_SUPPORTED;
+            }
+            break;
+        case 3:
+            if (output_dtype != 3 && output_dtype != 5) {
+                bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "faiss_api_indexflatL2 when input_dtype = fp16, output_dtype should be fp16/fp32! %s: %s: %d\n",
+                        filename(__FILE__), __func__, __LINE__);
+                return BM_NOT_SUPPORTED;
+            }
+            break;
+        default:
+            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "faiss_api_indexflatL2 input_dtype should be fp32/fp16! %s: %s: %d\n",
+                        filename(__FILE__), __func__, __LINE__);
+            return BM_NOT_SUPPORTED;
+    }
     if(database_vecs_num < sort_cnt){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "faiss_api_indexflatL2 database_vecs_num(%d) < sort_cnt(%d), %s: %s: %d\n",
                                         database_vecs_num, sort_cnt, filename(__FILE__), __func__, __LINE__);

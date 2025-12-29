@@ -67,6 +67,7 @@ BmJpuDecReturnCodes start_decode(BmJpuJPEGDecoder *jpeg_decoder, uint8_t *bs_buf
     uint8_t *virt_addr = NULL;
     size_t size = 0;
     struct timeval tv_start, tv_end;
+    bm_handle_t bm_handle;
 
     /* perform the actual jpeg decoding */
     gettimeofday(&tv_start, NULL);
@@ -107,17 +108,19 @@ BmJpuDecReturnCodes start_decode(BmJpuJPEGDecoder *jpeg_decoder, uint8_t *bs_buf
     // phys_addr = dec_info.framebuffer->dma_buffer->u.device.device_addr;
     printf("phys addr: %#llx, size: %u\n", phys_addr, dec_info.framebuffer->dma_buffer->size);
 
-#ifdef BOARD_FPGA
-    // int chn_fd = bm_jpu_dec_get_channel_fd(jpeg_decoder->decoder->channel_id);
-    // virt_addr = bmjpeg_ioctl_mmap(chn_fd, phys_addr, size);
-    virt_addr = bmjpeg_devm_map(phys_addr, size);
-#else
-    unsigned long long vaddr = 0;
-    bm_handle_t bm_handle;
-
     bm_handle = bm_jpu_dec_get_bm_handle(jpeg_decoder->device_index);
+#ifndef BM_PCIE_MODE
+    unsigned long long vaddr = 0;
+
     bm_mem_mmap_device_mem(bm_handle, dec_info.framebuffer->dma_buffer, &vaddr);
     virt_addr = (uint8_t *)vaddr;
+#else
+    virt_addr = malloc(dec_info.framebuffer->dma_buffer->size);
+    if(!virt_addr) {
+        fprintf(stderr, "malloc virt_addr for pcie mode failed\n");
+        return BM_JPU_DEC_RETURN_CODE_ERROR;
+    }
+    ret = bm_memcpy_d2s(bm_handle, virt_addr, *(dec_info.framebuffer->dma_buffer));
 #endif
     printf("virt addr: %p\n", virt_addr);
 
@@ -148,13 +151,12 @@ BmJpuDecReturnCodes start_decode(BmJpuJPEGDecoder *jpeg_decoder, uint8_t *bs_buf
         free(out_md5);
     }
 
-#ifdef BOARD_FPGA
-    // bmjpeg_ioctl_munmap(virt_addr, size);
-    bmjpeg_devm_unmap(virt_addr, size);
-#else
+#ifndef BM_PCIE_MODE
     bm_mem_unmap_device_mem(bm_handle, virt_addr, size);
+#else
+    if(virt_addr)
+        free(virt_addr);
 #endif
-
     bm_jpu_jpeg_dec_frame_finished(jpeg_decoder, dec_info.framebuffer);
 
     return ret;

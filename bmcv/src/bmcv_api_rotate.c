@@ -1,4 +1,3 @@
-#ifndef BM_PCIE_MODE
 #include "bmcv_common.h"
 #include "bmcv_internal.h"
 
@@ -74,7 +73,11 @@ bm_status_t bmcv_image_rotate_direct(
                     return BM_NOT_SUPPORTED;
                     break;
             }
+#ifndef BM_PCIE_MODE
             ret = bmcv_ldc_rot(handle, input, output, rot_mode);
+#else
+            ret = bmcv_image_rotate_trans(handle, input, output, rot_mode);
+#endif
             if (ret != BM_SUCCESS) {
                 bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "Bmcv ldc execution failed! \n");
                 return ret;
@@ -265,4 +268,3 @@ exit:
     }
     return ret;
 }
-#endif

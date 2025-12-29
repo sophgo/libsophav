@@ -6,10 +6,16 @@
 #include <sys/time.h>
 #include "signal.h"
 #include "bmcv_api_ext_c.h"
+#include "bmcv_internal.h"
 
-#define ALIGN(x, a)      (((x) + ((a)-1)) & ~((a)-1))
 extern void bm_read_bin(bm_image src, const char *input_name);
 extern void bm_write_bin(bm_image dst, const char *output_name);
+extern bm_status_t bm_blend_image_calc_stride(bm_handle_t handle,
+                                     int img_h,
+                                     int img_w,
+                                     bm_image_format_ext image_format,
+                                     bm_image_data_format_ext data_type,
+                                     int *stride);
 
 static void user_usage() {
   printf(
@@ -224,6 +230,8 @@ int main(int argc, char *argv[]) {
 
   bm_handle_t handle = NULL;
   bm_image    src[4], dst;
+  int src_stride[4][4] = {0};
+  int dst_stride[4] = {0};
   int src_h = 288, src_w = 4608, dst_w = 11520, dst_h = 288, wgtWidth, wgtHeight;
   bm_image_format_ext src_fmt = FORMAT_YUV420P, dst_fmt = FORMAT_YUV420P;
   char *src_name[4] = {NULL}, *dst_name = NULL, *wgt_name[6] = {NULL},*compare_name=NULL;
@@ -338,9 +346,17 @@ int main(int argc, char *argv[]) {
       exit(-1);
   }
 
+  // calc image stride
+  for (int i = 0; i < 4; i++)
+  {
+    bm_blend_image_calc_stride(handle, src_h, src_w, src_fmt, DATA_TYPE_EXT_1N_BYTE, src_stride[i]);
+  }
+  bm_blend_image_calc_stride(handle, dst_h, dst_w, dst_fmt, DATA_TYPE_EXT_1N_BYTE, dst_stride);
+
+
   for(i = 0;i < input_num; i++)
   {
-    bm_image_create(handle, src_h, src_w, src_fmt, DATA_TYPE_EXT_1N_BYTE, &src[i],NULL);
+    bm_image_create(handle, src_h, src_w, src_fmt, DATA_TYPE_EXT_1N_BYTE, &src[i], src_stride[i]);
     bm_image_alloc_dev_mem(src[i],1);
     bm_read_bin(src[i],src_name[i]);
   }
@@ -356,7 +372,7 @@ int main(int argc, char *argv[]) {
     bm_dem_read_bin(handle, &stitch_config.wgt_phy_mem[j][i%2], wgt_name[i],  wgt_len);
   }
 
-  bm_image_create(handle, dst_h, dst_w, dst_fmt, DATA_TYPE_EXT_1N_BYTE, &dst,NULL);
+  bm_image_create(handle, dst_h, dst_w, dst_fmt, DATA_TYPE_EXT_1N_BYTE, &dst, dst_stride);
   bm_image_alloc_dev_mem(dst, 1);
 
 

@@ -33,7 +33,10 @@
 #define MAX_NUM_DEV 64
 #define JPEG_CHN_START 64
 #define VDEC_MAX_CHN_NUM_INF    64
-
+typedef struct _BMLIB_HANDLE{
+    bm_handle_t bm_handle;
+    unsigned int count;
+} BMLIB_HANDLE;
 
 BmJpuDecReturnCodes bm_jpu_calc_framebuffer_sizes(unsigned int frame_width,
                                    unsigned int frame_height,
@@ -138,8 +141,7 @@ typedef struct _BM_JPEG_CTX {
 #define VC_DRV_DECODER_DEV_NAME "soph_vc_dec"
 static pthread_mutex_t g_jpeg_dec_lock = PTHREAD_MUTEX_INITIALIZER;
 static BM_JPEG_CTX g_jpeg_dec_chn[VDEC_MAX_CHN_NUM_INF] = { 0 };
-static bm_handle_t g_jpeg_dec_bm_handle[MAX_NUM_DEV] = { 0 };
-static int g_jpeg_dec_load_cnt[MAX_NUM_DEV] = { 0 };
+static BMLIB_HANDLE g_jpeg_dec_bm_handle[MAX_NUM_DEV] = { 0 };
 
 /* framebuffer list api */
 FramebufferList* create_fb_node(int chn_id, int chn_fd, BmJpuFramebuffer *fb)
@@ -283,10 +285,19 @@ int bm_jpu_dec_get_channel_fd(int chn_id)
 
 bm_handle_t bm_jpu_dec_get_bm_handle(int device_index)
 {
-    bm_handle_t handle = 0;
+    if (device_index >= MAX_NUM_DEV)
+    {
+      BM_JPU_ERROR("device_index excess MAX_NUM_DEV!\n");
+      exit(0);
+    }
 
+    bm_handle_t handle = 0;
     pthread_mutex_lock(&g_jpeg_dec_lock);
-    handle = g_jpeg_dec_bm_handle[device_index];
+    if(g_jpeg_dec_bm_handle[device_index].bm_handle) {
+        handle = g_jpeg_dec_bm_handle[device_index].bm_handle;
+    } else {
+        BM_JPU_ERROR("Bm_handle for JPEG decode on soc %d not exist \n", device_index);
+    }
     pthread_mutex_unlock(&g_jpeg_dec_lock);
 
     return handle;
@@ -294,12 +305,21 @@ bm_handle_t bm_jpu_dec_get_bm_handle(int device_index)
 
 BmJpuDecReturnCodes bm_jpu_dec_load(int device_index)
 {
+    if (device_index >= MAX_NUM_DEV)
+    {
+      BM_JPU_ERROR("device_index excess MAX_NUM_DEV!\n");
+      exit(0);
+    }
     pthread_mutex_lock(&g_jpeg_dec_lock);
 #ifdef BOARD_FPGA
     bmjpeg_devm_open();
 #endif
 
-    if (g_jpeg_dec_bm_handle[device_index] == 0) {
+    if (g_jpeg_dec_bm_handle[device_index].bm_handle) {
+        g_jpeg_dec_bm_handle[device_index].count++;
+        pthread_mutex_unlock(&g_jpeg_dec_lock);
+        return BM_JPU_DEC_RETURN_CODE_OK;
+    } else {
         bm_handle_t handle;
         bm_status_t ret = bm_dev_request(&handle, device_index);
         if (ret != BM_SUCCESS) {
@@ -307,10 +327,8 @@ BmJpuDecReturnCodes bm_jpu_dec_load(int device_index)
             BM_JPU_ERROR("request dev %d failed, ret: %d", device_index, ret);
             return BM_JPU_DEC_RETURN_CODE_ERROR;
         }
-        g_jpeg_dec_bm_handle[device_index] = handle;
-        g_jpeg_dec_load_cnt[device_index] = 1;
-    } else {
-        g_jpeg_dec_load_cnt[device_index]++;
+        g_jpeg_dec_bm_handle[device_index].bm_handle = handle;
+        g_jpeg_dec_bm_handle[device_index].count = 1;
     }
     pthread_mutex_unlock(&g_jpeg_dec_lock);
 
@@ -319,21 +337,28 @@ BmJpuDecReturnCodes bm_jpu_dec_load(int device_index)
 
 BmJpuDecReturnCodes bm_jpu_dec_unload(int device_index)
 {
-    pthread_mutex_lock(&g_jpeg_dec_lock);
+    if (device_index >= MAX_NUM_DEV)
+    {
+      BM_JPU_ERROR("device_index excess MAX_NUM_DEV!\n");
+      exit(0);
+    }
 #ifdef BOARD_FPGA
     bmjpeg_devm_close();
 #endif
-
-    if (g_jpeg_dec_bm_handle[device_index] != 0) {
-        g_jpeg_dec_load_cnt[device_index]--;
-        if (g_jpeg_dec_load_cnt[device_index] <= 0) {
-            bm_dev_free(g_jpeg_dec_bm_handle[device_index]);
-            g_jpeg_dec_bm_handle[device_index] = 0;
-            g_jpeg_dec_load_cnt[device_index] = 0;
+    pthread_mutex_lock(&g_jpeg_dec_lock);
+    if (g_jpeg_dec_bm_handle[device_index].bm_handle) {
+        if(g_jpeg_dec_bm_handle[device_index].count <= 1)
+        {
+            bm_dev_free(g_jpeg_dec_bm_handle[device_index].bm_handle);
+            g_jpeg_dec_bm_handle[device_index].count = 0;
+            g_jpeg_dec_bm_handle[device_index].bm_handle = 0;
+        } else {
+            g_jpeg_dec_bm_handle[device_index].count--;
         }
+    } else {
+        BM_JPU_WARNING("Bm_handle for JPEG decode on soc %d not exist \n", device_index);
     }
     pthread_mutex_unlock(&g_jpeg_dec_lock);
-
     return BM_JPU_DEC_RETURN_CODE_OK;
 }
 
@@ -354,9 +379,9 @@ BmJpuDecReturnCodes bm_jpu_jpeg_dec_open(BmJpuJPEGDecoder **jpeg_decoder,
 
     pthread_mutex_lock(&g_jpeg_dec_lock);
     chn_fd = open(dev_name, O_RDWR | O_DSYNC | O_CLOEXEC);
-    if (chn_fd < 0) {
+    if (chn_fd <= 0) {
         pthread_mutex_unlock(&g_jpeg_dec_lock);
-        BM_JPU_ERROR("open device %s failed, errno: %d, %s", dev_name, errno, strerror(errno));
+        BM_JPU_ERROR("open device %s failed, chn_fd = %d, errno: %d, %s", dev_name, chn_fd, errno, strerror(errno));
         return BM_JPU_DEC_RETURN_CODE_ERROR;
     }
 
@@ -805,8 +830,7 @@ BmJpuDecReturnCodes bm_jpu_jpeg_dec_flush(BmJpuJPEGDecoder *jpeg_decoder)
 #define VC_DRV_ENCODER_DEV_NAME "soph_vc_enc"
 static pthread_mutex_t g_jpeg_enc_lock = PTHREAD_MUTEX_INITIALIZER;
 static BM_JPEG_CTX g_jpeg_enc_chn[VENC_MAX_CHN_NUM] = { 0 };
-static bm_handle_t g_jpeg_enc_bm_handle[MAX_NUM_DEV] = { 0 };
-static int g_jpeg_enc_load_cnt[MAX_NUM_DEV] = { 0 };
+static BMLIB_HANDLE g_jpeg_enc_bm_handle[MAX_NUM_DEV] = { 0 };
 static uint8_t *g_stream_pack_array[VENC_MAX_CHN_NUM][8] = { NULL };
 
 int bm_jpu_enc_get_channel_fd(int chn_id)
@@ -822,10 +846,19 @@ int bm_jpu_enc_get_channel_fd(int chn_id)
 
 bm_handle_t bm_jpu_enc_get_bm_handle(int device_index)
 {
+    if (device_index >= MAX_NUM_DEV)
+    {
+      BM_JPU_ERROR("device_index excess MAX_NUM_DEV!\n");
+      exit(0);
+    }
     bm_handle_t handle = 0;
 
     pthread_mutex_lock(&g_jpeg_enc_lock);
-    handle = g_jpeg_enc_bm_handle[device_index];
+    if (g_jpeg_enc_bm_handle[device_index].bm_handle) {
+        handle = g_jpeg_enc_bm_handle[device_index].bm_handle;
+    } else {
+        BM_JPU_ERROR("Bm_handle for JPEG encode on soc %d not exist \n", device_index);
+    }
     pthread_mutex_unlock(&g_jpeg_enc_lock);
 
     return handle;
@@ -833,12 +866,21 @@ bm_handle_t bm_jpu_enc_get_bm_handle(int device_index)
 
 BmJpuEncReturnCodes bm_jpu_enc_load(int device_index)
 {
+    if (device_index >= MAX_NUM_DEV)
+    {
+      BM_JPU_ERROR("device_index excess MAX_NUM_DEV!\n");
+      exit(0);
+    }
     pthread_mutex_lock(&g_jpeg_enc_lock);
 #ifdef BOARD_FPGA
     bmjpeg_devm_open();
 #endif
 
-    if (g_jpeg_enc_bm_handle[device_index] == 0) {
+    if (g_jpeg_enc_bm_handle[device_index].bm_handle) {
+        g_jpeg_enc_bm_handle[device_index].count++;
+        pthread_mutex_unlock(&g_jpeg_enc_lock);
+        return BM_JPU_ENC_RETURN_CODE_OK;
+    } else {
         bm_handle_t handle;
         bm_status_t ret = bm_dev_request(&handle, device_index);
         if (ret != BM_SUCCESS) {
@@ -846,10 +888,8 @@ BmJpuEncReturnCodes bm_jpu_enc_load(int device_index)
             BM_JPU_ERROR("request dev %d failed, ret: %d", device_index, ret);
             return BM_JPU_ENC_RETURN_CODE_ERROR;
         }
-        g_jpeg_enc_bm_handle[device_index] = handle;
-        g_jpeg_enc_load_cnt[device_index] = 1;
-    } else {
-        g_jpeg_enc_load_cnt[device_index]++;
+        g_jpeg_enc_bm_handle[device_index].bm_handle = handle;
+        g_jpeg_enc_bm_handle[device_index].count = 1;
     }
     pthread_mutex_unlock(&g_jpeg_enc_lock);
 
@@ -858,21 +898,28 @@ BmJpuEncReturnCodes bm_jpu_enc_load(int device_index)
 
 BmJpuEncReturnCodes bm_jpu_enc_unload(int device_index)
 {
-    pthread_mutex_lock(&g_jpeg_enc_lock);
 #ifdef BOARD_FPGA
     bmjpeg_devm_close();
 #endif
-
-    if (g_jpeg_enc_bm_handle[device_index] != 0) {
-        g_jpeg_enc_load_cnt[device_index]--;
-        if (g_jpeg_enc_load_cnt[device_index] <= 0) {
-            bm_dev_free(g_jpeg_enc_bm_handle[device_index]);
-            g_jpeg_enc_bm_handle[device_index] = 0;
-            g_jpeg_enc_load_cnt[device_index] = 0;
+    if (device_index >= MAX_NUM_DEV)
+    {
+      BM_JPU_ERROR("device_index excess MAX_NUM_DEV!\n");
+      exit(0);
+    }
+    pthread_mutex_lock(&g_jpeg_enc_lock);
+    if (g_jpeg_enc_bm_handle[device_index].bm_handle) {
+        if(g_jpeg_enc_bm_handle[device_index].count <= 1)
+        {
+            bm_dev_free(g_jpeg_enc_bm_handle[device_index].bm_handle);
+            g_jpeg_enc_bm_handle[device_index].count = 0;
+            g_jpeg_enc_bm_handle[device_index].bm_handle = 0;
+        } else {
+            g_jpeg_enc_bm_handle[device_index].count--;
         }
+    } else {
+        BM_JPU_WARNING("Bm_handle for JPEG encode on soc %d not exist \n", device_index);
     }
     pthread_mutex_unlock(&g_jpeg_enc_lock);
-
     return BM_JPU_ENC_RETURN_CODE_OK;
 }
 
@@ -890,9 +937,9 @@ BmJpuEncReturnCodes bm_jpu_jpeg_enc_open(BmJpuJPEGEncoder **jpeg_encoder,
 
     pthread_mutex_lock(&g_jpeg_enc_lock);
     chn_fd = open(dev_name, O_RDWR | O_DSYNC | O_CLOEXEC);
-    if (chn_fd < 0) {
+    if (chn_fd <= 0) {
         pthread_mutex_unlock(&g_jpeg_enc_lock);
-        BM_JPU_ERROR("open device %s failed, errno: %d, %s", dev_name, errno, strerror(errno));
+        BM_JPU_ERROR("open device %s failed, chnfd = %d, errno: %d, %s", dev_name, chn_fd, errno, strerror(errno));
         return BM_JPU_ENC_RETURN_CODE_ERROR;
     }
 
@@ -1046,9 +1093,10 @@ BmJpuEncReturnCodes bm_jpu_jpeg_enc_encode(BmJpuJPEGEncoder *jpeg_encoder,
     else
         external_bs_size = jpeg_encoder->bitstream_buffer_size;
 
-    bm_handle = g_jpeg_enc_bm_handle[jpeg_encoder->device_index];
+    bm_handle = bm_jpu_enc_get_bm_handle(jpeg_encoder->device_index);
+#ifndef BM_PCIE_MODE
     bm_mem_flush_device_mem(bm_handle, framebuffer->dma_buffer);
-
+#endif
     unsigned long long base_addr = bm_mem_get_device_addr(*framebuffer->dma_buffer);
     memset(&stAttr, 0, sizeof(venc_chn_attr_s));
     memset(&stFrame, 0, sizeof(video_frame_info_s));
@@ -1234,12 +1282,10 @@ BmJpuEncReturnCodes bm_jpu_jpeg_enc_encode(BmJpuJPEGEncoder *jpeg_encoder,
         g_stream_pack_array[chn_id][i] = NULL;
         pPack = &stStreamEx.pstStream->pstPack[i];
         if (pPack->u64PhyAddr && pPack->u32Len) {
+            // get total output size
+        #ifndef BM_PCIE_MODE
             g_stream_pack_array[chn_id][i] = pPack->pu8Addr;
             BM_JPU_DEBUG("origin pu8Addr: %p", pPack->pu8Addr);
-            // get total output size
-        #ifdef BOARD_FPGA
-            pPack->pu8Addr = bmjpeg_ioctl_mmap(chn_fd, pPack->u64PhyAddr, pPack->u32Len);
-        #else
             bm_mem = bm_mem_from_device(pPack->u64PhyAddr, pPack->u32Len);
             bm_ret = bm_mem_mmap_device_mem(bm_handle, &bm_mem, &vaddr);
             if (bm_ret != BM_SUCCESS) {
@@ -1247,6 +1293,21 @@ BmJpuEncReturnCodes bm_jpu_jpeg_enc_encode(BmJpuJPEGEncoder *jpeg_encoder,
                 goto ERR_ENC_ENCODE_3;
             }
             pPack->pu8Addr = (unsigned char *)vaddr;
+        #else
+            unsigned char *host_va = malloc(pPack->u32Len);
+            bm_mem = bm_mem_from_device(pPack->u64PhyAddr, pPack->u32Len);
+            bm_memcpy_d2s_partial(bm_handle, host_va, bm_mem, pPack->u32Len);
+            pPack->pu8Addr = host_va;
+            int j = 0;
+            if(i != 0 && pPack->u32Len > 0) {
+                for (j = (pPack->u32Len - pPack->u32Offset - 1); j > 0; j--) {
+                    unsigned char *tmp_ptr = pPack->pu8Addr + pPack->u32Offset + j;
+                    if (tmp_ptr[0] == 0xd9 && tmp_ptr[-1] == 0xff)
+                        break;
+                }
+                pPack->u32Len = pPack->u32Offset + j + 1;
+            }
+            host_va = NULL;
         #endif
             total_size += pPack->u32Len;
             BM_JPU_DEBUG("get stream %d, u64PhyAddr: %#lx, pu8Addr: %p, u32Len: %u, u32Offset: %u", i, pPack->u64PhyAddr, pPack->pu8Addr + pPack->u32Offset, pPack->u32Len - pPack->u32Offset, pPack->u32Offset);
@@ -1307,10 +1368,10 @@ ERR_ENC_ENCODE_3:
         for (i = 0; i < map_count; i++) {
             pPack = &stStream.pstPack[i];
             if (pPack->u64PhyAddr && pPack->u32Len) {
-            #ifdef BOARD_FPGA
-                bmjpeg_ioctl_munmap(pPack->pu8Addr, pPack->u32Len);
-            #else
+            #ifndef BM_PCIE_MODE
                 bm_mem_unmap_device_mem(bm_handle, pPack->pu8Addr, pPack->u32Len);
+            #else
+                free(pPack->pu8Addr);
             #endif
                 pPack->pu8Addr = g_stream_pack_array[chn_id][i];
             }
