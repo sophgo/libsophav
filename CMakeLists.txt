@@ -5,8 +5,8 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 include(GitUtils)
 
 get_version_from_tag(LIBSOPHAV_VERSION COMMIT_HASH COMMIT_COUNT BRANCH COMMIT_DATE)
-set(GIT_VERSION "2.1.0")
-add_compile_definitions(LIBSOPHAV_VERSION="${GIT_VERSION}")
+
+add_compile_definitions(LIBSOPHAV_VERSION="${LIBSOPHAV_VERSION}")
 add_compile_definitions(COMMIT_HASH="${COMMIT_HASH}")
 add_compile_definitions(COMMIT_COUNT="${COMMIT_COUNT}")
 add_compile_definitions(BRANCH="${BRANCH}")
@@ -20,33 +20,6 @@ elseif(CMAKE_HOST_UNIX)
     set(LINUX 1)
 endif()
 cmake_policy(SET CMP0046 NEW)
-
-# copy header from drv
-if("${PLATFORM}" STREQUAL "pcie" OR "${PLATFORM}" STREQUAL "pcie_arm64")
-    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../libsophon")
-        set(LIBSOPHON_HEADER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../libsophon/driver/bm1688/media/include/common/uapi/linux)
-
-        file(COPY "${LIBSOPHON_HEADER_DIR}"
-            DESTINATION "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/osdrv_pcie")
-        message(STATUS "LIBSOPHON_HEADER_DIR........ " ${LIBSOPHON_HEADER_DIR})
-    else()
-        message(WARNING "not find repo libsophon, use the default header")
-    endif()
-else()
-    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../osdrv")
-        set(OSDRV_HEADER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../osdrv/interdrv/v2/include/common/uapi/linux)
-        set(V4L2_HEADER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../linux_5.10/drivers/media/platform/soph/osdrv_include/chip/cv186x/uapi/linux)
-
-        file(COPY "${OSDRV_HEADER_DIR}"
-            DESTINATION "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/osdrv")
-        file(COPY "${V4L2_HEADER_DIR}/sns_v4l2_uapi.h" "${V4L2_HEADER_DIR}/vi_v4l2_uapi.h"
-            DESTINATION "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/osdrv/linux")
-        message(STATUS "OSDRV_HEADER_DIR............ " ${OSDRV_HEADER_DIR})
-        message(STATUS "V4L2_HEADER_DIR............. " ${V4L2_HEADER_DIR})
-    else()
-        message(WARNING "not find repo cvi_osdrv, use the default header")
-    endif()
-endif()
 
 # options
 #set(CHIP_LIST bm1688)
@@ -97,6 +70,7 @@ endif()
 
 set(LIBSOPHAV_OUT_PATH ${CMAKE_CURRENT_BINARY_DIR}/release CACHE STRING "bmvid compile output location")
 # set project name and version after setting cmake toolchains
+set(GIT_VERSION "1.9.0")
 if(NOT "${GIT_VERSION}" STREQUAL "")
     STRING(REGEX REPLACE "[\n\t\r]" "" GIT_VERSION ${GIT_VERSION})
     STRING(REGEX REPLACE "([0-9][0-9]*)\\..*" "\\1" MAJOR_VERSION ${GIT_VERSION})
@@ -143,4 +117,3 @@ if(NOT "${PCIE_MODE}" STREQUAL "on")
     add_subdirectory(vglite)
     add_subdirectory(tde)
 endif()
-add_subdirectory(samples)

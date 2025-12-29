@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 project(bmcv)
+# add_subdirectory(./src/cmodel) #github_delete
 # options
 if("${CHIP_NAME}" STREQUAL "bm1688")
     set(SRC_DIR bm1688)
@@ -11,11 +12,7 @@ add_compile_options(-Werror)
 
 # add header files path
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/libbmcv/include)
-if("${PLATFORM}" STREQUAL "pcie" OR "${PLATFORM}" STREQUAL "pcie_arm64")
-    include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/osdrv_pcie)
-else()
-    include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/osdrv)
-endif()
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/osdrv)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/${SRC_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/libjpeg-turbo/include)
@@ -45,7 +42,7 @@ target_link_libraries(${BMCV_LIB_NAME}-static bmlib dl bmjpeg turbojpeg)
 
 # build bmcv test case
 if ("${PCIE_MODE}" STREQUAL "on")
-    file(GLOB TEST_SRCS test/test_vpss*.c test/test_cv*.c test/test_faiss*.c test/test_gen*.c)
+    file(GLOB TEST_SRCS test/test_vpss*.c)
     add_compile_options(-Wno-unused-result)
 else ()
     file(GLOB TEST_SRCS test/*.c)
@@ -103,7 +100,6 @@ if(NOT DISABLE_BMCV_DOC)
         COMMAND make clean
         COMMAND make LC_ALL=en_US.UTF-8 pdf
         COMMAND mv ${CMAKE_CURRENT_SOURCE_DIR}/document/bmcv_demo/build/SOPHON_BMCV_Technical_Reference_Manual.pdf ${CMAKE_BINARY_DIR}
-        COMMAND rm -rf ${CMAKE_CURRENT_SOURCE_DIR}/document/bmcv_demo/build/
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/document/bmcv_demo)
 else ()
     set(BMCV_DOC "")

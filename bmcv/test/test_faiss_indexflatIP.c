@@ -72,7 +72,7 @@ int matrix_mul_ref_fp32(float** input_data_vec, float** db_data, float** ref_res
     return 0;
 }
 
-bm_status_t result_compare_int(int *tpu_result_similarity,
+bool result_compare_int(int *tpu_result_similarity,
                         int *tpu_result_index,
                         int **ref_result,
                         int query_vecs_num,
@@ -115,7 +115,7 @@ bm_status_t result_compare_int(int *tpu_result_similarity,
                     free(tmp_ref_result[i]);
                 }
                 free(tmp_ref_result);
-                return BM_ERR_FAILURE;
+                return false;
             }
             // Remove the largest element found
             for (int i = ref_index; i < database_vecs_num - 1; i++) {
@@ -129,10 +129,10 @@ bm_status_t result_compare_int(int *tpu_result_similarity,
     }
     free(tmp_ref_result);
 
-    return BM_SUCCESS;
+    return true;
 }
 
-bm_status_t result_compare_fp16(fp16 *tpu_result_similarity,
+bool result_compare_fp16(fp16 *tpu_result_similarity,
                          int *tpu_result_index,
                          float **ref_result,
                          int query_vecs_num,
@@ -174,7 +174,7 @@ bm_status_t result_compare_fp16(fp16 *tpu_result_similarity,
                     free(tmp_ref_result[i]);
                 }
                 free(tmp_ref_result);
-                return BM_ERR_FAILURE;
+                return false;
             }
             for (int i = ref_index; i < database_vecs_num - 1; i++) {
                 tmp_ref_result[query_cnt][i] = tmp_ref_result[query_cnt][i + 1];
@@ -186,10 +186,11 @@ bm_status_t result_compare_fp16(fp16 *tpu_result_similarity,
         free(tmp_ref_result[i]);
     }
     free(tmp_ref_result);
-    return BM_SUCCESS;
+
+    return true;
 }
 
-bm_status_t result_compare_fp32(float *tpu_result_similarity,
+bool result_compare_fp32(float *tpu_result_similarity,
                          int *tpu_result_index,
                          float **ref_result,
                          int query_vecs_num,
@@ -229,7 +230,7 @@ bm_status_t result_compare_fp32(float *tpu_result_similarity,
                     free(tmp_ref_result[i]);
                 }
                 free(tmp_ref_result);
-                return BM_ERR_FAILURE;
+                return false;
             }
             for (int i = ref_index; i < database_vecs_num - 1; i++) {
                 tmp_ref_result[query_cnt][i] = tmp_ref_result[query_cnt][i + 1];
@@ -240,7 +241,7 @@ bm_status_t result_compare_fp32(float *tpu_result_similarity,
         free(tmp_ref_result[i]);
     }
     free(tmp_ref_result);
-    return BM_SUCCESS;
+    return true;
 }
 
 bm_status_t faiss_indexflatIP_fix8b_single_test(bm_handle_t handle,
@@ -334,70 +335,27 @@ bm_status_t faiss_indexflatIP_fix8b_single_test(bm_handle_t handle,
                     buffer_global_addr_device,
                     output_sorted_similarity_global_addr_device,
                     output_sorted_index_global_addr_device;
-    ret = bm_malloc_device_byte(handle,
-                        &input_data_global_addr_device,
-                        dtype_size((enum bm_data_type_t)input_dtype) * query_vecs_num * vec_dims);
-    if (ret != BM_SUCCESS) {
-        printf("bm_malloc_device_byte input_data_global_addr_device failed!\n");
-        input_data_global_addr_device = BM_MEM_NULL;
-        goto free_mem1;
-    }
-    ret = bm_malloc_device_byte(handle,
-                            &db_data_global_addr_device,
-                            dtype_size((enum bm_data_type_t)input_dtype) * database_vecs_num * vec_dims);
-    if (ret != BM_SUCCESS) {
-        printf("bm_malloc_device_byte output_sorted_index_global_addr_device failed!\n");
-        bm_free_device(handle, input_data_global_addr_device);
-        db_data_global_addr_device = BM_MEM_NULL;
-        goto free_mem1;
-    }
-    ret = bm_malloc_device_byte(handle,
-                            &buffer_global_addr_device,
-                            dtype_size((enum bm_data_type_t)DT_FP32) * query_vecs_num * database_vecs_num);
-    if (ret != BM_SUCCESS) {
-        printf("bm_malloc_device_byte output_sorted_index_global_addr_device failed!\n");
-        bm_free_device(handle, input_data_global_addr_device);
-        bm_free_device(handle, db_data_global_addr_device);
-        buffer_global_addr_device = BM_MEM_NULL;
-        goto free_mem1;
-    }
-    ret = bm_malloc_device_byte(handle,
-                            &output_sorted_similarity_global_addr_device,
-                            dtype_size((enum bm_data_type_t)output_dtype) * query_vecs_num * sort_cnt);
-    if (ret != BM_SUCCESS) {
-        printf("bm_malloc_device_byte output_sorted_index_global_addr_device failed!\n");
-        bm_free_device(handle, input_data_global_addr_device);
-        bm_free_device(handle, db_data_global_addr_device);
-        bm_free_device(handle, buffer_global_addr_device);
-        output_sorted_similarity_global_addr_device = BM_MEM_NULL;
-        goto free_mem1;
-    }
-    ret = bm_malloc_device_byte(handle,
-                            &output_sorted_index_global_addr_device,
-                            dtype_size(DT_INT32) * query_vecs_num * sort_cnt);
-    if (ret != BM_SUCCESS) {
-        printf("bm_malloc_device_byte output_sorted_index_global_addr_device failed!\n");
-        bm_free_device(handle, input_data_global_addr_device);
-        bm_free_device(handle, db_data_global_addr_device);
-        bm_free_device(handle, buffer_global_addr_device);
-        bm_free_device(handle, output_sorted_similarity_global_addr_device);
-        output_sorted_index_global_addr_device = BM_MEM_NULL;
-        goto free_mem1;
-    }
-    ret = bm_memcpy_s2d(handle,
+    bm_malloc_device_byte(handle,
+                          &input_data_global_addr_device,
+                          dtype_size((enum bm_data_type_t)input_dtype) * query_vecs_num * vec_dims);
+    bm_malloc_device_byte(handle,
+                          &db_data_global_addr_device,
+                          dtype_size((enum bm_data_type_t)input_dtype) * database_vecs_num * vec_dims);
+    bm_malloc_device_byte(handle,
+                          &buffer_global_addr_device,
+                          dtype_size((enum bm_data_type_t)DT_FP32) * query_vecs_num * database_vecs_num);
+    bm_malloc_device_byte(handle,
+                          &output_sorted_similarity_global_addr_device,
+                          dtype_size((enum bm_data_type_t)output_dtype) * query_vecs_num * sort_cnt);
+    bm_malloc_device_byte(handle,
+                          &output_sorted_index_global_addr_device,
+                          dtype_size(DT_INT32) * query_vecs_num * sort_cnt);
+    bm_memcpy_s2d(handle,
                   input_data_global_addr_device,
                   bm_mem_get_system_addr(bm_mem_from_system(input_data)));
-    if (ret != BM_SUCCESS) {
-        printf("bm_memcpy_s2d input_data_global_addr_device failed!\n");
-        goto free_mem;
-    }
-    ret = bm_memcpy_s2d(handle,
+    bm_memcpy_s2d(handle,
                   db_data_global_addr_device,
                   bm_mem_get_system_addr(bm_mem_from_system(db_data)));
-    if (ret != BM_SUCCESS) {
-        printf("bm_memcpy_s2d db_data_global_addr_device failed!\n");
-        goto free_mem;
-    }
     struct timeval t1, t2;
     gettimeofday(&t1, NULL);
     ret = bmcv_faiss_indexflatIP(handle,
@@ -419,20 +377,13 @@ bm_status_t faiss_indexflatIP_fix8b_single_test(bm_handle_t handle,
         printf("bmcv_faiss_indexflatIP api error\n");
         goto free_mem;
     }
-    ret = bm_memcpy_d2s(handle,
+    bm_memcpy_d2s(handle,
                   bm_mem_get_system_addr(bm_mem_from_system(output_similarity)),
                   output_sorted_similarity_global_addr_device);
-    if (ret != BM_SUCCESS) {
-        printf("bm_memcpy_d2s output_similarity failed!\n");
-        goto free_mem;
-    }
-    ret = bm_memcpy_d2s(handle,
+    bm_memcpy_d2s(handle,
                   bm_mem_get_system_addr(bm_mem_from_system(output_index)),
                   output_sorted_index_global_addr_device);
-    if (ret != BM_SUCCESS) {
-        printf("bm_memcpy_d2s output_index failed!\n");
-        goto free_mem;
-    }
+
     gettimeofday(&t1, NULL);
     if (is_transpose) {
         matrix_mul_ref_int(input_content_vec, db_content_vec_trans, ref_result, query_vecs_num, database_vecs_num, vec_dims);
@@ -441,24 +392,23 @@ bm_status_t faiss_indexflatIP_fix8b_single_test(bm_handle_t handle,
     }
     gettimeofday(&t2, NULL);
     printf("CPU using time: %ld(us)\n", ((t2.tv_sec - t1.tv_sec) * 1000000 + t2.tv_usec - t1.tv_usec));
-    ret = result_compare_int(output_similarity,
-        output_index,
-        ref_result,
-        query_vecs_num,
-        database_vecs_num,
-        sort_cnt);
-    if (ret != BM_SUCCESS) {
+    if (false == result_compare_int(output_similarity,
+                                    output_index,
+                                    ref_result,
+                                    query_vecs_num,
+                                    database_vecs_num,
+                                    sort_cnt)) {
         printf("------------faiss_indexflatIP FIX8B COMPARE failed-----\n");
-    } else {
-        printf("-------------faiss_indexflatIP FIX8B COMPARE succeed-----------\n");
+        exit(-1);
     }
+    printf("-------------faiss_indexflatIP FIX8B COMPARE succeed-----------\n");
 free_mem:
     bm_free_device(handle, input_data_global_addr_device);
     bm_free_device(handle, db_data_global_addr_device);
     bm_free_device(handle, buffer_global_addr_device);
     bm_free_device(handle, output_sorted_similarity_global_addr_device);
     bm_free_device(handle, output_sorted_index_global_addr_device);
-free_mem1:
+
     free(input_data);
     free(db_data);
     free(output_similarity);
@@ -467,23 +417,16 @@ free_mem1:
         free(ref_result[i]);
     }
     if (is_transpose) {
-        for (i = 0; i < database_vecs_num; ++i) {
+        for(i = 0; i < query_vecs_num; ++i){
             free(db_content_vec[i]);
-        }
-        for (i = 0; i < vec_dims; ++i) {
-            free(db_content_vec_trans[i]);
         }
     } else {
         for (i = 0; i < vec_dims; ++i) {
             free(db_content_vec[i]);
         }
-        for (i = 0; i < database_vecs_num; ++i) {
-            free(db_content_vec_trans[i]);
-        }
     }
     free(input_content_vec);
     free(db_content_vec);
-    free(db_content_vec_trans);
     free(output_index);
     free(ref_result);
     return ret;
@@ -580,76 +523,35 @@ bm_status_t faiss_indexflatIP_fp16_single_test(bm_handle_t handle,
     for (i = 0; i < query_vecs_num; i++) {
         ref_result[i] = (float*)malloc(database_vecs_num * sizeof(float));
     }
+
     int* output_index = (int*)malloc(query_vecs_num * sort_cnt * sizeof(int));
+
     bm_device_mem_t input_data_global_addr_device,
                     db_data_global_addr_device,
                     buffer_global_addr_device,
                     output_sorted_similarity_global_addr_device,
                     output_sorted_index_global_addr_device;
-    ret = bm_malloc_device_byte(handle,
+    bm_malloc_device_byte(handle,
                           &input_data_global_addr_device,
                           dtype_size((enum bm_data_type_t)input_dtype) * query_vecs_num * vec_dims);
-    if (ret != BM_SUCCESS) {
-        printf("bm_malloc_device_byte input_data_global_addr_device failed!\n");
-        input_data_global_addr_device = BM_MEM_NULL;
-        goto free_mem1;
-    }
-    ret = bm_malloc_device_byte(handle,
+    bm_malloc_device_byte(handle,
                           &db_data_global_addr_device,
                           dtype_size((enum bm_data_type_t)input_dtype) * database_vecs_num * vec_dims);
-    if (ret != BM_SUCCESS) {
-        printf("bm_malloc_device_byte db_data_global_addr_device failed!\n");
-        bm_free_device(handle, input_data_global_addr_device);
-        db_data_global_addr_device = BM_MEM_NULL;
-        goto free_mem1;
-    }
-    ret = bm_malloc_device_byte(handle,
+    bm_malloc_device_byte(handle,
                           &buffer_global_addr_device,
                           dtype_size((enum bm_data_type_t)DT_FP32) * query_vecs_num * database_vecs_num);
-    if (ret != BM_SUCCESS) {
-        printf("bm_malloc_device_byte buffer_global_addr_device failed!\n");
-        bm_free_device(handle, input_data_global_addr_device);
-        bm_free_device(handle, db_data_global_addr_device);
-        buffer_global_addr_device = BM_MEM_NULL;
-        goto free_mem1;
-    }
-    ret = bm_malloc_device_byte(handle,
+    bm_malloc_device_byte(handle,
                           &output_sorted_similarity_global_addr_device,
                           dtype_size((enum bm_data_type_t)output_dtype) * query_vecs_num * sort_cnt);
-    if (ret != BM_SUCCESS) {
-        printf("bm_malloc_device_byte output_sorted_similarity_global_addr_device failed!\n");
-        bm_free_device(handle, input_data_global_addr_device);
-        bm_free_device(handle, db_data_global_addr_device);
-        bm_free_device(handle, buffer_global_addr_device);
-        output_sorted_similarity_global_addr_device = BM_MEM_NULL;
-        goto free_mem1;
-    }
-    ret = bm_malloc_device_byte(handle,
+    bm_malloc_device_byte(handle,
                           &output_sorted_index_global_addr_device,
                           dtype_size(DT_INT32) * query_vecs_num * sort_cnt);
-    if (ret != BM_SUCCESS) {
-        printf("bm_malloc_device_byte output_sorted_index_global_addr_device failed!\n");
-        bm_free_device(handle, input_data_global_addr_device);
-        bm_free_device(handle, db_data_global_addr_device);
-        bm_free_device(handle, buffer_global_addr_device);
-        bm_free_device(handle, output_sorted_similarity_global_addr_device);
-        output_sorted_index_global_addr_device = BM_MEM_NULL;
-        goto free_mem1;
-    }
-    ret = bm_memcpy_s2d(handle,
+    bm_memcpy_s2d(handle,
                   input_data_global_addr_device,
                   bm_mem_get_system_addr(bm_mem_from_system(input_data)));
-    if (ret != BM_SUCCESS) {
-        printf("bm_memcpy_s2d input_data_global_addr_device failed!\n");
-        goto free_mem;
-    }
-    ret = bm_memcpy_s2d(handle,
+    bm_memcpy_s2d(handle,
                   db_data_global_addr_device,
                   bm_mem_get_system_addr(bm_mem_from_system(db_data)));
-    if (ret != BM_SUCCESS) {
-        printf("bm_memcpy_s2d db_data_global_addr_device failed!\n");
-        goto free_mem;
-    }
     struct timeval t1, t2;
     gettimeofday(&t1, NULL);
     ret = bmcv_faiss_indexflatIP(handle,
@@ -672,30 +574,17 @@ bm_status_t faiss_indexflatIP_fp16_single_test(bm_handle_t handle,
     }
     printf("TPU using time: %ld(us)\n", ((t2.tv_sec - t1.tv_sec) * 1000000 + t2.tv_usec - t1.tv_usec));
 
-    if (output_dtype == DT_FP32) {
-        ret = bm_memcpy_d2s(handle,
+    if (output_dtype == DT_FP32)
+        bm_memcpy_d2s(handle,
                   bm_mem_get_system_addr(bm_mem_from_system(output_similarity_fp32)),
                   output_sorted_similarity_global_addr_device);
-        if (ret != BM_SUCCESS) {
-            printf("bm_memcpy_d2s output_similarity_fp32 failed!\n");
-            goto free_mem;
-        }
-    } else {
-        ret = bm_memcpy_d2s(handle,
+    else
+        bm_memcpy_d2s(handle,
                   bm_mem_get_system_addr(bm_mem_from_system(output_similarity_fp16)),
                   output_sorted_similarity_global_addr_device);
-        if (ret != BM_SUCCESS) {
-            printf("bm_memcpy_d2s output_similarity_fp16 failed!\n");
-            goto free_mem;
-        }
-    }
-    ret = bm_memcpy_d2s(handle,
+    bm_memcpy_d2s(handle,
                   bm_mem_get_system_addr(bm_mem_from_system(output_index)),
                   output_sorted_index_global_addr_device);
-    if (ret != BM_SUCCESS) {
-        printf("bm_memcpy_d2s output_index failed!\n");
-        goto free_mem;
-    }
     gettimeofday(&t1, NULL);
     if (is_transpose) {
         matrix_mul_ref_fp16(input_content_vec, db_content_vec_trans, ref_result, query_vecs_num, database_vecs_num, vec_dims);
@@ -705,37 +594,36 @@ bm_status_t faiss_indexflatIP_fp16_single_test(bm_handle_t handle,
     gettimeofday(&t2, NULL);
     printf("CPU using time: %ld(us)\n", ((t2.tv_sec - t1.tv_sec) * 1000000 + t2.tv_usec - t1.tv_usec));
     if (output_dtype == DT_FP32) {
-        ret = result_compare_fp32(output_similarity_fp32,
-            output_index,
-            ref_result,
-            query_vecs_num,
-            database_vecs_num,
-            sort_cnt);
-        if (ret != BM_SUCCESS) {
-            printf("-------------faiss_indexflatIP fp32 compare failed-------\n");
-        } else {
-            printf("-------------faiss_indexflatIP fp32 compare succeed-----------\n");
+        if (false == result_compare_fp32(output_similarity_fp32,
+                                         output_index,
+                                         ref_result,
+                                         query_vecs_num,
+                                         database_vecs_num,
+                                         sort_cnt)) {
+            printf("-------------faiss_indexflatIP fp16/fp32 compare failed-------\n");
+            exit(-1);
         }
     } else {
-        ret = result_compare_fp16(output_similarity_fp16,
-            output_index,
-            ref_result,
-            query_vecs_num,
-            database_vecs_num,
-            sort_cnt);
-        if (ret != BM_SUCCESS) {
-            printf("-------------faiss_indexflatIP fp16 compare failed-------\n");
-        } else {
-            printf("-------------faiss_indexflatIP fp16 compare succeed-----------\n");
+        if (false == result_compare_fp16(output_similarity_fp16,
+                                         output_index,
+                                         ref_result,
+                                         query_vecs_num,
+                                         database_vecs_num,
+                                         sort_cnt)) {
+            printf("-------------faiss_indexflatIP fp16/fp16 compare failed-------\n");
+            exit(-1);
         }
     }
+
+    printf("-------------faiss_indexflatIP fp16 compare succeed-----------\n");
+
 free_mem:
     bm_free_device(handle, input_data_global_addr_device);
     bm_free_device(handle, db_data_global_addr_device);
     bm_free_device(handle, buffer_global_addr_device);
     bm_free_device(handle, output_sorted_similarity_global_addr_device);
     bm_free_device(handle, output_sorted_index_global_addr_device);
-free_mem1:
+
     free(input_data);
     free(db_data);
     free(output_similarity_fp32);
@@ -745,23 +633,16 @@ free_mem1:
         free(ref_result[i]);
     }
     if (is_transpose) {
-        for (i = 0; i < database_vecs_num; ++i) {
+        for(i = 0; i < query_vecs_num; ++i){
             free(db_content_vec[i]);
-        }
-        for (i = 0; i < vec_dims; ++i) {
-            free(db_content_vec_trans[i]);
         }
     } else {
         for (i = 0; i < vec_dims; ++i) {
             free(db_content_vec[i]);
         }
-        for (i = 0; i < database_vecs_num; ++i) {
-            free(db_content_vec_trans[i]);
-        }
     }
     free(input_content_vec);
     free(db_content_vec);
-    free(db_content_vec_trans);
     free(output_index);
     free(ref_result);
     return ret;
@@ -787,8 +668,9 @@ bm_status_t faiss_indexflatIP_fp32_single_test(bm_handle_t handle,
     float* input_data = (float*)malloc(query_vecs_num * vec_dims * sizeof(float));
     float* db_data = (float*)malloc(database_vecs_num * vec_dims * sizeof(float));
     float* output_similarity_fp32 = (float*)malloc(query_vecs_num * sort_cnt * sizeof(float));
-    fp16* output_similarity_fp16 = (fp16*)malloc(query_vecs_num * sort_cnt * sizeof(fp16));
+
     float** input_content_vec = (float**)malloc(query_vecs_num * sizeof(float*));
+
     for (i = 0; i < query_vecs_num; i++) {
         input_content_vec[i] = (float*)malloc(vec_dims * sizeof(float));
         for (j = 0; j < vec_dims; j++) {
@@ -803,6 +685,7 @@ bm_status_t faiss_indexflatIP_fp32_single_test(bm_handle_t handle,
     }
     float** db_content_vec = (float**)malloc((is_transpose ? database_vecs_num : vec_dims) * sizeof(float*));
     float** db_content_vec_trans = (float**)malloc((is_transpose ? vec_dims : database_vecs_num) * sizeof(float*));
+
     if (is_transpose) {
         for(i = 0; i < vec_dims; i++) {
             db_content_vec_trans[i] = (float*)malloc(database_vecs_num * sizeof(float));
@@ -839,11 +722,13 @@ bm_status_t faiss_indexflatIP_fp32_single_test(bm_handle_t handle,
             }
         }
     }
+
     for (i = 0; i < query_vecs_num; ++i) {
         for (j = 0; j < vec_dims; ++j) {
             input_data[i * vec_dims + j] = input_content_vec[i][j];
         }
     }
+
     for (i = 0; i < database_vecs_num; ++i) {
         for (j = 0; j < vec_dims; ++j) {
             db_data[i * vec_dims + j] = db_content_vec[i][j];
@@ -859,70 +744,27 @@ bm_status_t faiss_indexflatIP_fp32_single_test(bm_handle_t handle,
                     buffer_global_addr_device,
                     output_sorted_similarity_global_addr_device,
                     output_sorted_index_global_addr_device;
-    ret = bm_malloc_device_byte(handle,
+    bm_malloc_device_byte(handle,
                           &input_data_global_addr_device,
                           dtype_size((enum bm_data_type_t)input_dtype) * query_vecs_num * vec_dims);
-    if (ret != BM_SUCCESS) {
-        printf("bm_malloc_device_byte input_data_global_addr_device failed!\n");
-        input_data_global_addr_device = BM_MEM_NULL;
-        goto free_mem1;
-    }
-    ret = bm_malloc_device_byte(handle,
+    bm_malloc_device_byte(handle,
                           &db_data_global_addr_device,
                           dtype_size((enum bm_data_type_t)input_dtype) * database_vecs_num * vec_dims);
-    if (ret != BM_SUCCESS) {
-        printf("bm_malloc_device_byte output_sorted_index_global_addr_device failed!\n");
-        bm_free_device(handle, input_data_global_addr_device);
-        db_data_global_addr_device = BM_MEM_NULL;
-        goto free_mem1;
-    }
-    ret = bm_malloc_device_byte(handle,
+    bm_malloc_device_byte(handle,
                           &buffer_global_addr_device,
                           dtype_size((enum bm_data_type_t)DT_FP32) * query_vecs_num * database_vecs_num);
-    if (ret != BM_SUCCESS) {
-        printf("bm_malloc_device_byte output_sorted_index_global_addr_device failed!\n");
-        bm_free_device(handle, input_data_global_addr_device);
-        bm_free_device(handle, db_data_global_addr_device);
-        buffer_global_addr_device = BM_MEM_NULL;
-        goto free_mem1;
-    }
-    ret = bm_malloc_device_byte(handle,
+    bm_malloc_device_byte(handle,
                           &output_sorted_similarity_global_addr_device,
                           dtype_size((enum bm_data_type_t)output_dtype) * query_vecs_num * sort_cnt);
-    if (ret != BM_SUCCESS) {
-        printf("bm_malloc_device_byte output_sorted_index_global_addr_device failed!\n");
-        bm_free_device(handle, input_data_global_addr_device);
-        bm_free_device(handle, db_data_global_addr_device);
-        bm_free_device(handle, buffer_global_addr_device);
-        output_sorted_similarity_global_addr_device = BM_MEM_NULL;
-        goto free_mem1;
-    }
-    ret = bm_malloc_device_byte(handle,
+    bm_malloc_device_byte(handle,
                           &output_sorted_index_global_addr_device,
                           dtype_size(DT_INT32) * query_vecs_num * sort_cnt);
-    if (ret != BM_SUCCESS) {
-        printf("bm_malloc_device_byte output_sorted_index_global_addr_device failed!\n");
-        bm_free_device(handle, input_data_global_addr_device);
-        bm_free_device(handle, db_data_global_addr_device);
-        bm_free_device(handle, buffer_global_addr_device);
-        bm_free_device(handle, output_sorted_similarity_global_addr_device);
-        output_sorted_index_global_addr_device = BM_MEM_NULL;
-        goto free_mem1;
-    }
-    ret = bm_memcpy_s2d(handle,
+    bm_memcpy_s2d(handle,
                   input_data_global_addr_device,
                   bm_mem_get_system_addr(bm_mem_from_system(input_data)));
-    if (ret != BM_SUCCESS) {
-        printf("bm_memcpy_s2d input_data_global_addr_device failed!\n");
-        goto free_mem;
-    }
-    ret = bm_memcpy_s2d(handle,
+    bm_memcpy_s2d(handle,
                   db_data_global_addr_device,
                   bm_mem_get_system_addr(bm_mem_from_system(db_data)));
-    if (ret != BM_SUCCESS) {
-        printf("bm_memcpy_s2d db_data_global_addr_device failed!\n");
-        goto free_mem;
-    }
     struct timeval t1, t2;
     gettimeofday(&t1, NULL);
     ret = bmcv_faiss_indexflatIP(handle,
@@ -939,35 +781,37 @@ bm_status_t faiss_indexflatIP_fp32_single_test(bm_handle_t handle,
                            input_dtype,
                            output_dtype);
     gettimeofday(&t2, NULL);
-    printf("TPU using time: %ld(us)\n", ((t2.tv_sec - t1.tv_sec) * 1000000 + t2.tv_usec - t1.tv_usec));
+    printf("TPU1 using time: %ld(us)\n", ((t2.tv_sec - t1.tv_sec) * 1000000 + t2.tv_usec - t1.tv_usec));
     if (BM_SUCCESS != ret) {
         printf("bmcv_faiss_indexflatIP api error\n");
         goto free_mem;
     }
-    if (output_dtype == DT_FP32) {
-        ret = bm_memcpy_d2s(handle,
-                  bm_mem_get_system_addr(bm_mem_from_system(output_similarity_fp32)),
-                  output_sorted_similarity_global_addr_device);
-        if (ret != BM_SUCCESS) {
-            printf("bm_memcpy_d2s output_similarity_fp32 failed!\n");
-            goto free_mem;
-        }
-    } else {
-        ret = bm_memcpy_d2s(handle,
-                  bm_mem_get_system_addr(bm_mem_from_system(output_similarity_fp16)),
-                  output_sorted_similarity_global_addr_device);
-        if (ret != BM_SUCCESS) {
-            printf("bm_memcpy_d2s output_similarity_fp16 failed!\n");
-            goto free_mem;
-        }
-    }
-    ret = bm_memcpy_d2s(handle,
-                  bm_mem_get_system_addr(bm_mem_from_system(output_index)),
-                  output_sorted_index_global_addr_device);
-    if (ret != BM_SUCCESS) {
-        printf("bm_memcpy_d2s output_index failed!\n");
+    gettimeofday(&t1, NULL);
+    ret = bmcv_faiss_indexflatIP(handle,
+                           input_data_global_addr_device,
+                           db_data_global_addr_device,
+                           buffer_global_addr_device,
+                           output_sorted_similarity_global_addr_device,
+                           output_sorted_index_global_addr_device,
+                           vec_dims,
+                           query_vecs_num,
+                           database_vecs_num,
+                           sort_cnt,
+                           is_transpose,
+                           input_dtype,
+                           output_dtype);
+    gettimeofday(&t2, NULL);
+    printf("TPU2 using time: %ld(us)\n", ((t2.tv_sec - t1.tv_sec) * 1000000 + t2.tv_usec - t1.tv_usec));
+    if (BM_SUCCESS != ret) {
+        printf("bmcv_faiss_indexflatIP api error\n");
         goto free_mem;
     }
+    bm_memcpy_d2s(handle,
+                bm_mem_get_system_addr(bm_mem_from_system(output_similarity_fp32)),
+                output_sorted_similarity_global_addr_device);
+    bm_memcpy_d2s(handle,
+                  bm_mem_get_system_addr(bm_mem_from_system(output_index)),
+                  output_sorted_index_global_addr_device);
     gettimeofday(&t1, NULL);
     if (is_transpose) {
         matrix_mul_ref_fp32(input_content_vec, db_content_vec_trans, ref_result, query_vecs_num, database_vecs_num, vec_dims);
@@ -976,38 +820,24 @@ bm_status_t faiss_indexflatIP_fp32_single_test(bm_handle_t handle,
     }
     gettimeofday(&t2, NULL);
     printf("CPU using time: %ld(us)\n", ((t2.tv_sec - t1.tv_sec) * 1000000 + t2.tv_usec - t1.tv_usec));
-    if(output_dtype == DT_FP32) {
-        ret = result_compare_fp32(output_similarity_fp32,
-            output_index,
-            ref_result,
-            query_vecs_num,
-            database_vecs_num,
-            sort_cnt);
-        if (ret != BM_SUCCESS) {
-            printf("-------------faiss_indexflatIP fp32 compare failed-------\n");
-        } else {
-            printf("-------------faiss_indexflatIP fp32 compare succeed-----------\n");
-        }
-    } else {
-        ret = result_compare_fp16(output_similarity_fp16,
-            output_index,
-            ref_result,
-            query_vecs_num,
-            database_vecs_num,
-            sort_cnt);
-        if (ret != BM_SUCCESS) {
-            printf("-------------faiss_indexflatIP fp16 compare failed-------\n");
-        } else {
-            printf("-------------faiss_indexflatIP fp16 compare succeed-----------\n");
-        }
+    if (false == result_compare_fp32(output_similarity_fp32,
+                                    output_index,
+                                    ref_result,
+                                    query_vecs_num,
+                                    database_vecs_num,
+                                    sort_cnt)) {
+        printf("-------------faiss_indexflatIP fp32/fp32 compare failed-------\n");
+        exit(-1);
     }
+
+    printf("-------------faiss_indexflatIP fp32 compare succeed-----------\n");
 free_mem:
     bm_free_device(handle, input_data_global_addr_device);
     bm_free_device(handle, db_data_global_addr_device);
     bm_free_device(handle, buffer_global_addr_device);
     bm_free_device(handle, output_sorted_similarity_global_addr_device);
     bm_free_device(handle, output_sorted_index_global_addr_device);
-free_mem1:
+
     free(input_data);
     free(db_data);
     free(output_similarity_fp32);
@@ -1016,26 +846,31 @@ free_mem1:
         free(ref_result[i]);
     }
     if (is_transpose) {
-        for (i = 0; i < database_vecs_num; ++i) {
+        for(i = 0; i < query_vecs_num; ++i){
             free(db_content_vec[i]);
-        }
-        for (i = 0; i < vec_dims; ++i) {
-            free(db_content_vec_trans[i]);
         }
     } else {
         for (i = 0; i < vec_dims; ++i) {
             free(db_content_vec[i]);
         }
-        for (i = 0; i < database_vecs_num; ++i) {
-            free(db_content_vec_trans[i]);
-        }
     }
     free(input_content_vec);
     free(db_content_vec);
-    free(db_content_vec_trans);
     free(output_index);
     free(ref_result);
     return ret;
+}
+
+int param_check(int database_vecs_num, int query_vecs_num, int sort_cnt, int vec_dims){
+    if(sort_cnt > database_vecs_num) {
+        printf("sort_cnt cannot be greater than database_vecs_num!\n");
+        return -1;
+    }
+    if(query_vecs_num > database_vecs_num) {
+        printf("query_vecs_num cannot be greater than database_vecs_num!\n");
+        return -1;
+    }
+    return 0;
 }
 
 void* test_faiss_indexflatIP(void* args) {
@@ -1051,20 +886,9 @@ void* test_faiss_indexflatIP(void* args) {
     bm_handle_t handle = faiss_indexflatIP_thread_arg->handle;
     for(int i = 0; i < loop; i++){
         if(loop > 1) {
-            sort_cnt = rand() % 30 + 1;
+            sort_cnt = rand() % 50 + 1;
+            database_vecs_num = rand() % 10000 + 1 + sort_cnt;
             query_vecs_num = rand() % 50 + 1;
-            database_vecs_num = rand() % 10000 + query_vecs_num + sort_cnt;
-            int flag = rand() % 3;
-            if (flag == 0) {
-                input_dtype = 5;
-                output_dtype = (rand() % 2 == 0) ? 3 : 5;
-            } else if (flag == 1) {
-                input_dtype = 3;
-                output_dtype = (rand() % 2 == 0) ? 3 : 5;
-            } else {
-                input_dtype = 1;
-                output_dtype = 9;
-            }
         }
         switch (input_dtype) {
             case DT_FP32:
@@ -1102,13 +926,17 @@ int main(int argc, char* args[]) {
     printf("random seed = %u\n", seed);
     int thread_num = 1;
     int loop = 1;
-    int sort_cnt = rand() % 30 + 1;
+    int sort_cnt = rand() % 50 + 1;
+    int database_vecs_num = rand() % 10000 + 1 + sort_cnt;
     int query_vecs_num = rand() % 50 + 1;
-    int database_vecs_num = rand() % 10000 + query_vecs_num + sort_cnt;
     int vec_dims = 256;
     int is_transpose = 1;
-    int input_dtype = 5; //1-char 3-fp16 5-fp32 9-int
-    int output_dtype = 5;
+    int input_dtype_num[] = {1, 3, 5};  //1-int 3-fp16 5-fp32
+    int output_dtype_num[] = {9, 3, 5};  //9-int 3-fp16 5-fp32
+    int dtype_size = sizeof(input_dtype_num) / sizeof(input_dtype_num[0]);
+    int rand_num = rand() % dtype_size;
+    int input_dtype = input_dtype_num[rand_num];
+    int output_dtype = output_dtype_num[rand_num];
 
     if (argc == 2 && atoi(args[1]) == -1) {
         printf("usage: %d\n", argc);
@@ -1127,7 +955,11 @@ int main(int argc, char* args[]) {
 
     printf("thread_num:        %d\n", thread_num);
     printf("loop:              %d\n", loop);
-    bm_status_t ret = 0;
+    int ret = 0;
+    ret = param_check(database_vecs_num, query_vecs_num, sort_cnt, vec_dims);
+    if(ret != 0) {
+        return -1;
+    }
     bm_handle_t handle;
     ret = bm_dev_request(&handle, 0);
     if (BM_SUCCESS != ret) {

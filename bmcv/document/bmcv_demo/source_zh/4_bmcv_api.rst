@@ -8,7 +8,6 @@ BMCV API
 
    bmcv_api/bmcv_base64.rst
    bmcv_api/bmcv_as_strided.rst
-   bmcv_api/bmcv_attribute_filter_topk.rst
    bmcv_api/bmcv_batch_topk.rst
    bmcv_api/bmcv_calc_hist.rst
    bmcv_api/bmcv_cmulp.rst
@@ -50,13 +49,10 @@ BMCV API
    bmcv_api/bmcv_image_bitwise_and.rst
    bmcv_api/bmcv_image_bitwise_or.rst
    bmcv_api/bmcv_image_bitwise_xor.rst
-   bmcv_api/bmcv_image_circle.rst
    bmcv_api/bmcv_image_convert_to.rst
    bmcv_api/bmcv_image_copy_to.rst
    bmcv_api/bmcv_image_csc_convert_to.rst
-   bmcv_api/bmcv_image_csc_overlay.rst
    bmcv_api/bmcv_image_draw_lines.rst
-   bmcv_api/bmcv_image_draw_point.rst
    bmcv_api/bmcv_image_draw_rectangle.rst
    bmcv_api/bmcv_image_fill_rectangle.rst
    bmcv_api/bmcv_image_flip.rst
@@ -81,7 +77,6 @@ BMCV API
    bmcv_api/bmcv_image_overlay.rst
    bmcv_api/bmcv_image_warp_affine.rst
    bmcv_api/bmcv_image_warp_perspective.rst
-   bmcv_api/bmcv_image_width_align.rst
    bmcv_api/bmcv_image_ive_bernsen.rst
    bmcv_api/bmcv_image_ive_16bitto8bit.rst
    bmcv_api/bmcv_image_ive_dma.rst

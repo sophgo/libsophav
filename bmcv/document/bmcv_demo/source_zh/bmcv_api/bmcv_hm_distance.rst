@@ -3,7 +3,7 @@ bmcv_hm_distance
 
 **描述：**
 
-该接口用来计算两个向量中各个元素的汉明距离，该接口支持启用双核处理。
+该接口用来计算两个向量中各个元素的汉明距离。
 
 **语法：**
 
@@ -57,11 +57,7 @@ bmcv_hm_distance
 
 **注意事项：**
 
-1. bits_len支持到4, 8, 16, 32。
-
-2. input1_num支持1～16，input2_num支持2～50000000，但因TPU能调度的存储空间容量有限，不同bits_len和input1_num的组合下，input2_num能支持的最大值可能受限。
-
-3. 该接口支持启用双核处理，在运行程序前可通过设置环境变量来改变使用的TPU core，例如：export TPU_CORES=0/1/2/both，如不设置环境变量，默认使用core0处理。其中TPU_CORES=0代表仅启用TPU core0进行处理，TPU_CORES=1代表仅启用TPU core1进行处理，TPU_CORES=2和TPU_CORES=both代表启用双核进行处理。
+1.input1_num最大支持到100，input2_num最大支持到2500。
 
 **代码示例：**
 
@@ -78,8 +74,8 @@ bmcv_hm_distance
 
     int main() {
         int bits_len = 8;
-        int input1_num = 1 + rand() % 16;
-        int input2_num = 1 + rand() % 10000;
+        int input1_num = 1 + rand() % 100;
+        int input2_num = 1 + rand() % 2500;
         bm_handle_t handle;
         bm_status_t ret = bm_dev_request(&handle, 0);
         if (ret != BM_SUCCESS) {
@@ -91,16 +87,16 @@ bmcv_hm_distance
         bm_device_mem_t input2_dev_mem;
         bm_device_mem_t output_dev_mem;
 
-        uint32_t* input1_data = (uint32_t*)malloc(input1_num * bits_len * sizeof(uint32_t));
-        uint32_t* input2_data = (uint32_t*)malloc(input2_num * bits_len * sizeof(uint32_t));
-        uint32_t* output_tpu  = (uint32_t*)malloc(input1_num * input2_num * sizeof(uint32_t));
+        int* input1_data = (int*)malloc(input1_num * bits_len * sizeof(int));
+        int* input2_data = (int*)malloc(input2_num * bits_len * sizeof(int));
+        int* output_tpu  = (int*)malloc(input1_num * input2_num * sizeof(int));
 
         printf("bits_len is %u\n", bits_len);
         printf("input1_data len is %u\n", input1_num);
         printf("input2_data len is %u\n", input2_num);
-        memset(input1_data, 0, input1_num * bits_len * sizeof(uint32_t));
-        memset(input2_data, 0, input2_num * bits_len * sizeof(uint32_t));
-        memset(output_tpu,  0,  input1_num * input2_num * sizeof(uint32_t));
+        memset(input1_data, 0, input1_num * bits_len * sizeof(int));
+        memset(input2_data, 0, input2_num * bits_len * sizeof(int));
+        memset(output_tpu,  0,  input1_num * input2_num * sizeof(int));
 
         // fill data
         for(int i = 0; i < input1_num * bits_len; i++) {
@@ -110,9 +106,9 @@ bmcv_hm_distance
             input2_data[i] = rand() % 20 + 1;
         }
         // tpu_cal
-        bm_malloc_device_byte(handle, &input1_dev_mem, input1_num * bits_len * sizeof(uint32_t));
-        bm_malloc_device_byte(handle, &input2_dev_mem, input2_num * bits_len * sizeof(uint32_t));
-        bm_malloc_device_byte(handle, &output_dev_mem, input1_num * input2_num * sizeof(uint32_t));
+        bm_malloc_device_byte(handle, &input1_dev_mem, input1_num * bits_len * sizeof(int));
+        bm_malloc_device_byte(handle, &input2_dev_mem, input2_num * bits_len * sizeof(int));
+        bm_malloc_device_byte(handle, &output_dev_mem, input1_num * input2_num * sizeof(int));
         bm_memcpy_s2d(handle, input1_dev_mem, input1_data);
         bm_memcpy_s2d(handle, input2_dev_mem, input2_data);
 

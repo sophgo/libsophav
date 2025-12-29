@@ -8,7 +8,6 @@
 #include <string.h>
 #include <stdio.h>
 #include <pthread.h>
-#include "test_misc.h"
 
 #ifndef USING_CMODEL
 // #define _FPGA
@@ -18,8 +17,6 @@
 #endif
 
 // #define BMCV_VERSION "1.1.0"
-
-#define BM1688_MAX_CORES 2
 
 #define __ALIGN_MASK(x, mask) (((x) + (mask)) & ~(mask))
 
@@ -152,13 +149,6 @@ bm_status_t bm_tpu_kernel_launch(bm_handle_t handle,
                          size_t      size,
                          int         core_id);
 
-bm_status_t bm_tpu_kernel_launch_dual_core(
-        bm_handle_t handle,
-        const char *func_name,
-        tpu_launch_param_t* launch_params,
-        int* core_list,
-        int core_nums);
-
 void put_text(bmMat mat, const char* text, bmcv_point_t org, int fontFace, float fontScale,
             bmcv_color_t color, int thickness);
 void draw_line(bmMat* inout, bmcv_point_t start, bmcv_point_t end, bmcv_color_t color, int thickness);
@@ -262,24 +252,6 @@ typedef struct bm_api_width_align {
     int data_size;
 } bm_api_cv_width_align_t;
 
-typedef struct bm_api_width_align_dual_core {
-    u64 S_global_offset;
-    u64 D_global_offset;
-    int N;
-    int C;
-    int H;
-    int W;
-    int src_n_stride;
-    int src_c_stride;
-    int src_h_stride;
-    int dst_n_stride;
-    int dst_c_stride;
-    int dst_h_stride;
-    int data_size;
-    int core_id;
-    int core_num;
-    int base_msg_id;
-} bm_api_cv_width_align_dual_core_t;
 struct dynamic_load_param{
     int api_id;
     size_t size;
@@ -301,19 +273,11 @@ plane_layout stride_width(plane_layout src, int stride);
 u8 is_full_image(bm_image_format_ext image_format);
 u8 is_yuv420_image(bm_image_format_ext image_format);
 
-bm_status_t  update_memory_layout(
-    bm_handle_t     handle,
-    bm_device_mem_t src,
-    plane_layout    src_layout,
-    bm_device_mem_t dst,
-    plane_layout    dst_layout);
-
-bm_status_t fill_default_image_private(
-    bm_image_private        *image_private,
-    int                      H,
-    int                      W,
-    bm_image_format_ext      image_format,
-    bm_image_data_format_ext data_type);
+bm_status_t  update_memory_layout(bm_handle_t     handle,
+                                  bm_device_mem_t src,
+                                  plane_layout    src_layout,
+                                  bm_device_mem_t dst,
+                                  plane_layout    dst_layout);
 
 DECL_EXPORT bm_status_t bm_send_api(
     bm_handle_t  handle,
@@ -337,12 +301,7 @@ bm_status_t sg_image_alloc_dev_mem(bm_image image, int heap_id);
 bm_status_t sg_malloc_device_mem(bm_handle_t handle, sg_device_mem_st *pmem, unsigned int size);
 void sg_free_device_mem(bm_handle_t handle, sg_device_mem_st mem);
 bm_status_t bm_kernel_main_launch(bm_handle_t handle, int api_id, void *param, size_t size);
-void find_topk_fp32(float *multicore_values, int *multicore_index, float *topk_values, int *topk_index,
-                    int topk, int use_tpu_num, int order);
-void find_topk_fp16(fp16 *multicore_values, int *multicore_index, fp16 *topk_values, int *topk_index,
-                    int topk, int use_tpu_num, int order);
-void find_topk_int(int *multicore_values, int *multicore_index, int *topk_values, int *topk_index,
-                   int topk, int use_tpu_num);
+
 #ifdef _FPGA
 bm_status_t bm_memcpy_s2d_fpga(bm_handle_t handle, bm_device_mem_t dst, void *src);
 bm_status_t bm_memcpy_d2s_fpga(bm_handle_t handle, void *dst, bm_device_mem_t src);

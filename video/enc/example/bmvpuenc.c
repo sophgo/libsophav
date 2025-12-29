@@ -85,7 +85,6 @@ typedef struct {
     int   result;
 
     int   run_times;
-    int   performance;
 } InputParameter;
 
 typedef struct {
@@ -142,35 +141,35 @@ int g_exit_flag = 0;
 
 
 /* Obtain a backtrace and print it to stdout. */
-//void
-//print_trace (void)
-//{
-//  void *array[10];
-//  char **strings;
-//  int size, i;
+void
+print_trace (void)
+{
+  void *array[10];
+  char **strings;
+  int size, i;
 
-//  size = backtrace (array, 10);
-//  strings = backtrace_symbols (array, size);
-//  if (strings != NULL)
-//  {
-//      printf ("Obtained %d stack frames.\n", size);
-//      for (i = 0; i < size; i++)
-//          printf ("%s\n", strings[i]);
-//  }
+  size = backtrace (array, 10);
+  strings = backtrace_symbols (array, size);
+  if (strings != NULL)
+  {
+      printf ("Obtained %d stack frames.\n", size);
+      for (i = 0; i < size; i++)
+          printf ("%s\n", strings[i]);
+  }
 
-//  free (strings);
-//}
+  free (strings);
+}
 
 
 void signal_handler(int signum) {
    // Release handle before crash in case we cannot reopen it again.
    g_exit_flag = 1;     // exit all threads
    int try_count = 100;
-//   printf( "signal=%d\n", signum);
+   printf( "signal=%d\n", signum);
 
    signal(signum, SIG_IGN);
 
-//   print_trace();
+   print_trace();
    /* wait thread quit for 1s */
    while (try_count--){
      bool exit_all = true;
@@ -195,7 +194,7 @@ void signal_handler(int signum) {
    // Reset the signal handler as default
    signal(signum, SIG_DFL);
 
-//   _exit(signum);
+   _exit(signum);
 }
 
 
@@ -347,7 +346,6 @@ static int run_once(InputParameter* par)
     int send_frame_status = 0;
     int tid = par->thread_id;
     fin = par->fin;
-    int performance = par->performance;
 
     ret = strncmp(par->output_filename, "/dev/null", 9);
     if (ret != 0)
@@ -515,7 +513,6 @@ static int run_once(InputParameter* par)
             ret = -1;
             goto cleanup;
         }
-#ifndef BM_PCIE_MODE
         ret = bmvpu_dma_buffer_map(0, &ctx->src_fb_dmabuffers[i], BM_VPU_ENC_MAPPING_FLAG_READ|BM_VPU_ENC_MAPPING_FLAG_WRITE);
         if (ret != BM_VPU_ENC_RETURN_CODE_OK) {
             fprintf(stderr, "bm_mem_mmap_device_mem_no_cache failed\n");
@@ -523,7 +520,6 @@ static int run_once(InputParameter* par)
         }
         memset((void *)ctx->src_fb_dmabuffers[i].virt_addr, 0, ctx->src_fb_dmabuffers[i].size);
         bmvpu_dma_buffer_unmap(0, &ctx->src_fb_dmabuffers[i]);
-#endif
     }
 
     /* Create queue for source frame unused */
@@ -573,28 +569,6 @@ static int run_once(InputParameter* par)
         goto cleanup;
     }
 
-    if (performance == 1){
-        fseek(fin, 0, SEEK_SET);
-        ctx->src_fb = get_src_framebuffer(ctx);
-        if (ctx->src_fb == NULL)
-        {
-            fprintf(stderr, "get_src_framebuffer failed\n");
-            ret = -1;
-            goto cleanup;
-        }
-
-        ret = read_yuv_source(host_va, ctx->initial_info.src_fb.y_stride,
-                                ctx->initial_info.src_fb.c_stride, ctx->initial_info.src_fb.height, ctx->initial_info.src_fb.height,
-                                &fin, enc_par->y_stride, enc_par->c_stride, enc_par->aligned_height,
-                                eop->pix_format,
-                                enc_par->crop_w, enc_par->crop_h);
-        if (ret < 0)
-        {
-            bm_queue_push(ctx->frame_unused_queue, &ctx->src_fb);
-            goto cleanup;
-        }
-    }
-
     pthread_setcancelstate(old_canclestate, NULL);
     pthread_testcancel();
     pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &old_canclestate);
@@ -603,30 +577,22 @@ static int run_once(InputParameter* par)
     {
         if (g_exit_flag) break;
 
-        if (performance == 0){
-            fseek(fin, 0, SEEK_SET);
-        }
+        fseek(fin, 0, SEEK_SET);
         /* Read input I420/NV12 frames and encode them until the end of the input file is reached */
         gettimeofday(&(ctx->tv_beg), NULL);
         for (i=0; i<par->frame_number; i++)
         {
             if (g_exit_flag) break;
-
             /* Stop encoding if EOF was reached */
-            if (performance == 0){
-                if (feof(fin))
-                    break;
+            if (feof(fin))
+                break;
 
-                ctx->src_fb = get_src_framebuffer(ctx);
-                if (ctx->src_fb == NULL)
-                {
-                    fprintf(stderr, "get_src_framebuffer failed\n");
-                    ret = -1;
-                    goto cleanup;
-                }
-            } else {
-                if (i > 999)
-                    break;
+            ctx->src_fb = get_src_framebuffer(ctx);
+            if (ctx->src_fb == NULL)
+            {
+                fprintf(stderr, "get_src_framebuffer failed\n");
+                ret = -1;
+                goto cleanup;
             }
 
             if (ctx->first_pkt_recevie_flag != 1) {
@@ -635,13 +601,11 @@ static int run_once(InputParameter* par)
                 }
             }
 
-#ifndef BM_PCIE_MODE
             /* Read uncompressed pixels into the input DMA buffer */
             ret = bmvpu_dma_buffer_map(0, (ctx->src_fb->dma_buffer), BM_VPU_ENC_MAPPING_FLAG_READ|BM_VPU_ENC_MAPPING_FLAG_WRITE);
             if (ret != BM_VPU_ENC_RETURN_CODE_OK) {
                 break;
             }
-
             ret = read_yuv_source((uint8_t*)(ctx->src_fb->dma_buffer->virt_addr), ctx->initial_info.src_fb.y_stride,
                             ctx->initial_info.src_fb.c_stride, ctx->initial_info.src_fb.height, ctx->initial_info.src_fb.height,
                             &fin, enc_par->y_stride, enc_par->c_stride, enc_par->aligned_height,
@@ -655,31 +619,8 @@ static int run_once(InputParameter* par)
                 break;
             }
 
+
             bmvpu_dma_buffer_unmap(0, ctx->src_fb->dma_buffer);
-
-#else
-            if (performance == 0){
-                ret = read_yuv_source(host_va, ctx->initial_info.src_fb.y_stride,
-                                ctx->initial_info.src_fb.c_stride, ctx->initial_info.src_fb.height, ctx->initial_info.src_fb.height,
-                                &fin, enc_par->y_stride, enc_par->c_stride, enc_par->aligned_height,
-                                eop->pix_format,
-                                enc_par->crop_w, enc_par->crop_h);
-                if (ret < 0)
-                {
-                    bm_queue_push(ctx->frame_unused_queue, &ctx->src_fb);
-                    break;
-                }
-            }
-
-            u64 vpu_pa = bmvpu_enc_dma_buffer_get_physical_address(ctx->src_fb->dma_buffer);
-            ret = bmvpu_enc_write_memory(0, vpu_pa, host_va, frame_size);
-            if (ret < 0)
-            {
-                printf("bmvpu_enc_write_memory failed, ret=%d, vpu_pa addr: 0x%lx, host_va: %p\n", ret, vpu_pa, (void *)host_va);
-                break;
-            }
-
-#endif
 
             ctx->input_frame.framebuffer = ctx->src_fb;
 
@@ -745,9 +686,7 @@ get_stream:
             break;
     }
 
-#ifdef BM_PCIE_MODE
     free(host_va);
-#endif
 
     gettimeofday(&(ctx->tv_beg), NULL);
     while(1)
@@ -890,7 +829,6 @@ static void usage(char *progname)
     "\t--fps    framerate,default 30 \n"
     "\t-i input file\n"
     "\t-o output file\n"
-    "\t-P performance test open\n"
     "\t-?\n"
     "\t--help\n"
     "\tSet BMVPUENC_DISPLAY_FRAMERATE to view the details of fps:\n"
@@ -940,7 +878,6 @@ static int parse_args(int argc, char **argv, InputParameter* par)
     par->enc.fps = 30;
 	par->log_level =  BMVPU_ENC_LOG_LEVEL_INFO;
     par->loop = 1;
-    par->performance = 0;
     if (argc == 1) {
         /* No input argument */
         usage(argv[0]);
@@ -949,7 +886,7 @@ static int parse_args(int argc, char **argv, InputParameter* par)
 
     while (1)
     {
-        opt = getopt_long(argc, argv, "s:f:i:o:w:h:y:c:t:v:l:n:p:g:m:r:q:a:P:?", longOpts, &longIndex);
+        opt = getopt_long(argc, argv, "s:f:i:o:w:h:y:c:t:v:l:n:p:g:m:r:q:a:?", longOpts, &longIndex);
         if (opt == -1)
             break;
         switch (opt)
@@ -1007,10 +944,6 @@ static int parse_args(int argc, char **argv, InputParameter* par)
             break;
         case 'a':
             par->enc.fps = atoi(optarg);
-            break;
-        case 'P':
-            printf("performance test open:\n");
-            par->performance = atoi(optarg);
             break;
         case '?':
             usage(argv[0]);
@@ -1444,7 +1377,7 @@ int main(int argc, char *argv[])
     }
 
     bmvpu_enc_set_logging_threshold(par.log_level);
-    bmvpu_enc_set_logging_function(bmvpu_enc_logging_fn);
+    bmvpu_enc_set_logging_function(logging_fn);
 
 
     InputParameter mt_par[par.thread_number];

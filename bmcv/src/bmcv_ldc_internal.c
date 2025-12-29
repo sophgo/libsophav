@@ -22,10 +22,99 @@ bm_status_t bm_ldc_image_calc_stride(bm_handle_t handle,
                                      int *stride)
 {
     bm_status_t ret = BM_SUCCESS;
-    bm_image_private image_private;
-    ret = fill_default_image_private(&image_private, img_h, img_w, image_format, data_type);
-    for(int i = 0; i < image_private.plane_num; i++)
-        stride[i] = ALIGN(image_private.memory_layout[i].pitch_stride, LDC_STRIDE_ALIGN);
+    int data_size = 1;
+    // if (bm_image_format_check(img_h, img_w, image_format, data_type) !=
+    //     BM_SUCCESS) {
+    //     bmlib_log("BMCV",
+    //               BMLIB_LOG_ERROR,
+    //               "illegal format or size %s: %s: %d\n",
+    //               filename(__FILE__),
+    //               __func__,
+    //               __LINE__);
+    //     return BM_NOT_SUPPORTED;
+    // }
+    switch (data_type) {
+        case DATA_TYPE_EXT_FLOAT32:
+            data_size = 4;
+            break;
+        case DATA_TYPE_EXT_FP16:
+        case DATA_TYPE_EXT_BF16:
+        case DATA_TYPE_EXT_U16:
+        case DATA_TYPE_EXT_S16:
+            data_size = 2;
+            break;
+        default:
+            data_size = 1;
+            break;
+    }
+    switch (image_format) {
+        case FORMAT_YUV420P:
+        case FORMAT_YUV422P:{
+            stride[0] = ldc_align_up(img_w, LDC_STRIDE_ALIGN) * data_size;
+            stride[1] = ldc_align_up(img_w>>1, LDC_STRIDE_ALIGN) * data_size;
+            stride[2] = ldc_align_up(img_w>>1, LDC_STRIDE_ALIGN) * data_size;
+            break;
+        }
+        case FORMAT_YUV444P:
+        case FORMAT_BGRP_SEPARATE:
+        case FORMAT_RGBP_SEPARATE:
+        case FORMAT_HSV_PLANAR:{
+            stride[0] = ldc_align_up(img_w, LDC_STRIDE_ALIGN) * data_size;
+            stride[1] = ldc_align_up(img_w, LDC_STRIDE_ALIGN) * data_size;
+            stride[2] = ldc_align_up(img_w, LDC_STRIDE_ALIGN) * data_size;
+            break;
+        }
+        case FORMAT_NV24:
+        case FORMAT_NV12:
+        case FORMAT_NV21:
+        case FORMAT_NV16:
+        case FORMAT_NV61: {
+            stride[0] = ldc_align_up(img_w, LDC_STRIDE_ALIGN) * data_size;
+            stride[1] = ldc_align_up(img_w, LDC_STRIDE_ALIGN) * data_size;
+            break;
+        }
+        case FORMAT_GRAY:
+        case FORMAT_BGR_PLANAR:
+        case FORMAT_RGB_PLANAR:{
+            stride[0] = ldc_align_up(img_w, LDC_STRIDE_ALIGN) * data_size;
+            break;
+        }
+        case FORMAT_COMPRESSED:
+        case FORMAT_RGBYP_PLANAR:{
+            stride[0] = ldc_align_up(img_w, LDC_STRIDE_ALIGN) * data_size;
+            stride[1] = ldc_align_up(img_w, LDC_STRIDE_ALIGN) * data_size;
+            stride[2] = ldc_align_up(img_w, LDC_STRIDE_ALIGN) * data_size;
+            stride[3] = ldc_align_up(img_w, LDC_STRIDE_ALIGN) * data_size;
+            break;
+        }
+        case FORMAT_YUV444_PACKED:
+        case FORMAT_YVU444_PACKED:
+        case FORMAT_HSV180_PACKED:
+        case FORMAT_HSV256_PACKED:
+        case FORMAT_BGR_PACKED:
+        case FORMAT_RGB_PACKED: {
+            stride[0] = ldc_align_up(img_w*3, LDC_STRIDE_ALIGN) * data_size;
+            break;
+        }
+        case FORMAT_ABGR_PACKED:
+        case FORMAT_ARGB_PACKED: {
+            stride[0] = ldc_align_up(img_w*4, LDC_STRIDE_ALIGN) * data_size;
+            break;
+        }
+        case FORMAT_BAYER:
+        case FORMAT_BAYER_RG8:
+        case FORMAT_YUV422_YUYV:
+        case FORMAT_YUV422_YVYU:
+        case FORMAT_YUV422_UYVY:
+        case FORMAT_YUV422_VYUY:
+        case FORMAT_ARGB4444_PACKED:
+        case FORMAT_ABGR4444_PACKED:
+        case FORMAT_ARGB1555_PACKED:
+        case FORMAT_ABGR1555_PACKED:{
+            stride[0] = ldc_align_up(img_w*2, LDC_STRIDE_ALIGN) * data_size;
+            break;
+        }
+    }
     return ret;
 }
 
@@ -213,42 +302,4 @@ bm_status_t bmcv_ldc_gdc_load_mesh(bm_handle_t          handle,
     }
     return ret;
 }
-#else
-#include "bmcv_internal.h"
-bm_status_t bmcv_ldc_rot(
-    bm_handle_t          handle,
-    bm_image             in_image,
-    bm_image             out_image,
-    bmcv_rot_mode        rot_mode) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ldc_gdc(
-    bm_handle_t          handle,
-    bm_image             in_image,
-    bm_image             out_image,
-    bmcv_gdc_attr        ldc_attr){
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ldc_gdc_gen_mesh(
-    bm_handle_t          handle,
-    bm_image             in_image,
-    bm_image             out_image,
-    bmcv_gdc_attr        ldc_attr,
-    bm_device_mem_t      dmem){
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-};
-
-bm_status_t bmcv_ldc_gdc_load_mesh(
-    bm_handle_t          handle,
-    bm_image             in_image,
-    bm_image             out_image,
-    bm_device_mem_t      dmem){
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-};
 #endif

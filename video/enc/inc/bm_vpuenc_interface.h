@@ -927,9 +927,6 @@ typedef struct
     void *video_enc_ctx;
 } BmVpuEncoder;
 
-/* Obtain the compilation version information and time of the dynamic library */
-DECL_EXPORT void bmvpu_enc_get_commit_version();
-
 /* Returns a human-readable description of the error code.
  * Useful for logging. */
 DECL_EXPORT char const * bmvpu_enc_error_string(BmVpuEncReturnCodes code);
@@ -1060,11 +1057,7 @@ char const *bmvpu_frame_type_string(BmVpuEncFrameType frame_type);
  */
 DECL_EXPORT int bmvpu_enc_param_parse(BmVpuEncOpenParams *p, const char *name, const char *value);
 
-#ifdef BM_PCIE_MODE
-DECL_EXPORT int bmvpu_enc_read_memory(int soc_idx, u64 src_addr, unsigned char *dst_addr, int size);
 
-DECL_EXPORT int bmvpu_enc_write_memory(int soc_idx, u64 dst_addr, unsigned char *src_addr, int size);
-#endif
 
 
 #ifdef __cplusplus

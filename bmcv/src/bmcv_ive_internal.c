@@ -21,14 +21,88 @@ enum DIRECTION {
 // read image file with original width and height
 void bm_ive_read_bin(bm_image src, const char *input_name)
 {
-    bm_read_compact_bin(src, input_name);
+    int total_size = 0;
+    int image_byte_size[4] = {0};
+    for (int i = 0; i < src.image_private->plane_num; i++) {
+        image_byte_size[i] = src.image_private->memory_layout[i].size;
+        total_size += image_byte_size[i];
+    }
+
+    uint8_t *input_ptr = (uint8_t *)malloc(total_size);
+    void *in_ptr[4] = {
+        (void *)input_ptr,
+        (void *)input_ptr + image_byte_size[0],
+        (void *)input_ptr + image_byte_size[0] + image_byte_size[1],
+        (void *)input_ptr + image_byte_size[0] + image_byte_size[1] + image_byte_size[2]
+    };
+
+    FILE *fp_src = fopen(input_name, "rb");
+    if (fp_src == NULL) {
+        printf("open input image fail, input name: %s, %s: %s: %d\n", input_name, __FILE__, __func__, __LINE__);
+        free(input_ptr);
+        return;
+    }
+
+    for (int i = 0; i < src.image_private->plane_num; i++) {
+        int dsize = src.image_private->memory_layout[i].data_size;
+        int width = src.image_private->memory_layout[i].W;
+        int height = src.image_private->memory_layout[i].H;
+        if(src.image_format == FORMAT_RGB_PLANAR || src.image_format == FORMAT_RGB_PLANAR){
+            height = src.image_private->memory_layout[i].H * 3;
+        }
+        int stride = src.image_private->memory_layout[i].pitch_stride;
+        for (int j = 0; j < height; j++) {
+            if (fread(in_ptr[i] + j * stride, dsize, width, fp_src) < (unsigned int)width) {
+                printf("fread is less than %d required bytes\n", width);
+            }
+        }
+    }
+
+    fclose(fp_src);
+    bm_image_copy_host_to_device(src, (void **)in_ptr);
+    free(input_ptr);
     return;
 }
 
 // write image file with original width and height
 void bm_ive_write_bin(bm_image dst, const char *output_name)
 {
-    bm_write_compact_bin(dst, output_name);
+    int total_size = 0;
+    int image_byte_size[4] = {0};
+    for (int i = 0; i < dst.image_private->plane_num; i++) {
+        image_byte_size[i] = dst.image_private->memory_layout[i].size;
+        total_size += image_byte_size[i];
+    }
+
+    uint8_t *output_ptr = (uint8_t *)malloc(total_size);
+    void *out_ptr[4] = {
+        (void *)output_ptr,
+        (void *)output_ptr + image_byte_size[0],
+        (void *)output_ptr + image_byte_size[0] + image_byte_size[1],
+        (void *)output_ptr + image_byte_size[0] + image_byte_size[1] + image_byte_size[2]
+    };
+
+    bm_image_copy_device_to_host(dst, (void **)out_ptr);
+
+    FILE *fp_dst = fopen(output_name, "wb");
+    if (fp_dst == NULL) {
+        printf("open output image fail, output name: %s, %s: %s: %d\n", output_name, __FILE__, __func__, __LINE__);
+        free(output_ptr);
+        return;
+    }
+
+    for (int i = 0; i < dst.image_private->plane_num; i++) {
+        int dsize = dst.image_private->memory_layout[i].data_size;
+        int width = dst.image_private->memory_layout[i].W;
+        int height = dst.image_private->memory_layout[i].H;
+        int stride = dst.image_private->memory_layout[i].pitch_stride;
+        for (int j = 0; j < height; j++) {
+            fwrite(out_ptr[i] + j * stride, dsize, width, fp_dst);
+        }
+    }
+
+    fclose(fp_dst);
+    free(output_ptr);
     return;
 }
 
@@ -36,10 +110,103 @@ bm_status_t bm_ive_image_calc_stride(bm_handle_t handle, int img_h, int img_w,
     bm_image_format_ext image_format, bm_image_data_format_ext data_type, int *stride)
 {
     bm_status_t ret = BM_SUCCESS;
-    bm_image_private image_private;
-    ret = fill_default_image_private(&image_private, img_h, img_w, image_format, data_type);
-    for(int i = 0; i < image_private.plane_num; i++)
-        stride[i] = ALIGN(image_private.memory_layout[i].pitch_stride, IVE_STRIDE_ALIGN);
+    int data_size = 1;
+    // if (bm_image_format_check(img_h, img_w, image_format, data_type) !=
+    //     BM_SUCCESS) {
+    //     bmlib_log("BMCV",
+    //               BMLIB_LOG_ERROR,
+    //               "illegal format or size %s: %s: %d\n",
+    //               filename(__FILE__),
+    //               __func__,
+    //               __LINE__);
+    //     return BM_NOT_SUPPORTED;
+    // }
+    switch (data_type) {
+        case DATA_TYPE_EXT_FLOAT32:
+        case DATA_TYPE_EXT_U32:
+            data_size = 4;
+            break;
+        case DATA_TYPE_EXT_FP16:
+        case DATA_TYPE_EXT_BF16:
+        case DATA_TYPE_EXT_U16:
+        case DATA_TYPE_EXT_S16:
+            data_size = 2;
+            break;
+        default:
+            data_size = 1;
+            break;
+    }
+    switch (image_format) {
+        case FORMAT_YUV420P:
+        case FORMAT_YUV422P:{
+            stride[0] = align_up(img_w, IVE_STRIDE_ALIGN) * data_size;
+            stride[1] = align_up(img_w>>1, IVE_STRIDE_ALIGN) * data_size;
+            stride[2] = align_up(img_w>>1, IVE_STRIDE_ALIGN) * data_size;
+            break;
+        }
+        case FORMAT_YUV444P:
+        case FORMAT_BGRP_SEPARATE:
+        case FORMAT_RGBP_SEPARATE:
+        case FORMAT_HSV_PLANAR:{
+            stride[0] = align_up(img_w, IVE_STRIDE_ALIGN) * data_size;
+            stride[1] = align_up(img_w, IVE_STRIDE_ALIGN) * data_size;
+            stride[2] = align_up(img_w, IVE_STRIDE_ALIGN) * data_size;
+            break;
+        }
+        case FORMAT_NV24:
+        case FORMAT_NV12:
+        case FORMAT_NV21:
+        case FORMAT_NV16:
+        case FORMAT_NV61: {
+            stride[0] = align_up(img_w, IVE_STRIDE_ALIGN) * data_size;
+            stride[1] = align_up(img_w, IVE_STRIDE_ALIGN) * data_size;
+            break;
+        }
+        case FORMAT_GRAY:
+        case FORMAT_BGR_PLANAR:
+        case FORMAT_RGB_PLANAR:{
+            stride[0] = align_up(img_w, IVE_STRIDE_ALIGN) * data_size;
+            break;
+        }
+        case FORMAT_COMPRESSED:
+        case FORMAT_RGBYP_PLANAR:{
+            stride[0] = align_up(img_w, IVE_STRIDE_ALIGN) * data_size;
+            stride[1] = align_up(img_w, IVE_STRIDE_ALIGN) * data_size;
+            stride[2] = align_up(img_w, IVE_STRIDE_ALIGN) * data_size;
+            stride[3] = align_up(img_w, IVE_STRIDE_ALIGN) * data_size;
+            break;
+        }
+        case FORMAT_YUV444_PACKED:
+        case FORMAT_YVU444_PACKED:
+        case FORMAT_HSV180_PACKED:
+        case FORMAT_HSV256_PACKED:
+        case FORMAT_BGR_PACKED:
+        case FORMAT_RGB_PACKED: {
+            stride[0] = align_up(img_w*3, IVE_STRIDE_ALIGN) * data_size;
+            break;
+        }
+        case FORMAT_ABGR_PACKED:
+        case FORMAT_ARGB_PACKED: {
+            stride[0] = align_up(img_w*4, IVE_STRIDE_ALIGN) * data_size;
+            break;
+        }
+        case FORMAT_BAYER:
+        case FORMAT_YUV422_YUYV:
+        case FORMAT_YUV422_YVYU:
+        case FORMAT_YUV422_UYVY:
+        case FORMAT_YUV422_VYUY:
+        case FORMAT_ARGB4444_PACKED:
+        case FORMAT_ABGR4444_PACKED:
+        case FORMAT_ARGB1555_PACKED:
+        case FORMAT_ABGR1555_PACKED:{
+            stride[0] = align_up(img_w*2, IVE_STRIDE_ALIGN) * data_size;
+            break;
+        }
+        default:
+            printf("image format not supported \n");
+            ret = BM_NOT_SUPPORTED;
+            break;
+    }
     return ret;
 }
 
@@ -1199,347 +1366,5 @@ bm_status_t bmcv_ive_frame_diff_motion(
     }
 
     return ret;
-}
-#else
-#include "bmcv_internal.h"
-bm_status_t bmcv_ive_add(
-    bm_handle_t          handle,
-    bm_image             input1,
-    bm_image             input2,
-    bm_image             output,
-    bmcv_ive_add_attr    attr) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_and(
-    bm_handle_t          handle,
-    bm_image             input1,
-    bm_image             input2,
-    bm_image             output) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_or(
-    bm_handle_t          handle,
-    bm_image             input1,
-    bm_image             input2,
-    bm_image             output) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_xor(
-    bm_handle_t          handle,
-    bm_image             input1,
-    bm_image             input2,
-    bm_image             output) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_sub(
-    bm_handle_t          handle,
-    bm_image             input1,
-    bm_image             input2,
-    bm_image             output,
-    bmcv_ive_sub_attr    attr) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_thresh(
-    bm_handle_t               handle,
-    bm_image                  input,
-    bm_image                  output,
-    bmcv_ive_thresh_mode      thresh_mode,
-    bmcv_ive_thresh_attr      attr) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_dma_set(
-    bm_handle_t                      handle,
-    bm_image                         image,
-    bmcv_ive_dma_set_mode            dma_set_mode,
-    unsigned long long               val) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_dma(
-    bm_handle_t                      handle,
-    bm_image                         input,
-    bm_image                         output,
-    bmcv_ive_dma_mode                dma_mode,
-    bmcv_ive_interval_dma_attr *     attr) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_map(
-    bm_handle_t             handle,
-    bm_image                input,
-    bm_image                output,
-    bm_device_mem_t         map_table) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_hist(
-    bm_handle_t          handle,
-    bm_image             input,
-    bm_device_mem_t      output) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_integ(
-    bm_handle_t              handle,
-    bm_image                 input,
-    bm_device_mem_t          output,
-    bmcv_ive_integ_ctrl_s    integ_attr) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_ncc(
-    bm_handle_t          handle,
-    bm_image             input1,
-    bm_image             input2,
-    bm_device_mem_t      output) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_ord_stat_filter(
-    bm_handle_t                   handle,
-    bm_image                      input,
-    bm_image                      output,
-    bmcv_ive_ord_stat_filter_mode mode) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_lbp(
-    bm_handle_t              handle,
-    bm_image                 input,
-    bm_image                 output,
-    bmcv_ive_lbp_ctrl_attr   lbp_attr) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_dilate(
-    bm_handle_t           handle,
-    bm_image              input,
-    bm_image              output,
-    unsigned char         dilate_mask[25]) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_erode(
-    bm_handle_t           handle,
-    bm_image              input,
-    bm_image              output,
-    unsigned char         erode_mask[25]) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_mag_and_ang(
-    bm_handle_t                   handle,
-    bm_image  *                   input,
-    bm_image  *                   mag_output,
-    bm_image  *                   ang_output,
-    bmcv_ive_mag_and_ang_ctrl     attr) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_sobel(
-    bm_handle_t           handle,
-    bm_image *            input,
-    bm_image *            output_h,
-    bm_image *            output_v,
-    bmcv_ive_sobel_ctrl   sobel_attr) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_norm_grad(
-    bm_handle_t              handle,
-    bm_image *               input,
-    bm_image *               output_h,
-    bm_image *               output_v,
-    bm_image *               output_hv,
-    bmcv_ive_normgrad_ctrl   normgrad_attr) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_gmm(
-    bm_handle_t            handle,
-    bm_image               input,
-    bm_image               output_fg,
-    bm_image               output_bg,
-    bm_device_mem_t        output_model,
-    bmcv_ive_gmm_ctrl      gmm_attr) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_gmm2(
-    bm_handle_t            handle,
-    bm_image *             input,
-    bm_image *             input_factor,
-    bm_image *             output_fg,
-    bm_image *             output_bg,
-    bm_image *             output_match_model_info,
-    bm_device_mem_t        output_model,
-    bmcv_ive_gmm2_ctrl     gmm2_attr) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_canny(
-    bm_handle_t                    handle,
-    bm_image                       input,
-    bm_device_mem_t                output_edge,
-    bmcv_ive_canny_hys_edge_ctrl   canny_hys_edge_attr) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_filter(
-    bm_handle_t                  handle,
-    bm_image                     input,
-    bm_image                     output,
-    bmcv_ive_filter_ctrl         filter_attr) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_csc(
-    bm_handle_t     handle,
-    bm_image        input,
-    bm_image        output,
-    csc_type_t      csc_type) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_filter_and_csc(
-    bm_handle_t             handle,
-    bm_image                input,
-    bm_image                output,
-    bmcv_ive_filter_ctrl    attr,
-    csc_type_t              csc_type) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_resize(
-    bm_handle_t              handle,
-    bm_image                 input,
-    bm_image                 output,
-    bmcv_resize_algorithm    resize_mode) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_stcandicorner(
-    bm_handle_t                   handle,
-    bm_image                      input,
-    bm_image                      output,
-    bmcv_ive_stcandicorner_attr   stcandicorner_attr) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_gradfg(
-    bm_handle_t             handle,
-    bm_image                input_bgdiff_fg,
-    bm_image                input_fggrad,
-    bm_image                input_bggrad,
-    bm_image                output_gradfg,
-    bmcv_ive_gradfg_attr    gradfg_attr) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_sad(
-    bm_handle_t                handle,
-    bm_image *                 input,
-    bm_image *                 output_sad,
-    bm_image *                 output_thr,
-    bmcv_ive_sad_attr *        sad_attr,
-    bmcv_ive_sad_thresh_attr*  thresh_attr) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_match_bgmodel(
-    bm_handle_t                   handle,
-    bm_image                      cur_img,
-    bm_image                      bgmodel_img,
-    bm_image                      fgflag_img,
-    bm_image                      diff_fg_img,
-    bm_device_mem_t               stat_data_mem,
-    bmcv_ive_match_bgmodel_attr   attr) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_update_bgmodel(
-    bm_handle_t                    handle,
-    bm_image  *                    cur_img,
-    bm_image  *                    bgmodel_img,
-    bm_image  *                    fgflag_img,
-    bm_image  *                    bg_img,
-    bm_image  *                    chgsta_img,
-    bm_device_mem_t                stat_data_mem,
-    bmcv_ive_update_bgmodel_attr   attr) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_ccl(
-    bm_handle_t          handle,
-    bm_image             src_dst_image,
-    bm_device_mem_t      ccblob_output,
-    bmcv_ive_ccl_attr    ccl_attr) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_bernsen(
-    bm_handle_t           handle,
-    bm_image              input,
-    bm_image              output,
-    bmcv_ive_bernsen_attr attr) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_16bit_to_8bit(
-    bm_handle_t                 handle,
-    bm_image                    input,
-    bm_image                    output,
-    bmcv_ive_16bit_to_8bit_attr attr) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_frame_diff_motion(
-    bm_handle_t                     handle,
-    bm_image                        input1,
-    bm_image                        input2,
-    bm_image                        output,
-    bmcv_ive_frame_diff_motion_attr attr) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
 }
 #endif

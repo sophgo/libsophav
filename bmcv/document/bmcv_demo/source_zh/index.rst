@@ -12,7 +12,6 @@ BMCV-software-doc
    :caption: 目录
    :name: mastertoc
 
-   Introduction
    1_common_component
    2_basic_structure
    3_basic_function

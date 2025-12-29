@@ -61,16 +61,11 @@ static int get_image_size(int format, int width, int height){
     int size = 0;
     switch (format){
         case FORMAT_YUV420P:
-        case FORMAT_NV12:
-        case FORMAT_NV21:
             size = width * height + (height * width / 4) * 2;
             break;
         case FORMAT_YUV422P:
-        case FORMAT_NV16:
-        case FORMAT_NV61:
             size = width * height + (height * width / 2) * 2;
             break;
-        case FORMAT_NV24:
         case FORMAT_YUV444P:
         case FORMAT_RGB_PLANAR:
         case FORMAT_BGR_PLANAR:
@@ -79,6 +74,15 @@ static int get_image_size(int format, int width, int height){
         case FORMAT_RGBP_SEPARATE:
         case FORMAT_BGRP_SEPARATE:
             size = width * height * 3;
+            break;
+        case FORMAT_NV12:
+        case FORMAT_NV21:
+            size = width * height + width * height / 2;
+            break;
+        case FORMAT_NV16:
+        case FORMAT_NV61:
+        case FORMAT_NV24:
+            size = width * height * 2;
             break;
         case FORMAT_GRAY:
             size = width * height;
@@ -129,23 +133,14 @@ static int absdiff_tpu(
     bm_image_alloc_dev_mem(input1_img, 2);
     bm_image_alloc_dev_mem(input2_img, 2);
     bm_image_alloc_dev_mem(output_img, 2);
-    if (format == FORMAT_YUV420P) {
+    if(format == 0){
         unsigned char *in1_ptr[3] = {input1, input1 + width * height, input1 + width * height * 5 / 4};
         unsigned char *in2_ptr[3] = {input2, input2 + width * height, input2 + width * height * 5 / 4};
         bm_image_copy_host_to_device(input1_img, (void **)(in1_ptr));
         bm_image_copy_host_to_device(input2_img, (void **)(in2_ptr));
-    } else if (format == FORMAT_YUV422P) {
+    } else if(format == 1) {
         unsigned char *in1_ptr[3] = {input1, input1 + width * height, input1 + width * height * 3 / 2};
         unsigned char *in2_ptr[3] = {input2, input2 + width * height, input2 + width * height * 3 / 2};
-        bm_image_copy_host_to_device(input1_img, (void **)(in1_ptr));
-        bm_image_copy_host_to_device(input2_img, (void **)(in2_ptr));
-    } else if (format == FORMAT_NV12 ||
-               format == FORMAT_NV21 ||
-               format == FORMAT_NV16 ||
-               format == FORMAT_NV61 ||
-               format == FORMAT_NV24) {
-        unsigned char *in1_ptr[2] = {input1, input1 + width * height};
-        unsigned char *in2_ptr[2] = {input2, input2 + width * height};
         bm_image_copy_host_to_device(input1_img, (void **)(in1_ptr));
         bm_image_copy_host_to_device(input2_img, (void **)(in2_ptr));
     } else {
@@ -154,7 +149,6 @@ static int absdiff_tpu(
         bm_image_copy_host_to_device(input1_img, (void **)(in1_ptr));
         bm_image_copy_host_to_device(input2_img, (void **)(in2_ptr));
     }
-
     struct timeval t1, t2;
     gettimeofday(&t1, NULL);
     bm_status_t ret = bmcv_image_absdiff(handle, input1_img, input2_img, output_img);
@@ -167,19 +161,11 @@ static int absdiff_tpu(
     gettimeofday(&t2, NULL);
     int using_time = ((t2.tv_sec - t1.tv_sec) * 1000000 + t2.tv_usec - t1.tv_usec);
     printf("Absdiff TPU using time: %d(us)\n", using_time);
-
-    if (format == FORMAT_YUV420P) {
+    if(format == 0){
         unsigned char *out_ptr[3] = {output, output + width * height, output + width * height * 5 / 4};
         bm_image_copy_device_to_host(output_img, (void **)out_ptr);
-    } else if (format == FORMAT_YUV422P) {
+    } else if (format == 1){
         unsigned char *out_ptr[3] = {output, output + width * height, output + width * height * 3 / 2};
-        bm_image_copy_device_to_host(output_img, (void **)out_ptr);
-    } else if (format == FORMAT_NV12 ||
-               format == FORMAT_NV21 ||
-               format == FORMAT_NV16 ||
-               format == FORMAT_NV61 ||
-               format == FORMAT_NV24) {
-        unsigned char *out_ptr[2] = {output, output + width * height};
         bm_image_copy_device_to_host(output_img, (void **)out_ptr);
     } else {
         unsigned char *out_ptr[3] = {output, output + height * width, output + 2 * height * width};
@@ -221,9 +207,9 @@ static int test_absdiff_random( int if_use_img,
     memset(output_cmodel, 0, width * height * 3);
     gettimeofday(&t1, NULL);
     absdiff_cmodel(input1_data,
-            input2_data,
-            output_cmodel,
-            img_size);
+                   input2_data,
+                   output_cmodel,
+                   img_size);
     gettimeofday(&t2, NULL);
     printf("Absdiff CPU using time = %ld(us)\n", TIME_COST_US(t1, t2));
     int ret = absdiff_tpu(input1_data,
@@ -273,7 +259,7 @@ void* test_thread_absdiff(void* args) {
             printf("------TEST ABSDIFF FAILED!------\n");
             exit(-1);
         }
-        printf("------TEST ABSDIFF SUCCEED!------\n");
+        printf("------TEST ABSDIFF SUCCESSED!------\n");
     }
     return (void*)0;
 }
