@@ -41,6 +41,7 @@
 #endif
 
 #include <signal.h>     /* SIG_SETMASK */
+#include <pthread.h>
 
 #include "bm_vpuenc_interface.h"
 #include "bm_ioctl.h"
@@ -1186,8 +1187,16 @@ int bmvpu_enc_close(BmVpuEncoder *encoder)
         return BM_VPU_ENC_RETURN_CODE_ERROR;
     }
 
+    ret = bmenc_ioctl_stop_recv_frame(g_enc_chn[VeChn].chn_fd);
+    if (ret != BM_VPU_ENC_RETURN_CODE_OK) {
+        pthread_mutex_unlock(&enc_chn_mutex);
+        BMVPU_ENC_ERROR("bmenc stop recv failed.\n");
+        return BM_VPU_ENC_RETURN_CODE_ERROR;
+    }
+
     ret = bmenc_ioctl_destroy_chn(g_enc_chn[VeChn].chn_fd);
-	if (ret != BM_VPU_ENC_RETURN_CODE_OK) {
+    if (ret != BM_VPU_ENC_RETURN_CODE_OK) {
+        pthread_mutex_unlock(&enc_chn_mutex);
         BMVPU_ENC_ERROR("bmenc destroy chn failed.\n");
         return BM_VPU_ENC_RETURN_CODE_ERROR;
     }
@@ -1273,6 +1282,33 @@ int bmvpu_enc_get_initial_info(BmVpuEncoder *encoder, BmVpuEncInitialInfo *info,
 
     return BM_VPU_ENC_RETURN_CODE_OK;
 
+}
+
+int bmvpu_fill_framebuffer_params_yuv(BmVpuFramebuffer *fb,
+                                   BmVpuFbInfo *info,
+                                   BmEncDmaBufferYUV *fb_dma_buffer_yuv,
+                                   int fb_id, void* context)
+{
+    if((fb == NULL) || (info == NULL)){
+        BMVPU_ENC_ERROR("bmvpu_fill_framebuffer_params params err: fb(0X%x), info(0X%x).", fb, info);
+        return -1;
+    }
+
+    fb->context = context;
+    fb->myIndex = fb_id;
+
+    fb->dma_buffer   = NULL;
+    fb->dma_buffer_y = &(fb_dma_buffer_yuv->dmabuffers_y);
+    fb->dma_buffer_u = &(fb_dma_buffer_yuv->dmabuffers_u);
+    fb->dma_buffer_v = &(fb_dma_buffer_yuv->dmabuffers_v);
+
+    fb->y_stride    = info->y_stride;
+    fb->cbcr_stride = info->c_stride;
+
+    fb->width  = info->width;
+    fb->height = info->height;
+
+    return 0;
 }
 
 int bmvpu_fill_framebuffer_params(BmVpuFramebuffer *fb,
@@ -1396,12 +1432,6 @@ int bmvpu_enc_send_frame(BmVpuEncoder *encoder,
             stFrame.video_frame.length[0]  = y_stride * h_stride;
             stFrame.video_frame.length[1]  = c_stride * (h_stride/2);
             stFrame.video_frame.length[2]  = c_stride * (h_stride/2);
-
-            stFrame.video_frame.phyaddr[0] = raw_frame->framebuffer->dma_buffer->phys_addr;
-            stFrame.video_frame.phyaddr[1] = raw_frame->framebuffer->dma_buffer->phys_addr + \
-                                             raw_frame->framebuffer->cb_offset;
-            stFrame.video_frame.phyaddr[2] = raw_frame->framebuffer->dma_buffer->phys_addr + \
-                                             raw_frame->framebuffer->cr_offset;
             stFrame.video_frame.frame_idx   = raw_frame->framebuffer->myIndex;
         } else if (g_enc_chn[VeChn].pix_format == BM_VPU_ENC_PIX_FORMAT_NV12 \
                 || g_enc_chn[VeChn].pix_format == BM_VPU_ENC_PIX_FORMAT_NV21) {
@@ -1409,11 +1439,33 @@ int bmvpu_enc_send_frame(BmVpuEncoder *encoder,
             stFrame.video_frame.stride[1]  = c_stride;
             stFrame.video_frame.length[0]  = y_stride * h_stride;
             stFrame.video_frame.length[1]  = c_stride * h_stride;
-
-            stFrame.video_frame.phyaddr[0] = raw_frame->framebuffer->dma_buffer->phys_addr;
-            stFrame.video_frame.phyaddr[1] = raw_frame->framebuffer->dma_buffer->phys_addr + \
-                                             raw_frame->framebuffer->cb_offset;
             stFrame.video_frame.frame_idx   = raw_frame->framebuffer->myIndex;
+        }
+        if (raw_frame->framebuffer->dma_buffer != NULL) {
+            // yuv address is continuous
+            if (g_enc_chn[VeChn].pix_format == BM_VPU_ENC_PIX_FORMAT_YUV420P) {
+                stFrame.video_frame.phyaddr[0] = raw_frame->framebuffer->dma_buffer->phys_addr;
+                stFrame.video_frame.phyaddr[1] = raw_frame->framebuffer->dma_buffer->phys_addr + \
+                                                 raw_frame->framebuffer->cb_offset;
+                stFrame.video_frame.phyaddr[2] = raw_frame->framebuffer->dma_buffer->phys_addr + \
+                                                 raw_frame->framebuffer->cr_offset;
+            } else if (g_enc_chn[VeChn].pix_format == BM_VPU_ENC_PIX_FORMAT_NV12 \
+                    || g_enc_chn[VeChn].pix_format == BM_VPU_ENC_PIX_FORMAT_NV21) {
+                stFrame.video_frame.phyaddr[0] = raw_frame->framebuffer->dma_buffer->phys_addr;
+                stFrame.video_frame.phyaddr[1] = raw_frame->framebuffer->dma_buffer->phys_addr + \
+                                                 raw_frame->framebuffer->cb_offset;
+            }
+        } else {
+            // yuv address is discontinuous
+            if (g_enc_chn[VeChn].pix_format == BM_VPU_ENC_PIX_FORMAT_YUV420P) {
+                stFrame.video_frame.phyaddr[0] = raw_frame->framebuffer->dma_buffer_y->phys_addr;
+                stFrame.video_frame.phyaddr[1] = raw_frame->framebuffer->dma_buffer_u->phys_addr;
+                stFrame.video_frame.phyaddr[2] = raw_frame->framebuffer->dma_buffer_v->phys_addr;
+            } else if (g_enc_chn[VeChn].pix_format == BM_VPU_ENC_PIX_FORMAT_NV12 \
+                    || g_enc_chn[VeChn].pix_format == BM_VPU_ENC_PIX_FORMAT_NV21) {
+                stFrame.video_frame.phyaddr[0] = raw_frame->framebuffer->dma_buffer_y->phys_addr;
+                stFrame.video_frame.phyaddr[1] = raw_frame->framebuffer->dma_buffer_u->phys_addr;
+            }
         }
     }
     stFrame.video_frame.pts        = raw_frame->pts;

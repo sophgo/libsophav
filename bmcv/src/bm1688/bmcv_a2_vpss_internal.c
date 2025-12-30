@@ -1030,7 +1030,7 @@ bm_status_t bm_vpss_asic(
 			vpss_cfg.chn_attr.chn_attr.flip = (csc_cfg->flip_mode == VERTICAL_FLIP || csc_cfg->flip_mode == ROTATE_180);
 		}
 		if ((padding_attr != NULL) && (padding_attr[i].dst_crop_stx != 0 || padding_attr[i].dst_crop_sty != 0 ||
-				padding_attr[i].dst_crop_w != output[i].width || padding_attr[i].dst_crop_h != output[i].width)) {
+				padding_attr[i].dst_crop_w != output[i].width || padding_attr[i].dst_crop_h != output[i].height)) {
 			vpss_cfg.chn_attr.chn_attr.aspect_ratio.mode = ASPECT_RATIO_MANUAL;
 			vpss_cfg.chn_attr.chn_attr.aspect_ratio.video_rect.x = padding_attr[i].dst_crop_stx;
 			vpss_cfg.chn_attr.chn_attr.aspect_ratio.video_rect.y = padding_attr[i].dst_crop_sty;

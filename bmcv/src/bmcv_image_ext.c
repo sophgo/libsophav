@@ -522,11 +522,11 @@ bm_status_t bm_image_destroy(bm_image *image){
                   __LINE__);
         return BM_ERR_DATA;
     }
-
+#ifndef HK_RELEASE
     if (image->image_private->decoder != NULL) {
         bm_jpu_jpeg_dec_close(image->image_private->decoder);
     }
-
+#endif
     pthread_mutex_destroy(&image->image_private->memory_lock);
     if (true == image->image_private->owned_mem) {
         free(image->image_private);

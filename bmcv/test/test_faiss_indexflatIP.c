@@ -330,35 +330,35 @@ bm_status_t faiss_indexflatIP_fix8b_single_test(bm_handle_t handle,
     for (i = 0; i < query_vecs_num; i++) {
         ref_result[i] = (int*)calloc(database_vecs_num, sizeof(int));
     }
-    bm_device_mem_t input_data_global_addr_device,
+    bm_device_mem_u64_t input_data_global_addr_device,
                     db_data_global_addr_device,
                     buffer_global_addr_device,
                     output_sorted_similarity_global_addr_device,
                     output_sorted_index_global_addr_device;
-    bm_malloc_device_byte(handle,
+    bm_malloc_device_byte_u64(handle,
                           &input_data_global_addr_device,
                           dtype_size((enum bm_data_type_t)input_dtype) * query_vecs_num * vec_dims);
-    bm_malloc_device_byte(handle,
+    bm_malloc_device_byte_u64(handle,
                           &db_data_global_addr_device,
                           dtype_size((enum bm_data_type_t)input_dtype) * database_vecs_num * vec_dims);
-    bm_malloc_device_byte(handle,
+    bm_malloc_device_byte_u64(handle,
                           &buffer_global_addr_device,
                           dtype_size((enum bm_data_type_t)DT_FP32) * query_vecs_num * database_vecs_num);
-    bm_malloc_device_byte(handle,
+    bm_malloc_device_byte_u64(handle,
                           &output_sorted_similarity_global_addr_device,
                           dtype_size((enum bm_data_type_t)output_dtype) * query_vecs_num * sort_cnt);
-    bm_malloc_device_byte(handle,
+    bm_malloc_device_byte_u64(handle,
                           &output_sorted_index_global_addr_device,
                           dtype_size(DT_INT32) * query_vecs_num * sort_cnt);
-    bm_memcpy_s2d(handle,
-                  input_data_global_addr_device,
-                  bm_mem_get_system_addr(bm_mem_from_system(input_data)));
-    bm_memcpy_s2d(handle,
-                  db_data_global_addr_device,
-                  bm_mem_get_system_addr(bm_mem_from_system(db_data)));
+    bm_memcpy_s2d_u64(handle,
+        input_data_global_addr_device,
+        bm_mem_get_system_addr_u64(bm_mem_from_system_u64(input_data)));
+    bm_memcpy_s2d_u64(handle,
+        db_data_global_addr_device,
+        bm_mem_get_system_addr_u64(bm_mem_from_system_u64(db_data)));
     struct timeval t1, t2;
     gettimeofday(&t1, NULL);
-    ret = bmcv_faiss_indexflatIP(handle,
+    ret = bmcv_faiss_indexflatIP_u64(handle,
                            input_data_global_addr_device,
                            db_data_global_addr_device,
                            buffer_global_addr_device,
@@ -374,14 +374,14 @@ bm_status_t faiss_indexflatIP_fix8b_single_test(bm_handle_t handle,
     gettimeofday(&t2, NULL);
     printf("TPU using time: %ld(us)\n", ((t2.tv_sec - t1.tv_sec) * 1000000 + t2.tv_usec - t1.tv_usec));
     if (BM_SUCCESS != ret) {
-        printf("bmcv_faiss_indexflatIP api error\n");
+        printf("bmcv_faiss_indexflatIP_u64 api error\n");
         goto free_mem;
     }
-    bm_memcpy_d2s(handle,
-                  bm_mem_get_system_addr(bm_mem_from_system(output_similarity)),
+    bm_memcpy_d2s_u64(handle,
+                  bm_mem_get_system_addr_u64(bm_mem_from_system_u64(output_similarity)),
                   output_sorted_similarity_global_addr_device);
-    bm_memcpy_d2s(handle,
-                  bm_mem_get_system_addr(bm_mem_from_system(output_index)),
+    bm_memcpy_d2s_u64(handle,
+                  bm_mem_get_system_addr_u64(bm_mem_from_system_u64(output_index)),
                   output_sorted_index_global_addr_device);
 
     gettimeofday(&t1, NULL);
@@ -403,11 +403,11 @@ bm_status_t faiss_indexflatIP_fix8b_single_test(bm_handle_t handle,
     }
     printf("-------------faiss_indexflatIP FIX8B COMPARE succeed-----------\n");
 free_mem:
-    bm_free_device(handle, input_data_global_addr_device);
-    bm_free_device(handle, db_data_global_addr_device);
-    bm_free_device(handle, buffer_global_addr_device);
-    bm_free_device(handle, output_sorted_similarity_global_addr_device);
-    bm_free_device(handle, output_sorted_index_global_addr_device);
+    bm_free_device_u64(handle, input_data_global_addr_device);
+    bm_free_device_u64(handle, db_data_global_addr_device);
+    bm_free_device_u64(handle, buffer_global_addr_device);
+    bm_free_device_u64(handle, output_sorted_similarity_global_addr_device);
+    bm_free_device_u64(handle, output_sorted_index_global_addr_device);
 
     free(input_data);
     free(db_data);
@@ -526,35 +526,35 @@ bm_status_t faiss_indexflatIP_fp16_single_test(bm_handle_t handle,
 
     int* output_index = (int*)malloc(query_vecs_num * sort_cnt * sizeof(int));
 
-    bm_device_mem_t input_data_global_addr_device,
+    bm_device_mem_u64_t input_data_global_addr_device,
                     db_data_global_addr_device,
                     buffer_global_addr_device,
                     output_sorted_similarity_global_addr_device,
                     output_sorted_index_global_addr_device;
-    bm_malloc_device_byte(handle,
+    bm_malloc_device_byte_u64(handle,
                           &input_data_global_addr_device,
                           dtype_size((enum bm_data_type_t)input_dtype) * query_vecs_num * vec_dims);
-    bm_malloc_device_byte(handle,
+    bm_malloc_device_byte_u64(handle,
                           &db_data_global_addr_device,
                           dtype_size((enum bm_data_type_t)input_dtype) * database_vecs_num * vec_dims);
-    bm_malloc_device_byte(handle,
+    bm_malloc_device_byte_u64(handle,
                           &buffer_global_addr_device,
                           dtype_size((enum bm_data_type_t)DT_FP32) * query_vecs_num * database_vecs_num);
-    bm_malloc_device_byte(handle,
+    bm_malloc_device_byte_u64(handle,
                           &output_sorted_similarity_global_addr_device,
                           dtype_size((enum bm_data_type_t)output_dtype) * query_vecs_num * sort_cnt);
-    bm_malloc_device_byte(handle,
+    bm_malloc_device_byte_u64(handle,
                           &output_sorted_index_global_addr_device,
                           dtype_size(DT_INT32) * query_vecs_num * sort_cnt);
-    bm_memcpy_s2d(handle,
+    bm_memcpy_s2d_u64(handle,
                   input_data_global_addr_device,
-                  bm_mem_get_system_addr(bm_mem_from_system(input_data)));
-    bm_memcpy_s2d(handle,
+                  bm_mem_get_system_addr_u64(bm_mem_from_system_u64(input_data)));
+    bm_memcpy_s2d_u64(handle,
                   db_data_global_addr_device,
-                  bm_mem_get_system_addr(bm_mem_from_system(db_data)));
+                  bm_mem_get_system_addr_u64(bm_mem_from_system_u64(db_data)));
     struct timeval t1, t2;
     gettimeofday(&t1, NULL);
-    ret = bmcv_faiss_indexflatIP(handle,
+    ret = bmcv_faiss_indexflatIP_u64(handle,
                            input_data_global_addr_device,
                            db_data_global_addr_device,
                            buffer_global_addr_device,
@@ -569,21 +569,21 @@ bm_status_t faiss_indexflatIP_fp16_single_test(bm_handle_t handle,
                            output_dtype);
     gettimeofday(&t2, NULL);
     if (BM_SUCCESS != ret) {
-        printf("bmcv_faiss_indexflatIP api error\n");
+        printf("bmcv_faiss_indexflatIP_u64 api error\n");
         goto free_mem;
     }
     printf("TPU using time: %ld(us)\n", ((t2.tv_sec - t1.tv_sec) * 1000000 + t2.tv_usec - t1.tv_usec));
 
     if (output_dtype == DT_FP32)
-        bm_memcpy_d2s(handle,
-                  bm_mem_get_system_addr(bm_mem_from_system(output_similarity_fp32)),
+        bm_memcpy_d2s_u64(handle,
+                  bm_mem_get_system_addr_u64(bm_mem_from_system_u64(output_similarity_fp32)),
                   output_sorted_similarity_global_addr_device);
     else
-        bm_memcpy_d2s(handle,
-                  bm_mem_get_system_addr(bm_mem_from_system(output_similarity_fp16)),
+        bm_memcpy_d2s_u64(handle,
+                  bm_mem_get_system_addr_u64(bm_mem_from_system_u64(output_similarity_fp16)),
                   output_sorted_similarity_global_addr_device);
-    bm_memcpy_d2s(handle,
-                  bm_mem_get_system_addr(bm_mem_from_system(output_index)),
+    bm_memcpy_d2s_u64(handle,
+                  bm_mem_get_system_addr_u64(bm_mem_from_system_u64(output_index)),
                   output_sorted_index_global_addr_device);
     gettimeofday(&t1, NULL);
     if (is_transpose) {
@@ -618,11 +618,11 @@ bm_status_t faiss_indexflatIP_fp16_single_test(bm_handle_t handle,
     printf("-------------faiss_indexflatIP fp16 compare succeed-----------\n");
 
 free_mem:
-    bm_free_device(handle, input_data_global_addr_device);
-    bm_free_device(handle, db_data_global_addr_device);
-    bm_free_device(handle, buffer_global_addr_device);
-    bm_free_device(handle, output_sorted_similarity_global_addr_device);
-    bm_free_device(handle, output_sorted_index_global_addr_device);
+    bm_free_device_u64(handle, input_data_global_addr_device);
+    bm_free_device_u64(handle, db_data_global_addr_device);
+    bm_free_device_u64(handle, buffer_global_addr_device);
+    bm_free_device_u64(handle, output_sorted_similarity_global_addr_device);
+    bm_free_device_u64(handle, output_sorted_index_global_addr_device);
 
     free(input_data);
     free(db_data);
@@ -739,35 +739,35 @@ bm_status_t faiss_indexflatIP_fp32_single_test(bm_handle_t handle,
     for (i = 0; i < query_vecs_num; i++) {
         ref_result[i] = (float*)malloc(database_vecs_num * sizeof(float));
     }
-    bm_device_mem_t input_data_global_addr_device,
+    bm_device_mem_u64_t input_data_global_addr_device,
                     db_data_global_addr_device,
                     buffer_global_addr_device,
                     output_sorted_similarity_global_addr_device,
                     output_sorted_index_global_addr_device;
-    bm_malloc_device_byte(handle,
+    bm_malloc_device_byte_u64(handle,
                           &input_data_global_addr_device,
                           dtype_size((enum bm_data_type_t)input_dtype) * query_vecs_num * vec_dims);
-    bm_malloc_device_byte(handle,
+    bm_malloc_device_byte_u64(handle,
                           &db_data_global_addr_device,
                           dtype_size((enum bm_data_type_t)input_dtype) * database_vecs_num * vec_dims);
-    bm_malloc_device_byte(handle,
+    bm_malloc_device_byte_u64(handle,
                           &buffer_global_addr_device,
                           dtype_size((enum bm_data_type_t)DT_FP32) * query_vecs_num * database_vecs_num);
-    bm_malloc_device_byte(handle,
+    bm_malloc_device_byte_u64(handle,
                           &output_sorted_similarity_global_addr_device,
                           dtype_size((enum bm_data_type_t)output_dtype) * query_vecs_num * sort_cnt);
-    bm_malloc_device_byte(handle,
+    bm_malloc_device_byte_u64(handle,
                           &output_sorted_index_global_addr_device,
                           dtype_size(DT_INT32) * query_vecs_num * sort_cnt);
-    bm_memcpy_s2d(handle,
+    bm_memcpy_s2d_u64(handle,
                   input_data_global_addr_device,
-                  bm_mem_get_system_addr(bm_mem_from_system(input_data)));
-    bm_memcpy_s2d(handle,
+                  bm_mem_get_system_addr_u64(bm_mem_from_system_u64(input_data)));
+    bm_memcpy_s2d_u64(handle,
                   db_data_global_addr_device,
-                  bm_mem_get_system_addr(bm_mem_from_system(db_data)));
+                  bm_mem_get_system_addr_u64(bm_mem_from_system_u64(db_data)));
     struct timeval t1, t2;
     gettimeofday(&t1, NULL);
-    ret = bmcv_faiss_indexflatIP(handle,
+    ret = bmcv_faiss_indexflatIP_u64(handle,
                            input_data_global_addr_device,
                            db_data_global_addr_device,
                            buffer_global_addr_device,
@@ -783,11 +783,11 @@ bm_status_t faiss_indexflatIP_fp32_single_test(bm_handle_t handle,
     gettimeofday(&t2, NULL);
     printf("TPU1 using time: %ld(us)\n", ((t2.tv_sec - t1.tv_sec) * 1000000 + t2.tv_usec - t1.tv_usec));
     if (BM_SUCCESS != ret) {
-        printf("bmcv_faiss_indexflatIP api error\n");
+        printf("bmcv_faiss_indexflatIP_u64 api error\n");
         goto free_mem;
     }
     gettimeofday(&t1, NULL);
-    ret = bmcv_faiss_indexflatIP(handle,
+    ret = bmcv_faiss_indexflatIP_u64(handle,
                            input_data_global_addr_device,
                            db_data_global_addr_device,
                            buffer_global_addr_device,
@@ -803,14 +803,14 @@ bm_status_t faiss_indexflatIP_fp32_single_test(bm_handle_t handle,
     gettimeofday(&t2, NULL);
     printf("TPU2 using time: %ld(us)\n", ((t2.tv_sec - t1.tv_sec) * 1000000 + t2.tv_usec - t1.tv_usec));
     if (BM_SUCCESS != ret) {
-        printf("bmcv_faiss_indexflatIP api error\n");
+        printf("bmcv_faiss_indexflatIP_u64 api error\n");
         goto free_mem;
     }
-    bm_memcpy_d2s(handle,
-                bm_mem_get_system_addr(bm_mem_from_system(output_similarity_fp32)),
+    bm_memcpy_d2s_u64(handle,
+                bm_mem_get_system_addr_u64(bm_mem_from_system_u64(output_similarity_fp32)),
                 output_sorted_similarity_global_addr_device);
-    bm_memcpy_d2s(handle,
-                  bm_mem_get_system_addr(bm_mem_from_system(output_index)),
+    bm_memcpy_d2s_u64(handle,
+                  bm_mem_get_system_addr_u64(bm_mem_from_system_u64(output_index)),
                   output_sorted_index_global_addr_device);
     gettimeofday(&t1, NULL);
     if (is_transpose) {
@@ -832,11 +832,11 @@ bm_status_t faiss_indexflatIP_fp32_single_test(bm_handle_t handle,
 
     printf("-------------faiss_indexflatIP fp32 compare succeed-----------\n");
 free_mem:
-    bm_free_device(handle, input_data_global_addr_device);
-    bm_free_device(handle, db_data_global_addr_device);
-    bm_free_device(handle, buffer_global_addr_device);
-    bm_free_device(handle, output_sorted_similarity_global_addr_device);
-    bm_free_device(handle, output_sorted_index_global_addr_device);
+    bm_free_device_u64(handle, input_data_global_addr_device);
+    bm_free_device_u64(handle, db_data_global_addr_device);
+    bm_free_device_u64(handle, buffer_global_addr_device);
+    bm_free_device_u64(handle, output_sorted_similarity_global_addr_device);
+    bm_free_device_u64(handle, output_sorted_index_global_addr_device);
 
     free(input_data);
     free(db_data);

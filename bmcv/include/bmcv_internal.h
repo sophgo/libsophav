@@ -11,7 +11,7 @@
 
 #ifndef USING_CMODEL
 // #define _FPGA
-
+#define HK_RELEASE
 #include "bm_jpeg_interface.h"
 
 #endif

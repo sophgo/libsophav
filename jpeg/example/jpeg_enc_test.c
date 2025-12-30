@@ -39,6 +39,7 @@ static void usage(char *program)
         "\t--timeout_count          timeout count set by user\n"
         "\t--bs_heap                sync with BM1684(X), invalid on BM1688\n"
         "\t--fb_heap                sync with BM1684(X), invalid on BM1688\n"
+        "\t--yuv_seperate           yuv_seperate set by user\n"
         "For example,\n"
         "\tbmjpegenc -f 0 -w 100 -h 100 -y 128 -v 112 -i 100x100_yuv420.yuv -o 100x100_yuv420.jpg\n"
         "\tbmjpegenc -f 1 -w 100 -h 100 -y 128 -v 112 -i 100x100_yuv422.yuv -o 100x100_yuv422.jpg\n"
@@ -74,6 +75,7 @@ static int parse_args(int argc, char *argv[], EncInputParam *input_params)
         {"fb_heap", required_argument, NULL, '0'},
         {"timeout", required_argument, NULL, '0'},
         {"timeout_count", required_argument, NULL, '0'},
+        {"yuv_seperate", required_argument, NULL, '0'},
         {NULL, 0, NULL, 0}
     };
 
@@ -134,6 +136,8 @@ static int parse_args(int argc, char *argv[], EncInputParam *input_params)
                     input_params->enc_params.timeout = atoi(optarg);
                 } else if (!strcmp(long_options[option_index].name, "timeout_count")) {
                     input_params->enc_params.timeout_count = atoi(optarg);
+                } else if (!strcmp(long_options[option_index].name, "yuv_seperate")) {
+                    input_params->enc_params.yuv_seperate = atoi(optarg);
                 } else {
                     usage(argv[0]);
                     return -1;
@@ -197,7 +201,7 @@ static int parse_args(int argc, char *argv[], EncInputParam *input_params)
     }
 
     if (input_params->enc_params.c_stride == 0) {
-        if (input_params->enc_params.pix_fmt == 0 || input_params->enc_params.pix_fmt == 1) {
+        if ((input_params->enc_params.pix_fmt == 0 || input_params->enc_params.pix_fmt == 1) && (input_params->enc_params.cbcr_interleave == 0)) {
             input_params->enc_params.c_stride = input_params->enc_params.y_stride / 2;
         } else {
             input_params->enc_params.c_stride = input_params->enc_params.y_stride;

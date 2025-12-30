@@ -528,7 +528,9 @@ DECL_EXPORT int bmvpu_dec_get_pkt_in_buf_cnt(BMVidCodHandle vidCodHandle);
 DECL_EXPORT BMVidDecRetStatus bmvpu_dec_reset(int devIdx, int coreIdx);
 DECL_EXPORT int bmvpu_dec_get_core_idx(BMVidCodHandle handle);
 DECL_EXPORT BMVidDecRetStatus bmvpu_dec_dump_stream(BMVidCodHandle vidCodHandle, unsigned char *p_stream, int size);
+DECL_EXPORT BMVidDecRetStatus bmvpu_dec_get_stream_info(BMVidCodHandle vidCodHandle, int* width, int* height, int* mini_fb, int* frame_delay);
 DECL_EXPORT int bmvpu_dec_get_inst_idx(BMVidCodHandle vidCodHandle);
 DECL_EXPORT int bmvpu_dec_get_device_fd(BMVidCodHandle vidCodHandle);
+DECL_EXPORT BMVidDecRetStatus bmvpu_dec_get_param(BMVidStream vidStream, BMVidDecParam *decParam);
 
 #endif

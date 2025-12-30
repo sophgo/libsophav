@@ -121,7 +121,6 @@ typedef int stitch_grp;
 	MOD(LOG)    \
 	MOD(H264D)  \
 	MOD(GDC)    \
-	MOD(DWA)    \
 	MOD(PHOTO)  \
 	MOD(FB)	    \
 	MOD(DPU)	\

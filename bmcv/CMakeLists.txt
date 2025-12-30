@@ -1,6 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
 project(bmcv)
-# add_subdirectory(./src/cmodel) #github_delete
 # options
 if("${CHIP_NAME}" STREQUAL "bm1688")
     set(SRC_DIR bm1688)
@@ -22,23 +21,30 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../jpeg/inc)
 # add library files path
 link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/tpu_kernel_module/)
 link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/libbmcv/${LIB_VERSION}/${PLATFORM})
-link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/libjpeg-turbo/lib/${PLATFORM})
-link_directories(${CMAKE_CURRENT_BINARY_DIR}/../jpeg)
+# link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/libjpeg-turbo/lib/${PLATFORM})
+# link_directories(${CMAKE_CURRENT_BINARY_DIR}/../jpeg)
 
 # build bmcv library
 set(BMCV_LIB_NAME bmcv CACHE INTERNAL "bmcv library name")
 file(GLOB SRCS src/*.c src/${SRC_DIR}/*.c)
+# remove jpeg
+list(REMOVE_ITEM SRCS
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/bmcv_api_jpeg_dec.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/bmcv_api_jpeg_enc.c"
+)
 set(HEADERS include/bmcv_api_ext.h include/bmcv_api_ext_c.h include/bmcv_api.h)
 set(component libsophon)
 
 add_library(${BMCV_LIB_NAME} SHARED ${SRCS})
-target_link_libraries(${BMCV_LIB_NAME} bmlib dl bmjpeg turbojpeg)
+target_link_libraries(${BMCV_LIB_NAME} bmlib dl)
+# target_link_libraries(${BMCV_LIB_NAME} bmlib dl bmjpeg turbojpeg)
 
 # avoid to compile source file repeated
 add_library(${BMCV_LIB_NAME}-static STATIC $<TARGET_OBJECTS:${BMCV_LIB_NAME}>)
 # sync static lib name with dynamic lib name
 set_target_properties(${BMCV_LIB_NAME}-static PROPERTIES OUTPUT_NAME ${BMCV_LIB_NAME})
-target_link_libraries(${BMCV_LIB_NAME}-static bmlib dl bmjpeg turbojpeg)
+target_link_libraries(${BMCV_LIB_NAME}-static bmlib dl)
+# target_link_libraries(${BMCV_LIB_NAME}-static bmlib dl bmjpeg turbojpeg)
 
 # build bmcv test case
 if ("${PCIE_MODE}" STREQUAL "on")
@@ -46,6 +52,10 @@ if ("${PCIE_MODE}" STREQUAL "on")
     add_compile_options(-Wno-unused-result)
 else ()
     file(GLOB TEST_SRCS test/*.c)
+    # remove jpeg test case
+    list(REMOVE_ITEM TEST_SRCS
+        "${CMAKE_CURRENT_SOURCE_DIR}/test/test_cv_jpeg.c"
+    )
 endif ()
 foreach(test_src ${TEST_SRCS})
     # filter case name from filename
@@ -68,6 +78,11 @@ endforeach()
 if (NOT "${PCIE_MODE}" STREQUAL "on")
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/daily_test)
 file(GLOB DAILY_TEST_SRCS test/daily_test/*.c)
+# remove jpeg test case
+list(REMOVE_ITEM DAILY_TEST_SRCS
+    "${CMAKE_CURRENT_SOURCE_DIR}/test/daily_test/bmcv_image_jpeg_dec.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/test/daily_test/bmcv_image_jpeg_enc.c"
+)
 foreach(test_src ${DAILY_TEST_SRCS})
     # filter case name from filename
     string(LENGTH ${test_src} len)

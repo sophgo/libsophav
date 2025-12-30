@@ -359,7 +359,7 @@ bm_status_t test_faiss_indexflatL2_fp16(bm_handle_t handle,
     matrix_gen_data_norm(input_data, vec_query, query_vecs_num, vec_dims);
     matrix_gen_data_norm(db_data, vec_db, database_vecs_num, vec_dims);
     matrix_trans(db_data, db_data_trans, database_vecs_num, vec_dims, (enum bm_data_type_t)input_dtype);
-    bm_device_mem_t query_data_dev_mem,
+    bm_device_mem_u64_t query_data_dev_mem,
                     db_data_dev_mem,
                     query_L2norm_dev_mem,
                     db_L2norm_dev_mem,
@@ -367,43 +367,43 @@ bm_status_t test_faiss_indexflatL2_fp16(bm_handle_t handle,
                     sorted_similarity_dev_mem,
                     sorted_index_dev_mem;
 
-    bm_malloc_device_byte(handle,
+    bm_malloc_device_byte_u64(handle,
                           &query_data_dev_mem,
                           dtype_size((enum bm_data_type_t)input_dtype) * query_vecs_num * vec_dims);
-    bm_malloc_device_byte(handle,
+    bm_malloc_device_byte_u64(handle,
                           &db_data_dev_mem,
                           dtype_size((enum  bm_data_type_t)input_dtype) * database_vecs_num * vec_dims);
-    bm_malloc_device_byte(handle,
+    bm_malloc_device_byte_u64(handle,
                           &query_L2norm_dev_mem,
                           dtype_size((enum  bm_data_type_t)input_dtype) * query_vecs_num * 1);
-    bm_malloc_device_byte(handle,
+    bm_malloc_device_byte_u64(handle,
                           &db_L2norm_dev_mem,
                           dtype_size((enum  bm_data_type_t)input_dtype) * database_vecs_num * 1);
 
-    bm_malloc_device_byte(handle,
+    bm_malloc_device_byte_u64(handle,
                           &buffer_dev_mem,
                           dtype_size((enum  bm_data_type_t)DT_FP32) * query_vecs_num * database_vecs_num);
-    bm_malloc_device_byte(handle,
+    bm_malloc_device_byte_u64(handle,
                           &sorted_similarity_dev_mem,
                           dtype_size((enum  bm_data_type_t)output_dtype) * query_vecs_num * sort_cnt);
-    bm_malloc_device_byte(handle,
+    bm_malloc_device_byte_u64(handle,
                           &sorted_index_dev_mem,
                           dtype_size((enum  bm_data_type_t)DT_INT32) * query_vecs_num * sort_cnt);
-    bm_memcpy_s2d(handle,
+    bm_memcpy_s2d_u64(handle,
                   query_data_dev_mem,
                   bm_mem_get_system_addr(bm_mem_from_system(input_data)));
-    bm_memcpy_s2d(handle,
+    bm_memcpy_s2d_u64(handle,
                   db_data_dev_mem,
                   bm_mem_get_system_addr(bm_mem_from_system(db_data)));
-    bm_memcpy_s2d(handle,
+    bm_memcpy_s2d_u64(handle,
                   query_L2norm_dev_mem,
                   bm_mem_get_system_addr(bm_mem_from_system(vec_query)));
-    bm_memcpy_s2d(handle,
+    bm_memcpy_s2d_u64(handle,
                   db_L2norm_dev_mem,
                   bm_mem_get_system_addr(bm_mem_from_system(vec_db)));
     struct timeval t1, t2;
     gettimeofday(&t1, NULL);
-    ret = bmcv_faiss_indexflatL2(handle,
+    ret = bmcv_faiss_indexflatL2_u64(handle,
                            query_data_dev_mem,
                            db_data_dev_mem,
                            query_L2norm_dev_mem,
@@ -421,13 +421,13 @@ bm_status_t test_faiss_indexflatL2_fp16(bm_handle_t handle,
     gettimeofday(&t2, NULL);
     printf("TPU using time: %ld(us)\n", ((t2.tv_sec - t1.tv_sec) * 1000000 + t2.tv_usec - t1.tv_usec));
     if (BM_SUCCESS != ret) {
-        printf("bmcv_faiss_indexflatL2 api error\n");
+        printf("bmcv_faiss_indexflatL2_u64 api error\n");
         goto free_mem;
     }
-    bm_memcpy_d2s(handle,
+    bm_memcpy_d2s_u64(handle,
                 bm_mem_get_system_addr(bm_mem_from_system(output_dis)),
                 sorted_similarity_dev_mem);
-    bm_memcpy_d2s(handle,
+    bm_memcpy_d2s_u64(handle,
                   bm_mem_get_system_addr(bm_mem_from_system(output_idx)),
                   sorted_index_dev_mem);
     matmul_param_t param;
@@ -456,13 +456,13 @@ bm_status_t test_faiss_indexflatL2_fp16(bm_handle_t handle,
         ret = result_compare_fp16((fp16 *)output_dis, output_idx, (fp16 *)blob_dis_ref, blob_inx_ref, sort_cnt, query_vecs_num);
     }
 free_mem:
-    bm_free_device(handle, query_data_dev_mem);
-    bm_free_device(handle, db_data_dev_mem);
-    bm_free_device(handle, query_L2norm_dev_mem);
-    bm_free_device(handle, db_L2norm_dev_mem);
-    bm_free_device(handle, buffer_dev_mem);
-    bm_free_device(handle, sorted_similarity_dev_mem);
-    bm_free_device(handle, sorted_index_dev_mem);
+    bm_free_device_u64(handle, query_data_dev_mem);
+    bm_free_device_u64(handle, db_data_dev_mem);
+    bm_free_device_u64(handle, query_L2norm_dev_mem);
+    bm_free_device_u64(handle, db_L2norm_dev_mem);
+    bm_free_device_u64(handle, buffer_dev_mem);
+    bm_free_device_u64(handle, sorted_similarity_dev_mem);
+    bm_free_device_u64(handle, sorted_index_dev_mem);
 
     free(input_data);
     free(db_data);
@@ -512,7 +512,7 @@ bm_status_t test_faiss_indexflatL2_fp32(bm_handle_t handle,
     matrix_trans(db_data, db_data_trans, database_vecs_num, vec_dims, (enum bm_data_type_t)input_dtype);
     fvec_norm_L2sqr_ref(vec_query, input_data, query_vecs_num, vec_dims);
     fvec_norm_L2sqr_ref(vec_db, db_data, database_vecs_num, vec_dims);
-    bm_device_mem_t query_data_dev_mem,
+    bm_device_mem_u64_t query_data_dev_mem,
                     db_data_dev_mem,
                     query_L2norm_dev_mem,
                     db_L2norm_dev_mem,
@@ -520,43 +520,43 @@ bm_status_t test_faiss_indexflatL2_fp32(bm_handle_t handle,
                     sorted_similarity_dev_mem,
                     sorted_index_dev_mem;
 
-    bm_malloc_device_byte(handle,
+    bm_malloc_device_byte_u64(handle,
                           &query_data_dev_mem,
                           dtype_size((enum bm_data_type_t)input_dtype) * query_vecs_num * vec_dims);
-    bm_malloc_device_byte(handle,
+    bm_malloc_device_byte_u64(handle,
                           &db_data_dev_mem,
                           dtype_size((enum bm_data_type_t)input_dtype) * database_vecs_num * vec_dims);
-    bm_malloc_device_byte(handle,
+    bm_malloc_device_byte_u64(handle,
                           &query_L2norm_dev_mem,
                           dtype_size((enum bm_data_type_t)input_dtype) * query_vecs_num * 1);
-    bm_malloc_device_byte(handle,
+    bm_malloc_device_byte_u64(handle,
                           &db_L2norm_dev_mem,
                           dtype_size((enum bm_data_type_t)input_dtype) * database_vecs_num * 1);
 
-    bm_malloc_device_byte(handle,
+    bm_malloc_device_byte_u64(handle,
                           &buffer_dev_mem,
                           dtype_size((enum bm_data_type_t)DT_FP32) * query_vecs_num * database_vecs_num);
-    bm_malloc_device_byte(handle,
+    bm_malloc_device_byte_u64(handle,
                           &sorted_similarity_dev_mem,
                           dtype_size((enum bm_data_type_t)output_dtype) * query_vecs_num * sort_cnt);
-    bm_malloc_device_byte(handle,
+    bm_malloc_device_byte_u64(handle,
                           &sorted_index_dev_mem,
                           dtype_size((enum bm_data_type_t)DT_INT32) * query_vecs_num * sort_cnt);
-    bm_memcpy_s2d(handle,
+    bm_memcpy_s2d_u64(handle,
                   query_data_dev_mem,
                   bm_mem_get_system_addr(bm_mem_from_system(input_data)));
-    bm_memcpy_s2d(handle,
+    bm_memcpy_s2d_u64(handle,
                   db_data_dev_mem,
                   bm_mem_get_system_addr(bm_mem_from_system(db_data)));
-    bm_memcpy_s2d(handle,
+    bm_memcpy_s2d_u64(handle,
                   query_L2norm_dev_mem,
                   bm_mem_get_system_addr(bm_mem_from_system(vec_query)));
-    bm_memcpy_s2d(handle,
+    bm_memcpy_s2d_u64(handle,
                   db_L2norm_dev_mem,
                   bm_mem_get_system_addr(bm_mem_from_system(vec_db)));
     struct timeval t1, t2;
     gettimeofday(&t1, NULL);
-    ret = bmcv_faiss_indexflatL2(handle,
+    ret = bmcv_faiss_indexflatL2_u64(handle,
                            query_data_dev_mem,
                            db_data_dev_mem,
                            query_L2norm_dev_mem,
@@ -574,13 +574,13 @@ bm_status_t test_faiss_indexflatL2_fp32(bm_handle_t handle,
     gettimeofday(&t2, NULL);
     printf("TPU using time: %ld(us)\n", ((t2.tv_sec - t1.tv_sec) * 1000000 + t2.tv_usec - t1.tv_usec));
     if (BM_SUCCESS != ret) {
-        printf("bmcv_faiss_indexflatL2 api error\n");
+        printf("bmcv_faiss_indexflatL2_u64 api error\n");
         goto free_mem;
     }
-    bm_memcpy_d2s(handle,
+    bm_memcpy_d2s_u64(handle,
                 bm_mem_get_system_addr(bm_mem_from_system(output_dis)),
                 sorted_similarity_dev_mem);
-    bm_memcpy_d2s(handle,
+    bm_memcpy_d2s_u64(handle,
                   bm_mem_get_system_addr(bm_mem_from_system(output_idx)),
                   sorted_index_dev_mem);
     matmul_param_t param;
@@ -609,13 +609,13 @@ bm_status_t test_faiss_indexflatL2_fp32(bm_handle_t handle,
         ret = result_compare_fp16((fp16 *)output_dis, output_idx, (fp16 *)blob_dis_ref, blob_inx_ref, sort_cnt, query_vecs_num);
     }
 free_mem:
-    bm_free_device(handle, query_data_dev_mem);
-    bm_free_device(handle, db_data_dev_mem);
-    bm_free_device(handle, query_L2norm_dev_mem);
-    bm_free_device(handle, db_L2norm_dev_mem);
-    bm_free_device(handle, buffer_dev_mem);
-    bm_free_device(handle, sorted_similarity_dev_mem);
-    bm_free_device(handle, sorted_index_dev_mem);
+    bm_free_device_u64(handle, query_data_dev_mem);
+    bm_free_device_u64(handle, db_data_dev_mem);
+    bm_free_device_u64(handle, query_L2norm_dev_mem);
+    bm_free_device_u64(handle, db_L2norm_dev_mem);
+    bm_free_device_u64(handle, buffer_dev_mem);
+    bm_free_device_u64(handle, sorted_similarity_dev_mem);
+    bm_free_device_u64(handle, sorted_index_dev_mem);
 
     free(input_data);
     free(db_data);

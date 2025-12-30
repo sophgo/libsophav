@@ -94,7 +94,7 @@ typedef struct {
     BmVpuEncInitialInfo initial_info;
 
     BmVpuFramebuffer* src_fb_list;
-    BmVpuEncDMABuffer* src_fb_dmabuffers;
+    BmEncDmaBufferYUV* src_fb_dmabuffers_yuv;
     void*             frame_unused_queue;
     int num_src_fb;
     BmVpuFramebuffer* src_fb;
@@ -304,15 +304,20 @@ static void cleanup_task(void* arg)
     if (ctx->src_fb_list) {
         free(ctx->src_fb_list);
     }
-
-    if (ctx->src_fb_dmabuffers)
+    if (ctx->src_fb_dmabuffers_yuv)
     {
         for (i = 0; i < ctx->num_src_fb; ++i) {
-            bmvpu_enc_dma_buffer_deallocate(ctx->core_idx, &(ctx->src_fb_dmabuffers[i]));
+            if (ctx->src_fb_dmabuffers_yuv[i].dmabuffers_y.size != 0) {
+                bmvpu_enc_dma_buffer_deallocate(ctx->core_idx, &(ctx->src_fb_dmabuffers_yuv[i].dmabuffers_y));
+            }
+            if (ctx->src_fb_dmabuffers_yuv[i].dmabuffers_u.size != 0) {
+                bmvpu_enc_dma_buffer_deallocate(ctx->core_idx, &(ctx->src_fb_dmabuffers_yuv[i].dmabuffers_u));
+            }
+            if (ctx->src_fb_dmabuffers_yuv[i].dmabuffers_v.size != 0) {
+                bmvpu_enc_dma_buffer_deallocate(ctx->core_idx, &(ctx->src_fb_dmabuffers_yuv[i].dmabuffers_v));
+            }
         }
-
-        free(ctx->src_fb_dmabuffers);
-        ctx->src_fb_dmabuffers = NULL;
+        free(ctx->src_fb_dmabuffers_yuv);
     }
 
     if (&(ctx->bs_dma_buffer)) {
@@ -484,8 +489,8 @@ static int run_once(InputParameter* par)
         ret = -1;
         goto cleanup;
     }
-    ctx->src_fb_dmabuffers = (BmVpuEncDMABuffer*)malloc(sizeof(BmVpuEncDMABuffer) * ctx->num_src_fb);
-    if (ctx->src_fb_dmabuffers == NULL)
+    ctx->src_fb_dmabuffers_yuv = (BmEncDmaBufferYUV*)malloc(sizeof(BmEncDmaBufferYUV) * ctx->num_src_fb);
+    if (ctx->src_fb_dmabuffers_yuv == NULL)
     {
         fprintf(stderr, "malloc failed\n");
         ret = -1;
@@ -493,33 +498,85 @@ static int run_once(InputParameter* par)
     }
     for (i = 0; i < ctx->num_src_fb; ++i)
     {
+        ctx->src_fb_dmabuffers_yuv[i].dmabuffers_y.size = 0;
+        ctx->src_fb_dmabuffers_yuv[i].dmabuffers_u.size = 0;
+        ctx->src_fb_dmabuffers_yuv[i].dmabuffers_v.size = 0;
         int src_id = i;
         // int src_id = 0x100 + (par->thread_id<<5) + i;
 
         /* Allocate DMA buffers for the raw input frames. */
-        ret = bmvpu_enc_dma_buffer_allocate(0, &(ctx->src_fb_dmabuffers[i]), ctx->initial_info.src_fb.size);
+        ret = bmvpu_enc_dma_buffer_allocate(ctx->core_idx, &(ctx->src_fb_dmabuffers_yuv[i].dmabuffers_y), ctx->initial_info.src_fb.y_size);
         if(ret != 0){
-            fprintf(stderr, "bmvpu_enc_dma_buffer_allocate for src_buffer failed\n");
+            fprintf(stderr, "bmvpu_malloc_device_byte_heap for src_buffer failed\n");
             ret = -1;
             goto cleanup;
+        }
+        if (eop->pix_format == BM_VPU_ENC_PIX_FORMAT_YUV420P) {
+            ret = bmvpu_enc_dma_buffer_allocate(ctx->core_idx, &(ctx->src_fb_dmabuffers_yuv[i].dmabuffers_u), ctx->initial_info.src_fb.c_size);
+            if(ret != 0){
+                fprintf(stderr, "bmvpu_malloc_device_byte_heap for src_buffer failed\n");
+                ret = -1;
+                goto cleanup;
+            }
+
+            ret = bmvpu_enc_dma_buffer_allocate(ctx->core_idx, &(ctx->src_fb_dmabuffers_yuv[i].dmabuffers_v), ctx->initial_info.src_fb.c_size);
+            if(ret != 0){
+                fprintf(stderr, "bmvpu_malloc_device_byte_heap for src_buffer failed\n");
+                ret = -1;
+                goto cleanup;
+            }
+        } else if (eop->pix_format == BM_VPU_ENC_PIX_FORMAT_NV12) {
+            ret = bmvpu_enc_dma_buffer_allocate(ctx->core_idx, &(ctx->src_fb_dmabuffers_yuv[i].dmabuffers_u), ctx->initial_info.src_fb.c_size*2);
+            if(ret != 0){
+                fprintf(stderr, "bmvpu_malloc_device_byte_heap for src_buffer failed\n");
+                ret = -1;
+                goto cleanup;
+            }
+            ctx->src_fb_dmabuffers_yuv[i].dmabuffers_v.size = 0;
         }
 
-        ret = bmvpu_fill_framebuffer_params(&(ctx->src_fb_list[i]),
+        ret = bmvpu_fill_framebuffer_params_yuv(&(ctx->src_fb_list[i]),
                                       &(ctx->initial_info.src_fb),
-                                      &(ctx->src_fb_dmabuffers[i]),
+                                      &(ctx->src_fb_dmabuffers_yuv[i]),
                                       src_id, NULL);
         if(ret != 0){
-            fprintf(stderr, "bmvpu_fill_framebuffer_params failed\n");
+            fprintf(stderr, "bmvpu_fill_framebuffer_params_yuv failed\n");
             ret = -1;
             goto cleanup;
         }
-        ret = bmvpu_dma_buffer_map(0, &ctx->src_fb_dmabuffers[i], BM_VPU_ENC_MAPPING_FLAG_READ|BM_VPU_ENC_MAPPING_FLAG_WRITE);
+        ret = bmvpu_dma_buffer_map(0, &(ctx->src_fb_dmabuffers_yuv[i].dmabuffers_y), BM_VPU_ENC_MAPPING_FLAG_READ|BM_VPU_ENC_MAPPING_FLAG_WRITE);
         if (ret != BM_VPU_ENC_RETURN_CODE_OK) {
             fprintf(stderr, "bm_mem_mmap_device_mem_no_cache failed\n");
             return -1;
         }
-        memset((void *)ctx->src_fb_dmabuffers[i].virt_addr, 0, ctx->src_fb_dmabuffers[i].size);
-        bmvpu_dma_buffer_unmap(0, &ctx->src_fb_dmabuffers[i]);
+        memset((void *)(ctx->src_fb_dmabuffers_yuv[i].dmabuffers_y.virt_addr), 0, ctx->src_fb_dmabuffers_yuv[i].dmabuffers_y.size);
+        bmvpu_dma_buffer_unmap(0, &(ctx->src_fb_dmabuffers_yuv[i].dmabuffers_y));
+
+        if (eop->pix_format == BM_VPU_ENC_PIX_FORMAT_YUV420P) {
+            ret = bmvpu_dma_buffer_map(0, &(ctx->src_fb_dmabuffers_yuv[i].dmabuffers_u), BM_VPU_ENC_MAPPING_FLAG_READ|BM_VPU_ENC_MAPPING_FLAG_WRITE);
+            if (ret != BM_VPU_ENC_RETURN_CODE_OK) {
+                fprintf(stderr, "bm_mem_mmap_device_mem_no_cache failed\n");
+                return -1;
+            }
+            memset((void *)(ctx->src_fb_dmabuffers_yuv[i].dmabuffers_u.virt_addr), 0, ctx->src_fb_dmabuffers_yuv[i].dmabuffers_u.size);
+            bmvpu_dma_buffer_unmap(0, &(ctx->src_fb_dmabuffers_yuv[i].dmabuffers_u));
+
+            ret = bmvpu_dma_buffer_map(0, &(ctx->src_fb_dmabuffers_yuv[i].dmabuffers_v), BM_VPU_ENC_MAPPING_FLAG_READ|BM_VPU_ENC_MAPPING_FLAG_WRITE);
+            if (ret != BM_VPU_ENC_RETURN_CODE_OK) {
+                fprintf(stderr, "bm_mem_mmap_device_mem_no_cache failed\n");
+                return -1;
+            }
+            memset((void *)(ctx->src_fb_dmabuffers_yuv[i].dmabuffers_v.virt_addr), 0, ctx->src_fb_dmabuffers_yuv[i].dmabuffers_v.size);
+            bmvpu_dma_buffer_unmap(0, &(ctx->src_fb_dmabuffers_yuv[i].dmabuffers_v));
+        } else if (eop->pix_format == BM_VPU_ENC_PIX_FORMAT_NV12) {
+            ret = bmvpu_dma_buffer_map(0, &(ctx->src_fb_dmabuffers_yuv[i].dmabuffers_u), BM_VPU_ENC_MAPPING_FLAG_READ|BM_VPU_ENC_MAPPING_FLAG_WRITE);
+            if (ret != BM_VPU_ENC_RETURN_CODE_OK) {
+                fprintf(stderr, "bm_mem_mmap_device_mem_no_cache failed\n");
+                return -1;
+            }
+            memset((void *)(ctx->src_fb_dmabuffers_yuv[i].dmabuffers_u.virt_addr), 0, ctx->src_fb_dmabuffers_yuv[i].dmabuffers_u.size);
+            bmvpu_dma_buffer_unmap(0, &(ctx->src_fb_dmabuffers_yuv[i].dmabuffers_u));
+        }
     }
 
     /* Create queue for source frame unused */
@@ -601,12 +658,7 @@ static int run_once(InputParameter* par)
                 }
             }
 
-            /* Read uncompressed pixels into the input DMA buffer */
-            ret = bmvpu_dma_buffer_map(0, (ctx->src_fb->dma_buffer), BM_VPU_ENC_MAPPING_FLAG_READ|BM_VPU_ENC_MAPPING_FLAG_WRITE);
-            if (ret != BM_VPU_ENC_RETURN_CODE_OK) {
-                break;
-            }
-            ret = read_yuv_source((uint8_t*)(ctx->src_fb->dma_buffer->virt_addr), ctx->initial_info.src_fb.y_stride,
+            ret = read_yuv_source((uint8_t*)(host_va), ctx->initial_info.src_fb.y_stride,
                             ctx->initial_info.src_fb.c_stride, ctx->initial_info.src_fb.height, ctx->initial_info.src_fb.height,
                             &fin, enc_par->y_stride, enc_par->c_stride, enc_par->aligned_height,
                             eop->pix_format,
@@ -614,13 +666,41 @@ static int run_once(InputParameter* par)
 
             if (ret < 0)
             {
-                bmvpu_dma_buffer_unmap(0, ctx->src_fb->dma_buffer);
                 bm_queue_push(ctx->frame_unused_queue, &ctx->src_fb);
                 break;
             }
 
+            /* Read uncompressed pixels into the input DMA buffer */
+            ret = bmvpu_dma_buffer_map(0, (ctx->src_fb->dma_buffer_y), BM_VPU_ENC_MAPPING_FLAG_READ|BM_VPU_ENC_MAPPING_FLAG_WRITE);
+            if (ret != BM_VPU_ENC_RETURN_CODE_OK) {
+                break;
+            }
+            memcpy((void*)ctx->src_fb->dma_buffer_y->virt_addr, (void*)host_va, ctx->initial_info.src_fb.y_size);
+            bmvpu_dma_buffer_unmap(0, ctx->src_fb->dma_buffer_y);
 
-            bmvpu_dma_buffer_unmap(0, ctx->src_fb->dma_buffer);
+            if (eop->pix_format == BM_VPU_ENC_PIX_FORMAT_YUV420P) {
+                ret = bmvpu_dma_buffer_map(0, (ctx->src_fb->dma_buffer_u), BM_VPU_ENC_MAPPING_FLAG_READ|BM_VPU_ENC_MAPPING_FLAG_WRITE);
+                if (ret != BM_VPU_ENC_RETURN_CODE_OK) {
+                    break;
+                }
+                memcpy((void*)ctx->src_fb->dma_buffer_u->virt_addr, (void*)host_va+ctx->initial_info.src_fb.y_size, ctx->initial_info.src_fb.c_size);
+                bmvpu_dma_buffer_unmap(0, ctx->src_fb->dma_buffer_u);
+
+                ret = bmvpu_dma_buffer_map(0, (ctx->src_fb->dma_buffer_v), BM_VPU_ENC_MAPPING_FLAG_READ|BM_VPU_ENC_MAPPING_FLAG_WRITE);
+                if (ret != BM_VPU_ENC_RETURN_CODE_OK) {
+                    break;
+                }
+                memcpy((void*)ctx->src_fb->dma_buffer_v->virt_addr, (void*)host_va+ctx->initial_info.src_fb.y_size+ctx->initial_info.src_fb.c_size, ctx->initial_info.src_fb.c_size);
+                bmvpu_dma_buffer_unmap(0, ctx->src_fb->dma_buffer_v);
+
+            } else if (eop->pix_format == BM_VPU_ENC_PIX_FORMAT_NV12) {
+                ret = bmvpu_dma_buffer_map(0, (ctx->src_fb->dma_buffer_u), BM_VPU_ENC_MAPPING_FLAG_READ|BM_VPU_ENC_MAPPING_FLAG_WRITE);
+                if (ret != BM_VPU_ENC_RETURN_CODE_OK) {
+                    break;
+                }
+                memcpy((void*)ctx->src_fb->dma_buffer_u->virt_addr, (void*)host_va+ctx->initial_info.src_fb.y_size, ctx->initial_info.src_fb.c_size*2);
+                bmvpu_dma_buffer_unmap(0, ctx->src_fb->dma_buffer_u);
+            }
 
             ctx->input_frame.framebuffer = ctx->src_fb;
 

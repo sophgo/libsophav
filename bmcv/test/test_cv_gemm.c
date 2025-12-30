@@ -180,57 +180,57 @@ static int tpu_gemm_ext(bm_handle_t handle, float* A, float* B, float* C, float*
     unsigned short* B_fp16 = (unsigned short*)malloc(N * K * sizeof(unsigned short));
     unsigned short* C_fp16 = (unsigned short*)malloc(M * N * sizeof(unsigned short));
     unsigned short* Y_fp16 = (unsigned short*)malloc(M * N * sizeof(unsigned short));
-    bm_device_mem_t input_dev_buffer[GEMM_INPUT_NUM];
-    bm_device_mem_t output_dev_buffer[GEMM_OUTPUT_NUM];
+    bm_device_mem_u64_t input_dev_buffer[GEMM_INPUT_NUM];
+    bm_device_mem_u64_t output_dev_buffer[GEMM_OUTPUT_NUM];
     bm_status_t ret = BM_SUCCESS;
     struct timeval t1, t2;
     int i;
 
     if (in_dtype == DATA_TYPE_EXT_FLOAT32) {
-        ret = bm_malloc_device_byte(handle, &input_dev_buffer[0], M * K * sizeof(float));
+        ret = bm_malloc_device_byte_u64(handle, &input_dev_buffer[0], M * K * sizeof(float));
         if (ret != BM_SUCCESS) {
-            printf("bm_malloc_device_byte failed!\n");
+            printf("bm_malloc_device_byte_u64 failed!\n");
             goto err0;
         }
-        ret = bm_malloc_device_byte(handle, &input_dev_buffer[1], N * K * sizeof(float));
+        ret = bm_malloc_device_byte_u64(handle, &input_dev_buffer[1], N * K * sizeof(float));
         if (ret != BM_SUCCESS) {
-            printf("bm_malloc_device_byte failed!\n");
+            printf("bm_malloc_device_byte_u64 failed!\n");
             goto err1;
         }
-        ret = bm_malloc_device_byte(handle, &input_dev_buffer[2], M * N * sizeof(float));
+        ret = bm_malloc_device_byte_u64(handle, &input_dev_buffer[2], M * N * sizeof(float));
         if (ret != BM_SUCCESS) {
-            printf("bm_malloc_device_byte failed!\n");
+            printf("bm_malloc_device_byte_u64 failed!\n");
             goto err2;
         }
-        ret = bm_memcpy_s2d(handle, input_dev_buffer[0], (void*)A);
+        ret = bm_memcpy_s2d_u64(handle, input_dev_buffer[0], (void*)A);
         if (ret != BM_SUCCESS) {
-            printf("bm_memcpy_s2d failed!\n");
+            printf("bm_memcpy_s2d_u64 failed!\n");
             goto err3;
         }
-        ret = bm_memcpy_s2d(handle, input_dev_buffer[1], (void*)B);
+        ret = bm_memcpy_s2d_u64(handle, input_dev_buffer[1], (void*)B);
         if (ret != BM_SUCCESS) {
-            printf("bm_memcpy_s2d failed!\n");
+            printf("bm_memcpy_s2d_u64 failed!\n");
             goto err3;
         }
-        ret = bm_memcpy_s2d(handle, input_dev_buffer[2], (void*)C);
+        ret = bm_memcpy_s2d_u64(handle, input_dev_buffer[2], (void*)C);
         if (ret != BM_SUCCESS) {
-            printf("bm_memcpy_s2d failed!\n");
+            printf("bm_memcpy_s2d_u64 failed!\n");
             goto err3;
         }
     } else if (in_dtype == DATA_TYPE_EXT_FP16) {
-        ret = bm_malloc_device_byte(handle, &input_dev_buffer[0], M * K * sizeof(unsigned short));
+        ret = bm_malloc_device_byte_u64(handle, &input_dev_buffer[0], M * K * sizeof(unsigned short));
         if (ret != BM_SUCCESS) {
-            printf("bm_malloc_device_byte failed!\n");
+            printf("bm_malloc_device_byte_u64 failed!\n");
             goto err0;
         }
-        ret = bm_malloc_device_byte(handle, &input_dev_buffer[1], N * K * sizeof(unsigned short));
+        ret = bm_malloc_device_byte_u64(handle, &input_dev_buffer[1], N * K * sizeof(unsigned short));
         if (ret != BM_SUCCESS) {
-            printf("bm_malloc_device_byte failed!\n");
+            printf("bm_malloc_device_byte_u64 failed!\n");
             goto err1;
         }
-        ret = bm_malloc_device_byte(handle, &input_dev_buffer[2], M * N * sizeof(unsigned short));
+        ret = bm_malloc_device_byte_u64(handle, &input_dev_buffer[2], M * N * sizeof(unsigned short));
         if (ret != BM_SUCCESS) {
-            printf("bm_malloc_device_byte failed!\n");
+            printf("bm_malloc_device_byte_u64 failed!\n");
             goto err2;
         }
         // convert to fp16 data
@@ -244,58 +244,58 @@ static int tpu_gemm_ext(bm_handle_t handle, float* A, float* B, float* C, float*
             C_fp16[i] = fp32_to_fp16(C[i]);
         }
 
-        ret = bm_memcpy_s2d(handle, input_dev_buffer[0], (void*)A_fp16);
+        ret = bm_memcpy_s2d_u64(handle, input_dev_buffer[0], (void*)A_fp16);
         if (ret != BM_SUCCESS) {
-            printf("bm_memcpy_s2d failed!\n");
+            printf("bm_memcpy_s2d_u64 failed!\n");
             goto err3;
         }
-        ret = bm_memcpy_s2d(handle, input_dev_buffer[1], (void*)B_fp16);
+        ret = bm_memcpy_s2d_u64(handle, input_dev_buffer[1], (void*)B_fp16);
         if (ret != BM_SUCCESS) {
-            printf("bm_memcpy_s2d failed!\n");
+            printf("bm_memcpy_s2d_u64 failed!\n");
             goto err3;
         }
-        ret = bm_memcpy_s2d(handle, input_dev_buffer[2], (void*)C_fp16);
+        ret = bm_memcpy_s2d_u64(handle, input_dev_buffer[2], (void*)C_fp16);
         if (ret != BM_SUCCESS) {
-            printf("bm_memcpy_s2d failed!\n");
+            printf("bm_memcpy_s2d_u64 failed!\n");
             goto err3;
         }
     }
 
     if (out_dtype == DATA_TYPE_EXT_FLOAT32) {
-        ret = bm_malloc_device_byte(handle, &output_dev_buffer[0], M * N * sizeof(float));
+        ret = bm_malloc_device_byte_u64(handle, &output_dev_buffer[0], M * N * sizeof(float));
         if (ret != BM_SUCCESS) {
-            printf("bm_malloc_device_byte failed!\n");
+            printf("bm_malloc_device_byte_u64 failed!\n");
             goto err3;
         }
     } else if (out_dtype == DATA_TYPE_EXT_FP16) {
-        ret = bm_malloc_device_byte(handle, &output_dev_buffer[0], M * N * sizeof(unsigned short));
+        ret = bm_malloc_device_byte_u64(handle, &output_dev_buffer[0], M * N * sizeof(unsigned short));
         if (ret != BM_SUCCESS) {
-            printf("bm_malloc_device_byte failed!\n");
+            printf("bm_malloc_device_byte_u64 failed!\n");
             goto err3;
         }
     }
 
     gettimeofday(&t1, NULL);
-    ret = bmcv_gemm_ext(handle, is_A_trans, is_B_trans, M, N, K, alpha, input_dev_buffer[0],
+    ret = bmcv_gemm_ext_u64(handle, is_A_trans, is_B_trans, M, N, K, alpha, input_dev_buffer[0],
                         input_dev_buffer[1], beta, input_dev_buffer[2], output_dev_buffer[0],
                         in_dtype, out_dtype);
     if (ret != BM_SUCCESS) {
-        printf("%s: bmcv_gemm_ext failed!\n", __func__);
+        printf("%s: bmcv_gemm_ext_u64 failed!\n", __func__);
         goto err4;
     }
     gettimeofday(&t2, NULL);
     printf("Gemm_EXT TPU using time = %ld(us)\n", TIME_COST_US(t1, t2));
 
     if (out_dtype == DATA_TYPE_EXT_FLOAT32) {
-        ret = bm_memcpy_d2s(handle, (void*)tpu_res, output_dev_buffer[0]);
+        ret = bm_memcpy_d2s_u64(handle, (void*)tpu_res, output_dev_buffer[0]);
         if (ret != BM_SUCCESS) {
-            printf("bm_memcpy_d2s failed!\n");
+            printf("bm_memcpy_d2s_u64 failed!\n");
             goto err4;
         }
     } else if (out_dtype == DATA_TYPE_EXT_FP16) {
-        ret = bm_memcpy_d2s(handle, (void *)Y_fp16, output_dev_buffer[0]);
+        ret = bm_memcpy_d2s_u64(handle, (void *)Y_fp16, output_dev_buffer[0]);
         if (ret != BM_SUCCESS) {
-            printf("bm_memcpy_d2s failed!\n");
+            printf("bm_memcpy_d2s_u64 failed!\n");
             goto err4;
         }
         for (i = 0; i < M * N; ++i) {
@@ -304,13 +304,13 @@ static int tpu_gemm_ext(bm_handle_t handle, float* A, float* B, float* C, float*
     }
 
 err4:
-    bm_free_device(handle, output_dev_buffer[0]);
+    bm_free_device_u64(handle, output_dev_buffer[0]);
 err3:
-    bm_free_device(handle, input_dev_buffer[2]);
+    bm_free_device_u64(handle, input_dev_buffer[2]);
 err2:
-    bm_free_device(handle, input_dev_buffer[1]);
+    bm_free_device_u64(handle, input_dev_buffer[1]);
 err1:
-    bm_free_device(handle, input_dev_buffer[0]);
+    bm_free_device_u64(handle, input_dev_buffer[0]);
 err0:
     free(A_fp16);
     free(B_fp16);
@@ -344,11 +344,11 @@ static int tpu_gemm(bm_handle_t handle, bool if_A_trans, bool if_B_trans, int M,
     bm_status_t ret = BM_SUCCESS;
 
     gettimeofday(&t1, NULL);
-    ret= bmcv_gemm(handle, if_A_trans, if_B_trans, M, N, K, alpha, bm_mem_from_system((void *)src_A),
-                    lda, bm_mem_from_system((void *)src_B), ldb, beta,
-                    bm_mem_from_system((void *)src_C), N);
+    ret= bmcv_gemm_u64(handle, if_A_trans, if_B_trans, M, N, K, alpha, bm_mem_from_system_u64((void *)src_A),
+                    lda, bm_mem_from_system_u64((void *)src_B), ldb, beta,
+                    bm_mem_from_system_u64((void *)src_C), N);
     if(ret != BM_SUCCESS) {
-        printf("the bmcv_gemm failed!\n");
+        printf("the bmcv_gemm_u64 failed!\n");
         return -1;
     }
     gettimeofday(&t2, NULL);

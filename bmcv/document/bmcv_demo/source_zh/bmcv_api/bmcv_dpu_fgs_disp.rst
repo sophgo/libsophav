@@ -36,10 +36,10 @@ bmcv_dpu_fgs_disp
       - bm_image 类型，指导图指针, 不能为空。
     * - \*smooth_image
       - 输入
-      - bm_image 类型，平滑图指针, 不能为空，宽、高 同 guide_image。
+      - bm_image 类型，视差图指针, 不能为空，宽、高 同 guide_image。
     * - \*disp_image
       - 输出
-      - bm_image 类型，视差图, 不能为空, 宽、高 同 guide_image。
+      - bm_image 类型，平滑图, 不能为空, 宽、高 同 guide_image。
     * - \*fgs_attr
       - 输入
       - bmcv_dpu_fgs_attrs 类型，FGS 部分控制参数。

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-source build/build_cmake.sh
+source build/build_cmake.sh 1131
 rm -rf ./bmcv/src/cmodel
 sed -i "/github_delete/d" ./bmcv/CMakeLists.txt
 

@@ -1046,10 +1046,8 @@ BmJpuEncReturnCodes bm_jpu_jpeg_enc_encode(BmJpuJPEGEncoder *jpeg_encoder,
     else
         external_bs_size = jpeg_encoder->bitstream_buffer_size;
 
-    bm_handle = g_jpeg_enc_bm_handle[jpeg_encoder->device_index];
-    bm_mem_flush_device_mem(bm_handle, framebuffer->dma_buffer);
+    bm_handle = bm_jpu_enc_get_bm_handle(jpeg_encoder->device_index);
 
-    unsigned long long base_addr = bm_mem_get_device_addr(*framebuffer->dma_buffer);
     memset(&stAttr, 0, sizeof(venc_chn_attr_s));
     memset(&stFrame, 0, sizeof(video_frame_info_s));
     memset(&stStream, 0, sizeof(venc_stream_s));
@@ -1058,9 +1056,24 @@ BmJpuEncReturnCodes bm_jpu_jpeg_enc_encode(BmJpuJPEGEncoder *jpeg_encoder,
     stFrame.video_frame.stride[1] = framebuffer->cbcr_stride;
     stFrame.video_frame.stride[2] = framebuffer->cbcr_stride;
 
-    stFrame.video_frame.phyaddr[0] = base_addr + framebuffer->y_offset;
-    stFrame.video_frame.phyaddr[1] = base_addr + framebuffer->cb_offset;
-    stFrame.video_frame.phyaddr[2] = base_addr + framebuffer->cr_offset;
+    if(framebuffer->dma_buffer != NULL) {
+#ifndef BM_PCIE_MODE
+        bm_mem_flush_device_mem(bm_handle, framebuffer->dma_buffer);
+#endif
+        unsigned long long base_addr = bm_mem_get_device_addr(*framebuffer->dma_buffer);
+
+        stFrame.video_frame.phyaddr[0] = base_addr + framebuffer->y_offset;
+        stFrame.video_frame.phyaddr[1] = base_addr + framebuffer->cb_offset;
+        stFrame.video_frame.phyaddr[2] = base_addr + framebuffer->cr_offset;
+    } else {
+        if(framebuffer->dma_buffer_y == NULL || framebuffer->dma_buffer_u == NULL || framebuffer->dma_buffer_v == NULL) {
+            BM_JPU_ERROR("bm_jpu_enc_encode params error, framebuffer dma_buffer_y || dma_buffer_u || dma_buffer_v is NULL\n");
+            return BM_JPU_ENC_RETURN_CODE_INVALID_PARAMS;
+        }
+        stFrame.video_frame.phyaddr[0] = bm_mem_get_device_addr(*framebuffer->dma_buffer_y);
+        stFrame.video_frame.phyaddr[1] = bm_mem_get_device_addr(*framebuffer->dma_buffer_u);
+        stFrame.video_frame.phyaddr[2] = bm_mem_get_device_addr(*framebuffer->dma_buffer_v);
+    }
 
     switch (params->image_format) {
         case BM_JPU_IMAGE_FORMAT_YUV420P:
