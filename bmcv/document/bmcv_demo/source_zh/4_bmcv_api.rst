@@ -61,7 +61,6 @@ BMCV API
    bmcv_api/bmcv_image_jpeg_enc.rst
    bmcv_api/bmcv_image_laplacian.rst
    bmcv_api/bmcv_image_mosaic.rst
-   bmcv_api/bmcv_image_put_text.rst
    bmcv_api/bmcv_image_pyramid_down.rst
    bmcv_api/bmcv_image_quantify.rst
    bmcv_api/bmcv_image_storage_convert.rst

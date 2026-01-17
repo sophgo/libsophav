@@ -13,15 +13,12 @@ BMCV 硬件介绍
       - bmcv_image_copy_to
       - TPU / VPSS
     * - 2
-      - bmcv_image_put_text
-      - CPU / VPSS
-    * - 3
       - bmcv_image_convert_to
       - TPU / VPSS
-    * - 4
+    * - 3
       - bmcv_image_rotate_trans
       - TPU / VPSS
-    * - 5
+    * - 4
       - bmcv_image_rotate
       - LDC / VPSS
 

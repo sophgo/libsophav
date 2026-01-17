@@ -31,6 +31,7 @@ file(GLOB SRCS src/*.c src/${SRC_DIR}/*.c)
 list(REMOVE_ITEM SRCS
     "${CMAKE_CURRENT_SOURCE_DIR}/src/bmcv_api_jpeg_dec.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/bmcv_api_jpeg_enc.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/bmcv_api_put_text.c"
 )
 set(HEADERS include/bmcv_api_ext.h include/bmcv_api_ext_c.h include/bmcv_api.h)
 set(component libsophon)
@@ -55,6 +56,8 @@ else ()
     # remove jpeg test case
     list(REMOVE_ITEM TEST_SRCS
         "${CMAKE_CURRENT_SOURCE_DIR}/test/test_cv_jpeg.c"
+        "${CMAKE_CURRENT_SOURCE_DIR}/test/test_cv_put_text.c"
+        "${CMAKE_CURRENT_SOURCE_DIR}/test/test_gen_text_watermark.c"
     )
 endif ()
 foreach(test_src ${TEST_SRCS})
@@ -82,6 +85,7 @@ file(GLOB DAILY_TEST_SRCS test/daily_test/*.c)
 list(REMOVE_ITEM DAILY_TEST_SRCS
     "${CMAKE_CURRENT_SOURCE_DIR}/test/daily_test/bmcv_image_jpeg_dec.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/test/daily_test/bmcv_image_jpeg_enc.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/test/daily_test/bmcv_image_put_text.c"
 )
 foreach(test_src ${DAILY_TEST_SRCS})
     # filter case name from filename
