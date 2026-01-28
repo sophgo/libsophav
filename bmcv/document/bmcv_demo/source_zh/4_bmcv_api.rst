@@ -20,6 +20,7 @@ BMCV API
    bmcv_api/bmcv_hist_balance.rst
    bmcv_api/bmcv_hm_distance.rst
    bmcv_api/bmcv_matmul.rst
+   bmcv_api/bmcv_memory_permute.rst
    bmcv_api/bmcv_min_max.rst
    bmcv_api/bmcv_nms.rst
    bmcv_api/bmcv_sort.rst

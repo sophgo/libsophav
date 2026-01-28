@@ -273,6 +273,15 @@ plane_layout stride_width(plane_layout src, int stride);
 u8 is_full_image(bm_image_format_ext image_format);
 u8 is_yuv420_image(bm_image_format_ext image_format);
 
+bm_status_t bmcv_memory_permute(bm_handle_t       handle,
+                                  bm_device_mem_t src,
+                                  bm_device_mem_t dst,
+                                  int N,
+                                  int C,
+                                  int H,
+                                  int W,
+                                  int data_size);
+
 bm_status_t  update_memory_layout(bm_handle_t     handle,
                                   bm_device_mem_t src,
                                   plane_layout    src_layout,

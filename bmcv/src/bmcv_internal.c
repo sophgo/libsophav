@@ -633,6 +633,64 @@ plane_layout stride_width(plane_layout src, int stride){
     return res;
 }
 
+bm_status_t bmcv_memory_permute(bm_handle_t       handle,
+                                  bm_device_mem_t src,
+                                  bm_device_mem_t dst,
+                                  int N,
+                                  int C,
+                                  int H,
+                                  int W,
+                                  int data_size){
+    int src_n_stride = C * H * W;
+    int src_c_stride = H * W;
+    int src_h_stride = W;
+    int dst_n_stride = C * H * W;
+    int dst_c_stride = W;
+    int dst_h_stride = C * W;
+
+  bm_api_cv_width_align_t api = {bm_mem_get_device_addr(src),
+                                 bm_mem_get_device_addr(dst),
+                                 N,
+                                 C,
+                                 H,
+                                 W,
+                                 src_n_stride,
+                                 src_c_stride,
+                                 src_h_stride,
+                                 dst_n_stride,
+                                 dst_c_stride,
+                                 dst_h_stride,
+                                 data_size};
+
+    int core_id = 0;
+    unsigned int chipid;
+    bm_status_t ret = BM_SUCCESS;
+
+    ret = bm_get_chipid(handle, &chipid);
+    if (ret != BM_SUCCESS) {
+        printf("get chipid is error !\n");
+        return BM_ERR_DEVNOTREADY;
+    }
+
+    switch(chipid) {
+        case BM1688_PREV:
+        case BM1688:
+            ret = bm_tpu_kernel_launch(handle, "cv_width_align", (u8 *)&api, \
+                                                sizeof(api), core_id);
+            if(BM_SUCCESS != ret){
+                bmlib_log("WIDTH_ALIGN", BMLIB_LOG_ERROR, "width_align sync api error\n");
+                return ret;
+            }
+            break;
+        default:
+            printf("BM_NOT_SUPPORTED!\n");
+            ret = BM_ERR_NOFEATURE;
+            break;
+    }
+
+    return ret;
+}
+
 bm_status_t update_memory_layout(bm_handle_t     handle,
                                   bm_device_mem_t src,
                                   plane_layout    src_layout,
