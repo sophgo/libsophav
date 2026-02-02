@@ -3119,6 +3119,18 @@ DECL_EXPORT bm_status_t bmcv_hist_balance(
     int H,
     int W);
 
+/**
+ * This interface implements transformations for the C and H dimensions of the tensor based on bm_image.
+ */
+DECL_EXPORT bm_status_t bmcv_memory_permute(
+        bm_handle_t       handle,
+        bm_device_mem_t src,
+        bm_device_mem_t dst,
+        int N,
+        int C,
+        int H,
+        int W,
+        int data_size);
 
 // dpu api
 /**
