@@ -368,10 +368,6 @@ typedef struct
     /* DMA buffer which contains the pixels. */
     BmVpuEncDMABuffer *dma_buffer;    // YUV allocates a whole block of physical addresses
 
-    BmVpuEncDMABuffer *dma_buffer_y;  // when dma_buffer is empty, dma_buffer_y/dma_buffer_u/dma_buffer_v will be used.
-    BmVpuEncDMABuffer *dma_buffer_u;  // nv12: set uv dma_buffer
-    BmVpuEncDMABuffer *dma_buffer_v;  // nv12: ignore.
-
     /* Make sure each framebuffer has an ID that is different
      * to the IDs of each other */
     int          myIndex;
@@ -404,6 +400,10 @@ typedef struct
      * the initially allocated pool was used by the VPU to contain a frame.
      */
     void *context;
+
+    BmVpuEncDMABuffer *dma_buffer_y;  // when dma_buffer is empty, dma_buffer_y/dma_buffer_u/dma_buffer_v will be used.
+    BmVpuEncDMABuffer *dma_buffer_u;  // nv12: set uv dma_buffer
+    BmVpuEncDMABuffer *dma_buffer_v;  // nv12: ignore.
 } BmVpuFramebuffer;
 
 /* Structure containing details about encoded frames. */
