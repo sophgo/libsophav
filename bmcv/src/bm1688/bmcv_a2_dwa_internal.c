@@ -2418,7 +2418,7 @@ static bm_status_t bm_dwa_rotation_check_size(rotation_e enRotation, const gdc_t
     }
 
     if (enRotation == ROTATION_90 || enRotation == ROTATION_270 || enRotation == ROTATION_XY_FLIP) {
-        if (pstTask->img_in.video_frame.width < pstTask->img_in.video_frame.height) {
+        if (pstTask->img_out.video_frame.width < pstTask->img_in.video_frame.height) {
             bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "rotation(%d) invalid: 'output width(%d) < input height(%d)'\n",
                         enRotation, pstTask->img_out.video_frame.width,
                         pstTask->img_in.video_frame.height);
