@@ -194,6 +194,12 @@ typedef struct {
 
     /* Internal, implementation-defined data. Do not modify. */
     void *internal;
+
+    /* Separate DMA buffers which contains the pixels.
+     * when dma_buffer is empty, dma_buffer_y/dma_buffer_u/dma_buffer_v will be used. */
+    bm_device_mem_t *dma_buffer_y;
+    bm_device_mem_t *dma_buffer_u;
+    bm_device_mem_t *dma_buffer_v;
 } BmJpuFramebuffer;
 
 /* Structure containing details about encoded frames. */

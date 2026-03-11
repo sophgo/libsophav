@@ -221,11 +221,8 @@ bm_status_t bmcv_image_draw_lines(bm_handle_t handle, bm_image image, const bmcv
     int i;
     int strides[3];
     bmMat mat;
-    bm_device_mem_t dmem;
     unsigned char *in_ptr[3];
-    unsigned long long virt_addr  = 0;
-    unsigned long long size[3] = {0};
-    unsigned long long total_size = 0;
+    unsigned char in_ptr_status[3] = {0};
 
     for (i = 0; i < line_num; i++) {
         sp[i].x = SATURATE(start[i].x, 0, image.width - 1);
@@ -239,29 +236,24 @@ bm_status_t bmcv_image_draw_lines(bm_handle_t handle, bm_image image, const bmcv
     }
 
     for (int i = 0; i < image.image_private->plane_num; i++) {
-        size[i] = image.image_private->memory_layout[i].size;
-        total_size += size[i];
-    }
-    dmem = image.image_private->data[0];
-    bm_set_device_mem(&dmem, total_size, dmem.u.device.device_addr);
 #ifndef BM_PCIE_MODE
-    ret = bm_mem_mmap_device_mem_no_cache(image.image_private->handle, &dmem, &virt_addr);
-    if (ret != BM_SUCCESS) {
-        bmlib_log("DRAW_LINE", BMLIB_LOG_ERROR, "bm_mem_mmap_device_mem failed with error code %d\r\n", ret);
-        goto exit;
-    }
+        ret = bm_mem_mmap_device_mem_no_cache(image.image_private->handle,
+            &image.image_private->data[i], (unsigned long long*)&in_ptr[i]);
 #else
-    virt_addr = (unsigned long long)malloc(total_size);
-    ret = bm_memcpy_d2s(image.image_private->handle, (void *)virt_addr, dmem);
-    if (ret != BM_SUCCESS) {
-        bmlib_log("DRAW_LINE", BMLIB_LOG_ERROR, "bm_memcpy_d2s failed with error code %d\r\n", ret);
-        goto exit;
-    }
+        ret = BM_ERR_FAILURE;
 #endif
-
-    in_ptr[0] = (unsigned char *)virt_addr;
-    in_ptr[1] = in_ptr[0] + size[0];
-    in_ptr[2] = in_ptr[1] + size[1];
+        if (ret != BM_SUCCESS) {
+            in_ptr[i] = (unsigned char *)malloc(image.image_private->data[i].size);
+            in_ptr_status[i] = 2;
+            ret = bm_memcpy_d2s(image.image_private->handle, (void *)in_ptr[i], image.image_private->data[i]);
+            if (ret != BM_SUCCESS) {
+                bmlib_log("PUT_TEXT", BMLIB_LOG_ERROR, "bm_memcpy_d2s failed with error code %d\r\n", ret);
+                goto exit;
+            }
+        } else {
+            in_ptr_status[i] = 1;
+        }
+    }
 
     ret = bm_image_get_stride(image, strides);
     if (ret != BM_SUCCESS) {
@@ -278,24 +270,22 @@ bm_status_t bmcv_image_draw_lines(bm_handle_t handle, bm_image image, const bmcv
     for (i = 0; i < line_num; i++) {
         draw_line(&mat, sp[i], ep[i], color, thickness);
     }
-#ifndef BM_PCIE_MODE
-    ret = bm_mem_unmap_device_mem(image.image_private->handle, (void *)virt_addr, total_size);
-    if (ret != BM_SUCCESS) {
-        bmlib_log("DRAW_LINE", BMLIB_LOG_ERROR, "bm_mem_unmap_device_mem failed with error code %d\r\n", ret);
-        goto exit;
-    }
-#else
-    ret = bm_memcpy_s2d(image.image_private->handle, dmem, (void *)virt_addr);
-    if (ret != BM_SUCCESS) {
-        bmlib_log("DRAW_LINE", BMLIB_LOG_ERROR, "bm_memcpy_s2d failed with error code %d\r\n", ret);
-        goto exit;
-    }
-#endif
-
 exit:
-#ifdef BM_PCIE_MODE
-    free((void *)virt_addr);
-#endif
+    for (int i = 0; i < image.image_private->plane_num; i++) {
+        if (in_ptr_status[i] == 1) {
+            ret = bm_mem_unmap_device_mem(image.image_private->handle,
+                (void *)in_ptr[i], image.image_private->data[i].size);
+            if (ret != BM_SUCCESS)
+                bmlib_log("PUT_TEXT", BMLIB_LOG_ERROR,
+                    "bm_mem_unmap_device_mem failed with error code %d\r\n", ret);
+        }
+        if (in_ptr_status[i] == 2) {
+            ret = bm_memcpy_s2d(image.image_private->handle, image.image_private->data[i], (void *)in_ptr[i]);
+            if (ret != BM_SUCCESS)
+                bmlib_log("PUT_TEXT", BMLIB_LOG_ERROR, "bm_memcpy_s2d failed with error code %d\r\n", ret);
+            free((void *)in_ptr[i]);
+        }
+    }
     free(sp);
     free(ep);
     return ret;

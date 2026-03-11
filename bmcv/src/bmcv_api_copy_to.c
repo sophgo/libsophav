@@ -90,6 +90,8 @@ bm_status_t bmcv_image_copy_to_(bm_handle_t         handle,
     int planner_or_packed = PLANNER;
     unsigned int chipid = BM1688;
     bm_status_t ret = BM_SUCCESS;
+    int if_core0 = 1, if_core1 = 0;
+    const char *tpu_env = NULL;
 
     ret = bm_get_chipid(handle, &chipid);
     if (BM_SUCCESS != ret){
@@ -193,15 +195,61 @@ bm_status_t bmcv_image_copy_to_(bm_handle_t         handle,
     arg.padding_g          = (int)copy_to_attr.padding_g;
     arg.if_padding         = copy_to_attr.if_padding;
 
-    int core_id = 0;
     switch(chipid) {
         case BM1688_PREV:
         case BM1688:
-            if(BM_SUCCESS != bm_tpu_kernel_launch(handle, "sg_cv_copy_to", (u8 *)&arg, sizeof(arg), core_id)){
+            tpu_env = getenv("TPU_CORES");
+            if (tpu_env) {
+                if (strcmp(tpu_env, "0") == 0) {
+                    bmlib_log("COPY_TO", BMLIB_LOG_DEBUG, "Use TPU Core0\n");
+                } else if (strcmp(tpu_env, "1") == 0) {
+                    if_core0 = 0;
+                    if_core1 = 1;
+                    bmlib_log("COPY_TO", BMLIB_LOG_DEBUG, "Use TPU Core1\n");
+                } else if (strcmp(tpu_env, "2") == 0 || strcmp(tpu_env, "both") == 0) {
+                    if_core1 = 1;
+                    bmlib_log("COPY_TO", BMLIB_LOG_DEBUG, "Use ALL TPU Cores(0 and1)\n");
+                } else {
+                    bmlib_log("COPY_TO", BMLIB_LOG_ERROR, "Invalid TPU_CORES value: %s\n", tpu_env);
+                    bmlib_log("COPY_TO", BMLIB_LOG_ERROR, "Available options: 0, 1, 2/both\n");
+                    exit(EXIT_FAILURE);
+                }
+            }
+
+            if (if_core0 && if_core1) {
+                int core_list[BM1688_MAX_CORES] = {0, 1};
+
+                bm_api_cv_copy_to_dualcore_t dual_api;
+                bm_api_cv_copy_to_dualcore_t dual_params[BM1688_MAX_CORES];
+                tpu_launch_param_t tpu_params[BM1688_MAX_CORES];
+
+                memcpy(&dual_api, &arg, sizeof(bm_api_cv_copy_to_t));
+
+                dual_api.core_num = BM1688_MAX_CORES;
+                dual_api.base_msg_id = BM1688_BASE_MSG_ID;
+
+                for (int n = 0; n < BM1688_MAX_CORES; n++) {
+                    dual_api.core_id = n;
+
+                    dual_params[n] = dual_api;
+
+                    tpu_params[n].core_id = n;
+                    tpu_params[n].param_data = &dual_params[n];
+                    tpu_params[n].param_size = sizeof(bm_api_cv_copy_to_dualcore_t);
+                }
+                ret = bm_tpu_kernel_launch_dual_core(handle, "sg_cv_copy_to_dualcore", tpu_params, core_list, BM1688_MAX_CORES);
+                if (ret) {
                     printf("copy_to launch api error\r\n");
                     return BM_ERR_FAILURE;
                 }
-                break;
+            } else {
+                int core_id = if_core1 == 1 ? 1 : 0;
+                if(BM_SUCCESS != bm_tpu_kernel_launch(handle, "sg_cv_copy_to", (u8 *)&arg, sizeof(arg), core_id)){
+                    printf("copy_to launch api error\r\n");
+                    return BM_ERR_FAILURE;
+                }
+            }
+            break;
 
         default:
             printf("BM_NOT_SUPPORTED!\n");

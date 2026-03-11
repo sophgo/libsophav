@@ -94,7 +94,7 @@ static void *rotate(void *arg) {
         bmcv_image_rotate(handle, src, dst, rot_angle);
 
         gettimeofday(&tv_end, NULL);
-        printf("add_weighted TPU using time = %ld(us)\n", TIME_COST_US(tv_start, tv_end));
+        printf("rotate TPU using time = %ld(us)\n", TIME_COST_US(tv_start, tv_end));
 
         time_total += TIME_COST_US(tv_start, tv_end);
     }

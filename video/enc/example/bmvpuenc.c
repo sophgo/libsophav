@@ -67,6 +67,7 @@ typedef struct {
 
     int gop_preset;
     int intra_period;
+    int mem_alloc_type;
 } EncParameter;
 
 typedef struct {
@@ -96,6 +97,7 @@ typedef struct {
 
     BmVpuFramebuffer* src_fb_list;
     BmVpuEncDMABuffer* src_fb_dmabuffers;
+    BmEncDmaBufferYUV* src_fb_dmabuffers_yuv;
     void*             frame_unused_queue;
     int num_src_fb;
     BmVpuFramebuffer* src_fb;
@@ -316,6 +318,24 @@ static void cleanup_task(void* arg)
         ctx->src_fb_dmabuffers = NULL;
     }
 
+    if (ctx->src_fb_dmabuffers_yuv)
+    {
+        for (i = 0; i < ctx->num_src_fb; ++i) {
+            if (ctx->src_fb_dmabuffers_yuv[i].dmabuffers_y.size != 0) {
+                bmvpu_enc_dma_buffer_deallocate(ctx->core_idx, &(ctx->src_fb_dmabuffers_yuv[i].dmabuffers_y));
+            }
+            if (ctx->src_fb_dmabuffers_yuv[i].dmabuffers_u.size != 0) {
+                bmvpu_enc_dma_buffer_deallocate(ctx->core_idx, &(ctx->src_fb_dmabuffers_yuv[i].dmabuffers_u));
+            }
+            if (ctx->src_fb_dmabuffers_yuv[i].dmabuffers_v.size != 0) {
+                bmvpu_enc_dma_buffer_deallocate(ctx->core_idx, &(ctx->src_fb_dmabuffers_yuv[i].dmabuffers_v));
+            }
+        }
+
+        free(ctx->src_fb_dmabuffers_yuv);
+        ctx->src_fb_dmabuffers_yuv = NULL;
+    }
+
     if (&(ctx->bs_dma_buffer)) {
         bmvpu_enc_dma_buffer_deallocate(ctx->core_idx, &(ctx->bs_dma_buffer));
     }
@@ -486,44 +506,139 @@ static int run_once(InputParameter* par)
         ret = -1;
         goto cleanup;
     }
-    ctx->src_fb_dmabuffers = (BmVpuEncDMABuffer*)malloc(sizeof(BmVpuEncDMABuffer) * ctx->num_src_fb);
-    if (ctx->src_fb_dmabuffers == NULL)
-    {
-        fprintf(stderr, "malloc failed\n");
-        ret = -1;
-        goto cleanup;
-    }
-    for (i = 0; i < ctx->num_src_fb; ++i)
-    {
-        int src_id = i;
-        // int src_id = 0x100 + (par->thread_id<<5) + i;
+    if (enc_par->mem_alloc_type == 0) {
 
-        /* Allocate DMA buffers for the raw input frames. */
-        ret = bmvpu_enc_dma_buffer_allocate(0, &(ctx->src_fb_dmabuffers[i]), ctx->initial_info.src_fb.size);
-        if(ret != 0){
-            fprintf(stderr, "bmvpu_enc_dma_buffer_allocate for src_buffer failed\n");
+        ctx->src_fb_dmabuffers = (BmVpuEncDMABuffer*)malloc(sizeof(BmVpuEncDMABuffer) * ctx->num_src_fb);
+        if (ctx->src_fb_dmabuffers == NULL)
+        {
+            fprintf(stderr, "malloc failed\n");
             ret = -1;
             goto cleanup;
         }
+        for (i = 0; i < ctx->num_src_fb; ++i)
+        {
+            int src_id = i;
+            // int src_id = 0x100 + (par->thread_id<<5) + i;
 
-        ret = bmvpu_fill_framebuffer_params(&(ctx->src_fb_list[i]),
-                                      &(ctx->initial_info.src_fb),
-                                      &(ctx->src_fb_dmabuffers[i]),
-                                      src_id, NULL);
-        if(ret != 0){
-            fprintf(stderr, "bmvpu_fill_framebuffer_params failed\n");
-            ret = -1;
-            goto cleanup;
-        }
+            /* Allocate DMA buffers for the raw input frames. */
+            ret = bmvpu_enc_dma_buffer_allocate(0, &(ctx->src_fb_dmabuffers[i]), ctx->initial_info.src_fb.size);
+            if(ret != 0){
+                fprintf(stderr, "bmvpu_enc_dma_buffer_allocate for src_buffer failed\n");
+                ret = -1;
+                goto cleanup;
+            }
+
+            ret = bmvpu_fill_framebuffer_params(&(ctx->src_fb_list[i]),
+                                          &(ctx->initial_info.src_fb),
+                                          &(ctx->src_fb_dmabuffers[i]),
+                                          src_id, NULL);
+            if(ret != 0){
+                fprintf(stderr, "bmvpu_fill_framebuffer_params failed\n");
+                ret = -1;
+                goto cleanup;
+            }
 #ifndef BM_PCIE_MODE
-        ret = bmvpu_dma_buffer_map(0, &ctx->src_fb_dmabuffers[i], BM_VPU_ENC_MAPPING_FLAG_READ|BM_VPU_ENC_MAPPING_FLAG_WRITE);
-        if (ret != BM_VPU_ENC_RETURN_CODE_OK) {
-            fprintf(stderr, "bm_mem_mmap_device_mem_no_cache failed\n");
-            return -1;
-        }
-        memset((void *)ctx->src_fb_dmabuffers[i].virt_addr, 0, ctx->src_fb_dmabuffers[i].size);
-        bmvpu_dma_buffer_unmap(0, &ctx->src_fb_dmabuffers[i]);
+            ret = bmvpu_dma_buffer_map(0, &ctx->src_fb_dmabuffers[i], BM_VPU_ENC_MAPPING_FLAG_READ|BM_VPU_ENC_MAPPING_FLAG_WRITE);
+            if (ret != BM_VPU_ENC_RETURN_CODE_OK) {
+                fprintf(stderr, "bm_mem_mmap_device_mem_no_cache failed\n");
+                return -1;
+            }
+            memset((void *)ctx->src_fb_dmabuffers[i].virt_addr, 0, ctx->src_fb_dmabuffers[i].size);
+            bmvpu_dma_buffer_unmap(0, &ctx->src_fb_dmabuffers[i]);
 #endif
+        }
+    } else {
+        ctx->src_fb_dmabuffers_yuv = (BmEncDmaBufferYUV*)malloc(sizeof(BmEncDmaBufferYUV) * ctx->num_src_fb);
+        if (ctx->src_fb_dmabuffers_yuv == NULL)
+        {
+            fprintf(stderr, "malloc failed\n");
+            ret = -1;
+            goto cleanup;
+        }
+        for (i = 0; i < ctx->num_src_fb; ++i)
+        {
+            ctx->src_fb_dmabuffers_yuv[i].dmabuffers_y.size = 0;
+            ctx->src_fb_dmabuffers_yuv[i].dmabuffers_u.size = 0;
+            ctx->src_fb_dmabuffers_yuv[i].dmabuffers_v.size = 0;
+            int src_id = i;
+            // int src_id = 0x100 + (par->thread_id<<5) + i;
+
+            /* Allocate DMA buffers for the raw input frames. */
+            ret = bmvpu_enc_dma_buffer_allocate(ctx->core_idx, &(ctx->src_fb_dmabuffers_yuv[i].dmabuffers_y), ctx->initial_info.src_fb.y_size);
+            if(ret != 0){
+                fprintf(stderr, "bmvpu_malloc_device_byte_heap for src_buffer failed\n");
+                ret = -1;
+                goto cleanup;
+            }
+            if (eop->pix_format == BM_VPU_ENC_PIX_FORMAT_YUV420P) {
+                ret = bmvpu_enc_dma_buffer_allocate(ctx->core_idx, &(ctx->src_fb_dmabuffers_yuv[i].dmabuffers_u), ctx->initial_info.src_fb.c_size);
+                if(ret != 0){
+                    fprintf(stderr, "bmvpu_malloc_device_byte_heap for src_buffer failed\n");
+                    ret = -1;
+                    goto cleanup;
+                }
+
+                ret = bmvpu_enc_dma_buffer_allocate(ctx->core_idx, &(ctx->src_fb_dmabuffers_yuv[i].dmabuffers_v), ctx->initial_info.src_fb.c_size);
+                if(ret != 0){
+                    fprintf(stderr, "bmvpu_malloc_device_byte_heap for src_buffer failed\n");
+                    ret = -1;
+                    goto cleanup;
+                }
+            } else if (eop->pix_format == BM_VPU_ENC_PIX_FORMAT_NV12) {
+                ret = bmvpu_enc_dma_buffer_allocate(ctx->core_idx, &(ctx->src_fb_dmabuffers_yuv[i].dmabuffers_u), ctx->initial_info.src_fb.c_size*2);
+                if(ret != 0){
+                    fprintf(stderr, "bmvpu_malloc_device_byte_heap for src_buffer failed\n");
+                    ret = -1;
+                    goto cleanup;
+                }
+                ctx->src_fb_dmabuffers_yuv[i].dmabuffers_v.size = 0;
+            }
+
+            ret = bmvpu_fill_framebuffer_params_yuv(&(ctx->src_fb_list[i]),
+                                          &(ctx->initial_info.src_fb),
+                                          &(ctx->src_fb_dmabuffers_yuv[i]),
+                                          src_id, NULL);
+            if(ret != 0){
+                fprintf(stderr, "bmvpu_fill_framebuffer_params_yuv failed\n");
+                ret = -1;
+                goto cleanup;
+            }
+#ifndef BM_PCIE_MODE
+            ret = bmvpu_dma_buffer_map(0, &(ctx->src_fb_dmabuffers_yuv[i].dmabuffers_y), BM_VPU_ENC_MAPPING_FLAG_READ|BM_VPU_ENC_MAPPING_FLAG_WRITE);
+            if (ret != BM_VPU_ENC_RETURN_CODE_OK) {
+                fprintf(stderr, "bm_mem_mmap_device_mem_no_cache failed\n");
+                return -1;
+            }
+            memset((void *)(ctx->src_fb_dmabuffers_yuv[i].dmabuffers_y.virt_addr), 0, ctx->src_fb_dmabuffers_yuv[i].dmabuffers_y.size);
+            bmvpu_dma_buffer_unmap(0, &(ctx->src_fb_dmabuffers_yuv[i].dmabuffers_y));
+
+            if (eop->pix_format == BM_VPU_ENC_PIX_FORMAT_YUV420P) {
+                ret = bmvpu_dma_buffer_map(0, &(ctx->src_fb_dmabuffers_yuv[i].dmabuffers_u), BM_VPU_ENC_MAPPING_FLAG_READ|BM_VPU_ENC_MAPPING_FLAG_WRITE);
+                if (ret != BM_VPU_ENC_RETURN_CODE_OK) {
+                    fprintf(stderr, "bm_mem_mmap_device_mem_no_cache failed\n");
+                    return -1;
+                }
+                memset((void *)(ctx->src_fb_dmabuffers_yuv[i].dmabuffers_u.virt_addr), 0, ctx->src_fb_dmabuffers_yuv[i].dmabuffers_u.size);
+                bmvpu_dma_buffer_unmap(0, &(ctx->src_fb_dmabuffers_yuv[i].dmabuffers_u));
+
+                ret = bmvpu_dma_buffer_map(0, &(ctx->src_fb_dmabuffers_yuv[i].dmabuffers_v), BM_VPU_ENC_MAPPING_FLAG_READ|BM_VPU_ENC_MAPPING_FLAG_WRITE);
+                if (ret != BM_VPU_ENC_RETURN_CODE_OK) {
+                    fprintf(stderr, "bm_mem_mmap_device_mem_no_cache failed\n");
+                    return -1;
+                }
+                memset((void *)(ctx->src_fb_dmabuffers_yuv[i].dmabuffers_v.virt_addr), 0, ctx->src_fb_dmabuffers_yuv[i].dmabuffers_v.size);
+                bmvpu_dma_buffer_unmap(0, &(ctx->src_fb_dmabuffers_yuv[i].dmabuffers_v));
+            } else if (eop->pix_format == BM_VPU_ENC_PIX_FORMAT_NV12) {
+                ret = bmvpu_dma_buffer_map(0, &(ctx->src_fb_dmabuffers_yuv[i].dmabuffers_u), BM_VPU_ENC_MAPPING_FLAG_READ|BM_VPU_ENC_MAPPING_FLAG_WRITE);
+                if (ret != BM_VPU_ENC_RETURN_CODE_OK) {
+                    fprintf(stderr, "bm_mem_mmap_device_mem_no_cache failed\n");
+                    return -1;
+                }
+                memset((void *)(ctx->src_fb_dmabuffers_yuv[i].dmabuffers_u.virt_addr), 0, ctx->src_fb_dmabuffers_yuv[i].dmabuffers_u.size);
+                bmvpu_dma_buffer_unmap(0, &(ctx->src_fb_dmabuffers_yuv[i].dmabuffers_u));
+            }
+#endif
+        }
     }
 
     /* Create queue for source frame unused */
@@ -636,27 +751,71 @@ static int run_once(InputParameter* par)
             }
 
 #ifndef BM_PCIE_MODE
-            /* Read uncompressed pixels into the input DMA buffer */
-            ret = bmvpu_dma_buffer_map(0, (ctx->src_fb->dma_buffer), BM_VPU_ENC_MAPPING_FLAG_READ|BM_VPU_ENC_MAPPING_FLAG_WRITE);
-            if (ret != BM_VPU_ENC_RETURN_CODE_OK) {
-                break;
-            }
+            if (enc_par->mem_alloc_type == 0) {
+                /* Read uncompressed pixels into the input DMA buffer */
+                ret = bmvpu_dma_buffer_map(0, (ctx->src_fb->dma_buffer), BM_VPU_ENC_MAPPING_FLAG_READ|BM_VPU_ENC_MAPPING_FLAG_WRITE);
+                if (ret != BM_VPU_ENC_RETURN_CODE_OK) {
+                    break;
+                }
 
-            ret = read_yuv_source((uint8_t*)(ctx->src_fb->dma_buffer->virt_addr), ctx->initial_info.src_fb.y_stride,
-                            ctx->initial_info.src_fb.c_stride, ctx->initial_info.src_fb.height, ctx->initial_info.src_fb.height,
-                            &fin, enc_par->y_stride, enc_par->c_stride, enc_par->aligned_height,
-                            eop->pix_format,
-                            enc_par->crop_w, enc_par->crop_h);
+                ret = read_yuv_source((uint8_t*)(ctx->src_fb->dma_buffer->virt_addr), ctx->initial_info.src_fb.y_stride,
+                                ctx->initial_info.src_fb.c_stride, ctx->initial_info.src_fb.height, ctx->initial_info.src_fb.height,
+                                &fin, enc_par->y_stride, enc_par->c_stride, enc_par->aligned_height,
+                                eop->pix_format,
+                                enc_par->crop_w, enc_par->crop_h);
 
-            if (ret < 0)
-            {
+                if (ret < 0)
+                {
+                    bmvpu_dma_buffer_unmap(0, ctx->src_fb->dma_buffer);
+                    bm_queue_push(ctx->frame_unused_queue, &ctx->src_fb);
+                    break;
+                }
+
                 bmvpu_dma_buffer_unmap(0, ctx->src_fb->dma_buffer);
-                bm_queue_push(ctx->frame_unused_queue, &ctx->src_fb);
-                break;
+            } else {
+                ret = read_yuv_source((uint8_t*)(host_va), ctx->initial_info.src_fb.y_stride,
+                                ctx->initial_info.src_fb.c_stride, ctx->initial_info.src_fb.height, ctx->initial_info.src_fb.height,
+                                &fin, enc_par->y_stride, enc_par->c_stride, enc_par->aligned_height,
+                                eop->pix_format,
+                                enc_par->crop_w, enc_par->crop_h);
+                if (ret < 0)
+                {
+                    bm_queue_push(ctx->frame_unused_queue, &ctx->src_fb);
+                    break;
+                }
+
+                /* Read uncompressed pixels into the input DMA buffer */
+                ret = bmvpu_dma_buffer_map(0, (ctx->src_fb->dma_buffer_y), BM_VPU_ENC_MAPPING_FLAG_READ|BM_VPU_ENC_MAPPING_FLAG_WRITE);
+                if (ret != BM_VPU_ENC_RETURN_CODE_OK) {
+                    break;
+                }
+                memcpy((void*)ctx->src_fb->dma_buffer_y->virt_addr, (void*)host_va, ctx->initial_info.src_fb.y_size);
+                bmvpu_dma_buffer_unmap(0, ctx->src_fb->dma_buffer_y);
+
+                if (eop->pix_format == BM_VPU_ENC_PIX_FORMAT_YUV420P) {
+                    ret = bmvpu_dma_buffer_map(0, (ctx->src_fb->dma_buffer_u), BM_VPU_ENC_MAPPING_FLAG_READ|BM_VPU_ENC_MAPPING_FLAG_WRITE);
+                    if (ret != BM_VPU_ENC_RETURN_CODE_OK) {
+                        break;
+                    }
+                    memcpy((void*)ctx->src_fb->dma_buffer_u->virt_addr, (void*)host_va+ctx->initial_info.src_fb.y_size, ctx->initial_info.src_fb.c_size);
+                    bmvpu_dma_buffer_unmap(0, ctx->src_fb->dma_buffer_u);
+
+                    ret = bmvpu_dma_buffer_map(0, (ctx->src_fb->dma_buffer_v), BM_VPU_ENC_MAPPING_FLAG_READ|BM_VPU_ENC_MAPPING_FLAG_WRITE);
+                    if (ret != BM_VPU_ENC_RETURN_CODE_OK) {
+                        break;
+                    }
+                    memcpy((void*)ctx->src_fb->dma_buffer_v->virt_addr, (void*)host_va+ctx->initial_info.src_fb.y_size+ctx->initial_info.src_fb.c_size, ctx->initial_info.src_fb.c_size);
+                    bmvpu_dma_buffer_unmap(0, ctx->src_fb->dma_buffer_v);
+
+                } else if (eop->pix_format == BM_VPU_ENC_PIX_FORMAT_NV12) {
+                    ret = bmvpu_dma_buffer_map(0, (ctx->src_fb->dma_buffer_u), BM_VPU_ENC_MAPPING_FLAG_READ|BM_VPU_ENC_MAPPING_FLAG_WRITE);
+                    if (ret != BM_VPU_ENC_RETURN_CODE_OK) {
+                        break;
+                    }
+                    memcpy((void*)ctx->src_fb->dma_buffer_u->virt_addr, (void*)host_va+ctx->initial_info.src_fb.y_size, ctx->initial_info.src_fb.c_size*2);
+                    bmvpu_dma_buffer_unmap(0, ctx->src_fb->dma_buffer_u);
+                }
             }
-
-            bmvpu_dma_buffer_unmap(0, ctx->src_fb->dma_buffer);
-
 #else
             if (performance == 0){
                 ret = read_yuv_source(host_va, ctx->initial_info.src_fb.y_stride,
@@ -879,6 +1038,8 @@ static void usage(char *progname)
     "\t--height  actual height\n"
     "\t-y        luma stride (optional)\n"
     "\t--stride  luma stride (optional)\n"
+    "\t-e  default 0: YUV physically contiguous memory allocation; 1: YUV separately allocated physical memory.\n"
+    "\t--mem_alloc_type  default 0: YUV physically contiguous memory allocation; 1: YUV separately allocated physical memory.\n"
     "\t-t aligned height (optional)\n"
     "\t-r bit rate (kbps). 0 means to use constant quality mode (0 at default)\n"
     "\t-q quantization parameter for constant quality mode. [0, 51] (32 at default; if set bitrate, use bitrate).\n"
@@ -921,6 +1082,7 @@ static int parse_args(int argc, char **argv, InputParameter* par)
         { "loop",  required_argument, NULL, 'l' },
         { "run_times",  required_argument, NULL, 0 },
         { "fps",  required_argument, NULL, 'a' },
+        { "mem_alloc_type",  required_argument, NULL, 'e' },
         { "help",    no_argument, NULL, 0 },
         { NULL,      no_argument, NULL, 0 }
     };
@@ -938,6 +1100,7 @@ static int parse_args(int argc, char **argv, InputParameter* par)
     par->enc.bit_rate = 0;
     par->enc.cqp = 32;
     par->enc.fps = 30;
+    par->enc.mem_alloc_type = 0;
 	par->log_level =  BMVPU_ENC_LOG_LEVEL_INFO;
     par->loop = 1;
     par->performance = 0;
@@ -949,7 +1112,7 @@ static int parse_args(int argc, char **argv, InputParameter* par)
 
     while (1)
     {
-        opt = getopt_long(argc, argv, "s:f:i:o:w:h:y:c:t:v:l:n:p:g:m:r:q:a:P:?", longOpts, &longIndex);
+        opt = getopt_long(argc, argv, "s:f:i:o:w:h:y:c:t:v:l:n:p:g:m:r:q:a:e:P:?", longOpts, &longIndex);
         if (opt == -1)
             break;
         switch (opt)
@@ -1011,6 +1174,9 @@ static int parse_args(int argc, char **argv, InputParameter* par)
         case 'P':
             printf("performance test open:\n");
             par->performance = atoi(optarg);
+            break;
+        case 'e':
+            par->enc.mem_alloc_type = atoi(optarg);
             break;
         case '?':
             usage(argv[0]);
@@ -1079,6 +1245,11 @@ static int parse_args(int argc, char **argv, InputParameter* par)
             ret = strcmp("fps", longOpts[longIndex].name);
             if(ret == 0 ){
                 par->enc.fps = atoi(optarg);
+                break;
+            }
+            ret = strcmp("mem_alloc_type", longOpts[longIndex].name);
+            if(ret == 0 ){
+                par->enc.mem_alloc_type = atoi(optarg);
                 break;
             }
             break;

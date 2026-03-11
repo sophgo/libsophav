@@ -44,7 +44,7 @@ bmcv_image_draw_rectangle
       - 矩形框对象指针，包含矩形起始点和宽高。具体内容参考下面的数据类型说明。
     * - line_width
       - 输入
-      - 矩形框线宽。
+      - 矩形框线宽。line_width取值范围：:math:`[1, min\{crop\_\!w / 2, crop\_\!h / 2\}]`
     * - r
       - 输入
       - 矩形框颜色的 r 分量。

@@ -345,7 +345,6 @@ int main(int argc, char* args[])
     struct hist_para para;
     para.chn_num = 1 + rand() % 3;
     para.data_type = rand() % 2;
-    para.out_dim = 1 + rand() % para.chn_num;
     para.op = rand() % 2;
     int ret = 0;
     int i;
@@ -372,6 +371,7 @@ int main(int argc, char* args[])
     if (argc > 3) frame.height = atoi(args[3]);
     if (argc > 4) frame.width = atoi(args[4]);
     if (argc > 5) para.chn_num = atoi(args[5]);
+    para.out_dim = 1 + rand() % para.chn_num;
     if (argc > 6) para.data_type = atoi(args[6]);
     if (argc > 7) para.out_dim = atoi(args[7]);
     if (argc > 8) para.op = atoi(args[8]);

@@ -307,7 +307,7 @@ int main(int argc, char *args[]) {
         width = 8 + rand() % 2041;
         height = 8 + rand() % 8185;
     } else if (ksize == 7) {
-        width = 8 + rand() % 1500;
+        width = 8 + rand() % 1493;
         height = 8 + rand() % 8185;
     }
     int format_num[] = {8,9,12,13,14};

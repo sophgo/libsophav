@@ -30,10 +30,14 @@ extern int threshold_cpu(
         unsigned char max_val,
         int type);
 
-static int parameters_check(int height, int width)
+static int parameters_check(int height, int width, int use_realimg)
 {
     if (height > 8192 || width > 8192){
         printf("Unsupported size : size_max = 8192 x 8192 \n");
+        return -1;
+    }
+    if (use_realimg != 0 && use_realimg != 1) {
+        printf("use_realimg should be 0 or 1. 0: use random data, 1: use real image ! \n");
         return -1;
     }
     return 0;
@@ -273,8 +277,8 @@ int main(int argc, char* args[]) {
     printf("seed = %d\n", seed);
     int use_realimg = 0;
     int loop = 1;
-    int height = 2 + rand() % 8190;
-    int width = 2 + rand() % 8190;
+    int height = 2 + rand() % 8191;
+    int width = 2 + rand() % 8191;
     int type = rand() % 5;
     int thread_num = 1;
     int check = 0;
@@ -306,7 +310,7 @@ int main(int argc, char* args[]) {
     if (argc > 6) type = atoi(args[6]);
     if (argc > 7) input_path = args[7];
     if (argc > 8) output_path = args[8];
-    check = parameters_check(height, width);
+    check = parameters_check(height, width, use_realimg);
     if (check) {
         printf("Parameters Failed! \n");
         return check;

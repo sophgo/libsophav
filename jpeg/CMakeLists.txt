@@ -6,34 +6,18 @@ if("${SUBTYPE}" STREQUAL "fpga")
 endif()
 
 # add commit id
-set(_file src/bm_jpeg_interface.c)
-file(READ ${_file} _content)
-
-string(REGEX REPLACE
-  "(#define JPEG_GIT_COMMIT_HASH)[^\r\n]*"
-  "\\1 \"${COMMIT_HASH}\""
-  _content
-  "${_content}"
-)
-
-string(REGEX REPLACE
-  "(#define JPEG_GIT_BRANCH)[^\r\n]*"
-  "\\1 \"${BRANCH}\""
-  _content
-  "${_content}"
-)
-
-string(REGEX REPLACE
-  "(#define JPEG_SDK_VERSION)[^\r\n]*"
-  "\\1 \"${GIT_VERSION}\""
-  _content
-  "${_content}"
-)
-file(WRITE ${_file} "${_content}")
+add_definitions(-DJPEG_GIT_COMMIT_HASH="${COMMIT_HASH}")
+add_definitions(-DJPEG_GIT_BRANCH="${BRANCH}")
+add_definitions(-DJPEG_SDK_VERSION="${GIT_VERSION}")
 
 # add header files path
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/libbmcv/include)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/osdrv)
+if("${PLATFORM}" STREQUAL "pcie" OR "${PLATFORM}" STREQUAL "pcie_arm64")
+    include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/osdrv_pcie)
+else()
+    include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/osdrv)
+endif()
+# include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/osdrv)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/inc)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/example)
 

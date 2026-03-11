@@ -77,6 +77,7 @@ bmcv_faiss_indexPQ_encode
 
 2、buffer_table 的大小为 slice_num * centroids_num，数据类型为float。
 
+3、原始维度切分数量slice_num仅支持8/16/32/64且需要小于vec_dims。
 
 **示例代码**
 

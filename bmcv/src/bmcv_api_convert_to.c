@@ -75,16 +75,21 @@ bm_status_t bmcv_convert_to_internal(bm_handle_t          handle,
         case BM1688_PREV:
         case BM1688:
         tpu_env = getenv("TPU_CORES");
-        if (tpu_env) {
+        if (tpu_env == NULL) {
+            bmlib_log("CONVERT_TO", BMLIB_LOG_DEBUG, "Use TPU core0\n");
+        } else {
             if (strcmp(tpu_env, "0") == 0) {
+                bmlib_log("CONVERT_TO", BMLIB_LOG_DEBUG, "Use TPU core0\n");
             } else if (strcmp(tpu_env, "1") == 0) {
+                bmlib_log("CONVERT_TO", BMLIB_LOG_DEBUG, "Use TPU core1\n");
                 if_core0 = 0;
                 if_core1 = 1;
             } else if (strcmp(tpu_env, "2") == 0 || strcmp(tpu_env, "both") == 0) {
+                bmlib_log("CONVERT_TO", BMLIB_LOG_DEBUG, "Use all TPU cores (0 and 1)\n");
                 if_core1 = 1;
             } else {
-                fprintf(stderr, "Invalid TPU_CORES value: %s\n", tpu_env);
-                fprintf(stderr, "Available options: 0, 1, 2/both\n");
+                bmlib_log("CONVERT_TO", BMLIB_LOG_ERROR, "Invalid TPU_CORES value: %s\n", tpu_env);
+                bmlib_log("CONVERT_TO", BMLIB_LOG_ERROR, "Available options: 0, 1, 2/both\n");
                 exit(EXIT_FAILURE);
             }
         }

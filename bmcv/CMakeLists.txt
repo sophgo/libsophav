@@ -20,7 +20,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/${SRC_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/libjpeg-turbo/include)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../jpeg/inc)
-
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../vglite/inc)
 
 # add library files path
 link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/tpu_kernel_module/)
@@ -34,14 +34,19 @@ file(GLOB SRCS src/*.c src/${SRC_DIR}/*.c)
 set(HEADERS include/bmcv_api_ext.h include/bmcv_api_ext_c.h include/bmcv_api.h)
 set(component libsophon)
 
+if(NOT "${PCIE_MODE}" STREQUAL "on")
+    find_library(VGLITE_STATIC NAMES libbmvg.a bmvg PATHS "${CMAKE_CURRENT_SOURCE_DIR}/../vglite/LD")
+endif()
+
 add_library(${BMCV_LIB_NAME} SHARED ${SRCS})
-target_link_libraries(${BMCV_LIB_NAME} bmlib dl bmjpeg turbojpeg)
+target_link_options(${BMCV_LIB_NAME} PRIVATE "LINKER:-Bsymbolic")
+target_link_libraries(${BMCV_LIB_NAME} bmlib dl bmjpeg turbojpeg ${VGLITE_STATIC})
 
 # avoid to compile source file repeated
 add_library(${BMCV_LIB_NAME}-static STATIC $<TARGET_OBJECTS:${BMCV_LIB_NAME}>)
 # sync static lib name with dynamic lib name
 set_target_properties(${BMCV_LIB_NAME}-static PROPERTIES OUTPUT_NAME ${BMCV_LIB_NAME})
-target_link_libraries(${BMCV_LIB_NAME}-static bmlib dl bmjpeg turbojpeg)
+target_link_libraries(${BMCV_LIB_NAME}-static bmlib dl bmjpeg turbojpeg ${VGLITE_STATIC})
 
 # build bmcv test case
 if ("${PCIE_MODE}" STREQUAL "on")

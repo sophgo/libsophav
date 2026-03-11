@@ -37,20 +37,20 @@ bm_status_t bmcv_hamming_distance(bm_handle_t handle, bm_device_mem_t input1, bm
 
     const char* tpu_env = getenv("TPU_CORES");
     if (tpu_env == NULL) {
-        printf("Using the default TPU core configuration: core0\n");
+        bmlib_log("HM_DISTANCE", BMLIB_LOG_DEBUG, "Use TPU core0\n");
     } else {
         if (strcmp(tpu_env, "0") == 0) {
-            printf("Use TPU core0\n");
+            bmlib_log("HM_DISTANCE", BMLIB_LOG_DEBUG, "Use TPU core0\n");
         } else if (strcmp(tpu_env, "1") == 0) {
-            printf("Use TPU core1\n");
+            bmlib_log("HM_DISTANCE", BMLIB_LOG_DEBUG, "Use TPU core1\n");
             if_core0 = 0;
             if_core1 = 1;
         } else if (strcmp(tpu_env, "2") == 0 || strcmp(tpu_env, "both") == 0) {
-            printf("Use all TPU cores (0 and 1))\n");
+            bmlib_log("HM_DISTANCE", BMLIB_LOG_DEBUG, "Use all TPU cores (0 and 1)\n");
             if_core1 = 1;
         } else {
-            fprintf(stderr, "Invalid TPU_CORES value: %s\n", tpu_env);
-            fprintf(stderr, "Available options: 0, 1, 2/both\n");
+            bmlib_log("HM_DISTANCE", BMLIB_LOG_ERROR, "Invalid TPU_CORES value: %s\n", tpu_env);
+            bmlib_log("HM_DISTANCE", BMLIB_LOG_ERROR, "Available options: 0, 1, 2/both\n");
             exit(EXIT_FAILURE);
         }
     }

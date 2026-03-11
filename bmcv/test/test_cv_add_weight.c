@@ -286,6 +286,7 @@ static int get_image_size(int format, int width, int height)
         case FORMAT_BGR_PACKED:
         case FORMAT_RGBP_SEPARATE:
         case FORMAT_BGRP_SEPARATE:
+        case FORMAT_NV24:
             size = width * height * 3;
             break;
         case FORMAT_NV12:
@@ -294,7 +295,6 @@ static int get_image_size(int format, int width, int height)
             break;
         case FORMAT_NV16:
         case FORMAT_NV61:
-        case FORMAT_NV24:
             size = width * height * 2;
             break;
         case FORMAT_GRAY:
@@ -473,10 +473,7 @@ int main(int argc, char* args[])
     struct frame_size frame;
     frame.height = 1 + rand() % 4096;
     frame.width = 1 + rand() % 4096;
-    int format_num[] = {0,1,2,8,9,10,11,12,13,14};
-    int size = sizeof(format_num) / sizeof(format_num[0]);
-    int rand_num = rand() % size;
-    int format = format_num[rand_num];
+    int format =  rand() % 15;
     int data_type = 0;  //0: float; 1: uchar;
     float alpha = roundf((float)rand() / RAND_MAX * 10)/ 10.0;
     float beta = 1.0f - alpha;

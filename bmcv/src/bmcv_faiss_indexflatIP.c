@@ -59,6 +59,7 @@ bm_status_t bmcv_faiss_indexflatIP(bm_handle_t handle,
                                    int output_dtype) {
     int core_id = 0;
     bm_status_t ret = BM_SUCCESS;
+    bm_device_mem_t output_dual_core_sorted_similarity_global_addr, output_dual_core_sorted_index_global_addr, output_sorted_buffer_fp32_similarity_global_addr;
     unsigned int chipid;
     ret = bm_get_chipid(handle, &chipid);
     if (BM_SUCCESS != ret) {
@@ -69,27 +70,24 @@ bm_status_t bmcv_faiss_indexflatIP(bm_handle_t handle,
     faiss_api_indexflatIP_t api;
     sg_api_indexflatIP_dual_core_t api_dual_core;
     tpu_launch_param_t launch_params[BM1688_MAX_CORES];
-    bm_device_mem_t output_dual_core_sorted_similarity_global_addr, output_dual_core_sorted_index_global_addr;
     int if_core0 = 1;
     int if_core1 = 0;
     const char* tpu_env = getenv("TPU_CORES");
     if (tpu_env == NULL) {
-        printf("Using the default TPU core configuration: core0\n");
+        bmlib_log("FAISS_INDEXFLATIP", BMLIB_LOG_DEBUG, "Use TPU core0\n");
     } else {
         if (strcmp(tpu_env, "0") == 0) {
-            printf("Use TPU core0\n");
-            core_id = 0;
+            bmlib_log("FAISS_INDEXFLATIP", BMLIB_LOG_DEBUG, "Use TPU core0\n");
         } else if (strcmp(tpu_env, "1") == 0) {
-            printf("Use TPU core1\n");
+            bmlib_log("FAISS_INDEXFLATIP", BMLIB_LOG_DEBUG, "Use TPU core1\n");
             if_core0 = 0;
             if_core1 = 1;
-            core_id = 1;
         } else if (strcmp(tpu_env, "2") == 0 || strcmp(tpu_env, "both") == 0) {
-            printf("Use all TPU cores (0 and 1))\n");
+            bmlib_log("FAISS_INDEXFLATIP", BMLIB_LOG_DEBUG, "Use all TPU cores (0 and 1)\n");
             if_core1 = 1;
         } else {
-            fprintf(stderr, "Invalid TPU_CORES value: %s\n", tpu_env);
-            fprintf(stderr, "Available options: 0, 1, 2/both\n");
+            bmlib_log("FAISS_INDEXFLATIP", BMLIB_LOG_ERROR, "Invalid TPU_CORES value: %s\n", tpu_env);
+            bmlib_log("FAISS_INDEXFLATIP", BMLIB_LOG_ERROR, "Available options: 0, 1, 2/both\n");
             exit(EXIT_FAILURE);
         }
     }
@@ -99,6 +97,14 @@ bm_status_t bmcv_faiss_indexflatIP(bm_handle_t handle,
         return ret;
     }
     if(if_core0 == 1 && if_core1 == 1) {
+        if (query_vecs_num == 1 && ((database_vecs_num / 2) < sort_cnt)) {
+            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "faiss_api_indexflatIP when using dual cores for calculations, database_vecs_num / 2 should be greater than sort_cnt! %s: %s: %d\n",
+                    filename(__FILE__), __func__, __LINE__);
+            return BM_ERR_PARAM;
+        }
+        if(input_dtype == DT_FP32 && output_dtype == DT_FP16) {
+            BM_CHECK_RET(bm_malloc_device_byte(handle, &output_sorted_buffer_fp32_similarity_global_addr, 2 * query_vecs_num * sort_cnt * sizeof(float)));
+        }
         BM_CHECK_RET(bm_malloc_device_byte(handle, &output_dual_core_sorted_similarity_global_addr, 2 * query_vecs_num * sort_cnt * dtype_size((enum bm_data_type_t)output_dtype)));
         BM_CHECK_RET(bm_malloc_device_byte(handle, &output_dual_core_sorted_index_global_addr, 2 * query_vecs_num * sort_cnt * sizeof(int)));
         int base_msg_id = 0;
@@ -113,6 +119,7 @@ bm_status_t bmcv_faiss_indexflatIP(bm_handle_t handle,
         api_dual_core.output_dual_core_sorted_index_global_addr = bm_mem_get_device_addr(output_dual_core_sorted_index_global_addr);
         api_dual_core.output_sorted_similarity_global_addr = bm_mem_get_device_addr(output_sorted_similarity_global_addr);
         api_dual_core.output_sorted_index_global_addr = bm_mem_get_device_addr(output_sorted_index_global_addr);
+        api_dual_core.output_sorted_buffer_fp32_similarity_global_addr = bm_mem_get_device_addr(output_sorted_buffer_fp32_similarity_global_addr);
         api_dual_core.vec_dims = vec_dims;
         api_dual_core.query_vecs_num = query_vecs_num;
         api_dual_core.database_vecs_num = database_vecs_num;
@@ -197,11 +204,15 @@ bm_status_t bmcv_faiss_indexflatIP(bm_handle_t handle,
             bm_free_device(handle, output_dual_core_sorted_index_global_addr);
         }
     } else {
+        if(input_dtype == DT_FP32 && output_dtype == DT_FP16) {
+            BM_CHECK_RET(bm_malloc_device_byte(handle, &output_sorted_buffer_fp32_similarity_global_addr, sort_cnt * query_vecs_num * sizeof(float)));
+        }
         api.input_query_global_addr = bm_mem_get_device_addr(input_data_global_addr);
         api.database_global_addr = bm_mem_get_device_addr(db_data_global_addr);
         api.buffer_global_addr = bm_mem_get_device_addr(buffer_global_addr);
         api.output_sorted_similarity_global_addr = bm_mem_get_device_addr(output_sorted_similarity_global_addr);
         api.output_sorted_index_global_addr = bm_mem_get_device_addr(output_sorted_index_global_addr);
+        api.output_sorted_buffer_fp32_similarity_global_addr = bm_mem_get_device_addr(output_sorted_buffer_fp32_similarity_global_addr);
         api.vec_dims = vec_dims;
         api.query_vecs_num = query_vecs_num;
         api.database_vecs_num = database_vecs_num;
@@ -223,6 +234,9 @@ bm_status_t bmcv_faiss_indexflatIP(bm_handle_t handle,
                 break;
         }
     }
+    if(input_dtype == DT_FP32 && output_dtype == DT_FP16) {
+        bm_free_device(handle, output_sorted_buffer_fp32_similarity_global_addr);
+    }
     return ret;
 }
 
@@ -240,10 +254,10 @@ bm_status_t bmcv_faiss_indexflatIP_u64(bm_handle_t handle,
     int input_dtype,
     int output_dtype) {
     bm_status_t ret = BM_SUCCESS;
+    bm_device_mem_u64_t output_dual_core_sorted_similarity_global_addr, output_dual_core_sorted_index_global_addr, output_sorted_buffer_fp32_similarity_global_addr;
     faiss_api_indexflatIP_t api;
     sg_api_indexflatIP_dual_core_t api_dual_core;
     tpu_launch_param_t launch_params[BM1688_MAX_CORES];
-    bm_device_mem_u64_t output_dual_core_sorted_similarity_global_addr, output_dual_core_sorted_index_global_addr;
     unsigned int chipid, core_id = 0;
     ret = bm_get_chipid(handle, &chipid);
     if (BM_SUCCESS != ret) {
@@ -255,22 +269,20 @@ bm_status_t bmcv_faiss_indexflatIP_u64(bm_handle_t handle,
     int if_core1 = 0;
     const char* tpu_env = getenv("TPU_CORES");
     if (tpu_env == NULL) {
-        printf("Using the default TPU core configuration: core0\n");
+        bmlib_log("FAISS_INDEXFLATIP", BMLIB_LOG_DEBUG, "Use TPU core0\n");
     } else {
         if (strcmp(tpu_env, "0") == 0) {
-            printf("Use TPU core0\n");
-            core_id = 0;
+            bmlib_log("FAISS_INDEXFLATIP", BMLIB_LOG_DEBUG, "Use TPU core0\n");
         } else if (strcmp(tpu_env, "1") == 0) {
-            printf("Use TPU core1\n");
+            bmlib_log("FAISS_INDEXFLATIP", BMLIB_LOG_DEBUG, "Use TPU core1\n");
             if_core0 = 0;
             if_core1 = 1;
-            core_id = 1;
         } else if (strcmp(tpu_env, "2") == 0 || strcmp(tpu_env, "both") == 0) {
-            printf("Use all TPU cores (0 and 1))\n");
+            bmlib_log("FAISS_INDEXFLATIP", BMLIB_LOG_DEBUG, "Use all TPU cores (0 and 1)\n");
             if_core1 = 1;
         } else {
-            fprintf(stderr, "Invalid TPU_CORES value: %s\n", tpu_env);
-            fprintf(stderr, "Available options: 0, 1, 2/both\n");
+            bmlib_log("FAISS_INDEXFLATIP", BMLIB_LOG_ERROR, "Invalid TPU_CORES value: %s\n", tpu_env);
+            bmlib_log("FAISS_INDEXFLATIP", BMLIB_LOG_ERROR, "Available options: 0, 1, 2/both\n");
             exit(EXIT_FAILURE);
         }
     }
@@ -280,6 +292,14 @@ bm_status_t bmcv_faiss_indexflatIP_u64(bm_handle_t handle,
         return ret;
     }
     if(if_core0 == 1 && if_core1 == 1) {
+        if (query_vecs_num == 1 && ((database_vecs_num / 2) < sort_cnt)) {
+            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "faiss_api_indexflatIP when using dual cores for calculations, database_vecs_num / 2 should be greater than sort_cnt! %s: %s: %d\n",
+                    filename(__FILE__), __func__, __LINE__);
+            return BM_ERR_PARAM;
+        }
+        if(input_dtype == DT_FP32 && output_dtype == DT_FP16) {
+            BM_CHECK_RET(bm_malloc_device_byte_u64(handle, &output_sorted_buffer_fp32_similarity_global_addr, 2 * query_vecs_num * sort_cnt * sizeof(float)));
+        }
         BM_CHECK_RET(bm_malloc_device_byte_u64(handle, &output_dual_core_sorted_similarity_global_addr, 2 * query_vecs_num * sort_cnt * dtype_size((enum bm_data_type_t)output_dtype)));
         BM_CHECK_RET(bm_malloc_device_byte_u64(handle, &output_dual_core_sorted_index_global_addr, 2 * query_vecs_num * sort_cnt * sizeof(int)));
         int base_msg_id = 0;
@@ -294,6 +314,7 @@ bm_status_t bmcv_faiss_indexflatIP_u64(bm_handle_t handle,
         api_dual_core.output_dual_core_sorted_index_global_addr = bm_mem_get_device_addr_u64(output_dual_core_sorted_index_global_addr);
         api_dual_core.output_sorted_similarity_global_addr = bm_mem_get_device_addr_u64(output_sorted_similarity_global_addr);
         api_dual_core.output_sorted_index_global_addr = bm_mem_get_device_addr_u64(output_sorted_index_global_addr);
+        api_dual_core.output_sorted_buffer_fp32_similarity_global_addr = bm_mem_get_device_addr_u64(output_sorted_buffer_fp32_similarity_global_addr);
         api_dual_core.vec_dims = vec_dims;
         api_dual_core.query_vecs_num = query_vecs_num;
         api_dual_core.database_vecs_num = database_vecs_num;
@@ -378,11 +399,15 @@ bm_status_t bmcv_faiss_indexflatIP_u64(bm_handle_t handle,
             bm_free_device_u64(handle, output_dual_core_sorted_index_global_addr);
         }
     } else {
+        if(input_dtype == DT_FP32 && output_dtype == DT_FP16) {
+            BM_CHECK_RET(bm_malloc_device_byte_u64(handle, &output_sorted_buffer_fp32_similarity_global_addr, sort_cnt * query_vecs_num * sizeof(float)));
+        }
         api.input_query_global_addr = bm_mem_get_device_addr_u64(input_data_global_addr);
         api.database_global_addr = bm_mem_get_device_addr_u64(db_data_global_addr);
         api.buffer_global_addr = bm_mem_get_device_addr_u64(buffer_global_addr);
         api.output_sorted_similarity_global_addr = bm_mem_get_device_addr_u64(output_sorted_similarity_global_addr);
         api.output_sorted_index_global_addr = bm_mem_get_device_addr_u64(output_sorted_index_global_addr);
+        api.output_sorted_buffer_fp32_similarity_global_addr = bm_mem_get_device_addr_u64(output_sorted_buffer_fp32_similarity_global_addr);
         api.vec_dims = vec_dims;
         api.query_vecs_num = query_vecs_num;
         api.database_vecs_num = database_vecs_num;
@@ -403,6 +428,9 @@ bm_status_t bmcv_faiss_indexflatIP_u64(bm_handle_t handle,
                 ret = BM_NOT_SUPPORTED;
                 break;
         }
+    }
+    if(input_dtype == DT_FP32 && output_dtype == DT_FP16) {
+        bm_free_device_u64(handle, output_sorted_buffer_fp32_similarity_global_addr);
     }
     return ret;
 }

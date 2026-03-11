@@ -459,7 +459,7 @@ bm_status_t bm_dpu_basic( bm_handle_t handle,
     return ret;
 }
 
-bm_status_t check_bm_dpu_image_param(bm_image *left_input, bm_image *right_input, bm_image *output){
+bm_status_t check_bm_dpu_image_param(bm_image *left_input, bm_image *right_input, bm_image *output, int DPUTASK){
     bm_status_t ret = BM_SUCCESS;
     int left_width = left_input->width;
     int left_height = left_input->height;
@@ -511,8 +511,8 @@ bm_status_t check_bm_dpu_image_param(bm_image *left_input, bm_image *right_input
         return BM_ERR_FAILURE;
     }
 
-    if(left_width % 4 != 0){
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "The width should 16 align \n");
+    if(left_width % DPUTASK != 0){
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "The width should %d align \n", DPUTASK);
         return BM_ERR_FAILURE;
     }
 
@@ -564,7 +564,7 @@ bm_status_t bm_dpu_sgbm_disp_internal( bm_handle_t          handle,
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "The disp_start_pos value error.! \n");
         return BM_ERR_FAILURE;
     }
-    ret = check_bm_dpu_image_param(left_image, right_image, disp_image);
+    ret = check_bm_dpu_image_param(left_image, right_image, disp_image, 4);
     if(ret != BM_SUCCESS){
         return ret;
     }
@@ -615,7 +615,7 @@ bm_status_t bm_dpu_fgs_disp_internal(  bm_handle_t          handle,
     }
     dpu_grp.dpu_mode = fgs_mode;
 
-    ret = check_bm_dpu_image_param(guide_image, smooth_image, disp_image);
+    ret = check_bm_dpu_image_param(guide_image, smooth_image, disp_image, 4);
     if(ret != BM_SUCCESS){
         bm_free_device(handle, fgs_chfh_store_paddr);
         return ret;
@@ -650,6 +650,12 @@ bm_status_t bm_dpu_online_disp_internal( bm_handle_t             handle,
     memset(&dpu_grp, 0, sizeof(dpu_grp_attr_s));
     set_default_dpu_param(&dpu_grp, left_image, right_image);
 
+    ret = check_bm_dpu_image_param(left_image, right_image, disp_image, 4);
+    if(ret != BM_SUCCESS){
+        bm_free_device(handle, online_chfh_store_paddr);
+        return ret;
+    }
+
     ret = bm_malloc_device_byte(handle, &online_chfh_store_paddr, left_image->height * left_image->width * 8);
     if(ret != 0) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "online_chfh_store_paddr alloc fail\n");
@@ -670,11 +676,6 @@ bm_status_t bm_dpu_online_disp_internal( bm_handle_t             handle,
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "The disp_start_pos value error.! \n");
         bm_free_device(handle, online_chfh_store_paddr);
         return BM_ERR_FAILURE;
-    }
-    ret = check_bm_dpu_image_param(left_image, right_image, disp_image);
-    if(ret != BM_SUCCESS){
-        bm_free_device(handle, online_chfh_store_paddr);
-        return ret;
     }
 
     dpu_grp.dpu_mode = online_mode;

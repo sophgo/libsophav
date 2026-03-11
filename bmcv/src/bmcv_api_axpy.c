@@ -10,10 +10,11 @@ bm_status_t  bmcv_image_axpy(
         int input_n,
         int input_c,
         int input_h,
-        int input_w) {
-
+        int input_w)
+{
     bm_status_t ret;
-    int core_id = 0;
+    int if_core0 = 1, if_core1 = 0;
+    const char *tpu_env;
     bm_device_mem_t tensor_A_mem, tensor_X_mem, tensor_Y_mem, tensor_F_mem;
     if (bm_mem_get_type(tensor_A) == BM_MEM_TYPE_SYSTEM) {
         ret =  bm_mem_convert_system_to_device_neuron(
@@ -68,7 +69,52 @@ bm_status_t  bmcv_image_axpy(
     {
         case BM1688_PREV:
         case BM1688:
-            ret = bm_tpu_kernel_launch(handle, "cv_axpy", (u8 *)&api, sizeof(api), core_id);
+            tpu_env = getenv("TPU_CORES");
+            if (tpu_env) {
+                if (strcmp(tpu_env, "0") == 0) {
+                    bmlib_log("AXPY", BMLIB_LOG_DEBUG, "Use TPU Core0\n");
+                } else if (strcmp(tpu_env, "1") == 0) {
+                    if_core0 = 0;
+                    if_core1 = 1;
+                    bmlib_log("AXPY", BMLIB_LOG_DEBUG, "Use TPU Core1\n");
+                } else if (strcmp(tpu_env, "2") == 0 || strcmp(tpu_env, "both") == 0) {
+                    if_core1 = 1;
+                    bmlib_log("AXPY", BMLIB_LOG_DEBUG, "Use All TPU Cores(0 and 1)\n");
+                } else {
+                    bmlib_log("AXPY", BMLIB_LOG_ERROR, "Invalid TPU_CORES value: %s\n", tpu_env);
+                    bmlib_log("AXPY", BMLIB_LOG_ERROR, "Available options: 0, 1, 2/both\n");
+                    exit(EXIT_FAILURE);
+                }
+            }
+
+            if (if_core0 && if_core1) {
+                bm_api_cv_axpy_dual_core_t dual_api;
+                int core_list[BM1688_MAX_CORES] = {0, 1};
+
+                bm_api_cv_axpy_dual_core_t dual_params[BM1688_MAX_CORES];
+                tpu_launch_param_t tpu_params[BM1688_MAX_CORES];
+
+                memcpy(&dual_api, &api, sizeof(bm_api_cv_axpy_t));
+
+                dual_api.core_num = BM1688_MAX_CORES;
+                dual_api.base_msg_id = BM1688_BASE_MSG_ID;
+
+                for (int n = 0; n < BM1688_MAX_CORES; n++) {
+                    dual_api.core_id = n;
+
+                    dual_params[n] = dual_api;
+                    tpu_params[n].core_id = n;
+                    tpu_params[n].param_data = &dual_params[n];
+                    tpu_params[n].param_size = sizeof(bm_api_cv_axpy_dual_core_t);
+                }
+
+                ret = bm_tpu_kernel_launch_dual_core(handle, "cv_axpy_dual_core", tpu_params, core_list, BM1688_MAX_CORES);
+
+            } else {
+                int core_id = if_core1 == 1 ? 1 : 0;
+                ret = bm_tpu_kernel_launch(handle, "cv_axpy", (u8 *)&api, sizeof(api), core_id);
+            }
+
             if (BM_SUCCESS != ret) {
                 bmlib_log("AXPY", BMLIB_LOG_ERROR, "axpy sync api error\n");
                 if(bm_mem_get_type(tensor_F) == BM_MEM_TYPE_SYSTEM){

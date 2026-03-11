@@ -165,6 +165,8 @@ int main(int argc, char **argv){
         md5 = argv[11];
         if(argc > 12) dev_id = atoi(argv[12]);
         if(argc > 13) bWrite = argv[13];
+        if(argc > 14) test_threads_num = atoi(argv[14]);
+        if(argc > 15) test_loop_times = atoi(argv[15]);
     }
     if (argc == 2)
         test_threads_num  = atoi(argv[1]);
@@ -172,9 +174,9 @@ int main(int argc, char **argv){
         test_threads_num = atoi(argv[1]);
         test_loop_times  = atoi(argv[2]);
     } else if (argc > 3 && argc < 10) {
-        printf("usage: %s img_w img_h image_fmt overlay_num overlay_w overlay_h overlay_fmt x y image_name overlay_name dev_id bWrite )\n", argv[0]);
+        printf("usage: %s img_w img_h image_fmt overlay_w overlay_h overlay_fmt x y image_name overlay_name md5 dev_id bWrite threads_num loop_times)\n", argv[0]);
         printf("example:\n");
-        printf("%s 1920 1080 10 1 300 300 18 20 20 ./res/1920x1080_rgb.bin ./res/300x300_argb8888_dog.rgb 0 fasle\n", argv[0]);
+        printf("%s 1920 1080 10 80 60 30 100 100 /opt/sophon/libsophon-current/bin/res/car_rgb888.rgb /opt/sophon/libsophon-current/bin/res/dog_s_80x60_pngto4444.bin 52e0003832180b4c74b71395c200c72e\n", argv[0]);
         return -1;
     }
 

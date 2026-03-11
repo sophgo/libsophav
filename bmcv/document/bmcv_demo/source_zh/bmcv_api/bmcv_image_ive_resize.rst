@@ -82,11 +82,11 @@ bmcv_ive_resize
       - **描述**
     * - BMCV_INTER_NEAREST
       - 最近邻插值模式。
-    * - IVE_RESIZE_AREA
+    * - BMCV_INTER_LINEAR
       - 双线性插值缩放模式。
-    * - IVE_RESIZE_LINEAR
+    * - BMCV_INTER_BICUBIC
       - 双三次插值模式。
-    * - IVE_RESIZE_AREA
+    * - BMCV_INTER_AREA
       - 区域插值缩放模式。
 
 | 【返回值】
@@ -95,9 +95,11 @@ bmcv_ive_resize
 
 | 【注意】
 
-1. 支持 GRAY、RGB_PLANAR 混合图像数组输入, 但所有图像的缩放模式相同，同时模式只支持双线性插值和区域插值缩放模式。
+1. 支持 GRAY、RGB_PLANAR 混合图像数组输入, 但所有图像的缩放模式相同。
 
-2. 最大支持 16 倍缩放。
+2. 目前插值模式只支持双线性插值和区域插值缩放模式。
+
+3. 最大支持 16 倍缩放。
 
 3. 输入输出图像的 width 都需要16对齐。
 

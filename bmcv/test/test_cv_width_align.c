@@ -307,7 +307,7 @@ static int test_width_align_random(int if_use_img, int format, int data_type, in
     switch (format) {
         case 8:
         case 9:
-            // format      = FORMAT_BGR_PLANAR;
+            // format      = FORMAT_BGR_PLANAR | FORMAT_RGB_PLANAR;
             default_stride[0] = image_w;
             src_stride[0]     = image_w + in_width_stride;
             dst_stride[0]     = image_w + out_width_stride;
@@ -318,7 +318,7 @@ static int test_width_align_random(int if_use_img, int format, int data_type, in
             break;
         case 10:
         case 11:
-            // image_format      = FORMAT_BGR_PACKED;
+            // image_format      = FORMAT_BGR_PACKED | FORMAT_RGB_PACKED;
             default_stride[0] = 3 * image_w;
             src_stride[0]     = 3 * image_w + in_width_stride;
             dst_stride[0]     = 3 * image_w + out_width_stride;
@@ -328,7 +328,8 @@ static int test_width_align_random(int if_use_img, int format, int data_type, in
             dst_size = image_h * dst_stride[0];
             break;
         case 3:
-            // image_format = FORMAT_NV12;
+        case 4:
+            // image_format = FORMAT_NV12 | FORMAT_NV21;
             image_w      = ALIGN(image_w, 2);
             image_h      = ALIGN(image_h, 2);
 
@@ -357,7 +358,8 @@ static int test_width_align_random(int if_use_img, int format, int data_type, in
             dst_size = image_h * dst_stride[0];
             break;
         case 5:
-            // image_format = FORMAT_NV16;
+        case 6:
+            // image_format = FORMAT_NV16 | FORMAT_NV61;
             image_w      = ALIGN(image_w, 2);
             image_h      = ALIGN(image_h, 2);
 
@@ -372,6 +374,69 @@ static int test_width_align_random(int if_use_img, int format, int data_type, in
             raw_size = image_h * image_w * 2;
             src_size = image_h * src_stride[0] + image_h * src_stride[1];
             dst_size = image_h * dst_stride[0] + image_h * dst_stride[1];
+            break;
+        case 7:
+            // image_format = FORMAT_NV24;
+            default_stride[0] = image_w;
+            src_stride[0]     = image_w + in_width_stride;
+            dst_stride[0]     = image_w + out_width_stride;
+
+            default_stride[1] = image_w;
+            src_stride[1]     = 2 * image_w + in_width_stride;
+            dst_stride[1]     = 2 * image_w + out_width_stride;
+
+            raw_size = image_h * image_w * 3;
+            src_size = image_h * src_stride[0] + image_h * src_stride[1];
+            dst_size = image_h * dst_stride[0] + image_h * dst_stride[1];
+            break;
+        case 2:
+        case 12:
+        case 13:
+            // image_format = FORMAT_YUV444P | FORMAT_RGBP_SEPARATE | FORMAT_BGRP_SEPARATE;
+            default_stride[0] = image_w;
+            src_stride[0]     = image_w + in_width_stride;
+            dst_stride[0]     = image_w + out_width_stride;
+
+            default_stride[1] = image_w;
+            src_stride[1]     = image_w + in_width_stride;
+            dst_stride[1]     = image_w + out_width_stride;
+
+            default_stride[2] = image_w;
+            src_stride[2]     = image_w + in_width_stride;
+            dst_stride[2]     = image_w + out_width_stride;
+
+            raw_size = image_h * image_w * 3;
+            src_size = image_h * src_stride[0] +
+                        image_h * src_stride[1] +
+                        image_h * src_stride[2];
+            dst_size = image_h * dst_stride[0] +
+                        image_h * dst_stride[1] +
+                        image_h * dst_stride[2];
+            break;
+        case 1:
+            // image_format = FORMAT_YUV422P;
+            image_w      = ALIGN(image_w, 2);
+            image_h      = ALIGN(image_h, 2);
+
+            default_stride[0] = image_w;
+            src_stride[0]     = image_w + in_width_stride;
+            dst_stride[0]     = image_w + out_width_stride;
+
+            default_stride[1] = image_w / 2;
+            src_stride[1]     = image_w / 2 + in_width_stride;
+            dst_stride[1]     = image_w / 2 + out_width_stride;
+
+            default_stride[2] = image_w / 2;
+            src_stride[2]     = image_w / 2 + in_width_stride;
+            dst_stride[2]     = image_w / 2 + out_width_stride;
+
+            raw_size = image_h * image_w * 2;
+            src_size = image_h * src_stride[0] +
+                        image_h / 2 * src_stride[1] +
+                        image_h / 2 * src_stride[2];
+            dst_size = image_h * dst_stride[0] +
+                        image_h / 2 * dst_stride[1] +
+                        image_h / 2 * dst_stride[2];
             break;
         case 0:
             // image_format = FORMAT_YUV420P;

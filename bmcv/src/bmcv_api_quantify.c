@@ -18,24 +18,31 @@ static bm_status_t bmcv_quantify_check(
     int dst_h = output.height;
     int dst_w = output.width;
     if (src_format != dst_format) {
-        bmlib_log("QUANTIFY", BMLIB_LOG_ERROR, "input and output image format is NOT same");
+        bmlib_log("QUANTIFY", BMLIB_LOG_ERROR, "input and output image format must be same\r\n");
         return BM_ERR_PARAM;
     }
-    if (src_format == FORMAT_RGBYP_PLANAR || src_format == FORMAT_COMPRESSED) {
-        bmlib_log("Quantify", BMLIB_LOG_ERROR, "do not support image format");
+    if (src_format != FORMAT_YUV444P &&
+        src_format != FORMAT_RGB_PLANAR &&
+        src_format != FORMAT_BGR_PLANAR &&
+        src_format != FORMAT_RGB_PACKED &&
+        src_format != FORMAT_BGR_PACKED &&
+        src_format != FORMAT_RGBP_SEPARATE &&
+        src_format != FORMAT_BGRP_SEPARATE &&
+        src_format != FORMAT_GRAY) {
+        bmlib_log("QUANTIFY", BMLIB_LOG_ERROR, "Not supported image format\r\n");
         return BM_NOT_SUPPORTED;
     }
     if (src_type != DATA_TYPE_EXT_FLOAT32 ||
         dst_type != DATA_TYPE_EXT_1N_BYTE) {
-        bmlib_log("QUANTIFY", BMLIB_LOG_ERROR, "Not supported image data type");
+        bmlib_log("QUANTIFY", BMLIB_LOG_ERROR, "Not supported image data type\r\n");
         return BM_NOT_SUPPORTED;
     }
     if (src_h != dst_h || src_w != dst_w) {
-        bmlib_log("QUANTIFY", BMLIB_LOG_ERROR, "inputs and output image size should be same");
+        bmlib_log("QUANTIFY", BMLIB_LOG_ERROR, "inputs and output image size must be same\r\n");
         return BM_ERR_PARAM;
     }
-    if (src_h > 4096 || src_w > 4096) {
-        bmlib_log("QUANTIFY", BMLIB_LOG_ERROR, "Unsupported size : size_max = 4096 x 4096 \n");
+    if (src_h > 8192 || src_w > 8192) {
+        bmlib_log("QUANTIFY", BMLIB_LOG_ERROR, "Unsupported size : size_max = 8192 x 8192\r\n");
         return BM_ERR_PARAM;
     }
     return BM_SUCCESS;
@@ -54,25 +61,23 @@ bm_status_t bmcv_image_quantify(
     int if_core1 = 0;
     const char* tpu_env = getenv("TPU_CORES");
     if (tpu_env == NULL) {
-        printf("Using the default TPU core configuration: core0\n");
+        bmlib_log("QUANTIFY", BMLIB_LOG_DEBUG, "Use TPU core0\n");
     } else {
         if (strcmp(tpu_env, "0") == 0) {
-            printf("Use TPU core0\n");
+            bmlib_log("QUANTIFY", BMLIB_LOG_DEBUG, "Use TPU core0\n");
         } else if (strcmp(tpu_env, "1") == 0) {
-            printf("Use TPU core1\n");
+            bmlib_log("QUANTIFY", BMLIB_LOG_DEBUG, "Use TPU core1\n");
             if_core0 = 0;
             if_core1 = 1;
         } else if (strcmp(tpu_env, "2") == 0 || strcmp(tpu_env, "both") == 0) {
-            printf("Use all TPU cores (0 and 1))\n");
+            bmlib_log("QUANTIFY", BMLIB_LOG_DEBUG, "Use all TPU cores (0 and 1)\n");
             if_core1 = 1;
         } else {
-            fprintf(stderr, "Invalid TPU_CORES value: %s\n", tpu_env);
-            fprintf(stderr, "Available options: 0, 1, 2/both\n");
+            bmlib_log("QUANTIFY", BMLIB_LOG_ERROR, "Invalid TPU_CORES value: %s\n", tpu_env);
+            bmlib_log("QUANTIFY", BMLIB_LOG_ERROR, "Available options: 0, 1, 2/both\n");
             exit(EXIT_FAILURE);
         }
     }
-
-
     ret = bmcv_quantify_check(handle, input, output);
     if (BM_SUCCESS != ret) {
         return ret;
@@ -117,9 +122,11 @@ bm_status_t bmcv_image_quantify(
             api_dual_core.input_str[i] = input_str[i];
             api_dual_core.output_str[i] = output_str[i];
         }
-        // rgb-planar format's channel is 1
+        // planar/packed format's channel is 1
         if (input.image_format == FORMAT_RGB_PLANAR ||
-            input.image_format == FORMAT_BGR_PLANAR) {
+            input.image_format == FORMAT_BGR_PLANAR ||
+            input.image_format == FORMAT_BGR_PACKED ||
+            input.image_format == FORMAT_RGB_PACKED) {
             api_dual_core.height[0] *= 3;
         }
         for (int i = 0; i < core_nums; i++) {

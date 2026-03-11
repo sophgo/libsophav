@@ -73,6 +73,7 @@ BMCV API
    bmcv_api/bmcv_image_transpose.rst
    bmcv_api/bmcv_image_rotate_trans.rst
    bmcv_api/bmcv_image_rotate.rst
+   bmcv_api/bmcv_raw12_to_uint16.rst
    bmcv_api/bmcv_image_vpp_basic.rst
    bmcv_api/bmcv_image_vpp_convert.rst
    bmcv_api/bmcv_image_vpp_convert_padding.rst
@@ -119,3 +120,8 @@ BMCV API
    bmcv_api/bmcv_dpu_sgbm_disp.rst
    bmcv_api/bmcv_dpu_fgs_disp.rst
    bmcv_api/bmcv_dpu_online_disp.rst
+   bmcv_api/bmcv_tde_fill.rst
+   bmcv_api/bmcv_tde_convert.rst
+   bmcv_api/bmcv_tde_line.rst
+   bmcv_api/bmcv_tde_draw.rst
+   bmcv_api/bmcv_tde_warp_affine.rst

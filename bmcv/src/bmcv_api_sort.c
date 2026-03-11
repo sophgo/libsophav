@@ -17,12 +17,12 @@ static bm_status_t bmcv_sort_check(bm_handle_t handle, int data_cnt, int sort_cn
         bmlib_log("SORT", BMLIB_LOG_ERROR, "Can not get handle!\r\n");
         return BM_ERR_PARAM;
     }
-    if (data_cnt > 1000000) {
-        bmlib_log("SORT", BMLIB_LOG_ERROR, "data_cnt should be less than 1000000!\n");
+    if (data_cnt < 1 || sort_cnt < 1) {
+        bmlib_log("SORT", BMLIB_LOG_ERROR, "data_cnt and sort_cnt must be greater than 0!\n");
         return BM_ERR_PARAM;
     }
     if (sort_cnt > data_cnt) {
-        bmlib_log("SORT", BMLIB_LOG_ERROR, "sort_cnt should be less than data_cnt!\n");
+        bmlib_log("SORT", BMLIB_LOG_ERROR, "sort_cnt must not be greater than data_cnt!\n");
         return BM_ERR_PARAM;
     }
     return BM_SUCCESS;
@@ -44,20 +44,20 @@ bm_status_t bmcv_sort(bm_handle_t handle, bm_device_mem_t src_index_addr, bm_dev
 
     const char* tpu_env = getenv("TPU_CORES");
     if (tpu_env == NULL) {
-        printf("Using the default TPU core configuration: core0\n");
+        bmlib_log("SORT", BMLIB_LOG_DEBUG, "Use TPU core0\n");
     } else {
         if (strcmp(tpu_env, "0") == 0) {
-            printf("Use TPU core0\n");
+            bmlib_log("SORT", BMLIB_LOG_DEBUG, "Use TPU core0\n");
         } else if (strcmp(tpu_env, "1") == 0) {
-            printf("Use TPU core1\n");
+            bmlib_log("SORT", BMLIB_LOG_DEBUG, "Use TPU core1\n");
             if_core0 = 0;
             if_core1 = 1;
         } else if (strcmp(tpu_env, "2") == 0 || strcmp(tpu_env, "both") == 0) {
-            printf("Use all TPU cores (0 and 1))\n");
+            bmlib_log("SORT", BMLIB_LOG_DEBUG, "Use all TPU cores (0 and 1)\n");
             if_core1 = 1;
         } else {
-            fprintf(stderr, "Invalid TPU_CORES value: %s\n", tpu_env);
-            fprintf(stderr, "Available options: 0, 1, 2/both\n");
+            bmlib_log("SORT", BMLIB_LOG_ERROR, "Invalid TPU_CORES value: %s\n", tpu_env);
+            bmlib_log("SORT", BMLIB_LOG_ERROR, "Available options: 0, 1, 2/both\n");
             exit(EXIT_FAILURE);
         }
     }

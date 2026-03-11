@@ -40,7 +40,7 @@ function(get_version_from_tag ver_var commit_hash_var commit_count_var branch_va
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
             OUTPUT_STRIP_TRAILING_WHITESPACE)
         execute_process(
-            COMMAND ${GIT_EXECUTABLE} rev-parse --abbrev-ref HEAD OUTPUT_VARIABLE branch
+            COMMAND ${GIT_EXECUTABLE} name-rev --name-only HEAD OUTPUT_VARIABLE branch
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
             OUTPUT_STRIP_TRAILING_WHITESPACE)
         execute_process(

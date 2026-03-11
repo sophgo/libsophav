@@ -43,11 +43,22 @@ bmcv_image_quantify
 +-----+------------------------+------------------------+
 | num | input image_format     | output image_format    |
 +=====+========================+========================+
-| 1   | FORMAT_RGB_PLANAR      | FORMAT_RGB_PLANAR      |
+| 1   | FORMAT_YUV444P         | FORMAT_YUV444P         |
 +-----+------------------------+------------------------+
-| 2   | FORMAT_BGR_PLANAR      | FORMAT_BGR_PLANAR      |
+| 2   | FORMAT_RGB_PLANAR      | FORMAT_RGB_PLANAR      |
 +-----+------------------------+------------------------+
-
+| 3   | FORMAT_BGR_PLANAR      | FORMAT_BGR_PLANAR      |
++-----+------------------------+------------------------+
+| 4   | FORMAT_RGB_PACKED      | FORMAT_RGB_PACKED      |
++-----+------------------------+------------------------+
+| 5   | FORMAT_BGR_PACKED      | FORMAT_BGR_PACKED      |
++-----+------------------------+------------------------+
+| 6   | FORMAT_RGBP_SEPARATE   | FORMAT_RGBP_SEPARATE   |
++-----+------------------------+------------------------+
+| 7   | FORMAT_BGRP_SEPARATE   | FORMAT_BGRP_SEPARATE   |
++-----+------------------------+------------------------+
+| 8   | FORMAT_GRAY            | FORMAT_GRAY            |
++-----+------------------------+------------------------+
 
 输入数据目前支持以下 data_type:
 
@@ -72,7 +83,7 @@ bmcv_image_quantify
 
 2. 如调用该接口的程序为多线程程序，需要在创建bm_image前和销毁bm_image后加线程锁。
 
-3. 该接口支持图像宽高范围为1x1～4096x4096。
+3. 该接口支持图像宽高范围为1x1～8192x8192。
 
 4. 该接口可通过设置环境变量启用双核计算，运行程序前：export TPU_CORES=2或export TPU_CORES=both即可。
 

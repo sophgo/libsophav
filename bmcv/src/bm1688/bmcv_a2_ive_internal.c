@@ -1397,7 +1397,7 @@ bm_status_t bm_ive_hist(
         return BM_ERR_FAILURE;
     }
 
-    // instant: true is interrupt mode, false is polling mode
+    // instant: true is polling mode, false is interrupt mode
     ret = BM_IVE_Hist(ive_handle, &src, &dst, true);
     if(ret != BM_SUCCESS){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
@@ -1487,7 +1487,7 @@ bm_status_t bm_ive_integ(
         return BM_ERR_FAILURE;
     }
 
-    // instant: true is interrupt mode, false is polling mode
+    // instant: true is polling mode, false is interrupt mode
     ret = BM_IVE_Integ(ive_handle, &src, &dst, &pstIntegCtrl, true);
     if(ret != BM_SUCCESS){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
@@ -1585,7 +1585,7 @@ bm_status_t bm_ive_ncc(
         return BM_ERR_FAILURE;
     }
 
-    // instant: true is interrupt mode, false is polling mode
+    // instant: true is polling mode, false is interrupt mode
     ret = BM_IVE_NCC(ive_handle, &src1, &src2, &dst, true);
     if(ret != BM_SUCCESS){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
@@ -1671,7 +1671,7 @@ bm_status_t bm_ive_ord_stat_filter(
         return BM_ERR_FAILURE;
     }
 
-    // instant: true is interrupt mode, false is polling mode
+    // instant: true is polling mode, false is interrupt mode
     ret = BM_IVE_OrdStatFilter(ive_handle, &src, &dst, &pctrl, true);
     if(ret != BM_SUCCESS){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
@@ -1753,7 +1753,7 @@ bm_status_t bm_ive_lbp(
         return BM_ERR_FAILURE;
     }
 
-    // instant: true is interrupt mode, false is polling mode
+    // instant: true is polling mode, false is interrupt mode
     ret = BM_IVE_LBP(ive_handle, &src, &dst, &pstlbpCtrl, true);
     if(ret != BM_SUCCESS){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
@@ -1920,7 +1920,7 @@ bm_status_t bm_ive_erode(
         return BM_ERR_FAILURE;
     }
 
-    // instant: true is interrupt mode, false is polling mode
+    // instant: true is polling mode, false is interrupt mode
     ret = BM_IVE_Erode(ive_handle, &src, &dst, &pstErodeCtrl, true);
     if(ret != BM_SUCCESS){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
@@ -2019,7 +2019,7 @@ bm_status_t bm_ive_mag_and_ang(
         return BM_ERR_FAILURE;
     }
 
-    // instant: true is interrupt mode, false is polling mode
+    // instant: true is polling mode, false is interrupt mode
     ret = BM_IVE_MagAndAng(ive_handle, &src, &dstMag, &dstAng, &magAndAng_outCtrl, true);
     if(ret != BM_SUCCESS){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
@@ -2121,7 +2121,7 @@ bm_status_t bm_ive_sobel(
         return BM_ERR_FAILURE;
     }
 
-    // instant: true is interrupt mode, false is polling mode
+    // instant: true is polling mode, false is interrupt mode
     ret = BM_IVE_Sobel(ive_handle, &src, &dstH, &dstV, &sobelCtrl, true);
     if(ret != BM_SUCCESS){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
@@ -2242,7 +2242,7 @@ bm_status_t bm_ive_normgrad(
         return BM_ERR_FAILURE;
     }
 
-    // instant: true is interrupt mode, false is polling mode
+    // instant: true is polling mode, false is interrupt mode
     ret = BM_IVE_NormGrad(ive_handle, &src, &dstH, &dstV, &dstHV, &normGradCtrl, true);
     if(ret != BM_SUCCESS){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
@@ -2354,7 +2354,7 @@ bm_status_t bm_ive_gmm(
         return BM_ERR_FAILURE;
     }
 
-    // instant: true is interrupt mode, false is polling mode
+    // instant: true is polling mode, false is interrupt mode
     ret = BM_IVE_GMM(ive_handle, &src, &dstFg, &dstBg, &dstModel, &gmmCtrl, true);
     if(ret != BM_SUCCESS){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
@@ -2494,7 +2494,7 @@ bm_status_t bm_ive_gmm2(
         return BM_ERR_FAILURE;
     }
 
-    // instant: true is interrupt mode, false is polling mode
+    // instant: true is polling mode, false is interrupt mode
     ret = BM_IVE_GMM2(ive_handle, &src, &srcFactor, &dstFg, &dstBg,
                            &dstMatchModelInfo, &dstModel, &gmm2Ctrl, true);
     if(ret != BM_SUCCESS){
@@ -2598,7 +2598,7 @@ bm_status_t bm_ive_canny_hsy_edge(
         return BM_ERR_FAILURE;
     }
 
-    // instant: true is interrupt mode, false is polling mode
+    // instant: true is polling mode, false is interrupt mode
     ret = BM_IVE_CanngHysEdge(ive_handle, &src, &dstEdge, &dstStack, &cannyHysEdgeCtrl, true);
     if(ret != BM_SUCCESS){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
@@ -2682,7 +2682,7 @@ bm_status_t bm_ive_filter(
         return BM_ERR_FAILURE;
     }
 
-    // instant: true is interrupt mode, false is polling mode
+    // instant: true is polling mode, false is interrupt mode
     ret = BM_IVE_Filter(ive_handle, &src, &dst, &filterAttr, true);
     if(ret != BM_SUCCESS){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
@@ -2852,7 +2852,7 @@ bm_status_t bm_ive_csc(
         return BM_ERR_FAILURE;
     }
 
-    // instant: true is interrupt mode, false is polling mode
+    // instant: true is polling mode, false is interrupt mode
     ret = BM_IVE_CSC(ive_handle, &src, &dst, &cscCtrl, true);
     if(ret != BM_SUCCESS){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
@@ -2947,7 +2947,7 @@ bm_status_t bm_ive_resize(
         return BM_ERR_FAILURE;
     }
 
-    // instant: true is interrupt mode, false is polling mode
+    // instant: true is polling mode, false is interrupt mode
     ret = BM_IVE_Resize(ive_handle, &src, &dst, &ctrl, true);
     if(ret != BM_SUCCESS){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
@@ -3041,7 +3041,7 @@ bm_status_t bm_ive_stCandiCorner(
         return BM_ERR_FAILURE;
     }
 
-    // instant: true is interrupt mode, false is polling mode
+    // instant: true is polling mode, false is interrupt mode
     ret = BM_IVE_STCandiCorner(ive_handle, &src, &dst, &stCandiCornerAttr, true);
     if(ret != BM_SUCCESS){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
@@ -3152,7 +3152,7 @@ bm_status_t bm_ive_gradFg(
         return BM_ERR_FAILURE;
     }
 
-    // instant: true is interrupt mode, false is polling mode
+    // instant: true is polling mode, false is interrupt mode
     ret = BM_IVE_GradFg(ive_handle, &srcBgDiffFg, &srcCurGrad, &srcBgGrad, &dstGradFg, &gradFgAttr, true);
     if(ret != BM_SUCCESS){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
@@ -3300,7 +3300,7 @@ bm_status_t bm_ive_sad(
         return BM_ERR_FAILURE;
     }
 
-    // instant: true is interrupt mode, false is polling mode
+    // instant: true is polling mode, false is interrupt mode
     ret = BM_IVE_SAD(ive_handle, &src1, &src2, &dst_sad, &dst_thr, &sadAttr, true);
     if(ret != BM_SUCCESS){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,

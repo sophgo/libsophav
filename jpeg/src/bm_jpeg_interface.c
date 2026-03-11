@@ -33,9 +33,6 @@
 #define MAX_NUM_DEV 64
 #define JPEG_CHN_START 64
 #define VDEC_MAX_CHN_NUM_INF    64
-#define JPEG_GIT_COMMIT_HASH "a6efb9688d"
-#define JPEG_GIT_BRANCH "HEAD"
-#define JPEG_SDK_VERSION "2.1.0"
 
 __attribute__((visibility("default")))
 static const char _jpeg_commit_info[] = "SDK version: " JPEG_SDK_VERSION "  commit hash: " JPEG_GIT_COMMIT_HASH "   branch: " JPEG_GIT_BRANCH;
@@ -144,16 +141,15 @@ void bm_jpu_devm_unmap(void *virt_addr, size_t len) {
 }
 
 
-typedef struct _BM_JPEG_CTX {
-    int is_used;    /* 0 is free, 1 is using */
-    int chn_fd;
-    int chn_id;
-} BM_JPEG_CTX;
+// typedef struct _BM_JPEG_CTX {
+//     int is_used;    /* 0 is free, 1 is using */
+//     int chn_fd;
+//     int chn_id;
+// } BM_JPEG_CTX;
 
 /* decode */
 #define VC_DRV_DECODER_DEV_NAME "soph_vc_dec"
 static pthread_mutex_t g_jpeg_dec_lock = PTHREAD_MUTEX_INITIALIZER;
-static BM_JPEG_CTX g_jpeg_dec_chn[VDEC_MAX_CHN_NUM_INF] = { 0 };
 static BMLIB_HANDLE g_jpeg_dec_bm_handle[MAX_NUM_DEV] = { 0 };
 
 /* framebuffer list api */
@@ -264,6 +260,7 @@ void empty_fb_list(FramebufferList *node)
 
 void bm_jpu_dec_set_interrupt_timeout(BmJpuDecoder *decoder, int timeout)
 {
+    int timeout_env = 0;
     if (decoder == NULL) {
         BM_JPU_ERROR("bm_jpu_dec_set_interrupt_timeout params: decoder(0X%lx)", decoder);
         return;
@@ -283,18 +280,25 @@ void bm_jpu_dec_set_interrupt_timeout(BmJpuDecoder *decoder, int timeout)
             decoder->timeout = timeout;
         }
     }
+
+    if(getenv("JPEG_TIMEOUT_MS")!=NULL)
+    {
+        timeout_env = atoi(getenv("JPEG_TIMEOUT_MS"));
+        if(timeout_env > 0)
+            decoder->timeout = timeout_env;
+    }
 }
 
-int bm_jpu_dec_get_channel_fd(int chn_id)
-{
-    int chn_fd = -1;
-
-    pthread_mutex_lock(&g_jpeg_dec_lock);
-    chn_fd = g_jpeg_dec_chn[chn_id].chn_fd;
-    pthread_mutex_unlock(&g_jpeg_dec_lock);
-
-    return chn_fd;
-}
+// int bm_jpu_dec_get_channel_fd(int chn_id)
+// {
+//     int chn_fd = -1;
+//
+//     pthread_mutex_lock(&g_jpeg_dec_lock);
+//     chn_fd = g_jpeg_dec_chn[chn_id].chn_fd;
+//     pthread_mutex_unlock(&g_jpeg_dec_lock);
+//
+//     return chn_fd;
+// }
 
 bm_handle_t bm_jpu_dec_get_bm_handle(int device_index)
 {
@@ -415,26 +419,27 @@ BmJpuDecReturnCodes bm_jpu_jpeg_dec_open(BmJpuJPEGDecoder **jpeg_decoder,
     }
 
     chn_id -= JPEG_CHN_START;
-    if (chn_id < 0 || chn_id >= VDEC_MAX_CHN_NUM_INF) {
+    if (chn_id < 0 || chn_id >= JPEG_MAX_CHN_NUM*(open_params->device_index+1)) {
         close(chn_fd);
         pthread_mutex_unlock(&g_jpeg_dec_lock);
         BM_JPU_ERROR("invalid chn id %d", chn_id);
         return BM_JPU_DEC_RETURN_CODE_ERROR;
     }
 
-    if (g_jpeg_dec_chn[chn_id].is_used) {
-        close(chn_fd);
-        BM_JPU_ERROR("decoder channel id conflict, request: %d, using: %d", chn_id, g_jpeg_dec_chn[chn_id].chn_id);
-        pthread_mutex_unlock(&g_jpeg_dec_lock);
-        return BM_JPU_DEC_RETURN_CODE_ERROR;
-    }
+    // if (g_jpeg_dec_chn[chn_id].is_used) {
+    //     close(chn_fd);
+    //     BM_JPU_ERROR("decoder channel id conflict, request: %d, using: %d", chn_id, g_jpeg_dec_chn[chn_id].chn_id);
+    //     pthread_mutex_unlock(&g_jpeg_dec_lock);
+    //     return BM_JPU_DEC_RETURN_CODE_ERROR;
+    // }
 
-    g_jpeg_dec_chn[chn_id].is_used = 1;
-    g_jpeg_dec_chn[chn_id].chn_id = chn_id;
-    g_jpeg_dec_chn[chn_id].chn_fd = chn_fd;
+    // g_jpeg_dec_chn[chn_id].is_used = 1;
     pthread_mutex_unlock(&g_jpeg_dec_lock);
 
     memset(&stAttr, 0, sizeof(vdec_chn_attr_s));
+#ifdef BM_PCIE_MODE
+    stAttr.u8SocIdx = open_params->device_index;
+#endif
     stAttr.enType = PT_JPEG;
     stAttr.u32StreamBufSize = ALIGN(open_params->bs_buffer_size, 0x4000);  // align to 16K
     stAttr.u32FrameBufCnt = 1;
@@ -527,7 +532,7 @@ BmJpuDecReturnCodes bm_jpu_jpeg_dec_open(BmJpuJPEGDecoder **jpeg_decoder,
 
     *jpeg_decoder = (BmJpuJPEGDecoder *)malloc(sizeof(BmJpuJPEGDecoder));
     (*jpeg_decoder)->device_index = open_params->device_index;  // soc_idx
-    (*jpeg_decoder)->decoder = (BmJpuDecoder *)malloc(sizeof(BmJpuDecoder));
+    (*jpeg_decoder)->decoder = (BmJpuDecoder *)calloc(1, sizeof(BmJpuDecoder));
     (*jpeg_decoder)->decoder->device_index = open_params->device_index;
     (*jpeg_decoder)->decoder->channel_id = chn_id;
     bm_jpu_dec_set_interrupt_timeout((*jpeg_decoder)->decoder, open_params->timeout);
@@ -535,6 +540,8 @@ BmJpuDecReturnCodes bm_jpu_jpeg_dec_open(BmJpuJPEGDecoder **jpeg_decoder,
     FramebufferList *head = create_fb_node(chn_id, chn_fd, NULL);  // head's framebuffer is NULL, only used to record position
     (*jpeg_decoder)->decoder->fb_list_head = head;
     (*jpeg_decoder)->decoder->fb_list_curr = head;
+    (*jpeg_decoder)->decoder->channel_id = chn_id;
+    (*jpeg_decoder)->decoder->channel_fd = chn_fd;
 
     return BM_JPU_DEC_RETURN_CODE_OK;
 
@@ -558,7 +565,6 @@ ERR_DEC_OPEN_1:
 BmJpuDecReturnCodes bm_jpu_jpeg_dec_close(BmJpuJPEGDecoder *jpeg_decoder)
 {
     BmJpuDecReturnCodes ret = BM_JPU_DEC_RETURN_CODE_OK;
-    int chn_id = 0;
     int chn_fd = -1;
 
     if (jpeg_decoder == NULL) {
@@ -569,20 +575,9 @@ BmJpuDecReturnCodes bm_jpu_jpeg_dec_close(BmJpuJPEGDecoder *jpeg_decoder)
     empty_fb_list(jpeg_decoder->decoder->fb_list_head->next);
     release_fb_node(jpeg_decoder->decoder->fb_list_head);
 
-    chn_id = jpeg_decoder->decoder->channel_id;
-    if (chn_id < 0 || chn_id >= VDEC_MAX_CHN_NUM_INF) {
-        BM_JPU_ERROR("invalid channel id: %d", chn_id);
-        return BM_JPU_DEC_RETURN_CODE_ERROR;
-    }
-
     pthread_mutex_lock(&g_jpeg_dec_lock);
-    if (!g_jpeg_dec_chn[chn_id].is_used) {
-        pthread_mutex_unlock(&g_jpeg_dec_lock);
-        BM_JPU_ERROR("channel %d is not using", chn_id);
-        return BM_JPU_DEC_RETURN_CODE_ERROR;
-    }
 
-    chn_fd = g_jpeg_dec_chn[chn_id].chn_fd;
+    chn_fd = jpeg_decoder->decoder->channel_fd;
     if (chn_fd > 0) {
         ret = bmjpeg_dec_ioctl_stop_recv_stream(chn_fd);
         if (ret != BM_JPU_DEC_RETURN_CODE_OK) {
@@ -598,8 +593,7 @@ BmJpuDecReturnCodes bm_jpu_jpeg_dec_close(BmJpuJPEGDecoder *jpeg_decoder)
             return ret;
         }
         close(chn_fd);
-        g_jpeg_dec_chn[chn_id].chn_fd = -1;
-        g_jpeg_dec_chn[chn_id].is_used = 0;
+        jpeg_decoder->decoder->channel_fd = -1;
     }
     pthread_mutex_unlock(&g_jpeg_dec_lock);
 
@@ -625,16 +619,16 @@ BmJpuDecReturnCodes bm_jpu_jpeg_dec_decode(BmJpuJPEGDecoder *jpeg_decoder, uint8
     bm_jpu_dec_set_interrupt_timeout(jpeg_decoder->decoder, timeout);
 
     chn_id = jpeg_decoder->decoder->channel_id;
-    if (chn_id < 0 || chn_id >= VDEC_MAX_CHN_NUM_INF) {
+    if (chn_id < 0 || chn_id >= JPEG_MAX_CHN_NUM*(jpeg_decoder->device_index + 1)) {
         BM_JPU_ERROR("invalid channel id: %d", chn_id);
         return BM_JPU_DEC_RETURN_CODE_ERROR;
     }
 
-    if (!g_jpeg_dec_chn[chn_id].is_used) {
-        BM_JPU_ERROR("channel %d is not using", chn_id);
-        return BM_JPU_DEC_RETURN_CODE_ERROR;
-    }
-    chn_fd = g_jpeg_dec_chn[chn_id].chn_fd;
+    // if (!g_jpeg_dec_chn[chn_id].is_used) {
+    //     BM_JPU_ERROR("channel %d is not using", chn_id);
+    //     return BM_JPU_DEC_RETURN_CODE_ERROR;
+    // }
+    chn_fd = jpeg_decoder->decoder->channel_fd;
 
     // set vdec stream
     stStream.u64PTS = 0;
@@ -674,18 +668,18 @@ BmJpuDecReturnCodes bm_jpu_jpeg_dec_get_info(BmJpuJPEGDecoder *jpeg_decoder, BmJ
     }
 
     chn_id = jpeg_decoder->decoder->channel_id;
-    if (chn_id < 0 || chn_id >= VDEC_MAX_CHN_NUM_INF) {
+    if (chn_id < 0 || chn_id >= JPEG_MAX_CHN_NUM*(jpeg_decoder->device_index + 1)) {
         BM_JPU_ERROR("invalid channel id: %d", chn_id);
         return BM_JPU_DEC_RETURN_CODE_INVALID_PARAMS;
     }
 
     pthread_mutex_lock(&g_jpeg_dec_lock);
-    if (!g_jpeg_dec_chn[chn_id].is_used) {
-        pthread_mutex_unlock(&g_jpeg_dec_lock);
-        BM_JPU_ERROR("channel %d is not using", chn_id);
-        return BM_JPU_DEC_RETURN_CODE_INVALID_PARAMS;
-    }
-    chn_fd = g_jpeg_dec_chn[chn_id].chn_fd;
+    // if (!g_jpeg_dec_chn[chn_id].is_used) {
+    //     pthread_mutex_unlock(&g_jpeg_dec_lock);
+    //     BM_JPU_ERROR("channel %d is not using", chn_id);
+    //     return BM_JPU_DEC_RETURN_CODE_INVALID_PARAMS;
+    // }
+    chn_fd = jpeg_decoder->decoder->channel_fd;
     pthread_mutex_unlock(&g_jpeg_dec_lock);
 
     stFrameInfoEx.pstFrame = &stFrameInfo;
@@ -806,17 +800,17 @@ BmJpuDecReturnCodes bm_jpu_jpeg_dec_frame_finished(BmJpuJPEGDecoder *jpeg_decode
     FramebufferList *list_curr = NULL;
 
     chn_id = jpeg_decoder->decoder->channel_id;
-    if (chn_id < 0 || chn_id >= VDEC_MAX_CHN_NUM_INF) {
+    if (chn_id < 0 || chn_id >= JPEG_MAX_CHN_NUM*(jpeg_decoder->device_index + 1)) {
         BM_JPU_ERROR("invalid channel id: %d", chn_id);
         return BM_JPU_DEC_RETURN_CODE_ERROR;
     }
 
     pthread_mutex_lock(&g_jpeg_dec_lock);
-    if (!g_jpeg_dec_chn[chn_id].is_used) {
-        pthread_mutex_unlock(&g_jpeg_dec_lock);
-        BM_JPU_ERROR("channel %d is not using", chn_id);
-        return BM_JPU_DEC_RETURN_CODE_ERROR;
-    }
+    // if (!g_jpeg_dec_chn[chn_id].is_used) {
+    //     pthread_mutex_unlock(&g_jpeg_dec_lock);
+    //     BM_JPU_ERROR("channel %d is not using", chn_id);
+    //     return BM_JPU_DEC_RETURN_CODE_ERROR;
+    // }
     pthread_mutex_unlock(&g_jpeg_dec_lock);
 
     BM_JPU_DEBUG("before del_fb_list: fb_list_head = %p, fb_list_curr = %p", jpeg_decoder->decoder->fb_list_head, jpeg_decoder->decoder->fb_list_curr);
@@ -842,20 +836,18 @@ BmJpuDecReturnCodes bm_jpu_jpeg_dec_flush(BmJpuJPEGDecoder *jpeg_decoder)
 #define BS_MASK (1024 * 16)
 #define VC_DRV_ENCODER_DEV_NAME "soph_vc_enc"
 static pthread_mutex_t g_jpeg_enc_lock = PTHREAD_MUTEX_INITIALIZER;
-static BM_JPEG_CTX g_jpeg_enc_chn[VENC_MAX_CHN_NUM] = { 0 };
 static BMLIB_HANDLE g_jpeg_enc_bm_handle[MAX_NUM_DEV] = { 0 };
-static uint8_t *g_stream_pack_array[VENC_MAX_CHN_NUM][8] = { NULL };
 
-int bm_jpu_enc_get_channel_fd(int chn_id)
-{
-    int chn_fd = -1;
-
-    pthread_mutex_lock(&g_jpeg_enc_lock);
-    chn_fd = g_jpeg_enc_chn[chn_id].chn_fd;
-    pthread_mutex_unlock(&g_jpeg_enc_lock);
-
-    return chn_fd;
-}
+// int bm_jpu_enc_get_channel_fd(int chn_id)
+// {
+//     int chn_fd = -1;
+//
+//     pthread_mutex_lock(&g_jpeg_enc_lock);
+//     chn_fd = g_jpeg_enc_chn[chn_id].chn_fd;
+//     pthread_mutex_unlock(&g_jpeg_enc_lock);
+//
+//     return chn_fd;
+// }
 
 bm_handle_t bm_jpu_enc_get_bm_handle(int device_index)
 {
@@ -973,23 +965,23 @@ BmJpuEncReturnCodes bm_jpu_jpeg_enc_open(BmJpuJPEGEncoder **jpeg_encoder,
     }
 
     chn_id -= JPEG_CHN_START;
-    if (chn_id < 0 || chn_id >= VENC_MAX_CHN_NUM) {
+    if (chn_id < 0 || chn_id >= JPEG_MAX_CHN_NUM*(device_index+1)) {
         close(chn_fd);
         pthread_mutex_unlock(&g_jpeg_enc_lock);
         BM_JPU_ERROR("invalid chn id %d", chn_id);
         return BM_JPU_ENC_RETURN_CODE_ERROR;
     }
 
-    if (g_jpeg_enc_chn[chn_id].is_used) {
-        close(chn_fd);
-        BM_JPU_ERROR("encoder channel id conflict, request: %d, using: %d", chn_id, g_jpeg_enc_chn[chn_id].chn_id);
-        pthread_mutex_unlock(&g_jpeg_enc_lock);
-        return BM_JPU_ENC_RETURN_CODE_ERROR;
-    }
+    // if (g_jpeg_enc_chn[chn_id].is_used) {
+    //     close(chn_fd);
+    //     BM_JPU_ERROR("encoder channel id conflict, request: %d, using: %d", chn_id, g_jpeg_enc_chn[chn_id].chn_id);
+    //     pthread_mutex_unlock(&g_jpeg_enc_lock);
+    //     return BM_JPU_ENC_RETURN_CODE_ERROR;
+    // }
 
-    g_jpeg_enc_chn[chn_id].is_used = 1;
-    g_jpeg_enc_chn[chn_id].chn_id = chn_id;
-    g_jpeg_enc_chn[chn_id].chn_fd = chn_fd;
+    // g_jpeg_enc_chn[chn_id].is_used = 1;
+    // g_jpeg_enc_chn[chn_id].chn_id = chn_id;
+    // g_jpeg_enc_chn[chn_id].chn_fd = chn_fd;
     pthread_mutex_unlock(&g_jpeg_enc_lock);
 
     if (bs_buffer_size <= 0) {
@@ -1008,6 +1000,7 @@ BmJpuEncReturnCodes bm_jpu_jpeg_enc_open(BmJpuJPEGEncoder **jpeg_encoder,
     (*jpeg_encoder)->encoder = (BmJpuEncoder *)malloc(sizeof(BmJpuEncoder));
     (*jpeg_encoder)->encoder->device_index = device_index;
     (*jpeg_encoder)->encoder->channel_id = chn_id;
+    (*jpeg_encoder)->encoder->channel_fd = chn_fd;
 
     return ret;
 }
@@ -1015,7 +1008,6 @@ BmJpuEncReturnCodes bm_jpu_jpeg_enc_open(BmJpuJPEGEncoder **jpeg_encoder,
 BmJpuEncReturnCodes bm_jpu_jpeg_enc_close(BmJpuJPEGEncoder *jpeg_encoder)
 {
     int ret = BM_JPU_ENC_RETURN_CODE_OK;
-    int chn_id = 0;
     int chn_fd = -1;
 
     if (jpeg_encoder == NULL) {
@@ -1023,24 +1015,12 @@ BmJpuEncReturnCodes bm_jpu_jpeg_enc_close(BmJpuJPEGEncoder *jpeg_encoder)
         return BM_JPU_ENC_RETURN_CODE_INVALID_PARAMS;
     }
 
-    chn_id = jpeg_encoder->encoder->channel_id;
-    if (chn_id < 0 || chn_id >= VENC_MAX_CHN_NUM) {
-        BM_JPU_ERROR("invalid channel id: %d", chn_id);
-        return BM_JPU_ENC_RETURN_CODE_ERROR;
-    }
-
     pthread_mutex_lock(&g_jpeg_enc_lock);
-    if (!g_jpeg_enc_chn[chn_id].is_used) {
-        pthread_mutex_unlock(&g_jpeg_enc_lock);
-        BM_JPU_ERROR("channel %d is not using", chn_id);
-        return BM_JPU_ENC_RETURN_CODE_ERROR;
-    }
 
-    chn_fd = g_jpeg_enc_chn[chn_id].chn_fd;
+    chn_fd = jpeg_encoder->encoder->channel_fd;
     if (chn_fd > 0) {
         close(chn_fd);
-        g_jpeg_enc_chn[chn_id].chn_fd = -1;
-        g_jpeg_enc_chn[chn_id].is_used = 0;
+        jpeg_encoder->encoder->channel_fd = -1;
     }
     pthread_mutex_unlock(&g_jpeg_enc_lock);
 
@@ -1086,15 +1066,15 @@ BmJpuEncReturnCodes bm_jpu_jpeg_enc_encode(BmJpuJPEGEncoder *jpeg_encoder,
     }
 
     chn_id = jpeg_encoder->encoder->channel_id;
-    if (chn_id < 0 || chn_id >= VENC_MAX_CHN_NUM) {
+    if (chn_id < 0 || chn_id >= JPEG_MAX_CHN_NUM*(jpeg_encoder->device_index+1)) {
         BM_JPU_ERROR("invalid channel id: %d", chn_id);
         return BM_JPU_ENC_RETURN_CODE_ERROR;
     }
 
-    if (!g_jpeg_enc_chn[chn_id].is_used) {
-        BM_JPU_ERROR("channel %d is not using", chn_id);
-        return BM_JPU_ENC_RETURN_CODE_ERROR;
-    }
+    // if (!g_jpeg_enc_chn[chn_id].is_used) {
+    //     BM_JPU_ERROR("channel %d is not using", chn_id);
+    //     return BM_JPU_ENC_RETURN_CODE_ERROR;
+    // }
 
     if(params->bs_buffer_phys_addr)
         external_bs_addr = params->bs_buffer_phys_addr;
@@ -1107,10 +1087,7 @@ BmJpuEncReturnCodes bm_jpu_jpeg_enc_encode(BmJpuJPEGEncoder *jpeg_encoder,
         external_bs_size = jpeg_encoder->bitstream_buffer_size;
 
     bm_handle = bm_jpu_enc_get_bm_handle(jpeg_encoder->device_index);
-#ifndef BM_PCIE_MODE
-    bm_mem_flush_device_mem(bm_handle, framebuffer->dma_buffer);
-#endif
-    unsigned long long base_addr = bm_mem_get_device_addr(*framebuffer->dma_buffer);
+
     memset(&stAttr, 0, sizeof(venc_chn_attr_s));
     memset(&stFrame, 0, sizeof(video_frame_info_s));
     memset(&stStream, 0, sizeof(venc_stream_s));
@@ -1119,9 +1096,24 @@ BmJpuEncReturnCodes bm_jpu_jpeg_enc_encode(BmJpuJPEGEncoder *jpeg_encoder,
     stFrame.video_frame.stride[1] = framebuffer->cbcr_stride;
     stFrame.video_frame.stride[2] = framebuffer->cbcr_stride;
 
-    stFrame.video_frame.phyaddr[0] = base_addr + framebuffer->y_offset;
-    stFrame.video_frame.phyaddr[1] = base_addr + framebuffer->cb_offset;
-    stFrame.video_frame.phyaddr[2] = base_addr + framebuffer->cr_offset;
+    if(framebuffer->dma_buffer != NULL) {
+#ifndef BM_PCIE_MODE
+        bm_mem_flush_device_mem(bm_handle, framebuffer->dma_buffer);
+#endif
+        unsigned long long base_addr = bm_mem_get_device_addr(*framebuffer->dma_buffer);
+
+        stFrame.video_frame.phyaddr[0] = base_addr + framebuffer->y_offset;
+        stFrame.video_frame.phyaddr[1] = base_addr + framebuffer->cb_offset;
+        stFrame.video_frame.phyaddr[2] = base_addr + framebuffer->cr_offset;
+    } else {
+        if(framebuffer->dma_buffer_y == NULL || framebuffer->dma_buffer_u == NULL || framebuffer->dma_buffer_v == NULL) {
+            BM_JPU_ERROR("bm_jpu_enc_encode params error, framebuffer dma_buffer_y || dma_buffer_u || dma_buffer_v is NULL\n");
+            return BM_JPU_ENC_RETURN_CODE_INVALID_PARAMS;
+        }
+        stFrame.video_frame.phyaddr[0] = bm_mem_get_device_addr(*framebuffer->dma_buffer_y);
+        stFrame.video_frame.phyaddr[1] = bm_mem_get_device_addr(*framebuffer->dma_buffer_u);
+        stFrame.video_frame.phyaddr[2] = bm_mem_get_device_addr(*framebuffer->dma_buffer_v);
+    }
 
     switch (params->image_format) {
         case BM_JPU_IMAGE_FORMAT_YUV420P:
@@ -1180,18 +1172,21 @@ BmJpuEncReturnCodes bm_jpu_jpeg_enc_encode(BmJpuJPEGEncoder *jpeg_encoder,
     BM_JPU_DEBUG("stFrame.video_frame.phyaddr[1] = %#lx", stFrame.video_frame.phyaddr[1]);
     BM_JPU_DEBUG("stFrame.video_frame.phyaddr[2] = %#lx", stFrame.video_frame.phyaddr[2]);
 
-    stAttr.stVencAttr.enType = PT_JPEG;
-    stAttr.stVencAttr.u32MaxPicWidth = params->frame_width;
+#ifdef BM_PCIE_MODE
+    stAttr.stVencAttr.u8SocIdx        = jpeg_encoder->device_index;
+#endif
+    stAttr.stVencAttr.enType          = PT_JPEG;
+    stAttr.stVencAttr.u32MaxPicWidth  = params->frame_width;
     stAttr.stVencAttr.u32MaxPicHeight = params->frame_height;
-    stAttr.stVencAttr.u32PicWidth = params->frame_width;
-    stAttr.stVencAttr.u32PicHeight = params->frame_height;
+    stAttr.stVencAttr.u32PicWidth     = params->frame_width;
+    stAttr.stVencAttr.u32PicHeight    = params->frame_height;
     stAttr.stVencAttr.u64ExternalBufAddr = external_bs_addr;
-    stAttr.stVencAttr.u32BufSize = external_bs_size;
-    stAttr.stVencAttr.bEsBufQueueEn = 1; // CVI_H26X_ES_BUFFER_QUEUE_DEFAULT
-    stAttr.stVencAttr.bIsoSendFrmEn = 1; // CVI_H26X_ISO_SEND_FRAME_DEFAUL
+    stAttr.stVencAttr.u32BufSize      = external_bs_size;
+    stAttr.stVencAttr.bEsBufQueueEn   = 1; // CVI_H26X_ES_BUFFER_QUEUE_DEFAULT
+    stAttr.stVencAttr.bIsoSendFrmEn   = 1; // CVI_H26X_ISO_SEND_FRAME_DEFAUL
 
     stAttr.stVencAttr.u32Profile = 0;
-    stAttr.stVencAttr.bByFrame = 1; // get stream mode is slice mode or frame mode ?
+    stAttr.stVencAttr.bByFrame   = 1; // get stream mode is slice mode or frame mode ?
 
     pstJpegAttr = &stAttr.stVencAttr.stAttrJpege;
     pstJpegAttr->bSupportDCF = 0;
@@ -1241,7 +1236,7 @@ BmJpuEncReturnCodes bm_jpu_jpeg_enc_encode(BmJpuJPEGEncoder *jpeg_encoder,
     }
 
     pthread_mutex_lock(&g_jpeg_enc_lock);
-    chn_fd = g_jpeg_enc_chn[chn_id].chn_fd;
+    chn_fd = jpeg_encoder->encoder->channel_fd;
     pthread_mutex_unlock(&g_jpeg_enc_lock);
     ret = bmjpeg_enc_ioctl_create_chn(chn_fd, &stAttr);
     if (ret != BM_JPU_ENC_RETURN_CODE_OK) {
@@ -1292,12 +1287,12 @@ BmJpuEncReturnCodes bm_jpu_jpeg_enc_encode(BmJpuJPEGEncoder *jpeg_encoder,
     }
 
     for (i = 0; i < stStreamEx.pstStream->u32PackCount; i++) {
-        g_stream_pack_array[chn_id][i] = NULL;
+        jpeg_encoder->encoder->stream_pack_array[i] = NULL;
         pPack = &stStreamEx.pstStream->pstPack[i];
         if (pPack->u64PhyAddr && pPack->u32Len) {
             // get total output size
         #ifndef BM_PCIE_MODE
-            g_stream_pack_array[chn_id][i] = pPack->pu8Addr;
+            jpeg_encoder->encoder->stream_pack_array[i] = pPack->pu8Addr;
             BM_JPU_DEBUG("origin pu8Addr: %p", pPack->pu8Addr);
             bm_mem = bm_mem_from_device(pPack->u64PhyAddr, pPack->u32Len);
             bm_ret = bm_mem_mmap_device_mem(bm_handle, &bm_mem, &vaddr);
@@ -1386,7 +1381,7 @@ ERR_ENC_ENCODE_3:
             #else
                 free(pPack->pu8Addr);
             #endif
-                pPack->pu8Addr = g_stream_pack_array[chn_id][i];
+                pPack->pu8Addr = jpeg_encoder->encoder->stream_pack_array[i];
             }
         }
 

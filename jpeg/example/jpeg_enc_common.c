@@ -61,6 +61,36 @@ void finish_output_buffer(void *context, void *acquired_handle)
         free(acquired_handle);
 }
 
+static int read_and_copy_to_device(bm_handle_t bm_handle, bm_device_mem_t *dev_mem, size_t size, FILE *fp_in, int is_pcie_mode)
+{
+    int ret = 0;
+    uint8_t *virt_addr = NULL;
+#ifndef BM_PCIE_MODE
+    unsigned long long vaddr = 0;
+    ret = bm_mem_mmap_device_mem(bm_handle, dev_mem, &vaddr);
+    if (ret != BM_SUCCESS) {
+        fprintf(stderr, "bm_mem_mmap_device_mem failed, device_addr: %#lx, size: %zu\n",
+                dev_mem->u.device.device_addr, dev_mem->size);
+        return ret;
+    }
+    virt_addr = (uint8_t *)vaddr;
+    memset(virt_addr, 0, size);
+    fread(virt_addr, sizeof(uint8_t), size, fp_in);
+    bm_mem_flush_device_mem(bm_handle, dev_mem);
+    bm_mem_unmap_device_mem(bm_handle, virt_addr, size);
+#else
+    virt_addr = (uint8_t *)malloc(size);
+    if (!virt_addr) {
+        fprintf(stderr, "can't malloc memory to save input data\n");
+        return -1;
+    }
+    fread(virt_addr, sizeof(uint8_t), size, fp_in);
+    bm_memcpy_s2d_partial(bm_handle, *dev_mem, virt_addr, size);
+    free(virt_addr);
+#endif
+    return 0;
+}
+
 BmJpuEncReturnCodes start_encode(BmJpuJPEGEncoder *jpeg_encoder, EncParam *enc_params, FILE *fp_in, FILE *fp_out, int inst_idx, const uint8_t *ref_md5)
 {
     BmJpuEncReturnCodes ret = BM_JPU_ENC_RETURN_CODE_OK;
@@ -111,50 +141,97 @@ BmJpuEncReturnCodes start_encode(BmJpuJPEGEncoder *jpeg_encoder, EncParam *enc_p
     framebuffer.cb_offset = y_size;
     framebuffer.cr_offset = y_size + c_size;
 
-    // ret = bm_dev_request(&bm_handle, 0);
-    // if (ret != 0) {
-    //     fprintf(stderr, "get bm_handle failed!\n");
-    //     return BM_JPU_ENC_RETURN_CODE_ERROR;
-    // }
-
     bm_handle = bm_jpu_enc_get_bm_handle(jpeg_encoder->device_index);
-    framebuffer.dma_buffer = (bm_device_mem_t *)malloc(sizeof(bm_device_mem_t));
-    ret = bm_malloc_device_byte_heap_mask(bm_handle, framebuffer.dma_buffer, HEAP_MASK_1_2, total_size);
-    if (ret != 0) {
-      printf("malloc device memory size = %u failed, ret = %d\n", total_size, ret);
-      return BM_JPU_ENC_RETURN_CODE_ERROR;
-    }
 
-    unsigned long long phys_addr = bm_mem_get_device_addr(*framebuffer.dma_buffer);
-    printf("phys addr: %#llx, total_size = %u\n", phys_addr, total_size);
+    if (enc_params->yuv_seperate == 0) {
+        framebuffer.dma_buffer = (bm_device_mem_t *)malloc(sizeof(bm_device_mem_t));
+        ret = bm_malloc_device_byte_heap_mask(bm_handle, framebuffer.dma_buffer, HEAP_MASK_1_2, total_size);
+        if (ret != 0) {
+            printf("malloc device memory size = %u failed, ret = %d\n", total_size, ret);
+            goto finish;
+        }
+        unsigned long long phys_addr = bm_mem_get_device_addr(*framebuffer.dma_buffer);
+        printf("phys addr: %#llx, total_size = %u\n", phys_addr, total_size);
 
-#ifndef BM_PCIE_MODE
-    unsigned long long vaddr = 0;
-    bm_ret = bm_mem_mmap_device_mem(bm_handle, framebuffer.dma_buffer, &vaddr);
-    if (bm_ret != BM_SUCCESS) {
-        fprintf(stderr, "bm_mem_mmap_device_mem failed, device_addr: %#lx, size: %u\n", framebuffer.dma_buffer->u.device.device_addr, framebuffer.dma_buffer->size);
-        goto finish;
-    }
-    virt_addr = (uint8_t *)vaddr;
-#else
-    virt_addr = malloc(total_size);
-    if(!virt_addr) {
-        fprintf(stderr, "can't malloc memory to save input data\n");
-        ret = -1;
-        goto finish;
-    }
-#endif
-    printf("virt addr: %p\n", virt_addr);
-
-    fread(virt_addr, sizeof(uint8_t), total_size, fp_in);
-
-    if (virt_addr != NULL) {
-    #ifndef BM_PCIE_MODE
-        bm_mem_unmap_device_mem(bm_handle, virt_addr, total_size);
+    #ifdef BM_PCIE_MODE
+        ret = read_and_copy_to_device(bm_handle, framebuffer.dma_buffer, total_size, fp_in, 1);
     #else
-        bm_memcpy_s2d_partial(bm_handle, *(framebuffer.dma_buffer), virt_addr, total_size);
+        ret = read_and_copy_to_device(bm_handle, framebuffer.dma_buffer, total_size, fp_in, 0);
     #endif
+
+        if (ret != 0) goto finish;
+    } else {
+        framebuffer.dma_buffer_y = (bm_device_mem_t *)malloc(sizeof(bm_device_mem_t));
+        ret = bm_malloc_device_byte_heap_mask(bm_handle, framebuffer.dma_buffer_y, HEAP_MASK_1_2, y_size);
+        if (ret != 0) {
+            printf("malloc device memory size = %u failed, ret = %d\n", y_size, ret);
+            goto finish;
+        }
+        unsigned long long phys_addr = bm_mem_get_device_addr(*framebuffer.dma_buffer_y);
+        printf("phys_addr_y: %#llx, y_size = %u\n", phys_addr, y_size);
+
+    #ifdef BM_PCIE_MODE
+        ret = read_and_copy_to_device(bm_handle, framebuffer.dma_buffer_y, y_size, fp_in, 1);
+    #else
+        ret = read_and_copy_to_device(bm_handle, framebuffer.dma_buffer_y, y_size, fp_in, 0);
+    #endif
+        if (ret != 0) goto finish;
+
+        if(enc_params->cbcr_interleave == 0){
+            framebuffer.dma_buffer_u = (bm_device_mem_t *)malloc(sizeof(bm_device_mem_t));
+            ret = bm_malloc_device_byte_heap_mask(bm_handle, framebuffer.dma_buffer_u, HEAP_MASK_1_2, c_size);
+            if (ret != 0) {
+                printf("malloc device memory size = %u failed, ret = %d\n", c_size, ret);
+                goto finish;
+            }
+
+            framebuffer.dma_buffer_v = (bm_device_mem_t *)malloc(sizeof(bm_device_mem_t));
+            ret = bm_malloc_device_byte_heap_mask(bm_handle, framebuffer.dma_buffer_v, HEAP_MASK_1_2, c_size);
+            if (ret != 0) {
+                printf("malloc device memory size = %u failed, ret = %d\n", c_size, ret);
+                goto finish;
+            }
+
+            phys_addr = bm_mem_get_device_addr(*framebuffer.dma_buffer_u);
+            printf("phys_addr_u: %#llx, c_size * 2 = %u\n", phys_addr, c_size);
+            phys_addr = bm_mem_get_device_addr(*framebuffer.dma_buffer_v);
+            printf("phys_addr_u: %#llx, c_size * 2 = %u\n", phys_addr, c_size);
+
+#ifdef BM_PCIE_MODE
+            ret = read_and_copy_to_device(bm_handle, framebuffer.dma_buffer_u, c_size, fp_in, 1);
+#else
+            ret = read_and_copy_to_device(bm_handle, framebuffer.dma_buffer_u, c_size, fp_in, 0);
+#endif
+            if (ret != 0) goto finish;
+
+#ifdef BM_PCIE_MODE
+            ret = read_and_copy_to_device(bm_handle, framebuffer.dma_buffer_v, c_size, fp_in, 1);
+#else
+            ret = read_and_copy_to_device(bm_handle, framebuffer.dma_buffer_v, c_size, fp_in, 0);
+#endif
+            if (ret != 0) goto finish;
+        }
+        else {
+            framebuffer.dma_buffer_u = (bm_device_mem_t *)malloc(sizeof(bm_device_mem_t));
+            ret = bm_malloc_device_byte_heap_mask(bm_handle, framebuffer.dma_buffer_u, HEAP_MASK_1_2, c_size * 2);
+            if (ret != 0) {
+                printf("malloc device memory size = %u failed, ret = %d\n", c_size * 2, ret);
+                goto finish;
+            }
+            framebuffer.dma_buffer_v = framebuffer.dma_buffer_u;
+
+            phys_addr = bm_mem_get_device_addr(*framebuffer.dma_buffer_u);
+            printf("phys_addr_uv: %#llx, c_size * 2 = %u\n", phys_addr, c_size * 2);
+
+#ifdef BM_PCIE_MODE
+            ret = read_and_copy_to_device(bm_handle, framebuffer.dma_buffer_u, c_size * 2, fp_in, 1);
+#else
+            ret = read_and_copy_to_device(bm_handle, framebuffer.dma_buffer_u, c_size * 2, fp_in, 0);
+#endif
+            if (ret != 0) goto finish;
+        }
     }
+
     ConvertToImageFormat(&image_format, enc_params->pix_fmt, enc_params->cbcr_interleave);
     memset(&jpu_enc_params, 0, sizeof(BmJpuJPEGEncParams));
     jpu_enc_params.frame_width = enc_params->width;
@@ -253,11 +330,15 @@ finish:
         free(framebuffer.dma_buffer);
     }
 
-#ifdef BM_PCIE_MODE
-    if(virt_addr) {
-        free(virt_addr);
+    if (framebuffer.dma_buffer_y != NULL) {
+        bm_free_device(bm_handle, *framebuffer.dma_buffer_y);
+        free(framebuffer.dma_buffer_y);
     }
-#endif
+
+    if (framebuffer.dma_buffer_u != NULL) {
+        bm_free_device(bm_handle, *framebuffer.dma_buffer_u);
+        free(framebuffer.dma_buffer_u);
+    }
 
     if (bitstream_buffer != NULL) {
         bm_free_device(bm_handle, *bitstream_buffer);

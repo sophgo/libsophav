@@ -258,8 +258,8 @@ int main(int argc, char* args[])
     int thread_num = 1;
     int if_use_img = 0;
     int loop = 1;
-    int height = 2 + rand()% 4096;
-    int width = 2 + rand() % 4096;
+    int height = 2 + rand()% 4095;
+    int width = 2 + rand() % 4095;
     unsigned int ksize = 3;
     bm_image_format_ext fmt = FORMAT_GRAY; /* 14 */
     int ret = 0;

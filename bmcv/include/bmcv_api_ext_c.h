@@ -1,7 +1,7 @@
 #ifndef BMCV_API_EXT_H
 #define BMCV_API_EXT_H
 #define BMCV_VERSION_MAJOR 2
-#define BMCV_VERSION_MINOR 21
+#define BMCV_VERSION_MINOR 22
 #include <stdint.h>
 #include "bmlib_runtime.h"
 #ifdef _WIN32
@@ -383,6 +383,16 @@ typedef struct {
     unsigned char g;
     unsigned char b;
 } bmcv_color_t;
+
+/*
+* the value of drawing with each channel value, with r g b a channels
+*/
+typedef struct {
+    unsigned char r;
+    unsigned char g;
+    unsigned char b;
+    unsigned char a;
+} bmcv_color_ext;
 
 /*
 * Specific properties and parameters required to perform an image scaling operation
@@ -1574,6 +1584,25 @@ typedef struct bmcv_ive_frame_diff_motion_attr_s{
     unsigned char au8_dilate_mask[25];
 } bmcv_ive_frame_diff_motion_attr;
 
+// tde struct
+typedef enum bm_tde_overlay {
+    BM_BLEND_NONE                      = 0,         /*! S, No blend */
+    BM_BLEND_SRC_OVER                  = -1,        /*! S + (1 - S.a) * D */
+    BM_BLEND_DST_OVER                  = -2,        /*! (1 - D.a) * S + D */
+    BM_BLEND_SRC_IN                    = -3,        /*! D.a * S */
+    BM_BLEND_DST_IN                    = -4,        /*! S.a * D */
+    BM_BLEND_MULTIPLY                  = -5,        /*! S * (1 - D.a) + D * (1 - S.a) + S * D */
+    BM_BLEND_SCREEN                    = -6,        /*! S + D - S * D */
+    BM_BLEND_DARKEN                    = -7,        /*! min(SrcOver, DstOver) */
+    BM_BLEND_LIGHTEN                   = -8,        /*! max(SrcOver, DstOver) */
+    BM_BLEND_ADDITIVE                  = -9,        /*! S + D */
+    BM_BLEND_SUBTRACT                  = -10,       /*! D * (1 - S.a) */
+    BM_BLEND_SUBTRACT_LVGL             = -11,       /*! D - S */
+    BM_BLEND_NORMAL_LVGL               = -12,       /*! S * S.a + (1 - S.a) * D */
+    BM_BLEND_ADDITIVE_LVGL             = -13,       /*! (S + D) * S.a + D * (1 - S.a) */
+    BM_BLEND_MULTIPLY_LVGL             = -14,       /*! (S * D) * S.a + D * (1 - S.a) */
+    BM_BLEND_PREMULTIPLY_SRC_OVER      = -15,       /*! S * S.a + (1 - S.a) * D */
+} bm_tde_overlay_t;
 
 
 // common api
@@ -2099,12 +2128,12 @@ DECL_EXPORT bm_status_t bmcv_image_flip(
 * color specify the circle's color.
 */
 DECL_EXPORT bm_status_t bmcv_image_circle(
-	bm_handle_t         handle,
-	bm_image            image,
-	bmcv_point_t        center,
-	int                 radius,
-	bmcv_color_t        color,
-	int                 line_width);
+    bm_handle_t         handle,
+    bm_image            image,
+    bmcv_point_t        center,
+    int                 radius,
+    bmcv_color_t        color,
+    int                 line_width);
 
 /*
 * Draws quare points on the image.
@@ -2113,14 +2142,14 @@ DECL_EXPORT bm_status_t bmcv_image_circle(
 * color specify the point's color.
 */
 DECL_EXPORT bm_status_t bmcv_image_draw_point(
-	bm_handle_t         handle,
-	bm_image            image,
-	int                 point_num,
-	bmcv_point_t*       coord,
-	int                 length,
-	unsigned char       r,
-	unsigned char       g,
-	unsigned char       b);
+    bm_handle_t         handle,
+    bm_image            image,
+    int                 point_num,
+    bmcv_point_t*       coord,
+    int                 length,
+    unsigned char       r,
+    unsigned char       g,
+    unsigned char       b);
 
 // quality_factor = 84
 /*
@@ -3286,6 +3315,17 @@ DECL_EXPORT bm_status_t bmcv_hist_balance(
     int H,
     int W);
 
+/**
+ * Convert raw 12-bit data to 16-bit data
+ * input_dev_mem is input image device addr; output_dev_mem is output image device addr;
+ * H W is image width height
+*/
+DECL_EXPORT bm_status_t bmcv_raw12_to_uint16(
+    bm_handle_t handle,
+    bm_device_mem_t input_dev_mem,
+    bm_device_mem_t output_dev_mem,
+    int width,
+    int height);
 
 // dpu api
 /**
@@ -3847,6 +3887,61 @@ DECL_EXPORT bm_status_t bmcv_ive_frame_diff_motion(
     bm_image                        output,
     bmcv_ive_frame_diff_motion_attr attr);
 
+//tde api
+/**
+ * Fill color at specified location
+*/
+DECL_EXPORT bm_status_t bmcv_tde_fill(
+    bm_handle_t    handle,
+    bm_image       image,
+    bmcv_color_ext color,
+    bmcv_rect_t*   rect);
+
+/**
+ * Complete color conversion crop、 Scaling, rotating, and stacking functions
+ * global_alpha can be filled in as bm_tde_overlay_t member
+*/
+DECL_EXPORT bm_status_t bmcv_tde_convert(
+    bm_handle_t    handle,
+    bm_image       input,
+    bm_image       output,
+    int            rot_angle,
+    int            global_alpha,
+    bmcv_rect_t*   src_rect,
+    bmcv_rect_t*   dst_rect);
+
+/**
+ * Draw a line at the designated location
+*/
+DECL_EXPORT bm_status_t bmcv_tde_line(
+    bm_handle_t      handle,
+    bm_image         image,
+    bmcv_point_t     start,
+    bmcv_point_t     end,
+    bmcv_color_ext   color,
+    int              thick);
+
+/**
+ * Fill the polygon at the specified location
+ * point represents the coordinates of each vertex
+ * path_num is the vertex number
+*/
+DECL_EXPORT bm_status_t bmcv_tde_draw(
+    bm_handle_t      handle,
+    bm_image         image,
+    bmcv_point_t    *point,
+    int              path_num,
+    bmcv_color_ext   color);
+
+/**
+ * Perform affine transformation operation
+*/
+DECL_EXPORT bm_status_t bmcv_tde_warp_affine(
+    bm_handle_t      handle,
+    bmcv_affine_matrix matrix,
+    bm_image         input,
+    bm_image         output,
+    int              use_bilinear);
 
 /**
  * Abandoned macro definitions and interface, supports compatibility settings

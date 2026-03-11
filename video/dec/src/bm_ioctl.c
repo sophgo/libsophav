@@ -38,7 +38,7 @@ static int bmhandle_atomic_lock = 0; /* atomic lock for bmlib_handle */
 static  volatile long bmve_atomic_lock = 0;
 static  volatile long bmhandle_atomic_lock = 0;
 #endif
-static int bmlib_init_flag = 0;
+// static int bmlib_init_flag = 0;
 BmVpuDecLogLevel bm_vpu_log_level_threshold = BMVPU_DEC_LOG_LEVEL_ERR;
 
 void bmdec_set_logging_threshold(BmVpuDecLogLevel threshold)
@@ -334,15 +334,20 @@ int bmdec_chn_open(char* dev_name, int soc_idx) {
         return -1;
     }
 
-    if (bmlib_init_flag == 0) {
-        if(bmvpu_dec_load(soc_idx) == BM_SUCCESS) {
-            bmlib_init_flag = 1;
-        }
-        else {
-            BMVPU_DEC_ERROR("init bmlib failed");
-            return -1;
-        }
+    if(bmvpu_dec_load(soc_idx) != BM_SUCCESS) {
+        BMVPU_DEC_ERROR("init bmlib failed");
+        return -1;
     }
+
+    // if (bmlib_init_flag == 0) {
+    //     if(bmvpu_dec_load(soc_idx) == BM_SUCCESS) {
+    //         bmlib_init_flag = 1;
+    //     }
+    //     else {
+    //         BMVPU_DEC_ERROR("init bmlib failed");
+    //         return -1;
+    //     }
+    // }
 
     return fd;
 }
@@ -350,10 +355,11 @@ int bmdec_chn_open(char* dev_name, int soc_idx) {
 int bmdec_chn_close(int soc_idx) {
     int ret = 0;
 
-    if(bmlib_init_flag == 1) {
-        ret = bmvpu_dec_unload(soc_idx);
-        bmlib_init_flag = 0;
-    }
+    ret = bmvpu_dec_unload(soc_idx);
+    // if(bmlib_init_flag == 1) {
+    //     ret = bmvpu_dec_unload(soc_idx);
+    //     bmlib_init_flag = 0;
+    // }
 
     return ret;
 }

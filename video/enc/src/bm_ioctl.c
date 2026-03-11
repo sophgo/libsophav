@@ -40,9 +40,10 @@ void bmenc_chn_close(int fd) {
 ///////////////
 // ENC IOCTL //
 ///////////////
-int  bmenc_ioctl_get_ext_addr(int chn_fd, int *ext_addr)
+int  bmenc_ioctl_get_ext_addr(int chn_fd, unsigned int soc_idx, int *ext_addr)
 {
     int ret = 0;
+    *ext_addr = soc_idx;
     ret = ioctl(chn_fd, DRV_VC_VENC_GET_EXT_ADDR, ext_addr);
     return ret;
 }

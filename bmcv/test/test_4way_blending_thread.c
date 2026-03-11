@@ -19,6 +19,7 @@
 
 extern void bm_read_bin(bm_image src, const char *input_name);
 extern void bm_write_bin(bm_image dst, const char *output_name);
+extern int ensure_dir_exist(const char *file_path);
 extern bm_status_t bm_blend_image_calc_stride(bm_handle_t handle,
                                      int img_h,
                                      int img_w,
@@ -314,6 +315,10 @@ static int test_4way_blending(int input_num, char** src_name, int src_w, int src
 
   if(NULL != dst_name)
   {
+    if (ensure_dir_exist(dst_name) != 0) {
+        fprintf(stderr, "Cannot create directory for output file %s\n", dst_name);
+        return -1;
+    }
     bm_write_bin(dst, dst_name);
   }
 

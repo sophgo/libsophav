@@ -19,6 +19,7 @@ int main(int argc, char* args[]){
     int width = 1920, height = 1080, orgx = 0, orgy = 500;
     bm_image_format_ext fmt = FORMAT_RGB_PACKED;
     float fontScale = 2;
+    int thick = -1;
     char* output_path = "out.bmp";
     char* input_path = "/opt/sophon/libsophon-current/bin/res/1920x1080_rgb.bin";
     char *md5 = "f13fde34341865e451be167c2b2bf08f";
@@ -48,6 +49,7 @@ int main(int argc, char* args[]){
     if (argc > 11) fmt = atoi(args[11]);
     if (argc > 12) orgx = atoi(args[12]);
     if (argc > 13) orgy = atoi(args[13]);
+    if (argc > 14) thick = atoi(args[14]);
 
     bm_image image;
     bm_handle_t handle = NULL;
@@ -61,21 +63,30 @@ int main(int argc, char* args[]){
     bm_image watermark;
     int time_single = 0;
     gettimeofday(tv, NULL);
-    ret = bmcv_gen_text_watermark(handle, hexcode, color, fontScale, FORMAT_ARGB_PACKED, &watermark);
-    if (ret != BM_SUCCESS) {
-        printf("bmcv_gen_text_watermark fail\n");
-        goto fail1;
-    }
+    if (thick < 0) {
+        ret = bmcv_gen_text_watermark(handle, hexcode, color, fontScale, FORMAT_ARGB_PACKED, &watermark);
+        if (ret != BM_SUCCESS) {
+            printf("bmcv_gen_text_watermark fail\n");
+            goto fail;
+        }
 
-    gettimeofday(tv + 1, NULL);
-    time_single = (unsigned int)((tv[1].tv_sec - tv[0].tv_sec) * 1000000 + tv[1].tv_usec - tv[0].tv_usec);
-    printf("bmcv_gen_text_watermark time %d\n", time_single);
+        gettimeofday(tv + 1, NULL);
+        time_single = (unsigned int)((tv[1].tv_sec - tv[0].tv_sec) * 1000000 + tv[1].tv_usec - tv[0].tv_usec);
+        printf("bmcv_gen_text_watermark time %d\n", time_single);
 
-    bmcv_rect_t rect = {.start_x = org.x, .start_y = org.y, .crop_w = watermark.width, .crop_h = watermark.height};
-    ret = bmcv_image_overlay(handle, image, 1, &rect, &watermark);
-    if (ret != BM_SUCCESS) {
-        printf("bmcv_image_overlay fail\n");
-        goto fail2;
+        bmcv_rect_t rect = {.start_x = org.x, .start_y = org.y, .crop_w = watermark.width, .crop_h = watermark.height};
+        ret = bmcv_image_overlay(handle, image, 1, &rect, &watermark);
+        bm_image_destroy(&watermark);
+        if (ret != BM_SUCCESS) {
+            printf("bmcv_image_overlay fail\n");
+            goto fail;
+        }
+    } else {
+        ret = bmcv_image_put_text(handle, image, args[1], org, color, fontScale, thick);
+        if (ret != BM_SUCCESS) {
+            printf("bmcv_image_put_text fail\n");
+            goto fail;
+        }
     }
 
     gettimeofday(tv + 1, NULL);
@@ -102,9 +113,7 @@ int main(int argc, char* args[]){
         free(output_ptr);
     }
 
-fail2:
-    bm_image_destroy(&watermark);
-fail1:
+fail:
     bm_image_destroy(&image);
     bm_dev_free(handle);
     return ret;

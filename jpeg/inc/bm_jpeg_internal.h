@@ -190,6 +190,7 @@ struct _BmJpuDecoder
     int framebuffer_recycle;
 
     int channel_id;
+    int channel_fd;
     FramebufferList *fb_list_head;
     FramebufferList *fb_list_curr;
 
@@ -209,7 +210,9 @@ struct _BmJpuEncoder
 
     BmJpuFramebuffer *framebuffers;
 
+    uint8_t *stream_pack_array[8];
     int channel_id;
+    int channel_fd;
 
     int timeout;
 };

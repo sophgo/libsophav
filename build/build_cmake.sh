@@ -37,7 +37,7 @@ fi
 rm -rf buildit install
 mkdir buildit
 pushd buildit
-cmake -DPLATFORM=${PLATFORM} -DSUBTYPE=asic -DCMAKE_INSTALL_PREFIX=../install -DDEBUG=on \
+cmake -DPLATFORM=${PLATFORM} -DSUBTYPE=asic -DCMAKE_INSTALL_PREFIX=../install -DDEBUG=off \
     -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER} \
     -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER} \
     -DDISABLE_BMCV_DOC=${DISABLE_BMCV_DOC} \

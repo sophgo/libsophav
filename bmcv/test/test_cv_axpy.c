@@ -17,8 +17,8 @@
 #define S_CONST_VALUE -0.2f
 
 #define CEHCK(x) { \
-     if (x) {} \
-     else {fprintf(stderr, "Check failed: %s, file %s, line: %d\n", #x, __FILE__, __LINE__); return -1; } \
+    if (x) {} \
+    else {fprintf(stderr, "Check failed: %s, file %s, line: %d\n", #x, __FILE__, __LINE__); return -1; } \
 }
 
 #define N (10)
@@ -41,72 +41,79 @@ typedef union {
 } IF_VAL;
 
 typedef struct {
-    int trials;
-    bm_handle_t handle;
+  int trials;
+  bm_handle_t handle;
 } cv_axpy_thread_arg_t;
 
-int array_cmp_axpy(float *p_exp, float *p_got, int len, const char *info_label, float delta) {
-  int idx = 0;
-  int total = 0;
-  for (idx = 0; idx < len; idx++) {
-    if (bm_max(fabs(p_exp[idx]), fabs(p_got[idx])) > 1.0) {
-      // compare rel
-      if (bm_min(fabs(p_exp[idx]), fabs(p_got[idx])) < 1e-20) {
-        printf("%s rel error at index %d exp %.20f got %.20f\n", info_label, idx, p_exp[idx], p_got[idx]);
-        total++;
-        if (1024 < total) {return -1;}
-      }
-      if (fabs(p_exp[idx] - p_got[idx]) / bm_min(fabs(p_exp[idx]), fabs(p_got[idx])) > delta) {
-        printf("%s rel error at index %d exp %.20f got %.20f\n", info_label, idx, p_exp[idx], p_got[idx]);
-        total++;
-        if (1024 < total) {return -1;}
-      }
-    } else {
-      // compare abs
-      if (fabs(p_exp[idx] - p_got[idx]) > delta) {
-        printf("%s abs error at index %d exp %.20f got %.20f\n", info_label, idx, p_exp[idx], p_got[idx]);
-        total++;
-        if (1024 < total) {return -1;}
-      }
+int array_cmp_axpy(float *p_exp, float *p_got, int len, const char *info_label, float delta)
+{
+    int idx = 0;
+    int total = 0;
+
+    for (idx = 0; idx < len; idx++) {
+        if (bm_max(fabs(p_exp[idx]), fabs(p_got[idx])) > 1.0) {
+            /* compare rel */
+            if (bm_min(fabs(p_exp[idx]), fabs(p_got[idx])) < 1e-20) {
+                printf("%s rel error at index %d exp %.20f got %.20f\n", info_label, idx, p_exp[idx], p_got[idx]);
+                total++;
+                if (1024 < total) return -1;
+            }
+
+            if (fabs(p_exp[idx] - p_got[idx]) / bm_min(fabs(p_exp[idx]), fabs(p_got[idx])) > delta) {
+                printf("%s rel error at index %d exp %.20f got %.20f\n", info_label, idx, p_exp[idx], p_got[idx]);
+                total++;
+                if (1024 < total) return -1;
+            }
+        } else {
+            /* compare abs */
+            if (fabs(p_exp[idx] - p_got[idx]) > delta) {
+                printf("%s abs error at index %d exp %.20f got %.20f\n", info_label, idx, p_exp[idx], p_got[idx]);
+                total++;
+                if (1024 < total) return -1;
+            }
+        }
+
+        IF_VAL if_val_exp, if_val_got;
+        if_val_exp.fval = p_exp[idx];
+        if_val_got.fval = p_got[idx];
+
+        if (IS_NAN(if_val_got.ival) && !IS_NAN(if_val_exp.ival)) {
+            printf("There are nans in %s idx %d\n", info_label, idx);
+            printf("floating form exp %.10f got %.10f\n", if_val_exp.fval, if_val_got.fval);
+            printf("hex form exp %8.8x got %8.8x\n", if_val_exp.ival, if_val_got.ival);
+            return -2;
+        }
     }
 
-    IF_VAL if_val_exp, if_val_got;
-    if_val_exp.fval = p_exp[idx];
-    if_val_got.fval = p_got[idx];
-    if (IS_NAN(if_val_got.ival) && !IS_NAN(if_val_exp.ival)) {
-      printf("There are nans in %s idx %d\n", info_label, idx);
-      printf("floating form exp %.10f got %.10f\n", if_val_exp.fval, if_val_got.fval);
-      printf("hex form exp %8.8x got %8.8x\n", if_val_exp.ival, if_val_got.ival);
-      return -2;
-    }
-  }
-  if (0 < total) {return -1;}
-  return 0;
+    if (0 < total) return -1;
+    return 0;
 }
 
 static int test_axpy_random(int trials, bm_handle_t handle)
 {
-  float *tensor_X = malloc(TENSOR_SIZE * sizeof(float));
-  float *tensor_A = malloc(N * C * sizeof(float));
-  float *tensor_Y = malloc(TENSOR_SIZE * sizeof(float));
-  float *tensor_F = malloc(TENSOR_SIZE * sizeof(float));
-  float *tensor_F_cmp = malloc(TENSOR_SIZE * sizeof(float));
-  int ret = 0;
-  int idx_trial;
-  struct timeval t1, t2, t3;
+    float *tensor_X = malloc(TENSOR_SIZE * sizeof(float));
+    float *tensor_A = malloc(N * C * sizeof(float));
+    float *tensor_Y = malloc(TENSOR_SIZE * sizeof(float));
+    float *tensor_F = malloc(TENSOR_SIZE * sizeof(float));
+    float *tensor_F_cmp = malloc(TENSOR_SIZE * sizeof(float));
 
-  for (idx_trial = 0; idx_trial < trials; idx_trial++) {
-        gettimeofday(&t1, NULL);
+    int ret = 0;
+    int idx_trial;
+    struct timeval t1, t2, t3;
+
+    memset(tensor_F, 0, sizeof(float) * TENSOR_SIZE);
+    memset(tensor_F_cmp, 0, sizeof(float) * TENSOR_SIZE);
+
+    for (idx_trial = 0; idx_trial < trials; idx_trial++) {
         for (int idx = 0; idx < TENSOR_SIZE; idx++) {
-        tensor_X[idx] = (float)idx - 5.0f;
-        tensor_Y[idx] = (float)idx/3.0f - 8.2f;  //y
+            tensor_X[idx] = (float)idx - 5.0f;
+            tensor_Y[idx] = (float)idx/3.0f - 8.2f;
         }
 
-        for (int idx = 0; idx < N*C; idx++) {
-        tensor_A[idx] = (float)idx * 1.5f + 1.0f;
-        }
+        for (int idx = 0; idx < N * C; idx++)
+            tensor_A[idx] = (float)idx * 1.5f + 1.0f;
 
-        memset(tensor_F, 0, sizeof(float)*TENSOR_SIZE);
+        gettimeofday(&t1, NULL);
         for (int i=0; i< N; i++ ){
             for (int j=0; j <C; j++){
                 for (int k=0; k<H*W; k++){
@@ -116,6 +123,8 @@ static int test_axpy_random(int trials, bm_handle_t handle)
         }
         gettimeofday(&t2, NULL);
         printf("The %d trials, Axpy CPU using time = %ld(us)\n", idx_trial, TIME_COST_US(t1, t2));
+
+        gettimeofday(&t2, NULL);
         ret = bmcv_image_axpy(handle,
                               bm_mem_from_system((void *)tensor_A),
                               bm_mem_from_system((void *)tensor_X),
@@ -124,19 +133,18 @@ static int test_axpy_random(int trials, bm_handle_t handle)
                               N, C, H, W);
         gettimeofday(&t3, NULL);
         printf("The %d trials, Axpy TPU using time = %ld(us)\n", idx_trial, TIME_COST_US(t2, t3));
-        if (ret){
+        if (ret) {
             printf("test Axpy failed \n");
             ret = BM_ERR_FAILURE;
             break;
         } else {
-            int cmp_res = array_cmp_axpy(
-                            (float*)tensor_F_cmp,
-                            (float*)tensor_F,
-                            TENSOR_SIZE, "axpy", BMDNN_COMPARE_EPSILON);
-            if ( cmp_res != 0) {
-                printf("Compare TPU with CPU: error, not equal, cmp fail \n");
-                ret = BM_ERR_FAILURE;
-                break;
+            int cmp_res = array_cmp_axpy((float*)tensor_F_cmp,
+                                         (float*)tensor_F,
+                                         TENSOR_SIZE, "axpy", BMDNN_COMPARE_EPSILON);
+            if (cmp_res) {
+                 printf("Compare TPU with CPU: error, not equal, cmp fail \n");
+                 ret = BM_ERR_FAILURE;
+                 break;
             } else {
                 printf("Compare TPU with CPU: they are equal,cmp success \n");
             }
@@ -166,33 +174,37 @@ void* test_axpy(void* args) {
     return (void*)0;
 }
 
-int main(int argc, char* args[]){
-  struct timespec tp;
-  clock_gettime(0, &tp);
-  int seed = tp.tv_nsec;
-  srand(seed);
-  int thread_num = 1;
-  int trials = 1;
-  int ret = 0;
-  bm_handle_t handle;
-  ret = bm_dev_request(&handle, 0);
-  if (ret != BM_SUCCESS) {
-      printf("bm_dev_request failed. ret = %d\n", ret);
-      return -1;
-  }
+int main(int argc, char* args[])
+{
+    struct timespec tp;
+    clock_gettime(0, &tp);
+    int seed = tp.tv_nsec;
+    srand(seed);
+    int thread_num = 1;
+    int trials = 1;
+    int ret = 0;
+    bm_handle_t handle;
 
-  if (argc == 2 && atoi(args[1]) == -1) {
-    printf("%s thread_num trials \n", args[0]);
-    printf("example:\n");
-    printf("%s \n", args[0]);
-    printf("%s 2\n", args[0]);
-    printf("%s 1 3\n", args[0]);
-    return 0;
-  }
-  if (argc > 1) thread_num = atoi(args[1]);
-  if (argc > 2) trials = atoi(args[2]);
+    if (argc == 2 && atoi(args[1]) == -1) {
+        printf("%s thread_num trials \n", args[0]);
+        printf("example:\n");
+        printf("%s \n", args[0]);
+        printf("%s 2\n", args[0]);
+        printf("%s 1 3\n", args[0]);
+        return 0;
+    }
 
-  printf("seed = %d\n", seed);
+    if (argc > 1) thread_num = atoi(args[1]);
+    if (argc > 2) trials = atoi(args[2]);
+
+    printf("seed = %d\n", seed);
+
+    ret = bm_dev_request(&handle, 0);
+    if (ret != BM_SUCCESS) {
+        printf("bm_dev_request failed. ret = %d\n", ret);
+        return -1;
+    }
+
     // test for multi-thread
     pthread_t pid[thread_num];
     cv_axpy_thread_arg_t cv_axpy_thread_arg[thread_num];
@@ -201,13 +213,16 @@ int main(int argc, char* args[]){
         cv_axpy_thread_arg[i].handle = handle;
         if (pthread_create(&pid[i], NULL, test_axpy, &cv_axpy_thread_arg[i]) != 0) {
             printf("create thread failed\n");
+            bm_dev_free(handle);
             return -1;
         }
     }
+
     for (int i = 0; i < thread_num; i++) {
         ret = pthread_join(pid[i], NULL);
         if (ret != 0) {
             printf("Thread join failed\n");
+            bm_dev_free(handle);
             exit(-1);
         }
     }

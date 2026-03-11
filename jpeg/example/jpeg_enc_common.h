@@ -25,6 +25,7 @@ typedef struct {
     int bs_heap;
     int fb_heap;
     int quality_factor;
+    int yuv_seperate;
 } EncParam;
 
 typedef struct {

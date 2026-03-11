@@ -97,9 +97,12 @@ static void * convert_to(void* arg) {
                             (void*)((unsigned char*)output_ptr + image_byte_size[0] + image_byte_size[1] + image_byte_size[2])};
         bm_image_copy_device_to_host(dst, (void **)out_ptr);
         if(md5_cmp(output_ptr, (unsigned char*)md5, byte_size)!=0){
-            bm_write_bin(dst, "error_cmp.bin");
+            FILE *fp_dst = fopen("error_cmp.bin", "wb");
+            fwrite((void *)output_ptr, 1, byte_size, fp_dst);
+            fclose(fp_dst);
             bm_image_destroy(&src);
             bm_image_destroy(&dst);
+            free(output_ptr);
             exit(-1);
         }
         free(output_ptr);
