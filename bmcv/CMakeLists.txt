@@ -50,7 +50,10 @@ target_link_libraries(${BMCV_LIB_NAME}-static bmlib dl bmjpeg turbojpeg ${VGLITE
 
 # build bmcv test case
 if ("${PCIE_MODE}" STREQUAL "on")
-    file(GLOB TEST_SRCS test/test_vpss*.c test/test_cv*.c test/test_faiss*.c test/test_gen*.c)
+    file(GLOB ALL_TEST_SRCS test/*.c)
+    list(FILTER ALL_TEST_SRCS EXCLUDE REGEX "test/test_(2way|4way|dpu|dwa|ldc|ive|tde).*\\.c$")
+    set(TEST_SRCS ${ALL_TEST_SRCS})
+
     add_compile_options(-Wno-unused-result)
 else ()
     file(GLOB TEST_SRCS test/*.c)
