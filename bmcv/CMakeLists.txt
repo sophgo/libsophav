@@ -1,5 +1,53 @@
 cmake_minimum_required(VERSION 3.16)
 project(bmcv)
+
+if(CMAKE_CROSSCOMPILING)
+    set(TARGET_ARCH ${CMAKE_SYSTEM_PROCESSOR})
+else()
+    set(TARGET_ARCH ${CMAKE_HOST_SYSTEM_PROCESSOR})
+endif()
+
+message(STATUS "Target architecture: ${TARGET_ARCH}")
+
+# ==================== support ARM NEON ====================
+if(TARGET_ARCH MATCHES "arm|aarch64|ARM|AARCH64|armv8")
+    message(STATUS "Detected ARM platform, enabling NEON optimization")
+
+    # ARMv7 (32-bit)
+    if(TARGET_ARCH MATCHES "arm|ARM")
+        add_compile_options(-mfpu=neon -march=armv7-a)
+        add_definitions(-D__ARM_NEON -D__ARM_NEON__)
+        message(STATUS "  ARMv7 NEON enabled")
+    endif()
+
+    # ARMv8/AArch64 (64-bit)
+    if(TARGET_ARCH MATCHES "aarch64|AARCH64|armv8")
+        add_compile_options(-march=armv8-a+simd)
+        add_definitions(-D__ARM_NEON -D__ARM_NEON__ -D__ARM_FEATURE_SIMD32=1)
+        message(STATUS "  ARMv8 NEON enabled")
+    endif()
+
+    # add NEON
+    add_definitions(-DARM_NEON_ENABLED)
+
+    if(CMAKE_BUILD_TYPE STREQUAL "Release")
+        add_compile_options(-O3 -ffast-math -funroll-loops -ftree-vectorize)
+    endif()
+
+# elseif(TARGET_ARCH MATCHES "x86_64|i686|amd64|AMD64|x86")
+#     # ==================== support x86 SSE2 ====================
+#     message(STATUS "Detected x86 platform, enabling SSE2 optimization")
+#     add_compile_options(-msse2)
+#     add_definitions(-D__SSE2__)
+
+#     if(CMAKE_BUILD_TYPE STREQUAL "Release")
+#         add_compile_options(-O3 -ffast-math)
+#     endif()
+
+else()
+    message(WARNING "Unknown architecture: ${TARGET_ARCH}, using default settings")
+endif()
+
 # options
 if("${CHIP_NAME}" STREQUAL "bm1688")
     set(SRC_DIR bm1688)
@@ -7,10 +55,12 @@ else()  # default
     set(SRC_DIR bm1688)
 endif()
 
-add_compile_options(-Werror)
+# add_compile_options(-Werror)
+add_compile_options(-g -O0 -DDEBUG)
 
 # add header files path
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/libbmcv/include)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/libbmcv/include/freetype2)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/osdrv)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/${SRC_DIR})
@@ -31,14 +81,24 @@ file(GLOB SRCS src/*.c src/${SRC_DIR}/*.c)
 list(REMOVE_ITEM SRCS
     "${CMAKE_CURRENT_SOURCE_DIR}/src/bmcv_api_jpeg_dec.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/bmcv_api_jpeg_enc.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/bmcv_api_put_text.c"
 )
 set(HEADERS include/bmcv_api_ext.h include/bmcv_api_ext_c.h include/bmcv_api.h)
 set(component libsophon)
 
+set(FREETYPE_STATIC_LIB ${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/libbmcv/lib1131/soc/libfreetype.a)
+
 add_library(${BMCV_LIB_NAME} SHARED ${SRCS})
-target_link_libraries(${BMCV_LIB_NAME} bmlib dl)
+target_link_libraries(${BMCV_LIB_NAME}
+    bmlib
+    dl
+    ${FREETYPE_STATIC_LIB}
+    -lm
+)
 # target_link_libraries(${BMCV_LIB_NAME} bmlib dl bmjpeg turbojpeg)
+
+target_link_options(${BMCV_LIB_NAME} PRIVATE
+    "-Wl,--whole-archive" ${FREETYPE_STATIC_LIB} "-Wl,--no-whole-archive"
+)
 
 # avoid to compile source file repeated
 add_library(${BMCV_LIB_NAME}-static STATIC $<TARGET_OBJECTS:${BMCV_LIB_NAME}>)
@@ -56,7 +116,6 @@ else ()
     # remove jpeg test case
     list(REMOVE_ITEM TEST_SRCS
         "${CMAKE_CURRENT_SOURCE_DIR}/test/test_cv_jpeg.c"
-        "${CMAKE_CURRENT_SOURCE_DIR}/test/test_cv_put_text.c"
         "${CMAKE_CURRENT_SOURCE_DIR}/test/test_gen_text_watermark.c"
     )
 endif ()
@@ -85,7 +144,7 @@ file(GLOB DAILY_TEST_SRCS test/daily_test/*.c)
 list(REMOVE_ITEM DAILY_TEST_SRCS
     "${CMAKE_CURRENT_SOURCE_DIR}/test/daily_test/bmcv_image_jpeg_dec.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/test/daily_test/bmcv_image_jpeg_enc.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/test/daily_test/bmcv_image_put_text.c"
+    # "${CMAKE_CURRENT_SOURCE_DIR}/test/daily_test/bmcv_image_put_text.c"
 )
 foreach(test_src ${DAILY_TEST_SRCS})
     # filter case name from filename

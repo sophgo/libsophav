@@ -9,6 +9,83 @@
 #include <stdlib.h>
 #include <locale.h>
 #include <fontdata.h>
+#include <notosanssc_thin_font.h>
+#include <notosanssc_light_font.h>
+#include <ft2build.h>
+#include FT_FREETYPE_H
+
+#ifndef MAX
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+#endif
+
+#ifndef MIN
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+#endif
+
+#ifdef __ARM_NEON
+#include <arm_neon.h>
+static inline void alpha_blend_neon(uint32_t* dst, uint32_t color_rgb,
+                                              const unsigned char* alpha_row,
+                                              int width) {
+
+    uint32x4_t color_vec = vdupq_n_u32(color_rgb);
+    int x = 0;
+    for (; x <= width - 8; x += 8) {
+        uint8x8_t alpha8 = vld1_u8(&alpha_row[x]);
+
+        uint16x8_t alpha16 = vmovl_u8(alpha8);
+
+        uint32x4_t alpha32_low = vmovl_u16(vget_low_u16(alpha16));
+        uint32x4_t alpha32_high = vmovl_u16(vget_high_u16(alpha16));
+
+        alpha32_low = vshlq_n_u32(alpha32_low, 24);
+        alpha32_high = vshlq_n_u32(alpha32_high, 24);
+
+        uint32x4_t result_low = vorrq_u32(alpha32_low, color_vec);
+        uint32x4_t result_high = vorrq_u32(alpha32_high, color_vec);
+
+        vst1q_u32(&dst[x], result_low);
+        vst1q_u32(&dst[x + 4], result_high);
+    }
+
+    for (; x <= width - 4; x += 4) {
+        uint8x8_t alpha8 = vld1_u8(&alpha_row[x]);
+        uint16x8_t alpha16 = vmovl_u8(alpha8);
+        uint32x4_t alpha32 = vmovl_u16(vget_low_u16(alpha16));
+        alpha32 = vshlq_n_u32(alpha32, 24);
+        uint32x4_t result = vorrq_u32(alpha32, color_vec);
+        vst1q_u32(&dst[x], result);
+    }
+
+    for (; x < width; x++) {
+        unsigned char alpha = alpha_row[x];
+        if (alpha == 0) continue;
+        dst[x] = (alpha << 24) | color_rgb;
+    }
+}
+#endif
+
+struct TextRendererImpl {
+    FT_Library library;
+    FT_Face face;
+    char last_error[256];
+    bool is_valid;
+};
+
+typedef struct TextRendererImpl* TextRendererHandle;
+
+// Global font renderer cache
+typedef struct {
+    TextRendererHandle renderer;
+    float font_size;
+    bool in_use;
+    pthread_mutex_t mutex;
+} FontCacheEntry;
+
+#define FONT_CACHE_SIZE 10
+static FontCacheEntry font_cache[FONT_CACHE_SIZE];
+static pthread_mutex_t cache_mutex = PTHREAD_MUTEX_INITIALIZER;
+static bool cache_initialized = false;
 
 #define ALIGN_TO(size, align) (((size) + (align) - 1) & ~((align) - 1))
 #define SATURATE(a, s, e) ((a) > (e) ? (e) : ((a) < (s) ? (s) : (a)))
@@ -18,6 +95,7 @@
 
 typedef long long int64;
 typedef unsigned char uchar;
+static float font_dimensions = 20.0;
 
 struct bmPoint2l {
     int64 x;
@@ -263,6 +341,21 @@ static void swap(int* a, int* b)
     int temp = *a;
     *a = *b;
     *b = temp;
+}
+
+static TextRendererHandle global_renderer = NULL;
+static float global_font_size = 0.0f;
+
+static void init_font_cache() {
+    pthread_mutex_lock(&cache_mutex);
+    if (!cache_initialized) {
+        memset(font_cache, 0, sizeof(font_cache));
+        for (int i = 0; i < FONT_CACHE_SIZE; i++) {
+            pthread_mutex_init(&font_cache[i].mutex, NULL);
+        }
+        cache_initialized = true;
+    }
+    pthread_mutex_unlock(&cache_mutex);
 }
 
 static void put_line(bmMat* inout, bmcv_point_t start, bmcv_point_t end, bmcv_color_t color, int thickness)
@@ -685,7 +778,7 @@ static bm_status_t bmcv_put_text_check(bm_handle_t handle, bm_image image, int t
         bmlib_log("PUT_TEXT", BMLIB_LOG_ERROR, "thickness should greater than 0!\r\n");
         return BM_ERR_PARAM;
     }
-    if (!IS_CS_YUV(image.image_format) && image.image_format != FORMAT_GRAY && thickness != 0) {
+    if (!IS_CS_YUV(image.image_format) && image.image_format != FORMAT_GRAY && image.image_format != FORMAT_RGB_PLANAR && thickness != 0) {
         bmlib_log("PUT_TEXT", BMLIB_LOG_ERROR, "image format not supported %d!\r\n", image.image_format);
         return BM_ERR_PARAM;
     }
@@ -693,9 +786,375 @@ static bm_status_t bmcv_put_text_check(bm_handle_t handle, bm_image image, int t
     return BM_SUCCESS;
 }
 
-bm_status_t bmcv_image_put_text(bm_handle_t handle, bm_image image, const char* text, bmcv_point_t org,
-                                bmcv_color_t color, float fontScale, int thickness)
-{
+static uint32_t* utf8_to_unicode(const char* str, size_t* out_count) {
+    if (!str) {
+        *out_count = 0;
+        return NULL;
+    }
+
+    size_t len = strlen(str);
+    // Allocating len uint322_t here is a safe upper limit, as one character in UTF-8 occupies at least 1 byte
+    uint32_t* codes = (uint32_t*)malloc(sizeof(uint32_t) * len);
+    if (!codes) {
+        *out_count = 0;
+        return NULL;
+    }
+
+    size_t i = 0, count = 0;
+    while (i < len) {
+        uint32_t codepoint = 0;
+        unsigned char c = (unsigned char)str[i];
+        if ((c & 0x80) == 0) {
+            codepoint = c;
+            i++;
+        }
+        else if ((c & 0xE0) == 0xC0) {
+            if (i + 1 >= len) break;
+            i++;
+            codepoint = (c & 0x1F) << 6 | ((unsigned char)str[i] & 0x3F);
+            i++;
+        }
+        else if ((c & 0xF0) == 0xE0) {
+            if (i + 2 >= len) break;
+            i++;
+            uint32_t part2 = ((unsigned char)str[i] & 0x3F) << 6;
+            i++;
+            uint32_t part3 = ((unsigned char)str[i] & 0x3F);
+            codepoint = (c & 0x0F) << 12 | part2 | part3;
+            i++;
+        }
+        else if ((c & 0xF8) == 0xF0) {
+            if (i + 3 >= len) break;
+            i++;
+            uint32_t part2 = ((unsigned char)str[i] & 0x3F) << 12;
+            i++;
+            uint32_t part3 = ((unsigned char)str[i] & 0x3F) << 6;
+            i++;
+            uint32_t part4 = ((unsigned char)str[i] & 0x3F);
+            codepoint = (c & 0x07) << 18 | part2 | part3 | part4;
+            i++;
+        }
+        else {
+            i++;
+            continue;
+        }
+        codes[count++] = codepoint;
+
+    }
+    *out_count = count;
+    return codes;
+}
+
+TextRendererHandle text_renderer_create() {
+    struct TextRendererImpl* renderer = (struct TextRendererImpl*)calloc(1, sizeof(struct TextRendererImpl));
+    if (!renderer) return NULL;
+    renderer->is_valid = false;
+    strcpy(renderer->last_error, "OK");
+
+    if (FT_Init_FreeType(&renderer->library)) {
+        strcpy(renderer->last_error, "FreeType init fail!\n");
+        free(renderer); return NULL;
+    }
+
+    if (font_dimensions < 30.0) {
+        if (FT_New_Memory_Face(renderer->library,
+                            NotoSansSC_Thin_min_ttf,
+                            NotoSansSC_Thin_min_ttf_len,
+                            0,
+                            &renderer->face)) {
+            snprintf(renderer->last_error, sizeof(renderer->last_error), "Unable to load font from memory");
+            FT_Done_FreeType(renderer->library);
+            free(renderer);
+            return NULL;
+        }
+    }
+    else {
+        if (FT_New_Memory_Face(renderer->library,
+                           NotoSansSC_Light_min_ttf,
+                           NotoSansSC_Light_min_ttf_len,
+                           0,
+                           &renderer->face)) {
+            snprintf(renderer->last_error, sizeof(renderer->last_error), "Unable to load font from memory");
+            FT_Done_FreeType(renderer->library);
+            free(renderer);
+            return NULL;
+        }
+    }
+    renderer->is_valid = true;
+    return renderer;
+}
+
+// Get or create a font renderer (set the font size when creating it)
+static TextRendererHandle get_font_renderer(float font_size) {
+    pthread_mutex_lock(&cache_mutex);
+
+    // Search for available cache entries
+    for (int i = 0; i < FONT_CACHE_SIZE; i++) {
+        if (font_cache[i].renderer &&
+            font_cache[i].font_size == font_size &&
+            !font_cache[i].in_use) {
+            pthread_mutex_lock(&font_cache[i].mutex);
+            font_cache[i].in_use = true;
+            pthread_mutex_unlock(&font_cache[i].mutex);
+            pthread_mutex_unlock(&cache_mutex);
+            return font_cache[i].renderer;
+        }
+    }
+
+    // Find replaceable items
+    for (int i = 0; i < FONT_CACHE_SIZE; i++) {
+        if (!font_cache[i].in_use) {
+            pthread_mutex_lock(&font_cache[i].mutex);
+
+            if (font_cache[i].in_use) {
+                pthread_mutex_unlock(&font_cache[i].mutex);
+                continue;
+            }
+
+            // Create a new renderer or reuse an existing one
+            if (!font_cache[i].renderer) {
+                font_cache[i].renderer = text_renderer_create();
+            }
+
+            if (font_cache[i].renderer) {
+                // Set the font size here to ensure the renderer is in the correct state
+                if (font_cache[i].renderer->face) {
+                    if (FT_Set_Pixel_Sizes(font_cache[i].renderer->face, 0, font_size)) {
+                        // failed, destory and re-create
+                        text_renderer_destroy(font_cache[i].renderer);
+                        font_cache[i].renderer = text_renderer_create();
+                        if (font_cache[i].renderer && font_cache[i].renderer->face) {
+                            FT_Set_Pixel_Sizes(font_cache[i].renderer->face, 0, font_size);
+                        }
+                    }
+                }
+
+                font_cache[i].font_size = font_size;
+                font_cache[i].in_use = true;
+                pthread_mutex_unlock(&font_cache[i].mutex);
+                pthread_mutex_unlock(&cache_mutex);
+                return font_cache[i].renderer;
+            }
+
+            pthread_mutex_unlock(&font_cache[i].mutex);
+        }
+    }
+
+    pthread_mutex_unlock(&cache_mutex);
+
+    // Create a temporary one when the cache is full
+    TextRendererHandle temp_renderer = text_renderer_create();
+    if (temp_renderer && temp_renderer->face) {
+        FT_Set_Pixel_Sizes(temp_renderer->face, 0, font_size);
+    }
+    return temp_renderer;
+}
+
+// Release the font renderer
+static void release_font_renderer(TextRendererHandle renderer) {
+    pthread_mutex_lock(&cache_mutex);
+    for (int i = 0; i < FONT_CACHE_SIZE; i++) {
+        if (font_cache[i].renderer == renderer) {
+            pthread_mutex_lock(&font_cache[i].mutex);
+            font_cache[i].in_use = false;
+            pthread_mutex_unlock(&font_cache[i].mutex);
+            pthread_mutex_unlock(&cache_mutex);
+            return;
+        }
+    }
+    pthread_mutex_unlock(&cache_mutex);
+    // Not in the cache; destroy immediately
+    text_renderer_destroy(renderer);
+}
+
+void text_renderer_destroy(TextRendererHandle handle) {
+    if (!handle) return;
+    if (handle->face) FT_Done_Face(handle->face);
+    if (handle->library) FT_Done_FreeType(handle->library);
+    free(handle);
+}
+
+bool text_renderer_is_valid(TextRendererHandle handle) {
+    return handle && handle->is_valid;
+}
+
+const char* text_renderer_get_error(TextRendererHandle handle) {
+    return handle ? handle->last_error : "Invalid handle";
+}
+
+int render_text_optimized(FT_Face face, const char* text,
+                          unsigned char r, unsigned char g, unsigned char b,
+                          float font_size, int start_x, int start_y,
+                          void* target_virt_addr, int target_width, int target_height,
+                          int target_stride) {
+    if (!text || !target_virt_addr) {
+        return -1;
+    }
+
+    // convert UTF-8 to Unicode
+    size_t code_count = 0;
+    uint32_t* codes = utf8_to_unicode(text, &code_count);
+    if (!codes) {
+        return -3;
+    }
+
+    int target_total_size = target_stride * target_height;
+    memset(target_virt_addr, 0, target_total_size);
+
+    uint32_t* target_argb = (uint32_t*)target_virt_addr;
+    int target_pixels_per_row = target_stride / 4;
+
+    uint32_t color_rgb = (r << 16) | (g << 8) | b;
+    uint32_t color_argb = 0xFF000000 | color_rgb;
+
+    int current_x = start_x;
+    int baseline_y = start_y;
+
+    for (size_t i = 0; i < code_count; i++) {
+        uint32_t codepoint = codes[i];
+
+        if (codepoint == 0x20) {
+            current_x += (int)(font_size * 0.3f);
+            continue;
+        }
+
+        // Load and render glyphs
+        if (FT_Load_Char(face, codepoint, FT_LOAD_RENDER)) {
+            continue;
+        }
+
+        FT_GlyphSlot slot = face->glyph;
+        FT_Bitmap bitmap = slot->bitmap;
+
+        int draw_x = current_x + slot->bitmap_left;
+        int draw_y = baseline_y - slot->bitmap_top;
+
+        // Cutting Calculations
+        int clip_x_start = MAX(draw_x, 0);
+        int clip_y_start = MAX(draw_y, 0);
+        int clip_x_end = MIN(draw_x + bitmap.width, target_width);
+        int clip_y_end = MIN(draw_y + bitmap.rows, target_height);
+
+        int bitmap_clip_x = clip_x_start - draw_x;
+        int bitmap_clip_y = clip_y_start - draw_y;
+
+        // Rendering
+        for (int y = clip_y_start; y < clip_y_end; y++) {
+            int bitmap_y = y - clip_y_start + bitmap_clip_y;
+            unsigned char* bitmap_row = bitmap.buffer + bitmap_y * bitmap.pitch;
+            uint32_t* target_row = target_argb + y * target_pixels_per_row;
+
+            #ifdef __ARM_NEON
+            // use arm neon
+            if ((clip_x_end - clip_x_start) >= 4) {
+                alpha_blend_neon(&target_row[clip_x_start], color_rgb,
+                                &bitmap_row[bitmap_clip_x],
+                                clip_x_end - clip_x_start);
+            } else {
+            #endif
+                for (int x = clip_x_start; x < clip_x_end; x++) {
+                    int bitmap_x = x - clip_x_start + bitmap_clip_x;
+                    unsigned char alpha = bitmap_row[bitmap_x];
+
+                    if (alpha == 0) continue;
+                    if (alpha == 255) {
+                        target_row[x] = color_argb;
+                    } else {
+                        target_row[x] = (alpha << 24) | color_rgb;
+                    }
+                }
+            #ifdef __ARM_NEON
+            }
+            #endif
+        }
+
+        current_x += slot->advance.x >> 6;
+    }
+
+    free(codes);
+    return 0;
+}
+
+int gen_text_argb_optimized(bm_handle_t handle, const char* text,
+                            bmcv_color_t color, float font_size,
+                            bm_image *output) {
+    // use cache
+    init_font_cache();
+    TextRendererHandle renderer = get_font_renderer(font_size);
+
+    if (!text_renderer_is_valid(renderer)) {
+        printf("Renderer creation failed: %s\n", text_renderer_get_error(renderer));
+        release_font_renderer(renderer);
+        return -1;
+    }
+
+    int target_width = 1000;
+    int target_height = 80;
+    int target_stride = target_width * 4;
+    unsigned char r = color.r;
+    unsigned char g = color.g;
+    unsigned char b = color.b;
+    int start_x = 40;
+    int start_y = 40;
+
+    bm_device_mem_t pmem;
+    unsigned long long virt_addr = 0;
+
+    bm_status_t ret = bm_image_create(handle, target_height, target_width,
+                                      FORMAT_ARGB_PACKED, DATA_TYPE_EXT_1N_BYTE,
+                                      output, NULL);
+    if (ret != BM_SUCCESS) {
+        release_font_renderer(renderer);
+        return ret;
+    }
+
+    ret = bm_image_dev_mem_alloc(output[0], BMCV_HEAP1_ID);
+    if (ret != BM_SUCCESS)
+        goto fail;
+
+    ret = bm_image_get_device_mem(output[0], &pmem);
+    if (ret != BM_SUCCESS)
+        goto fail;
+
+    ret = bm_mem_mmap_device_mem(handle, &pmem, &virt_addr);
+    if (ret != BM_SUCCESS) {
+        printf("bm_mem_mmap_device_mem fail, paddr(0x%lx)\n", pmem.u.device.device_addr);
+        goto fail;
+    }
+
+    // Render text
+    render_text_optimized(
+        renderer->face, text,
+        r, g, b,
+        font_size,
+        start_x, start_y,
+        (void *)virt_addr, target_width, target_height,
+        target_stride
+    );
+
+    ret = bm_mem_flush_device_mem(handle, &pmem);
+    if (ret != BM_SUCCESS)
+        goto fail;
+
+    ret = bm_mem_unmap_device_mem(handle, (void *)virt_addr, target_stride * target_height);
+    if (ret != BM_SUCCESS) {
+        printf("bm_mem_unmap_device_mem fail, vaddr(0x%llx)\n", virt_addr);
+        goto fail;
+    }
+
+fail:
+    if (ret != BM_SUCCESS)
+        bm_image_destroy(output);
+
+    release_font_renderer(renderer);
+    return ret;
+}
+
+
+bm_status_t bmcv_image_put_text_optimized(bm_handle_t handle, bm_image image,
+                                          const char* text, bmcv_point_t org,
+                                          bmcv_color_t color, float fontScale,
+                                          int thickness) {
     bm_status_t ret = BM_SUCCESS;
 
     ret = bmcv_put_text_check(handle, image, thickness);
@@ -704,57 +1163,63 @@ bm_status_t bmcv_image_put_text(bm_handle_t handle, bm_image image, const char* 
         return ret;
     }
 
-    if(thickness == 0){
-        setlocale(LC_ALL, "");
-        size_t len = mbstowcs(NULL, text, 0); // 获取转换后宽字符字符串的长度
-        wchar_t wideStr[len + 1]; // 分配宽字符字符串的内存
-        mbstowcs(wideStr, text, len + 1); // 进行转换
-        ret = bmcv_overlay_put_text(handle, image, wideStr, org, color, fontScale);
-        return ret;
-    }
+    font_dimensions = fontScale;
 
-    int strides[3];
-    bmMat mat;
-    bm_device_mem_t dmem;
-    unsigned char *in_ptr[3];
-    unsigned long long virt_addr  = 0;
-    unsigned long long size[3] = {0};
-    unsigned long long total_size = 0;
-
-    for (int i = 0; i < image.image_private->plane_num; i++) {
-        size[i] = image.image_private->memory_layout[i].size;
-        total_size += size[i];
-    }
-    dmem = image.image_private->data[0];
-    bm_set_device_mem(&dmem, total_size, dmem.u.device.device_addr);
-    ret = bm_mem_mmap_device_mem_no_cache(image.image_private->handle, &dmem, &virt_addr);
+    bm_image watermark;
+    ret = gen_text_argb_optimized(handle, text, color, fontScale, &watermark);
     if (ret != BM_SUCCESS) {
-        bmlib_log("PUT_TEXT", BMLIB_LOG_ERROR, "bm_mem_mmap_device_mem failed with error code %d\r\n", ret);
+        printf("gen_text_argb_optimized failed!\n");
         return ret;
     }
 
-    in_ptr[0] = (unsigned char *)virt_addr;
-    in_ptr[1] = in_ptr[0] + size[0];
-    in_ptr[2] = in_ptr[1] + size[1];
+    bmcv_rect_t rect = {
+        .start_x = org.x,
+        .start_y = org.y,
+        .crop_w = watermark.width,
+        .crop_h = watermark.height
+    };
 
-    ret = bm_image_get_stride(image, strides);
+    ret = bmcv_image_overlay(handle, image, 1, &rect, &watermark);
     if (ret != BM_SUCCESS) {
-        printf("bm_image_get_stride failed!\n");
-        return ret;
-    }
-    mat.width = image.width;
-    mat.height = image.height;
-    mat.format = image.image_format;
-    mat.step = &strides[0];
-    mat.data = (void**)in_ptr;
-
-    put_text(mat, text, org, FONT_HERSHEY_SIMPLEX, fontScale, color, thickness);
-
-    ret = bm_mem_unmap_device_mem(image.image_private->handle, (void *)virt_addr, total_size);
-    if (ret != BM_SUCCESS) {
-        bmlib_log("PUT_TEXT", BMLIB_LOG_ERROR, "bm_mem_unmap_device_mem failed with error code %d\r\n", ret);
+        printf("bmcv_image_overlay failed!\n");
+        bm_image_destroy(&watermark);
         return ret;
     }
 
+    bm_image_destroy(&watermark);
     return ret;
+}
+
+bm_status_t bmcv_image_put_text(bm_handle_t handle, bm_image image, const char* text, bmcv_point_t org,
+                                bmcv_color_t color, float fontScale, int thickness)
+{
+
+    bm_status_t ret = BM_SUCCESS;
+
+    ret = bmcv_put_text_check(handle, image, thickness);
+    if (ret != BM_SUCCESS) {
+        printf("bmcv_put_text_check failed!\n");
+        return ret;
+    }
+
+    // cpu + vpss
+    if(thickness == 0) {
+        setlocale(LC_ALL, "");
+        size_t len = mbstowcs(NULL, text, 0);
+        if (len == (size_t)-1) {
+             printf("Invalid multibyte string\n");
+             return BM_ERR_PARAM;
+        }
+        wchar_t *wideStr = (wchar_t*)malloc((len + 1) * sizeof(wchar_t));
+        if (wideStr == NULL) {
+            printf("malloc failed!\n");
+            return BM_ERR_NOMEM;
+        }
+        mbstowcs(wideStr, text, len + 1);
+        ret = bmcv_overlay_put_text(handle, image, wideStr, org, color, fontScale);
+        free(wideStr);
+        return ret;
+    }
+
+    return bmcv_image_put_text_optimized(handle, image, text, org, color, fontScale, thickness);
 }

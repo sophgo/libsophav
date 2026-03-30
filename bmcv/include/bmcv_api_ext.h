@@ -2613,6 +2613,22 @@ DECL_EXPORT bm_status_t bmcv_base64_dec(
     bm_device_mem_t dst,
     unsigned long   len[2]);
 
+/*
+* The function of writing on an image
+* image is input image;text is Text to be written, in English;
+* org is coordinates at the bottom left of the first character;
+* color is draw the color of the line
+* fontScale is font size; thickness is draw the width of the line
+*/
+DECL_EXPORT bm_status_t bmcv_image_put_text(
+    bm_handle_t handle,
+    bm_image image,
+    const char* text,
+    bmcv_point_t org,
+    bmcv_color_t color,
+    float fontScale,
+    int thickness);
+
 /**
  * Eliminate network calculations to get too many object boxes and find the best object box.
  * input_proposal_addr is Enter the address of the object box data;
