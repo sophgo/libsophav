@@ -904,9 +904,10 @@ get_stream:
             break;
     }
 
-#ifdef BM_PCIE_MODE
-    free(host_va);
-#endif
+    if (host_va != NULL) {
+        free(host_va);
+        host_va = NULL;
+    }
 
     gettimeofday(&(ctx->tv_beg), NULL);
     while(1)
