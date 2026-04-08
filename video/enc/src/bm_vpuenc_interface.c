@@ -136,6 +136,18 @@ bm_handle_t bmvpu_enc_get_bmlib_handle(int soc_idx);
 int bmvpu_enc_get_initial_info(BmVpuEncoder *encoder, BmVpuEncInitialInfo *info, unsigned int *min_bs_buf_size);
 int bmvpu_enc_encode_header(BmVpuEncoder *encoder);
 
+static size_t calculate_onebs_buffer_size(int width, int height)
+{
+    int resolution = width * height;
+
+    if (resolution <= 352 * 288)        return 64 * 1024;       // 64KB
+    else if (resolution <= 720 * 576)   return 256 * 1024;      // 256KB
+    else if (resolution <= 1280 * 720)  return 512 * 1024;      // 512KB
+    else if (resolution <= 1920 * 1080) return 1 * 1024 * 1024; // 1MB
+    else if (resolution <= 3840 * 2160) return 2 * 1024 * 1024; // 2MB
+    else return 4 * 1024 * 1024; // 4MB
+}
+
 static inline void get_pic_buffer_config_internal(unsigned int width, unsigned int height,
         pixel_format_e enPixelFormat, data_bitwidth_e enBitWidth,
         compress_mode_e enCmpMode, unsigned int u32Align, vb_cal_config_s *pstCalConfig)
@@ -1001,7 +1013,12 @@ int bmvpu_enc_open(BmVpuEncoder **encoder,
     stAttr.stVencAttr.enEncMode          = open_params->enc_mode;
 
     stAttr.stGopExAttr.u32GopPreset      = open_params->gop_preset;
-    stAttr.stVencAttr.u32BufSize         = VPU_ENC_BITSTREAM_BUFFER_SIZE;
+    size_t max_bs_size = calculate_onebs_buffer_size(open_params->frame_width, open_params->frame_height);
+    if (max_bs_size > VPU_ENC_BITSTREAM_BUFFER_SIZE) {
+        stAttr.stVencAttr.u32BufSize = max_bs_size;
+    } else {
+        stAttr.stVencAttr.u32BufSize = VPU_ENC_BITSTREAM_BUFFER_SIZE;
+    }
 
     // 3. set enc params (stRcAttr)
     if (open_params->cqp >= 0) {
