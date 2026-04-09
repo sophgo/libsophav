@@ -277,6 +277,17 @@ static void finish_output_buffer(void *context, void *acquired_handle)
     ((void)(context));
 }
 
+static size_t calculate_onebs_buffer_size(int width, int height) {
+    int resolution = width * height;
+
+    if (resolution <= 352 * 288)        return 64 * 1024;       // 64KB
+    else if (resolution <= 720 * 576)   return 256 * 1024;      // 256KB
+    else if (resolution <= 1280 * 720)  return 512 * 1024;      // 512KB
+    else if (resolution <= 1920 * 1080) return 1 * 1024 * 1024; // 1MB
+    else if (resolution <= 3840 * 2160) return 2 * 1024 * 1024; // 2MB
+    else return 4 * 1024 * 1024; // 4MB
+}
+
 static void cleanup_task(void* arg)
 {
     VpuEncContext* ctx = (void*)arg;
@@ -458,6 +469,10 @@ static int run_once(InputParameter* par)
 
     /* Retrieve information about the required bitstream buffer */
     bmvpu_enc_get_bitstream_buffer_info(&(ctx->bs_buffer_size), &(ctx->bs_buffer_alignment));
+    size_t max_bs_size = calculate_onebs_buffer_size(eop->frame_width, eop->frame_height);
+    if (max_bs_size > ctx->bs_buffer_size) {
+        ctx->bs_buffer_size = max_bs_size;
+    }
 
     /*Recommended bs size, based on gop_preset*/
     /*required source frame buffer(MSFB)
