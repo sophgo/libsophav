@@ -42,7 +42,7 @@ bmcv_istft
 
 * int L
 
-  输入参数。每个batch的信号长度。
+  输入参数。每个batch的信号长度。L需要是2、3、4或5的幂。
 
 * bool realInput
 

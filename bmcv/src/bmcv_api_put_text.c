@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <locale.h>
 #include <fontdata.h>
+#include <langinfo.h>
 
 #define ALIGN_TO(size, align) (((size) + (align) - 1) & ~((align) - 1))
 #define SATURATE(a, s, e) ((a) > (e) ? (e) : ((a) < (s) ? (s) : (a)))
@@ -694,6 +695,25 @@ static bool is_integer_fp32(float x) {
     return fabsf(x - roundf(x)) < 1e-6f;
 }
 
+static bool determine_environment(void) {
+    static bool is_utf8 = 0;
+    char* codeset;
+    if (!is_utf8) {
+        setlocale(LC_CTYPE, "");
+        codeset = nl_langinfo(CODESET);
+        if (!codeset) {
+            printf("nl_langinfo(CODESET) returned null\n");
+            return 1;
+        }
+
+        is_utf8 = strcasecmp(codeset, "UTF-8") == 0 ||
+            strcasecmp(codeset, "UTF8") == 0;
+    }
+    if (!is_utf8)
+        printf("Current codeset: %s, please set it to UTF-8\n", codeset);
+    return is_utf8;
+}
+
 bm_status_t bmcv_gen_text_watermark(
     bm_handle_t handle,
     const wchar_t* hexcode,
@@ -713,6 +733,9 @@ bm_status_t bmcv_gen_text_watermark(
         ((!is_integer_fp32(fontscale)) && fontscale > 0 && fontscale < 10 && format == FORMAT_ARGB_PACKED);
     bm_device_mem_t pmem;
     bm_image resize_bmimg;
+
+    if (!determine_environment())
+        return BM_ERR_PARAM;
 
     if (format != FORMAT_GRAY && format != FORMAT_ARGB_PACKED) {
         printf("format(%d) is not supported\n", format);
@@ -834,11 +857,11 @@ static bm_status_t bmcv_put_text_check(bm_handle_t handle, bm_image image, int t
         bmlib_log("PUT_TEXT", BMLIB_LOG_ERROR, "Can not get handle!\r\n");
         return BM_ERR_PARAM;
     }
-    if (thickness < 0) {
-        bmlib_log("PUT_TEXT", BMLIB_LOG_ERROR, "thickness should greater than 0!\r\n");
+    if (thickness <= 0) {
+        bmlib_log("PUT_TEXT", BMLIB_LOG_ERROR, "thickness(%d) should greater than 0!\r\n", thickness);
         return BM_ERR_PARAM;
     }
-    if (!IS_CS_YUV(image.image_format) && image.image_format != FORMAT_GRAY && thickness != 0) {
+    if (!IS_CS_YUV(image.image_format) && image.image_format != FORMAT_GRAY) {
         bmlib_log("PUT_TEXT", BMLIB_LOG_ERROR, "image format not supported %d!\r\n", image.image_format);
         return BM_ERR_PARAM;
     }
@@ -850,14 +873,16 @@ bm_status_t bmcv_image_put_text(bm_handle_t handle, bm_image image, const char* 
                                 bmcv_color_t color, float fontScale, int thickness)
 {
     bm_status_t ret = BM_SUCCESS;
+    static int soft_putttext = -1;
 
-    ret = bmcv_put_text_check(handle, image, thickness);
-    if (ret != BM_SUCCESS) {
-        printf("bmcv_put_text_check failed!\n");
-        return ret;
+    if (soft_putttext == -1) {
+        char* val = getenv("SOFT_PUTTEXT");
+        if (!val)
+            soft_putttext = false;
+        else
+            soft_putttext = atoi(val);
     }
-
-    if (thickness == 0){
+    if (soft_putttext == false) {
         setlocale(LC_ALL, "");
         size_t len = mbstowcs(NULL, text, 0);
         wchar_t wideStr[len + 1];
@@ -866,42 +891,41 @@ bm_status_t bmcv_image_put_text(bm_handle_t handle, bm_image image, const char* 
         return ret;
     }
 
-    int strides[3];
-    bmMat mat;
-    bm_device_mem_t dmem;
-    unsigned char *in_ptr[3];
-    unsigned long long virt_addr  = 0;
-    unsigned long long size[3] = {0};
-    unsigned long long total_size = 0;
-
-    for (int i = 0; i < image.image_private->plane_num; i++) {
-        size[i] = image.image_private->memory_layout[i].size;
-        total_size += size[i];
-    }
-    dmem = image.image_private->data[0];
-    bm_set_device_mem(&dmem, total_size, dmem.u.device.device_addr);
-#ifndef BM_PCIE_MODE
-    ret = bm_mem_mmap_device_mem_no_cache(image.image_private->handle, &dmem, &virt_addr);
+    ret = bmcv_put_text_check(handle, image, thickness);
     if (ret != BM_SUCCESS) {
-        bmlib_log("PUT_TEXT", BMLIB_LOG_ERROR, "bm_mem_mmap_device_mem failed with error code %d\r\n", ret);
+        printf("bmcv_put_text_check failed!\n");
         return ret;
     }
+
+    int strides[3];
+    bmMat mat;
+    unsigned char *in_ptr[3];
+    unsigned char in_ptr_status[3] = {0};
+
+    for (int i = 0; i < image.image_private->plane_num; i++) {
+#ifndef BM_PCIE_MODE
+        ret = bm_mem_mmap_device_mem_no_cache(image.image_private->handle,
+            &image.image_private->data[i], (unsigned long long*)&in_ptr[i]);
 #else
-    virt_addr = (unsigned long long)malloc(total_size);
-    ret = bm_memcpy_d2s(image.image_private->handle, (void *)virt_addr, dmem);
-    if (ret != BM_SUCCESS) {
-        bmlib_log("PUT_TEXT", BMLIB_LOG_ERROR, "bm_memcpy_d2s failed with error code %d\r\n", ret);
-        goto exit;
-    }
+        ret = BM_ERR_FAILURE;
 #endif
-    in_ptr[0] = (unsigned char *)virt_addr;
-    in_ptr[1] = in_ptr[0] + size[0];
-    in_ptr[2] = in_ptr[1] + size[1];
+        if (ret != BM_SUCCESS) {
+            in_ptr[i] = (unsigned char *)malloc(image.image_private->data[i].size);
+            in_ptr_status[i] = 2;
+            ret = bm_memcpy_d2s(image.image_private->handle, (void *)in_ptr[i], image.image_private->data[i]);
+            if (ret != BM_SUCCESS) {
+                bmlib_log("PUT_TEXT", BMLIB_LOG_ERROR, "bm_memcpy_d2s failed with error code %d\r\n", ret);
+                goto exit;
+            }
+        } else {
+            in_ptr_status[i] = 1;
+        }
+    }
 
     ret = bm_image_get_stride(image, strides);
     if (ret != BM_SUCCESS) {
         printf("bm_image_get_stride failed!\n");
-        return ret;
+        goto exit;
     }
     mat.width = image.width;
     mat.height = image.height;
@@ -910,20 +934,20 @@ bm_status_t bmcv_image_put_text(bm_handle_t handle, bm_image image, const char* 
     mat.data = (void**)in_ptr;
 
     put_text(mat, text, org, FONT_HERSHEY_SIMPLEX, fontScale, color, thickness);
-#ifndef BM_PCIE_MODE
-    ret = bm_mem_unmap_device_mem(image.image_private->handle, (void *)virt_addr, total_size);
-    if (ret != BM_SUCCESS) {
-        bmlib_log("PUT_TEXT", BMLIB_LOG_ERROR, "bm_mem_unmap_device_mem failed with error code %d\r\n", ret);
-        return ret;
-    }
-#else
-    ret = bm_memcpy_s2d(image.image_private->handle, dmem, (void *)virt_addr);
-    if (ret != BM_SUCCESS) {
-        bmlib_log("PUT_TEXT", BMLIB_LOG_ERROR, "bm_memcpy_s2d failed with error code %d\r\n", ret);
-        goto exit;
-    }
+
 exit:
-    free((void *)virt_addr);
-#endif
+    for (int i = 0; i < image.image_private->plane_num; i++) {
+        if (in_ptr_status[i] == 1) {
+            ret = bm_mem_unmap_device_mem(image.image_private->handle, (void *)in_ptr[i], image.image_private->data[i].size);
+            if (ret != BM_SUCCESS)
+                bmlib_log("PUT_TEXT", BMLIB_LOG_ERROR, "bm_mem_unmap_device_mem failed with error code %d\r\n", ret);
+        }
+        if (in_ptr_status[i] == 2) {
+            ret = bm_memcpy_s2d(image.image_private->handle, image.image_private->data[i], (void *)in_ptr[i]);
+            if (ret != BM_SUCCESS)
+                bmlib_log("PUT_TEXT", BMLIB_LOG_ERROR, "bm_memcpy_s2d failed with error code %d\r\n", ret);
+            free((void *)in_ptr[i]);
+        }
+    }
     return ret;
 }

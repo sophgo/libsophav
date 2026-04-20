@@ -35,7 +35,7 @@ typedef enum {
 
 int  bmenc_chn_open(char* dev_name);
 void bmenc_chn_close(int fd);
-int  bmenc_ioctl_get_ext_addr(int chn_fd, int *ext_addr);
+int  bmenc_ioctl_get_ext_addr(int chn_fd, unsigned int soc_idx, int *ext_addr);
 int  bmenc_ioctl_set_chn(int chn_fd, int *chn_id);
 int  bmenc_ioctl_get_chn(int chn_fd, int *is_jpu, int *chn_id);
 int  bmenc_ioctl_create_chn(int chn_fd, venc_chn_attr_s* pstAttr);

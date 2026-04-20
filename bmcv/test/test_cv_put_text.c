@@ -263,8 +263,8 @@ int main(int argc, char* args[])
     srand(seed);
 
     int thread_num = 1;
-    int width = 100 + rand() % 1900;
-    int height = 100 + rand() % 2048;
+    int width = 8 + rand() % 8185;
+    int height = 8 + rand() % 8185;
     int format = rand() % 7;
     int loop = 1;
     int ret = 0;
@@ -296,6 +296,8 @@ int main(int argc, char* args[])
     if (argc > 5) format = atoi(args[5]);
     if (argc > 6) input_path = args[6];
     if (argc > 7) output_path = args[7];
+
+    setenv("SOFT_PUTTEXT", "1", 1);
 
     pthread_t pid[thread_num];
     cv_pt_thread_arg_t cv_pt_thread_arg[thread_num];

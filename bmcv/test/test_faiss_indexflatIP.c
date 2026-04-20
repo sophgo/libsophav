@@ -11,6 +11,7 @@
 #include "bmcv_api_ext_c.h"
 #include "test_misc.h"
 #include <pthread.h>
+#define MAX(a,b)	((a) > (b) ? (a) : (b))
 
 typedef struct {
     int loop;
@@ -145,6 +146,8 @@ bm_status_t result_compare_fp16(fp16 *tpu_result_similarity,
             tmp_ref_result[i][j] = ref_result[i][j];
         }
     }
+    const float abs_tol = 0.5f;
+    const float rel_tol = 0.01f;
     for (int query_cnt = 0; query_cnt < query_vecs_num; query_cnt++) {
         for (int sort_indx = 0; sort_indx < sort_cnt; sort_indx++) {
             int ref_index = 0;
@@ -164,12 +167,16 @@ bm_status_t result_compare_fp16(fp16 *tpu_result_similarity,
                     break;
                 }
             }
-            if (fabs((float)fp16tofp32(tpu_result_similarity[query_cnt * sort_cnt + sort_indx]) - (float)fp16tofp32((fp32tofp16(ref_similarity, 1)))) > 3e-1) {
+            float tpu_val_fp32 = fp16tofp32(tpu_result_similarity[query_cnt * sort_cnt + sort_indx]);
+            float ref_val_fp32 = ref_similarity;
+            float diff = fabs(tpu_val_fp32 - ref_val_fp32);
+            float tolerance = MAX(abs_tol, rel_tol * fabs(ref_val_fp32));
+            if (diff > tolerance) {
                 printf("cpu&&tpu result compare failed!\n");
-                printf("tpu_res[%d][%d][%d] %f ref_result[%d][%d][%d] %f %f\n",
+                printf("tpu_res[%d][%d][%d] %f ref_result[%d][%d][%d] %f\n",
                        query_cnt, sort_indx, tpu_result_index[query_cnt * sort_cnt + sort_indx],
-                       fp16tofp32(tpu_result_similarity[query_cnt * sort_cnt + sort_indx]),
-                       query_cnt, sort_indx, ref_index_origin, fp16tofp32((fp32tofp16(ref_similarity, 1))), ref_similarity);
+                       tpu_val_fp32,
+                       query_cnt, sort_indx, ref_index_origin, ref_val_fp32);
                 for (int i = 0; i < query_vecs_num; i++) {
                     free(tmp_ref_result[i]);
                 }
@@ -188,7 +195,6 @@ bm_status_t result_compare_fp16(fp16 *tpu_result_similarity,
     free(tmp_ref_result);
     return BM_SUCCESS;
 }
-
 bm_status_t result_compare_fp32(float *tpu_result_similarity,
                          int *tpu_result_index,
                          float **ref_result,
@@ -220,7 +226,9 @@ bm_status_t result_compare_fp32(float *tpu_result_similarity,
                     break;
                 }
             }
-            if (fabs(tpu_result_similarity[query_cnt * sort_cnt + sort_indx] - ref_similarity) > 1e-1) {
+            const float abs_tol = 0.2f;
+            const float rel_tol = 0.002f;
+            if (fabs(tpu_result_similarity[query_cnt * sort_cnt + sort_indx] - ref_similarity) > MAX(abs_tol, rel_tol * fabs(ref_similarity))) {
                 printf("tpu_res[%d][%d][%d] %f ref_result[%d][%d][%d] %f\n",
                        query_cnt, sort_indx, tpu_result_index[query_cnt * sort_cnt + sort_indx],
                        tpu_result_similarity[query_cnt * sort_cnt + sort_indx],
@@ -317,13 +325,19 @@ bm_status_t faiss_indexflatIP_fix8b_single_test(bm_handle_t handle,
             input_data[i * vec_dims + j] = input_content_vec[i][j];
         }
     }
-
-    for (i = 0; i < database_vecs_num; ++i) {
-        for (j = 0; j < vec_dims; ++j) {
-            db_data[i * vec_dims + j] = db_content_vec[i][j];
+    if (is_transpose) {
+        for (i = 0; i < database_vecs_num; ++i) {
+            for (j = 0; j < vec_dims; ++j) {
+                db_data[i * vec_dims + j] = db_content_vec[i][j];
+            }
+        }
+    } else {
+        for (i = 0; i < vec_dims; ++i) {
+            for (j = 0; j < database_vecs_num; ++j) {
+                db_data[i * database_vecs_num + j] = db_content_vec[i][j];
+            }
         }
     }
-
     int* output_index = (int*)malloc(query_vecs_num * sort_cnt * sizeof(int));
     int** ref_result = (int**)calloc(query_vecs_num, sizeof(int*));
     for (i = 0; i < query_vecs_num; i++) {
@@ -571,9 +585,17 @@ bm_status_t faiss_indexflatIP_fp16_single_test(bm_handle_t handle,
             input_data[i * vec_dims + j] = input_content_vec[i][j];
         }
     }
-    for (i = 0; i < database_vecs_num; ++i) {
-        for (j = 0; j < vec_dims; ++j) {
-            db_data[i * vec_dims + j] = db_content_vec[i][j];
+    if (is_transpose) {
+        for (i = 0; i < database_vecs_num; ++i) {
+            for (j = 0; j < vec_dims; ++j) {
+                db_data[i * vec_dims + j] = db_content_vec[i][j];
+            }
+        }
+    } else {
+        for (i = 0; i < vec_dims; ++i) {
+            for (j = 0; j < database_vecs_num; ++j) {
+                db_data[i * database_vecs_num + j] = db_content_vec[i][j];
+            }
         }
     }
     float** ref_result = (float**)malloc(query_vecs_num * sizeof(float*));
@@ -671,7 +693,6 @@ bm_status_t faiss_indexflatIP_fp16_single_test(bm_handle_t handle,
         goto free_mem;
     }
     printf("TPU using time: %ld(us)\n", ((t2.tv_sec - t1.tv_sec) * 1000000 + t2.tv_usec - t1.tv_usec));
-
     if (output_dtype == DT_FP32) {
         ret = bm_memcpy_d2s(handle,
                   bm_mem_get_system_addr(bm_mem_from_system(output_similarity_fp32)),
@@ -767,6 +788,286 @@ free_mem1:
     return ret;
 }
 
+bm_status_t faiss_indexflatIP_fp16_single_test_u64 (bm_handle_t handle,
+                                                    int vec_dims,
+                                                    int query_vecs_num,
+                                                    int database_vecs_num,
+                                                    int sort_cnt,
+                                                    int is_transpose,
+                                                    int input_dtype,
+                                                    int output_dtype) {
+    printf("database_vecs_num: %d\n", database_vecs_num);
+    printf("query_num:         %d\n", query_vecs_num);
+    printf("sort_count:        %d\n", sort_cnt);
+    printf("data_dims:         %d\n", vec_dims);
+    printf("transpose:         %d\n", is_transpose);
+    printf("input_dtype:       %d\n", input_dtype);
+    printf("output_dtype:      %d\n", output_dtype);
+    int i, j;
+    bm_status_t ret = BM_SUCCESS;
+    fp16* input_data = (fp16*)malloc(query_vecs_num * vec_dims * sizeof(fp16));
+    fp16* db_data = (fp16*)malloc(database_vecs_num * vec_dims * sizeof(fp16));
+    float* output_similarity_fp32 = (float*)malloc(query_vecs_num * sort_cnt * sizeof(float));
+    fp16* output_similarity_fp16 = (fp16*)malloc(query_vecs_num * sort_cnt * sizeof(fp16));
+    fp16** db_content_vec = (fp16**)malloc((is_transpose ? database_vecs_num : vec_dims) * sizeof(fp16*));
+    fp16** db_content_vec_trans = (fp16**)malloc((is_transpose ? vec_dims : database_vecs_num) * sizeof(fp16*));
+    if (is_transpose) {
+        for(i = 0; i < vec_dims; i++) {
+            db_content_vec_trans[i] = (fp16*)malloc(database_vecs_num * sizeof(fp16));
+        }
+        for (i = 0; i < database_vecs_num; i++) {
+            db_content_vec[i] = (fp16*)malloc(vec_dims * sizeof(fp16));
+            for (j = 0; j < vec_dims; j++) {
+                #ifdef __linux__
+                fp16 temp_val = fp32tofp16(random() % 120, 1);
+                //fp16 temp_val = fp32tofp16(j * 0.1 + i * 0.53, 1);
+                #else
+                fp16 temp_val = fp32tofp16(rand() % 120, 0);
+                //fp16 temp_val = fp32tofp16(rand() % 120, 1);
+                #endif
+                temp_val = fp32tofp16(fp16tofp32(temp_val) / 100, 0);
+                db_content_vec[i][j] = temp_val;
+                db_content_vec_trans[j][i] = temp_val;
+            }
+        }
+    } else {
+        for(i = 0; i < database_vecs_num; i++) {
+            db_content_vec_trans[i] = (fp16*)malloc(vec_dims * sizeof(fp16));
+        }
+        for (i = 0; i < vec_dims; i++) {
+            db_content_vec[i] = (fp16*)malloc(database_vecs_num * sizeof(fp16));
+            for (j = 0; j < database_vecs_num; j++) {
+                #ifdef __linux__
+                fp16 temp_val = fp32tofp16(random() % 120, 1);
+                //fp16 temp_val = fp32tofp16(i * 0.1 + j * 0.53, 1);
+                #else
+                fp16 temp_val = fp32tofp16(rand() % 120, 0);
+                //fp16 temp_val = fp32tofp16(i * 0.1 + j * 0.53, 1);
+                #endif
+                temp_val = fp32tofp16(fp16tofp32(temp_val) / 100, 0);
+                db_content_vec[i][j] = temp_val;
+                db_content_vec_trans[j][i] = temp_val;
+            }
+        }
+    }
+
+    fp16** input_content_vec = (fp16**)malloc(query_vecs_num * sizeof(fp16*));
+    for (i = 0; i < query_vecs_num; i++) {
+        input_content_vec[i] = (fp16*)malloc(vec_dims * sizeof(fp16));
+        for (j = 0; j < vec_dims; j++) {
+            #ifdef __linux__
+            fp16 temp_val = fp32tofp16(random() % 120, 1);
+            #else
+            fp16 temp_val = fp32tofp16(rand() % 120, 0);
+            #endif
+            temp_val = fp32tofp16(fp16tofp32(temp_val) / 100, 0);
+            input_content_vec[i][j] = temp_val;
+        }
+    }
+
+    for (i = 0; i < query_vecs_num; ++i) {
+        for (j = 0; j < vec_dims; ++j) {
+            input_data[i * vec_dims + j] = input_content_vec[i][j];
+        }
+    }
+    if (is_transpose) {
+        for (i = 0; i < database_vecs_num; ++i) {
+            for (j = 0; j < vec_dims; ++j) {
+                db_data[i * vec_dims + j] = db_content_vec[i][j];
+            }
+        }
+    } else {
+        for (i = 0; i < vec_dims; ++i) {
+            for (j = 0; j < database_vecs_num; ++j) {
+                db_data[i * database_vecs_num + j] = db_content_vec[i][j];
+            }
+        }
+    }
+    float** ref_result = (float**)malloc(query_vecs_num * sizeof(float*));
+    for (i = 0; i < query_vecs_num; i++) {
+        ref_result[i] = (float*)malloc(database_vecs_num * sizeof(float));
+    }
+    int* output_index = (int*)malloc(query_vecs_num * sort_cnt * sizeof(int));
+    bm_device_mem_u64_t input_data_global_addr_device,
+                    db_data_global_addr_device,
+                    buffer_global_addr_device,
+                    output_sorted_similarity_global_addr_device,
+                    output_sorted_index_global_addr_device;
+    ret = bm_malloc_device_byte_u64(handle,
+                          &input_data_global_addr_device,
+                          dtype_size((enum bm_data_type_t)input_dtype) * query_vecs_num * vec_dims);
+    if (ret != BM_SUCCESS) {
+        printf("bm_malloc_device_byte_u64 input_data_global_addr_device failed!\n");
+        goto free_mem1;
+    }
+    ret = bm_malloc_device_byte_u64(handle,
+                          &db_data_global_addr_device,
+                          (uint64_t)dtype_size((enum bm_data_type_t)input_dtype) * (uint64_t)database_vecs_num * (uint64_t)vec_dims);
+    if (ret != BM_SUCCESS) {
+        printf("bm_malloc_device_byte_u64 db_data_global_addr_device failed!\n");
+        bm_free_device_u64(handle, input_data_global_addr_device);
+        goto free_mem1;
+    }
+    ret = bm_malloc_device_byte_u64(handle,
+                          &buffer_global_addr_device,
+                          (uint64_t)dtype_size((enum bm_data_type_t)DT_FP32) * (uint64_t)query_vecs_num * (uint64_t)database_vecs_num);
+    if (ret != BM_SUCCESS) {
+        printf("bm_malloc_device_byte_u64 buffer_global_addr_device failed!\n");
+        bm_free_device_u64(handle, input_data_global_addr_device);
+        bm_free_device_u64(handle, db_data_global_addr_device);
+        goto free_mem1;
+    }
+    ret = bm_malloc_device_byte_u64(handle,
+                          &output_sorted_similarity_global_addr_device,
+                          dtype_size((enum bm_data_type_t)output_dtype) * query_vecs_num * sort_cnt);
+    if (ret != BM_SUCCESS) {
+        printf("bm_malloc_device_byte_u64 output_sorted_similarity_global_addr_device failed!\n");
+        bm_free_device_u64(handle, input_data_global_addr_device);
+        bm_free_device_u64(handle, db_data_global_addr_device);
+        bm_free_device_u64(handle, buffer_global_addr_device);
+        goto free_mem1;
+    }
+    ret = bm_malloc_device_byte_u64(handle,
+                          &output_sorted_index_global_addr_device,
+                          dtype_size(DT_INT32) * query_vecs_num * sort_cnt);
+    if (ret != BM_SUCCESS) {
+        printf("bm_malloc_device_byte_u64 output_sorted_index_global_addr_device failed!\n");
+        bm_free_device_u64(handle, input_data_global_addr_device);
+        bm_free_device_u64(handle, db_data_global_addr_device);
+        bm_free_device_u64(handle, buffer_global_addr_device);
+        bm_free_device_u64(handle, output_sorted_similarity_global_addr_device);
+        goto free_mem1;
+    }
+    ret = bm_memcpy_s2d_u64(handle,
+                  input_data_global_addr_device,
+                  bm_mem_get_system_addr(bm_mem_from_system(input_data)));
+    if (ret != BM_SUCCESS) {
+        printf("bm_memcpy_s2d_u64 input_data_global_addr_device failed!\n");
+        goto free_mem;
+    }
+    ret = bm_memcpy_s2d_u64(handle,
+                  db_data_global_addr_device,
+                  bm_mem_get_system_addr(bm_mem_from_system(db_data)));
+    if (ret != BM_SUCCESS) {
+        printf("bm_memcpy_s2d_u64 db_data_global_addr_device failed!\n");
+        goto free_mem;
+    }
+    struct timeval t1, t2;
+    gettimeofday(&t1, NULL);
+    ret = bmcv_faiss_indexflatIP_u64(handle,
+                           input_data_global_addr_device,
+                           db_data_global_addr_device,
+                           buffer_global_addr_device,
+                           output_sorted_similarity_global_addr_device,
+                           output_sorted_index_global_addr_device,
+                           vec_dims,
+                           query_vecs_num,
+                           database_vecs_num,
+                           sort_cnt,
+                           is_transpose,
+                           input_dtype,
+                           output_dtype);
+    gettimeofday(&t2, NULL);
+    if (BM_SUCCESS != ret) {
+        printf("bmcv_faiss_indexflatIP_u64 api error\n");
+        goto free_mem;
+    }
+    printf("TPU using time: %ld(us)\n", ((t2.tv_sec - t1.tv_sec) * 1000000 + t2.tv_usec - t1.tv_usec));
+    if (output_dtype == DT_FP32) {
+        ret = bm_memcpy_d2s_u64(handle,
+                  bm_mem_get_system_addr(bm_mem_from_system(output_similarity_fp32)),
+                  output_sorted_similarity_global_addr_device);
+        if (ret != BM_SUCCESS) {
+            printf("bm_memcpy_d2s_u64 output_similarity_fp32 failed!\n");
+            goto free_mem;
+        }
+    } else {
+        ret = bm_memcpy_d2s_u64(handle,
+                  bm_mem_get_system_addr(bm_mem_from_system(output_similarity_fp16)),
+                  output_sorted_similarity_global_addr_device);
+        if (ret != BM_SUCCESS) {
+            printf("bm_memcpy_d2s_u64 output_similarity_fp16 failed!\n");
+            goto free_mem;
+        }
+    }
+    ret = bm_memcpy_d2s_u64(handle,
+                  bm_mem_get_system_addr(bm_mem_from_system(output_index)),
+                  output_sorted_index_global_addr_device);
+    if (ret != BM_SUCCESS) {
+        printf("bm_memcpy_d2s_u64 output_index failed!\n");
+        goto free_mem;
+    }
+    gettimeofday(&t1, NULL);
+    if (is_transpose) {
+        matrix_mul_ref_fp16(input_content_vec, db_content_vec_trans, ref_result, query_vecs_num, database_vecs_num, vec_dims);
+    } else {
+        matrix_mul_ref_fp16(input_content_vec, db_content_vec, ref_result, query_vecs_num, database_vecs_num, vec_dims);
+    }
+    gettimeofday(&t2, NULL);
+    printf("CPU using time: %ld(us)\n", ((t2.tv_sec - t1.tv_sec) * 1000000 + t2.tv_usec - t1.tv_usec));
+    if (output_dtype == DT_FP32) {
+        ret = result_compare_fp32(output_similarity_fp32,
+            output_index,
+            ref_result,
+            query_vecs_num,
+            database_vecs_num,
+            sort_cnt);
+        if (ret != BM_SUCCESS) {
+            printf("-------------faiss_indexflatIP_u64 fp32 compare failed-------\n");
+        } else {
+            printf("-------------faiss_indexflatIP_u64 fp32 compare succeed-----------\n");
+        }
+    } else {
+        ret = result_compare_fp16(output_similarity_fp16,
+            output_index,
+            ref_result,
+            query_vecs_num,
+            database_vecs_num,
+            sort_cnt);
+        if (ret != BM_SUCCESS) {
+            printf("-------------faiss_indexflatIP_u64 fp16 compare failed-------\n");
+        } else {
+            printf("-------------faiss_indexflatIP_u64 fp16 compare succeed-----------\n");
+        }
+    }
+free_mem:
+    bm_free_device_u64(handle, input_data_global_addr_device);
+    bm_free_device_u64(handle, db_data_global_addr_device);
+    bm_free_device_u64(handle, buffer_global_addr_device);
+    bm_free_device_u64(handle, output_sorted_similarity_global_addr_device);
+    bm_free_device_u64(handle, output_sorted_index_global_addr_device);
+free_mem1:
+    free(input_data);
+    free(db_data);
+    free(output_similarity_fp32);
+    free(output_similarity_fp16);
+    for (i = 0; i < query_vecs_num; ++i) {
+        free(input_content_vec[i]);
+        free(ref_result[i]);
+    }
+    if (is_transpose) {
+        for (i = 0; i < database_vecs_num; ++i) {
+            free(db_content_vec[i]);
+        }
+        for (i = 0; i < vec_dims; ++i) {
+            free(db_content_vec_trans[i]);
+        }
+    } else {
+        for (i = 0; i < vec_dims; ++i) {
+            free(db_content_vec[i]);
+        }
+        for (i = 0; i < database_vecs_num; ++i) {
+            free(db_content_vec_trans[i]);
+        }
+    }
+    free(input_content_vec);
+    free(db_content_vec);
+    free(db_content_vec_trans);
+    free(output_index);
+    free(ref_result);
+    return ret;
+}
+
 bm_status_t faiss_indexflatIP_fp32_single_test(bm_handle_t handle,
                                                int vec_dims,
                                                int query_vecs_num,
@@ -801,6 +1102,7 @@ bm_status_t faiss_indexflatIP_fp32_single_test(bm_handle_t handle,
             input_content_vec[i][j] = temp_val;
         }
     }
+
     float** db_content_vec = (float**)malloc((is_transpose ? database_vecs_num : vec_dims) * sizeof(float*));
     float** db_content_vec_trans = (float**)malloc((is_transpose ? vec_dims : database_vecs_num) * sizeof(float*));
     if (is_transpose) {
@@ -844,9 +1146,17 @@ bm_status_t faiss_indexflatIP_fp32_single_test(bm_handle_t handle,
             input_data[i * vec_dims + j] = input_content_vec[i][j];
         }
     }
-    for (i = 0; i < database_vecs_num; ++i) {
-        for (j = 0; j < vec_dims; ++j) {
-            db_data[i * vec_dims + j] = db_content_vec[i][j];
+    if (is_transpose) {
+        for (i = 0; i < database_vecs_num; ++i) {
+            for (j = 0; j < vec_dims; ++j) {
+                db_data[i * vec_dims + j] = db_content_vec[i][j];
+            }
+        }
+    } else {
+        for (i = 0; i < vec_dims; ++i) {
+            for (j = 0; j < database_vecs_num; ++j) {
+                db_data[i * database_vecs_num + j] = db_content_vec[i][j];
+            }
         }
     }
     int* output_index = (int*)malloc(query_vecs_num * sort_cnt * sizeof(int));
@@ -1051,9 +1361,10 @@ void* test_faiss_indexflatIP(void* args) {
     bm_handle_t handle = faiss_indexflatIP_thread_arg->handle;
     for(int i = 0; i < loop; i++){
         if(loop > 1) {
-            sort_cnt = rand() % 30 + 1;
-            query_vecs_num = rand() % 50 + 1;
-            database_vecs_num = rand() % 10000 + query_vecs_num + sort_cnt;
+            sort_cnt = 10;
+            query_vecs_num = rand() % 100 + 1;
+            database_vecs_num = rand() % 100000 + query_vecs_num + sort_cnt;
+            is_transpose = rand() % 2;
             int flag = rand() % 3;
             if (flag == 0) {
                 input_dtype = 5;
@@ -1075,6 +1386,10 @@ void* test_faiss_indexflatIP(void* args) {
                 break;
             case DT_FP16:
                 if (BM_SUCCESS != faiss_indexflatIP_fp16_single_test(handle, vec_dims, query_vecs_num, database_vecs_num, sort_cnt, is_transpose, input_dtype, output_dtype)) {
+                    printf("------faiss_indexflatIP_fp16_single_test failed------\n");
+                    exit(-1);
+                }
+                if (BM_SUCCESS != faiss_indexflatIP_fp16_single_test_u64(handle, vec_dims, query_vecs_num, database_vecs_num, sort_cnt, is_transpose, input_dtype, output_dtype)) {
                     printf("------faiss_indexflatIP_fp16_single_test failed------\n");
                     exit(-1);
                 }
@@ -1107,7 +1422,7 @@ int main(int argc, char* args[]) {
     int database_vecs_num = rand() % 10000 + query_vecs_num + sort_cnt;
     int vec_dims = 256;
     int is_transpose = 1;
-    int input_dtype = 5; //1-char 3-fp16 5-fp32 9-int
+    int input_dtype = 3; //1-char 3-fp16 5-fp32 9-int
     int output_dtype = 5;
 
     if (argc == 2 && atoi(args[1]) == -1) {
@@ -1127,7 +1442,7 @@ int main(int argc, char* args[]) {
 
     printf("thread_num:        %d\n", thread_num);
     printf("loop:              %d\n", loop);
-    bm_status_t ret = 0;
+    bm_status_t ret = BM_SUCCESS;
     bm_handle_t handle;
     ret = bm_dev_request(&handle, 0);
     if (BM_SUCCESS != ret) {

@@ -20,6 +20,7 @@
 // #define BMCV_VERSION "1.1.0"
 
 #define BM1688_MAX_CORES 2
+#define BM1688_BASE_MSG_ID 0x3
 
 #define __ALIGN_MASK(x, mask) (((x) + (mask)) & ~(mask))
 

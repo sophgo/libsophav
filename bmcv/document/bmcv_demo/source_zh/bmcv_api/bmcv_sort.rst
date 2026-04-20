@@ -73,7 +73,7 @@ bmcv_sort
 
 **注意事项：**
 
-1. 要求sort_cnt <= data_cnt，且 data_cnt 最大值为 100000。
+1. 要求输入参数满足：0 < sort_cnt <= data_cnt。
 
 2. 若需要使用auto index功能，前提是参数 index_enable 为 true。
 

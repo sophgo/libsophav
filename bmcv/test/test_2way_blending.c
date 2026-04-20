@@ -8,16 +8,16 @@
 #include "bmcv_api_ext_c.h"
 #include <stdatomic.h>
 #include "bmcv_internal.h"
+
 extern bm_status_t bm_blend_image_calc_stride(bm_handle_t handle,
                                      int img_h,
                                      int img_w,
                                      bm_image_format_ext image_format,
                                      bm_image_data_format_ext data_type,
                                      int *stride);
-
-
 extern void bm_read_bin(bm_image src, const char *input_name);
 extern void bm_write_bin(bm_image dst, const char *output_name);
+extern int ensure_dir_exist(const char *file_path);
 
 static void example_test_cmd() {
   printf(
@@ -330,6 +330,10 @@ int main(int argc, char *argv[]) {
 
   if(NULL != dst_name)
   {
+    if (ensure_dir_exist(dst_name) != 0) {
+        fprintf(stderr, "Cannot create directory for output file %s\n", dst_name);
+        return -1;
+    }
     bm_write_bin(dst, dst_name);
   }
 

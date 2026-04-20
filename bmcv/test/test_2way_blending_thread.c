@@ -24,6 +24,7 @@ extern bm_status_t bm_blend_image_calc_stride(bm_handle_t handle,
 #define ALIGN(x, a)      (((x) + ((a)-1)) & ~((a)-1))
 extern void bm_read_bin(bm_image src, const char *input_name);
 extern void bm_write_bin(bm_image dst, const char *output_name);
+extern int ensure_dir_exist(const char *file_path);
 
 pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
 _Atomic int threads_running = 1;
@@ -281,6 +282,10 @@ static int test_2way_blending(int* src_h, int* src_w, char** src_name, char** wg
 
   if(NULL != dst_name)
   {
+    if (ensure_dir_exist(dst_name) != 0) {
+        fprintf(stderr, "Cannot create directory for output file %s\n", dst_name);
+        return -1;
+    }
     bm_write_bin(dst, dst_name);
   }
 

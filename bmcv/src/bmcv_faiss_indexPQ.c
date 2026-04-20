@@ -2,7 +2,7 @@
 #include "bmcv_internal.h"
 #include "bmcv_common.h"
 
-static int param_check_adc(int database_vecs_num, int query_vecs_num, int sort_cnt, int vec_dims, int centroids_num){
+static int param_check_adc(int database_vecs_num, int query_vecs_num, int sort_cnt, int vec_dims, int centroids_num, int slice_num){
     if(sort_cnt > database_vecs_num) {
         printf("sort_cnt cannot be greater than database_vecs_num!\n");
         return -1;
@@ -19,10 +19,14 @@ static int param_check_adc(int database_vecs_num, int query_vecs_num, int sort_c
         printf("database_vecs_num must be greater than centroids_num!\n");
         return -1;
     }
+    if(slice_num != 8 && slice_num != 16 && slice_num != 32 && slice_num != 64) {
+        printf("slice_num must be 8/16/32/64\n");
+        return -1;
+    }
     return 0;
 }
 
-static int param_check_sdc(int database_vecs_num, int query_vecs_num, int sort_cnt, int centroids_num){
+static int param_check_sdc(int database_vecs_num, int query_vecs_num, int sort_cnt, int centroids_num, int slice_num){
     if(sort_cnt > database_vecs_num) {
         printf("sort_cnt cannot be greater than database_vecs_num!\n");
         return -1;
@@ -35,12 +39,20 @@ static int param_check_sdc(int database_vecs_num, int query_vecs_num, int sort_c
         printf("database_vecs_num must be greater than centroids_num!\n");
         return -1;
     }
+    if(slice_num != 8 && slice_num != 16 && slice_num != 32 && slice_num != 64) {
+        printf("slice_num must be 8/16/32/64\n");
+        return -1;
+    }
     return 0;
 }
 
-static int param_check_encode(int database_vecs_num, int centroids_num){
+static int param_check_encode(int database_vecs_num, int centroids_num, int vec_dims, int slice_num){
     if(database_vecs_num < centroids_num) {
         printf("database_vecs_num must be greater than centroids_num!\n");
+        return -1;
+    }
+    if(slice_num != 8 && slice_num != 16 && slice_num != 32 && slice_num != 64) {
+        printf("slice_num must be 8/16/32/64\n");
         return -1;
     }
     return 0;
@@ -62,7 +74,7 @@ bm_status_t bmcv_faiss_indexPQ_ADC_ext(bm_handle_t handle,
                                    int in_dtype,
                                    int out_dtype) {
     bm_status_t ret = BM_SUCCESS;
-    ret = param_check_adc(database_num, query_num, sort_cnt, vec_dims, centroids_num);
+    ret = param_check_adc(database_num, query_num, sort_cnt, vec_dims, centroids_num, slice_num);
     if (BM_SUCCESS != ret) {
         printf("faiss_api_indexPQ_ADCsearch param_check failed!\n");
         return ret;
@@ -168,7 +180,7 @@ bm_status_t bmcv_faiss_indexPQ_SDC_ext(bm_handle_t handle,
                                    int in_dtype,
                                    int out_dtype) {
     bm_status_t ret = BM_SUCCESS;
-    ret = param_check_sdc(database_num, query_num, sort_cnt, centroids_num);
+    ret = param_check_sdc(database_num, query_num, sort_cnt, centroids_num, slice_num);
     if (BM_SUCCESS != ret) {
         printf("faiss_api_indexPQ_SDCsearch param_check failed!\n");
         return ret;
@@ -268,7 +280,7 @@ bm_status_t bmcv_faiss_indexPQ_encode_ext(bm_handle_t handle,
                                       int input_dtype,
                                       int output_dtype) {
     bm_status_t ret = BM_SUCCESS;
-    ret = param_check_encode(encode_vec_num, centroids_num);
+    ret = param_check_encode(encode_vec_num, centroids_num, vec_dims, slice_num);
     if (BM_SUCCESS != ret) {
         printf("faiss_api_indexPQ_encode param_check failed!\n");
         return ret;

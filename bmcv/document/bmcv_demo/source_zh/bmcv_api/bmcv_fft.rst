@@ -31,7 +31,7 @@ _____
 
 * int len
 
-  输入参数。每个batch的长度。
+  输入参数。每个batch的长度。len需要是2、3、4或5的幂。
 
 * bool forward
 

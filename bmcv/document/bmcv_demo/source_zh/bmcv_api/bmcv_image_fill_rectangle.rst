@@ -69,8 +69,8 @@ bmcv_image_fill_rectangle
         int crop_h;
     } bmcv_rect_t;
 
-* start_x 描述了 crop 图像在原图中所在的起始横坐标。自左而右从 0 开始，取值范围 [0, width)。
-* start_y 描述了 crop 图像在原图中所在的起始纵坐标。自上而下从 0 开始，取值范围 [0, height)。
+* start_x 描述了 crop 图像在原图中所在的起始横坐标。自左而右从 0 开始，取值范围 [0, width-1)。
+* start_y 描述了 crop 图像在原图中所在的起始纵坐标。自上而下从 0 开始，取值范围 [0, height-1)。
 * crop_w 描述的 crop 图像的宽度，也就是对应输出图像的宽度。
 * crop_h 描述的 crop 图像的高度，也就是对应输出图像的高度。
 

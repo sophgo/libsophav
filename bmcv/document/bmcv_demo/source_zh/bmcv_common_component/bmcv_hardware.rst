@@ -432,6 +432,28 @@ BMCV 接口总览
       - bmcv_blend
       - 图像拼接(重叠区域平滑过渡)
 
+.. list-table:: TDE实现接口
+    :widths: 3 36 26
+
+    * - **num**
+      - **API**
+      - **功能**
+    * - 1
+      - bmcv_tde_fill
+      - 颜色填充
+    * - 2
+      - bmcv_tde_convert
+      - crop/csc/缩放/旋转/叠图
+    * - 3
+      - bmcv_tde_line
+      - 绘制线条
+    * - 4
+      - bmcv_tde_draw
+      - 填充多边形
+    * - 5
+      - bmcv_tde_warp_affine
+      - 仿射变换
+
 .. list-table:: SPACC实现接口
     :widths: 3 36 26
 

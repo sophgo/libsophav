@@ -208,7 +208,7 @@ int main(int argc, char *args[]) {
     int thread_num = 1;
     int loop = 1;
     int L = 1 + rand() % 4096;
-    int batch = 2 + rand() % 1980;
+    int batch = 2 + rand() % 1979;
     int ret = 0;
     bm_handle_t handle;
     ret = bm_dev_request(&handle, 0);

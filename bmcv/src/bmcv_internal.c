@@ -12,6 +12,8 @@
 #include <math.h>
 #include "bmcv_internal.h"
 #include "test_misc.h"
+#include <sys/stat.h>
+#include <libgen.h>
 
 #define bm_min(x, y) (((x)) < ((y)) ? (x) : (y))
 #define bm_max(x, y) (((x)) > ((y)) ? (x) : (y))
@@ -729,20 +731,20 @@ bm_status_t update_memory_layout(bm_handle_t     handle,
     int if_core1 = 0;
     const char* tpu_env = getenv("TPU_CORES");
     if (tpu_env == NULL) {
-        printf("Using the default TPU core configuration: core0\n");
+        bmlib_log("UPDATE_MEMORY_LAYOUT", BMLIB_LOG_DEBUG, "Use TPU core0\n");
     } else {
         if (strcmp(tpu_env, "0") == 0) {
-            printf("Use TPU core0\n");
+            bmlib_log("UPDATE_MEMORY_LAYOUT", BMLIB_LOG_DEBUG, "Use TPU core0\n");
         } else if (strcmp(tpu_env, "1") == 0) {
-            printf("Use TPU core1\n");
+            bmlib_log("UPDATE_MEMORY_LAYOUT", BMLIB_LOG_DEBUG, "Use TPU core1\n");
             if_core0 = 0;
             if_core1 = 1;
         } else if (strcmp(tpu_env, "2") == 0 || strcmp(tpu_env, "both") == 0) {
-            printf("Use all TPU cores (0 and 1))\n");
+            bmlib_log("UPDATE_MEMORY_LAYOUT", BMLIB_LOG_DEBUG, "Use all TPU cores (0 and 1)\n");
             if_core1 = 1;
         } else {
-            fprintf(stderr, "Invalid TPU_CORES value: %s\n", tpu_env);
-            fprintf(stderr, "Available options: 0, 1, 2/both\n");
+            bmlib_log("UPDATE_MEMORY_LAYOUT", BMLIB_LOG_ERROR, "Invalid TPU_CORES value: %s\n", tpu_env);
+            bmlib_log("UPDATE_MEMORY_LAYOUT", BMLIB_LOG_ERROR, "Available options: 0, 1, 2/both\n");
             exit(EXIT_FAILURE);
         }
     }
@@ -1775,4 +1777,27 @@ void find_topk_fp32(
     free(topk_nodes);
     free(temp_values);
     free(temp_idx);
+}
+
+int ensure_dir_exist(const char *file_path) {
+    char path[1024];
+    strncpy(path, file_path, sizeof(path));
+    path[sizeof(path)-1] = 0;
+
+    char *dir = dirname(path);
+    struct stat st;
+
+    if (stat(dir, &st) != 0) {
+        if (mkdir(dir, 0755) != 0) {
+            perror("mkdir failed");
+            return -1;
+        } else {
+            printf("Directory created: %s\n", dir);
+        }
+    } else if (!S_ISDIR(st.st_mode)) {
+        fprintf(stderr, "%s exists but is not a directory\n", dir);
+        return -1;
+    }
+
+    return 0;
 }

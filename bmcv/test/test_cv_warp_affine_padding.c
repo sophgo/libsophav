@@ -59,6 +59,18 @@ int get_source_idx(int idx, int *matrix, int image_n) {
     exit(-1);
 }
 
+static int param_check(int image_sh, int image_sw, int image_dh, int image_dw) {
+    if (image_sh > 4096 || image_sw > 4096) {
+        printf("image_sh and image_sh should less than 4096.\n");
+        return -1;
+    }
+    if (image_dh > 4096 || image_dw > 4096) {
+        printf("image_sh and image_sh should less than 4096.\n");
+        return -1;
+    }
+    return 0;
+}
+
 void inverse_matrix_1(float matrix[3][3], float matrix_inv[2][3]){
     float det_value = det(matrix, 3);
     matrix_inv[0][0] = matrix[1][1] / det_value;
@@ -995,6 +1007,10 @@ static int test_cv_warp_random(int trials) {
             return -1;
         }
 
+        if (param_check(image_sh, image_sw, image_dh, image_dw) != 0) {
+            return -1;
+        }
+
         unsigned char* src_data = image_read_2(image_n, image_c, image_sh, image_sw, image_dh, image_dw);
         float* trans_mat = (float*)malloc(output_num * 6 * sizeof(float));
 
@@ -1006,7 +1022,6 @@ static int test_cv_warp_random(int trials) {
             trans_mat[4 + i * 6] = 3.84843f;
             trans_mat[5 + i * 6] = 55.9748f;
         }
-
 
         ret = test_cv_warp_single_case(src_data, trans_mat, matrix_num, image_n, image_c,
                                         image_sh, image_sw, image_dh, image_dw, use_opencv, is_bilinear);
@@ -1032,18 +1047,13 @@ int main(int argc, char *argv[]) {
     }
     int test_loop_times = 1;
 
-    if (argc > 1){
-        flag = atoi(argv[1]);
-    }
-
-    if (argc > 2){
-        flag = atoi(argv[1]);
-        is_bilinear = atoi(argv[2]);
-        image_sh    = atoi(argv[3]);
-        image_sw    = atoi(argv[4]);
-        image_dh    = atoi(argv[5]);
-        image_dw    = atoi(argv[6]);
-    }
+    if (argc > 1) flag = atoi(argv[1]);
+    if (argc > 2) is_bilinear = atoi(argv[2]);
+    if (argc > 3) image_sh    = atoi(argv[3]);
+    if (argc > 4) image_sw    = atoi(argv[4]);
+    if (argc > 5) image_dh    = atoi(argv[5]);
+    if (argc > 6) image_dw    = atoi(argv[6]);
+    if (argc > 7) test_loop_times = atoi(argv[7]);
 
     if (test_loop_times > 1500 || test_loop_times < 1) {
         printf("[TEST WARP AFFINE] loop times should be 1~1500\n");

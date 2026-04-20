@@ -665,7 +665,7 @@ static bm_status_t bmcv_vpss_watermark_superpose(
 			return ret;
 		}
 		ret = bmcv_vpss_bitmap_mem_to_argb8888(handle, bitmap_mem + i,
-			bitmap_type, pitch, color, &overlay_image);
+			bitmap_type, overlay_mem_pitch, color, &overlay_image);
 		if (ret != BM_SUCCESS) {
 			bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
 				"bitmap_mem(%d)_to_argb8888 fail, %s: %s: %d\n",
@@ -706,7 +706,7 @@ static bm_status_t bmcv_vpss_watermark_repeat_superpose(
 		return ret;
 	}
 	ret = bmcv_vpss_bitmap_mem_to_argb8888(handle, &bitmap_mem,
-		bitmap_type, pitch, color, overlay_image);
+		bitmap_type, overlay_mem_pitch, color, overlay_image);
 	if (ret != BM_SUCCESS) {
 		bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "bitmap_mem_to_argb8888 fail, %s: %s: %d\n",
 			filename(__FILE__), __func__, __LINE__);

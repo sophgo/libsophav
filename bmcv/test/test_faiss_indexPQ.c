@@ -618,22 +618,6 @@ bm_status_t faiss_indexPQ_SDC_test(
     return ret;
 }
 
-int param_check(int database_vecs_num, int query_vecs_num, int sort_cnt, int vec_dims){
-    if(sort_cnt > database_vecs_num) {
-        printf("sort_cnt cannot be greater than b!\n");
-        return -1;
-    }
-    if(query_vecs_num > database_vecs_num) {
-        printf("query_vecs_num cannot be greater than b!\n");
-        return -1;
-    }
-    if(vec_dims > 512) {
-        printf("vec_dims cannot be greater than 512!\n");
-        return -1;
-    }
-    return 0;
-}
-
 void* test_faiss_indexPQ(void* args) {
     faiss_indexPQ_thread_arg_t* faiss_indexPQ_thread_arg = (faiss_indexPQ_thread_arg_t*)args;
     int loop = faiss_indexPQ_thread_arg->loop;
@@ -739,13 +723,8 @@ int main(int argc, char *args[]) {
 
     printf("thread_num:        %d\n", thread_num);
     printf("loop:              %d\n", loop);
-    int ret = 0;
-    ret = param_check(database_vecs_num, query_vecs_num, sort_cnt, vec_dims);
-    if(ret != 0) {
-        return -1;
-    }
     bm_handle_t handle;
-    ret = bm_dev_request(&handle, 0);
+    bm_status_t ret = bm_dev_request(&handle, 0);
     if (BM_SUCCESS != ret) {
         printf("request dev failed\n");
         return BM_ERR_FAILURE;
@@ -772,8 +751,8 @@ int main(int argc, char *args[]) {
         }
     }
     for (int i = 0; i < thread_num; i++) {
-        int ret = pthread_join(pid[i], NULL);
-        if (ret != 0) {
+        int int_ret = pthread_join(pid[i], NULL);
+        if (int_ret != 0) {
             printf("Thread join failed\n");
             exit(-1);
         }

@@ -27,9 +27,11 @@
 //  */
 
 #define TIME_COST_US(start, end) ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec))
-#define COMPARE_EPSILON 1e-2
 #define GEMM_INPUT_NUM 3
 #define GEMM_OUTPUT_NUM 1
+#define COSINE_EPSILON 1e-2
+#define ABS_EPSILON 1e-5f
+#define REL_EPSILON 0.02f
 
 typedef unsigned short half;
 
@@ -48,24 +50,17 @@ typedef struct {
 extern int cpu_gemm(bool if_A_trans, bool if_B_trans, int M, int N, int K, float alpha, float* src_A,
                     int lda, float* src_B, int ldb, float beta, float* src_C);
 
-static int cmp_result(float* tpu_res, float* cpu_res, int len)
-{
-    int i;
+static int cmp_result(float* tpu_res, float* cpu_res, int len) {
+    for (int i = 0; i < len; ++i) {
+        float diff = fabs(tpu_res[i] - cpu_res[i]);
+        float max_val = fmax(fabs(tpu_res[i]), fabs(cpu_res[i]));
 
-    for (i = 0 ; i < len; ++i) {
-        if (fabs(tpu_res[i]) > 1.f && fabs(cpu_res[i]) > 1.f) {
-            if (fabs(tpu_res[i]) - fabs(cpu_res[i]) > COMPARE_EPSILON) {
-                printf("index = %d, tpu[i] = %f, cpu[i] = %f\n", i, tpu_res[i], cpu_res[i]);
-                return -1;
-            }
-        } else {
-            if ((fabs(tpu_res[i]) - fabs(cpu_res[i])) / fmax(fabs(tpu_res[i]), fabs(cpu_res[i])) > COMPARE_EPSILON) {
-                printf("index = %d, tpu[i] = %f, cpu[i] = %f\n", i, tpu_res[i], cpu_res[i]);
-                return -1;
-            }
+        if (diff > ABS_EPSILON && diff > REL_EPSILON * max_val) {
+            printf("Mismatch at index %d: TPU=%.5f, CPU=%.5f, Diff=%.5f\n",
+                   i, tpu_res[i], cpu_res[i], diff);
+            return -1;
         }
     }
-
     return 0;
 }
 
@@ -319,22 +314,17 @@ err0:
     return ret;
 }
 
-static int cmp_gemm_ext(float* tpu_res, float* cpu_res, int len)
-{
-    float sim;
-    int ret = 0;
-
-    sim = cosine_similarity(tpu_res, cpu_res, len);
-
-    if (fabs(sim - 1) > COMPARE_EPSILON) {
-        ret = cmp_result(tpu_res, cpu_res, len);
+static int cmp_gemm_ext(float* tpu_res, float* cpu_res, int len) {
+    float sim = cosine_similarity(tpu_res, cpu_res, len);
+    if (fabs(sim - 1.0f) > COSINE_EPSILON) {
+        int ret = cmp_result(tpu_res, cpu_res, len);
         if (ret) {
-            printf("cmp_gemm_ext cmp failed!\n");
+            printf("cmp_gemm_ext: cosine_sim=%.5f (threshold=%.5f), cmp_result failed!\n",
+                   sim, COSINE_EPSILON);
             return ret;
         }
     }
-
-    return ret;
+    return 0;
 }
 
 static int tpu_gemm(bm_handle_t handle, bool if_A_trans, bool if_B_trans, int M, int N, int K, float alpha,
@@ -359,6 +349,7 @@ static int tpu_gemm(bm_handle_t handle, bool if_A_trans, bool if_B_trans, int M,
 static int test_gemm(bm_handle_t handle, int M, int N, int K, float alpha,
                     float beta, bool is_A_trans, bool is_B_trans)
 {
+    printf(" ---- test_gemm ----\n");
     printf("%s: M = %d, N = %d, K = %d, alpha = %f, beta = %f, is_A_trans = %d, is_B_trans = %d\n",
            __func__, M, N, K, alpha, beta, is_A_trans, is_B_trans);
 
@@ -418,6 +409,7 @@ exit:
 static int test_gemm_ext(bm_handle_t handle, int M, int N, int K, float alpha,
                         float beta, bool is_A_trans, bool is_B_trans)
 {
+    printf(" ---- test_gemm_ext ----\n");
     printf("%s: M = %d, N = %d, K = %d, alpha = %f, beta = %f, is_A_trans = %d, is_B_trans = %d\n",
            __func__, M, N, K, alpha, beta, is_A_trans, is_B_trans);
 
@@ -515,6 +507,89 @@ exit:
     return ret;
 }
 
+int test_gemm_u64()
+{
+    int M = 10000;
+    int N = 1;
+    int K = 256;
+    int rand_sign_a = (rand() % 2 == 0) ? 1 : -1;
+    int rand_sign_b = (rand() % 2 == 0) ? 1 : -1;
+    float alpha = rand_sign_a * (rand() % 100) * 0.05;
+    float beta  = rand_sign_b * (rand() % 100) * 0.05;
+    bool is_A_trans = rand() % 2;
+    bool is_B_trans = rand () % 2;
+    int ret = 0;
+    bm_handle_t handle;
+
+    if (is_A_trans) {
+        is_B_trans = true;
+    }
+    printf(" ---- test_gemm_u64 ----\n");
+    printf("%s: M = %d, N = %d, K = %d, alpha = %f, beta = %f, is_A_trans = %d, is_B_trans = %d\n",
+        __func__, M, N, K, alpha, beta, is_A_trans, is_B_trans);
+
+    ret = bm_dev_request(&handle, 0);
+    if (ret) {
+        printf("bm_dev_request failed. ret = %d\n", ret);
+        return ret;
+    }
+
+    float* A = (float*)malloc(M * K * sizeof(float));
+    float* B = (float*)malloc(N * K * sizeof(float));
+    float* C = (float*)malloc(M * N * sizeof(float));
+    float* tpu_C = (float*)malloc(M * N * sizeof(float));
+    bm_image_data_format_ext in_dtype, out_dtype;
+
+    ret = assign_values_to_matrix(A, M * K);
+    ret = assign_values_to_matrix(B, N * K);
+    ret = assign_values_to_matrix(C, M * N);
+    memset(tpu_C, 0.f, sizeof(float) * M * N);
+
+    in_dtype = DATA_TYPE_EXT_FLOAT32;
+    out_dtype = DATA_TYPE_EXT_FLOAT32;
+    memset(tpu_C, 0.f, sizeof(float) * M * N);
+
+    if (in_dtype == DATA_TYPE_EXT_FP16 && is_A_trans && M > 64) {
+        printf("Error! It only support M <= 64 when A is trans and input_dtype is FP16\n");
+        return -1;
+    }
+
+    unsigned short* A_fp16 = (unsigned short*)malloc(M * K * sizeof(unsigned short));
+    unsigned short* B_fp16 = (unsigned short*)malloc(N * K * sizeof(unsigned short));
+    unsigned short* C_fp16 = (unsigned short*)malloc(M * N * sizeof(unsigned short));
+    unsigned short* Y_fp16 = (unsigned short*)malloc(M * N * sizeof(unsigned short));
+    bm_device_mem_u64_t input_dev_buffer[GEMM_INPUT_NUM];
+    bm_device_mem_u64_t output_dev_buffer[GEMM_OUTPUT_NUM];
+
+    ret = bm_malloc_device_byte_u64(handle, &input_dev_buffer[0], M * K * sizeof(float));
+    ret = bm_malloc_device_byte_u64(handle, &input_dev_buffer[1], N * K * sizeof(float));
+    ret = bm_malloc_device_byte_u64(handle, &input_dev_buffer[2], M * N * sizeof(float));
+    ret = bm_memcpy_s2d_u64(handle, input_dev_buffer[0], (void*)A);
+    ret = bm_memcpy_s2d_u64(handle, input_dev_buffer[1], (void*)B);
+    ret = bm_memcpy_s2d_u64(handle, input_dev_buffer[2], (void*)C);
+
+    ret = bm_malloc_device_byte_u64(handle, &output_dev_buffer[0], M * N * sizeof(float));
+
+    ret = bmcv_gemm_ext_u64(handle, is_A_trans, is_B_trans, M, N, K, alpha, input_dev_buffer[0],
+                        input_dev_buffer[1], beta, input_dev_buffer[2], output_dev_buffer[0],
+                        in_dtype, out_dtype);
+
+    ret = bm_memcpy_d2s_u64(handle, (void*)tpu_C, output_dev_buffer[0]);
+
+    free(A_fp16);
+    free(B_fp16);
+    free(C_fp16);
+    free(Y_fp16);
+
+    free(A);
+    free(B);
+    free(C);
+    free(tpu_C);
+
+    bm_dev_free(handle);
+    return ret;
+}
+
 void* test_gemm_all(void* args)
 {
     cv_gemm_thread_arg_t* cv_gemm_thread_arg = (cv_gemm_thread_arg_t*)args;
@@ -540,6 +615,11 @@ void* test_gemm_all(void* args)
         ret = test_gemm_ext(handle, M, N, K, alpha, beta, if_A_trans, if_B_trans);
         if (ret) {
             printf("------Test Gemm_EXT Failed!------\n");
+            exit(-1);
+        }
+        ret = test_gemm_u64();
+        if (ret) {
+            printf("------Test test_gemm_u64 Failed!------\n");
             exit(-1);
         }
     }

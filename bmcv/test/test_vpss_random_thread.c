@@ -283,7 +283,7 @@ static void * ramdom_param(void* arg) {
 
 static void print_help(char **argv){
     printf("please follow this order:\n \
-        %s src_w src_h src_fmt start_x start_y crop_w crop_h dst_w dst_h dst_fmt algorithm dev_id thread_num loop_num md5\n \
+        %s src_w src_h src_fmt start_x start_y crop_w crop_h dst_w dst_h dst_fmt algorithm dev_id thread_num loop_num\n \
         %s thread_num loop_num\n", argv[0], argv[0]);
 };
 

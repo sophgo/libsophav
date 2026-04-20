@@ -490,12 +490,16 @@ bm_status_t check_bm_vpss_image_param(
 			 (input[frame_idx].width  < VPSS_MIN_W) ||
 			 (src_crop_rect.crop_w > VPSS_MAX_W) ||
 			 (src_crop_rect.crop_h > VPSS_MAX_H) ||
+			 (src_crop_rect.crop_w < VPSS_MIN_CROP_SIZE) ||
+			 (src_crop_rect.crop_h < VPSS_MIN_CROP_SIZE) ||
 			 (output[frame_idx].width  > VPSS_MAX_W) ||
 			 (output[frame_idx].height > VPSS_MAX_H) ||
 			 (output[frame_idx].width  < VPSS_MIN_W) ||
 			 (output[frame_idx].height < VPSS_MIN_H) ||
 			 (dst_crop_rect.crop_w > VPSS_MAX_W) ||
-			 (dst_crop_rect.crop_h > VPSS_MAX_H)) {
+			 (dst_crop_rect.crop_h > VPSS_MAX_H) ||
+			 (dst_crop_rect.crop_w < VPSS_MIN_CROP_SIZE) ||
+			 (dst_crop_rect.crop_h < VPSS_MIN_CROP_SIZE)) {
 			bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,\
 				"bm_vpss frame_idx %d, width or height abnormal,"
 				"input(%d %d),"
@@ -632,7 +636,8 @@ bm_status_t check_bm_vpss_continuity(
 	return BM_SUCCESS;
 }
 
-bm_status_t bm_image_format_to_cvi(bm_image_format_ext fmt, bm_image_data_format_ext datatype, pixel_format_e * cvi_fmt) {
+bm_status_t bm_image_format_to_cvi(bm_image_format_ext fmt, bm_image_data_format_ext datatype, pixel_format_e * cvi_fmt)
+{
 	if (datatype != DATA_TYPE_EXT_1N_BYTE) {
 		switch(datatype) {
 			case DATA_TYPE_EXT_1N_BYTE_SIGNED:
@@ -726,7 +731,8 @@ bm_status_t bm_image_format_to_cvi(bm_image_format_ext fmt, bm_image_data_format
 	return BM_SUCCESS;
 }
 
-bm_status_t bm_algorithm_to_cvi(bmcv_resize_algorithm algorithm, vpss_scale_coef_e * enCoef) {
+bm_status_t bm_algorithm_to_cvi(bmcv_resize_algorithm algorithm, vpss_scale_coef_e * enCoef)
+{
 	switch (algorithm) {
 	case BMCV_INTER_NEAREST:
 		*enCoef = VPSS_SCALE_COEF_NEAREST;
@@ -815,7 +821,8 @@ bm_status_t bm_send_image_frame(bm_image image, video_frame_info_s *stVideoFrame
 	return BM_SUCCESS;
 }
 
-bm_status_t bm_vpss_set_grp_csc(u8 is_fancy, bmcv_vpss_csc_matrix *csc_cfg, struct vpss_grp_csc_cfg *cfg) {
+bm_status_t bm_vpss_set_grp_csc(u8 is_fancy, bmcv_vpss_csc_matrix *csc_cfg, struct vpss_grp_csc_cfg *cfg)
+{
 	for (u8 i = 0; i < 3; i++) {
 		for (u8 j = 0; j < 3; j++)
 			cfg->coef[i][j] = csc_cfg->coef[i][j];
@@ -831,7 +838,8 @@ bm_status_t bm_vpss_set_grp_csc(u8 is_fancy, bmcv_vpss_csc_matrix *csc_cfg, stru
 	return BM_SUCCESS;
 }
 
-bm_status_t bm_vpss_set_chn_csc(bmcv_vpss_csc_matrix *csc_cfg, struct vpss_chn_csc_cfg *cfg) {
+bm_status_t bm_vpss_set_chn_csc(bmcv_vpss_csc_matrix *csc_cfg, struct vpss_chn_csc_cfg *cfg)
+{
 	for (u8 i = 0; i < 3; i++) {
 		for (u8 j = 0; j < 3; j++)
 			cfg->coef[i][j] = csc_cfg->coef[i][j];
@@ -844,7 +852,8 @@ bm_status_t bm_vpss_set_chn_csc(bmcv_vpss_csc_matrix *csc_cfg, struct vpss_chn_c
 	return BM_SUCCESS;
 }
 
-bm_status_t bm_vpss_set_csc(bmcv_csc_cfg *csc_cfg, bm_vpss_cfg *vpss_cfg) {
+bm_status_t bm_vpss_set_csc(bmcv_csc_cfg *csc_cfg, bm_vpss_cfg *vpss_cfg)
+{
 	bmcv_vpss_csc_matrix csc_matrix;
 	if (csc_cfg->csc_type == VPSS_CSC_RGB2RGB)
 		return BM_SUCCESS;
@@ -884,7 +893,8 @@ bm_status_t bm_vpss_set_csc(bmcv_csc_cfg *csc_cfg, bm_vpss_cfg *vpss_cfg) {
 	return BM_SUCCESS;
 }
 
-bm_status_t bm_vpss_set_chn_draw_rect(bmcv_border* border_param, struct vpss_chn_draw_rect_cfg *draw_cfg) {
+bm_status_t bm_vpss_set_chn_draw_rect(bmcv_border* border_param, struct vpss_chn_draw_rect_cfg *draw_cfg)
+{
 	for (int i = 0; i < border_param->border_num; i++) {
 		draw_cfg->draw_rect.rects[i].enable = true;
 		draw_cfg->draw_rect.rects[i].rect.x = border_param->border_cfg[i].st_x;
@@ -916,7 +926,8 @@ bm_status_t bm_vpss_set_convertto(bmcv_convert_to_attr convertto_attr, struct vp
 	return BM_SUCCESS;
 }
 
-bm_status_t bm_vpss_chn_set_gop(bmcv_rgn_cfg* gop_attr, struct rgn_cfg *cfg) {
+bm_status_t bm_vpss_chn_set_gop(bmcv_rgn_cfg* gop_attr, struct rgn_cfg *cfg)
+{
 	unsigned char layer_num = (gop_attr->rgn_num + 7) >> 3;
 	unsigned char gop_num = 0;
 	for (int i = 0; i < layer_num; i++) {
@@ -928,7 +939,8 @@ bm_status_t bm_vpss_chn_set_gop(bmcv_rgn_cfg* gop_attr, struct rgn_cfg *cfg) {
 	return BM_SUCCESS;
 }
 
-bm_status_t bm_vpss_chn_set_circle(bmcv_circle_cfg *circle_attr, bm_vpss_cfg *vpss_cfg) {
+bm_status_t bm_vpss_chn_set_circle(bmcv_circle_cfg *circle_attr, bm_vpss_cfg *vpss_cfg)
+{
 	// borrowing unused structures to maintain compatibility with the previous ioctl
 	vpss_cfg->chn_attr.chn_attr.frame_rate.src_frame_rate = circle_attr->cfg0.raw;
 	vpss_cfg->chn_attr.chn_attr.frame_rate.dst_frame_rate = circle_attr->cfg1.raw;
@@ -947,7 +959,8 @@ static void dump_vpss_param(
 	bmcv_convert_to_attr*   convert_to_attr,
 	bmcv_border*            border_param,
 	coverex_cfg*            coverex_param,
-	bmcv_rgn_cfg*           gop_attr) {
+	bmcv_rgn_cfg*           gop_attr)
+{
 	bmlib_log("bmcv_vpss", BMLIB_LOG_ERROR, "frame_idx(%d)\n", frame_idx);
 	bmlib_log("bmcv_vpss", BMLIB_LOG_ERROR, "input(%d %d) format(%d) data_type(%d)\n",
 		input.width, input.height, input.image_format, input.data_type);
@@ -1028,7 +1041,8 @@ static void dump_vpss_param(
 	}
 }
 
-static void* vpss_thread(void* arg){
+static void* vpss_thread(void* arg)
+{
 	vpss_thread_ctx *ctx = (vpss_thread_ctx*)arg;
 	for (int k = 0; k < 3; k++) {
 		bm_send_image_frame(ctx->output, &ctx->vpss_cfg.chn_frm_cfg.video_frame,
@@ -1037,7 +1051,7 @@ static void* vpss_thread(void* arg){
 		ctx->ret = (bm_status_t)ioctl(ctx->fd, VPSS_BM_SEND_FRAME, &ctx->vpss_cfg);
 #else
 		struct vpp_batch_n batch = {.cmd = &ctx->vpss_cfg};
-		if(0 != bm_trigger_vpp(ctx->handle, &batch))
+		if (0 != bm_trigger_vpp(ctx->handle, &batch))
 			ctx->ret = BM_ERR_TIMEOUT;
 #endif
 		if (ctx->ret == BM_SUCCESS) break;
@@ -1220,7 +1234,8 @@ bm_status_t bm_vpss_asic(
 	return ret;
 }
 
-int is_need_width_align_input(bm_image input) {
+int is_need_width_align_input(bm_image input)
+{
 	if (((input.image_private->memory_layout[1].pitch_stride % 16) != 0) && is_yuv420_image(input.image_format))
 		return 1;
 	if ((input.image_private->data[0].u.device.device_addr % 2 != 0) &&
@@ -1240,7 +1255,8 @@ int is_need_width_align_input(bm_image input) {
 	return 0;
 };
 
-int is_need_width_align_output(bm_image output) {
+int is_need_width_align_output(bm_image output)
+{
 	if (output.image_format == FORMAT_NV12 || output.image_format == FORMAT_NV21 ||
 		output.image_format == FORMAT_NV16 || output.image_format == FORMAT_NV61 ||
 		output.image_format == FORMAT_YUV422_UYVY || output.image_format == FORMAT_YUV422_VYUY ||
@@ -1254,7 +1270,8 @@ int is_need_width_align_output(bm_image output) {
 	return 0;
 };
 
-int out_need_reset_stride(bm_image output) {
+int out_need_reset_stride(bm_image output)
+{
 	if ((output.image_format == FORMAT_NV12 || output.image_format == FORMAT_NV21 ||
 		output.image_format == FORMAT_NV16 || output.image_format == FORMAT_NV61) &&
 		output.image_private->memory_layout[0].pitch_stride * output.height % 2 != 0)
@@ -1383,7 +1400,7 @@ bm_status_t bm_vpss_multi_parameter_processing(
 			bm_image_destroy(in_align + i);
 		if (out_need_copy[i])
 			bm_image_destroy(out_align + i);
-		if (out_need_create[i] && !out_need_copy[i]){
+		if (out_need_create[i] && !out_need_copy[i]) {
 			bm_image_detach(output[i]);
 			memcpy(output[i].image_private, out_align[i].image_private,
 				sizeof(struct bm_image_private));
@@ -1404,7 +1421,8 @@ fail:
 	return ret;
 }
 
-bm_status_t check_bm_vpss_convert_to_param(bm_image* input, bm_image* output, int input_num) {
+bm_status_t check_bm_vpss_convert_to_param(bm_image* input, bm_image* output, int input_num)
+{
 	for (int i = 0; i < input_num; i++) {
 		if ((input[0].image_format != input[i].image_format) ||
 			(output[0].image_format != output[i].image_format)) {
@@ -1590,7 +1608,8 @@ bm_status_t bm_vpss_basic(
 	bmcv_padding_attr_t*    padding_attr,
 	bmcv_resize_algorithm   algorithm,
 	csc_type_t              csc_type,
-	csc_matrix_t*           matrix) {
+	csc_matrix_t*           matrix)
+{
 
 	int out_img_num = 0, i = 0, j = 0;
 	bm_image *input_inner;
@@ -1717,9 +1736,9 @@ bm_status_t bm_vpss_quick_drawrect(
 			rects.start_x, rects.start_y, image.width, image.height, __FILE__, __func__, __LINE__);
 		return BM_ERR_PARAM;
 	}
-	if(++rects.crop_w + rects.start_x > image.width)
+	if (++rects.crop_w + rects.start_x > image.width)
 		rects.crop_w = image.width - rects.start_x;
-	if(++rects.crop_h + rects.start_y > image.height)
+	if (++rects.crop_h + rects.start_y > image.height)
 		rects.crop_h = image.height - rects.start_y;
 	bmcv_padding_attr_t padding_attr = {
 		.if_memset = 0,
@@ -1784,7 +1803,8 @@ bm_status_t bm_vpss_csc_convert_to(
 	bmcv_resize_algorithm   algorithm,
 	csc_type_t              csc_type,
 	csc_matrix_t*           matrix,
-	bmcv_convert_to_attr*   convert_to_attr_) {
+	bmcv_convert_to_attr*   convert_to_attr_)
+{
 
 	int out_crop_num = 0, i = 0, j = 0;
 	bm_image *input_inner, *output_inner;
@@ -1872,17 +1892,19 @@ bm_status_t bm_vpss_copy_to(
 	return ret;
 }
 
-static void* stitch_thread(void* arg){
+static void* stitch_thread(void* arg)
+{
 	stitch_ctx *ctx = (stitch_ctx*)arg;
 	ctx->ret = bm_vpss_multi_input_single_output(ctx->handle, 1, &ctx->input, ctx->output, &ctx->src_crop_rect,
 		&ctx->padding_attr, ctx->algorithm, CSC_MAX_ENUM, NULL);
-	if(ctx->ret)
+	if (ctx->ret)
 		bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, \
 			"stitch_thread idx(%d) err\n", ctx->idx);
 	return 0;
 }
 
-int rectangles_overlap(bmcv_rect_t r1, bmcv_rect_t r2) {
+int rectangles_overlap(bmcv_rect_t r1, bmcv_rect_t r2)
+{
 	// check if there is no overlap
 	if ((r1.start_x >= r2.start_x + r2.crop_w) ||
 		r1.start_x + r1.crop_w <= r2.start_x ||
@@ -1894,7 +1916,8 @@ int rectangles_overlap(bmcv_rect_t r1, bmcv_rect_t r2) {
 }
 
 // determine if multiple rectangles overlap
-int check_stitch_any_overlap(int count, bmcv_rect_t *rectangles) {
+int check_stitch_any_overlap(int count, bmcv_rect_t *rectangles)
+{
 	for (int i = 0; i < count; i++) {
 		for (int j = i + 1; j < count; j++) {
 			if (rectangles_overlap(rectangles[i], rectangles[j])) {
@@ -2167,9 +2190,9 @@ bm_status_t bm_vpss_quick_fillrect(
 			rects.start_x, rects.start_y, image.width, image.height, __FILE__, __func__, __LINE__);
 		return BM_ERR_PARAM;
 	}
-	if(++rects.crop_w + rects.start_x > image.width)
+	if (++rects.crop_w + rects.start_x > image.width)
 		rects.crop_w = image.width - rects.start_x;
-	if(++rects.crop_h + rects.start_y > image.height)
+	if (++rects.crop_h + rects.start_y > image.height)
 		rects.crop_h = image.height - rects.start_y;
 	bmcv_padding_attr_t padding_attr = {
 		.if_memset = 0,
@@ -2245,9 +2268,9 @@ bm_status_t bm_vpss_quick_overlay(
 			rects.start_x, rects.start_y, image.width, image.height, __FILE__, __func__, __LINE__);
 		return BM_ERR_PARAM;
 	}
-	if(++rects.crop_w + rects.start_x > image.width)
+	if (++rects.crop_w + rects.start_x > image.width)
 		rects.crop_w = image.width - rects.start_x;
-	if(++rects.crop_h + rects.start_y > image.height)
+	if (++rects.crop_h + rects.start_y > image.height)
 		rects.crop_h = image.height - rects.start_y;
 	switch(overlay_image.image_format) {
 		case FORMAT_ARGB_PACKED:
@@ -2292,7 +2315,7 @@ bm_status_t bm_vpss_overlay(
 	bm_image *           overlay_image)
 {
 	bm_status_t ret = BM_SUCCESS;
-	if(rect_num == 1){
+	if (rect_num == 1) {
 		ret = bm_vpss_quick_overlay(handle, image, rects[0], overlay_image[0]);
 		return ret;
 	}
@@ -2344,7 +2367,8 @@ bm_status_t bm_vpss_flip(
 	bm_handle_t          handle,
 	bm_image             input,
 	bm_image             output,
-	bmcv_flip_mode       flip_mode) {
+	bmcv_flip_mode       flip_mode)
+{
 	bm_status_t ret = BM_SUCCESS;
 	ret = bm_vpss_multi_parameter_processing(
 		handle, 1, &input, &output, NULL, NULL, BMCV_INTER_LINEAR, CSC_MAX_ENUM,
@@ -2361,28 +2385,29 @@ bm_status_t bm_vpss_circle(
 	unsigned char        line_width,
 	unsigned char        r,
 	unsigned char        g,
-	unsigned char        b) {
+	unsigned char        b)
+{
 	bm_status_t ret = BM_SUCCESS;
 	bmcv_circle_cfg cfg;
 	bmcv_rect_t input_crop_rect;
 	bmcv_padding_atrr_t padding_attr;
 	input_crop_rect.start_x = bm_max((center.x - radius), 0);
-	if(input_crop_rect.start_x > image.width)
+	if (input_crop_rect.start_x > image.width)
 		bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
 		"circle area should be within the original image, center.x(%d), image.w(%d), radius(%d)\n",
 		center.x, image.width, radius);
 
 	input_crop_rect.start_y = bm_max((center.y - radius), 0);
-	if(input_crop_rect.start_y > image.height)
+	if (input_crop_rect.start_y > image.height)
 		bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
 		"circle area should be within the original image, center.y(%d), image.h(%d), radius(%d)\n",
 		center.y, image.height, radius);
 
 	input_crop_rect.crop_w = radius * 2 + 2;
 	input_crop_rect.crop_h = input_crop_rect.crop_w;
-	if(input_crop_rect.start_x + input_crop_rect.crop_w > image.width)
+	if (input_crop_rect.start_x + input_crop_rect.crop_w > image.width)
 		input_crop_rect.crop_w = (image.width - input_crop_rect.start_x);
-	if(input_crop_rect.start_y + input_crop_rect.crop_h > image.height)
+	if (input_crop_rect.start_y + input_crop_rect.crop_h > image.height)
 		input_crop_rect.crop_h = (image.height - input_crop_rect.start_y);
 
 	padding_attr.dst_crop_stx = input_crop_rect.start_x;

@@ -229,9 +229,9 @@ static bm_status_t per_image_deal_bilinear(bm_handle_t handle,
     param.system_image_addr_ru = bm_mem_get_device_addr(tensor_sys_ru);
     param.system_image_addr_rd = bm_mem_get_device_addr(tensor_sys_rd);
     int core_id = 0;
-    ret = bm_tpu_kernel_launch(handle, "cv_api_warp_affine_bilinear_1684x", &param, sizeof(param), core_id);
+    ret = bm_tpu_kernel_launch(handle, "cv_api_warp_affine_bilinear_1688", &param, sizeof(param), core_id);
     if(ret != BM_SUCCESS){
-        printf("cv_api_warp_affine_bilinear_a2 error\n");
+        printf("cv_api_warp_affine_bilinear_1688 error\n");
         goto ERR_9;
     }
 
@@ -450,9 +450,9 @@ static bm_status_t per_image_deal_bilinear_padding(bm_handle_t handle,
     param.system_image_addr_ru = bm_mem_get_device_addr(tensor_sys_ru);
     param.system_image_addr_rd = bm_mem_get_device_addr(tensor_sys_rd);
     int core_id = 0;
-    ret = bm_tpu_kernel_launch(handle, "cv_api_warp_affine_bilinear_1684x_padding", &param, sizeof(param), core_id);
+    ret = bm_tpu_kernel_launch(handle, "cv_api_warp_affine_bilinear_1688_padding", &param, sizeof(param), core_id);
     if(ret != BM_SUCCESS){
-        printf("cv_api_warp_affine_bilinear_1684x_padding error\n");
+        printf("cv_api_warp_affine_bilinear_1688_padding error\n");
         goto ERR_9;
     }
 

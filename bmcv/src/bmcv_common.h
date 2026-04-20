@@ -137,25 +137,25 @@ typedef struct {
 } __attribute__((packed)) bm_api_cv_convert_to_t;
 
 typedef struct bm_api_cv_convert_to_dual_t{
-    int channel;
-    unsigned long long input_img_addr[3];
-    int img_w[3];
-    int img_in_stride[3];
-    int img_out_stride[3];
-    int img_h[3];
-    float alpha_0;
-    float beta_0;
-    float alpha_1;
-    float beta_1;
-    float alpha_2;
-    float beta_2;
-    int input_img_data_type;
-    int output_img_data_type;
-    unsigned long long output_img_addr[3];
-    int is_packed;
-    int core_id;
-    int core_num;
-    int base_msg_id;
+  int channel;
+  unsigned long long input_img_addr[3];
+  int img_w[3];
+  int img_in_stride[3];
+  int img_out_stride[3];
+  int img_h[3];
+  float alpha_0;
+  float beta_0;
+  float alpha_1;
+  float beta_1;
+  float alpha_2;
+  float beta_2;
+  int input_img_data_type;
+  int output_img_data_type;
+  unsigned long long output_img_addr[3];
+  int is_packed;
+  int core_id;
+  int core_num;
+  int base_msg_id;
 } __attribute__((packed)) bm_api_cv_convert_to_dual_core_t;
 
 typedef struct bm_api_cv_axpy {
@@ -168,6 +168,20 @@ typedef struct bm_api_cv_axpy {
   int input_h;
   int input_w;
 } __attribute__((packed)) bm_api_cv_axpy_t;
+
+typedef struct bm_api_cv_axpy_dual_core {
+  u64 A_global_offset;
+  u64 X_global_offset;
+  u64 Y_global_offset;
+  u64 F_global_offset;
+  int input_n;
+  int input_c;
+  int input_h;
+  int input_w;
+  int core_id;
+  int core_num;
+  int base_msg_id;
+} bm_api_cv_axpy_dual_core_t;
 
 typedef struct bm_api_cv_add_weighted {
   int channel;
@@ -187,9 +201,9 @@ typedef struct bm_api_cv_add_weighted {
 
 typedef struct sg_api_cv_add_weighted_dual_core {
   int channel;
-  unsigned long long input1_addr[3];
-  unsigned long long input2_addr[3];
-  unsigned long long output_addr[3];
+  u64 input1_addr[3];
+  u64 input2_addr[3];
+  u64 output_addr[3];
   int width[3];
   int height[3];
   int input1_str[3];
@@ -218,19 +232,19 @@ typedef struct bm_api_cv_bitwise {
 } __attribute__((packed)) bm_api_cv_bitwise_t;
 
 typedef struct sg_api_cv_bitwise_dual_core{
-    int channel;
-    unsigned long long input1_addr[3];
-    unsigned long long input2_addr[3];
-    unsigned long long output_addr[3];
-    int width[3];
-    int height[3];
-    int input1_str[3];
-    int input2_str[3];
-    int output_str[3];
-    int op;
-    int core_id;
-    int core_num;
-    int base_msg_id;
+  int channel;
+  u64 input1_addr[3];
+  u64 input2_addr[3];
+  u64 output_addr[3];
+  int width[3];
+  int height[3];
+  int input1_str[3];
+  int input2_str[3];
+  int output_str[3];
+  int op;
+  int core_id;
+  int core_num;
+  int base_msg_id;
 } __attribute__((packed)) sg_api_cv_bitwise_dual_core_t;
 
 typedef struct bm_api_cv_min_max {
@@ -287,15 +301,15 @@ typedef struct bm_api_cv_distance {
 } __attribute__((packed)) bm_api_cv_distance_t;
 
 typedef struct bm_api_cv_distance_dual_core {
-    u64 Xaddr;
-    u64 Yaddr;
-    int dim;
-    float pnt[8];
-    int len;
-    int dtype;
-    int core_id;
-    int core_num;
-    int base_msg_id;
+  u64 Xaddr;
+  u64 Yaddr;
+  int dim;
+  float pnt[8];
+  int len;
+  int dtype;
+  int core_id;
+  int core_num;
+  int base_msg_id;
 } __attribute__((packed)) bm_api_cv_distance_dual_core_t;
 
 typedef struct bm_api_cv_hamming_distance {
@@ -497,6 +511,25 @@ typedef struct sg_api_cv_gaussian_blur {
   int out_type;
 }__attribute__((packed)) sg_api_cv_gaussian_blur_t;
 
+typedef struct sg_api_cv_gaussian_blur_dual_core {
+  int channel;
+  u64 input_addr[3];
+  u64 kernel_addr;
+  u64 output_addr[3];
+  int width;
+  int height;
+  int kw;
+  int kh;
+  int stride_i;
+  int stride_o;
+  float delta;
+  int is_packed;
+  int out_type;
+  int core_id;
+  int core_num;
+  int base_msg_id;
+}__attribute__((packed)) sg_api_cv_gaussian_blur_dual_core_t;
+
 typedef struct bm_api_cv_bayer2rgb {
   int width;
   int height;
@@ -532,6 +565,29 @@ typedef struct bm_api_cv_copy_to_st {
   int padding_r;
   int if_padding;
 } __attribute__((packed)) bm_api_cv_copy_to_t;
+
+typedef struct bm_api_cv_copy_to_dualcore_st {
+  u64 input_image_addr;
+  u64 output_image_addr;
+  u64 padding_image_addr;
+  int C;
+  int input_w_stride;
+  int input_w;
+  int input_h;
+  int padding_w_stride;
+  int padding_w;
+  int padding_h;
+  int data_type;
+  int bgr_or_rgb;
+  int planner_or_packed;
+  int padding_b;
+  int padding_g;
+  int padding_r;
+  int if_padding;
+  int core_id;
+  int core_num;
+  int base_msg_id;
+} __attribute__((packed)) bm_api_cv_copy_to_dualcore_t;
 
 typedef struct bm_api_cv_nms {
     u64 input_proposal_addr;
@@ -691,16 +747,16 @@ typedef struct bm_api_cv_calc_hist_index {
 }__attribute__((packed)) bm_api_cv_calc_hist_index_t;
 
 typedef struct {
-    unsigned long long Xaddr;
-    unsigned long long Yaddr;
-    float a;
-    float b;
-    int len;
-    int xdtype;
-    float upper;
-    int core_id;
-    int core_nums;
-    int base_msg_id;
+  unsigned long long Xaddr;
+  unsigned long long Yaddr;
+  float a;
+  float b;
+  int len;
+  int xdtype;
+  float upper;
+  int core_id;
+  int core_nums;
+  int base_msg_id;
 } __attribute__((packed)) bm_api_cv_calc_hist_dual_core_t;
 
 typedef struct bm_api_cv_gemm {
@@ -782,6 +838,7 @@ typedef struct indexflatIP {
     u64 buffer_global_addr;
     u64 output_sorted_similarity_global_addr;
     u64 output_sorted_index_global_addr;
+    u64 output_sorted_buffer_fp32_similarity_global_addr;
     int vec_dims;
     int query_vecs_num;
     int database_vecs_num;
@@ -799,6 +856,7 @@ typedef struct indexflatIP_dual_core{
     u64 output_sorted_index_global_addr;
     u64 output_dual_core_sorted_similarity_global_addr;
     u64 output_dual_core_sorted_index_global_addr;
+    u64 output_sorted_buffer_fp32_similarity_global_addr;
     int vec_dims;
     int query_vecs_num;
     int database_vecs_num;

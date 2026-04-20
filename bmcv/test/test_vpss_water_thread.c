@@ -147,8 +147,8 @@ static void print_help(char **argv){
 };
 
 int main(int argc, char **argv) {
-    if (argc >= 17) {
-        md5 = argv[16];
+    if (argc >= 16) {
+        md5 = argv[15];
     } else if(argc > 3){
         md5 = NULL;
     }
@@ -168,7 +168,7 @@ int main(int argc, char **argv) {
         rect[0].start_x = atoi(argv[9]);
         rect[0].start_y = atoi(argv[10]);
         rect[0].crop_w = water_w;
-        rect[0].crop_h = water_byte / water_w;
+        rect[0].crop_h = (font_mode == 0) ? (water_byte / water_w) : (water_byte / water_w * 8);
         dst_name = argv[11];
         dev_id = atoi(argv[12]);
         rect_num = 1;
