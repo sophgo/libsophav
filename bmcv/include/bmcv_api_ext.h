@@ -1822,6 +1822,19 @@ DECL_EXPORT bm_status_t bmcv_image_vpp_basic(
     csc_type_t            csc_type = CSC_MAX_ENUM,
     csc_matrix_t*         matrix = NULL);
 
+/*API for padding_r, padding_g, padding_b fit any format*/
+DECL_EXPORT bm_status_t bmcv_image_vpp_basic_fit_padding_fmt(
+    bm_handle_t           handle,
+    int                   in_img_num,
+    bm_image*             input,
+    bm_image*             output,
+    int*                  crop_num_vec,
+    bmcv_rect_t*          crop_rect,
+    bmcv_padding_attr_t*  padding_attr,
+    bmcv_resize_algorithm algorithm,
+    csc_type_t            csc_type,
+    csc_matrix_t*         matrix);
+
 /*
 * Interface parameter description:
 * output_num is output num;input is input bm_image;output is output bm_image pointer;csc is gamut conversion enumeration type

@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include "bmcv_a2_vpss_ext.h"
 #include "bmcv_internal.h"
+#include <math.h>
 
 #define BITMAP_1BIT 1
 #define BITMAP_8BIT 0
@@ -18,6 +19,135 @@ bm_status_t bmcv_image_vpp_basic(
 	csc_type_t            csc_type,
 	csc_matrix_t*         matrix)
 {
+	unsigned int chipid = BM1688;
+	bm_status_t ret = BM_SUCCESS;
+
+#ifndef _FPGA
+	ret = bm_get_chipid(handle, &chipid);
+	if (BM_SUCCESS != ret)
+		return ret;
+#endif
+
+	switch(chipid)
+	{
+#ifndef USING_CMODEL
+		case BM1688_PREV:
+		case BM1688:
+			ret = bm_vpss_basic(handle, in_img_num, input,
+				output, crop_num_vec, crop_rect, padding_attr, algorithm, csc_type, matrix);
+			break;
+#endif
+
+		default:
+			ret = BM_ERR_NOFEATURE;
+			break;
+	}
+
+	return ret;
+}
+
+/*API for padding_r, padding_g, padding_b fit any format*/
+static inline int clamp_val(int val) {
+    return (val > 255) ? 255 : ((val < 0) ? 0 : val);
+}
+
+static inline void yuv_to_rgb(unsigned char y, unsigned char u, unsigned char v,
+                              unsigned char *r, unsigned char *g, unsigned char *b,
+                              int use_bt709) {
+    int c = (int)y - 16;
+    int d = (int)u - 128;
+    int e = (int)v - 128;
+    if (c < 0) c = 0;
+
+    float rf, gf, bf;
+    if (use_bt709) {
+        /* BT.709 (limited range) */
+        rf = 1.164f * c + 1.793f * e;
+        gf = 1.164f * c - 0.213f * d - 0.534f * e;
+        bf = 1.164f * c + 2.115f * d;
+    } else {
+        /* BT.601 (limited range) */
+        rf = 1.164f * c + 1.596f * e;
+        gf = 1.164f * c - 0.392f * d - 0.813f * e;
+        bf = 1.164f * c + 2.017f * d;
+    }
+
+    *r = clamp_val((int)(rf + 0.5f));
+    *g = clamp_val((int)(gf + 0.5f));
+    *b = clamp_val((int)(bf + 0.5f));
+}
+
+static inline void hsv_to_rgb(float h, float s, float v,
+                              unsigned char *r, unsigned char *g, unsigned char *b) {
+    float c = v * s;
+    float x = c * (1 - fabs(fmod(h / 60.0, 2) - 1));
+    float m = v - c;
+    float r_prime = 0, g_prime = 0, b_prime = 0;
+    if (h < 60)       { r_prime = c; g_prime = x; b_prime = 0; }
+    else if (h < 120) { r_prime = x; g_prime = c; b_prime = 0; }
+    else if (h < 180) { r_prime = 0; g_prime = c; b_prime = x; }
+    else if (h < 240) { r_prime = 0; g_prime = x; b_prime = c; }
+    else if (h < 300) { r_prime = x; g_prime = 0; b_prime = c; }
+    else              { r_prime = c; g_prime = 0; b_prime = x; }
+    *r = clamp_val((r_prime + m) * 255);
+    *g = clamp_val((g_prime + m) * 255);
+    *b = clamp_val((b_prime + m) * 255);
+}
+
+bm_status_t bmcv_image_vpp_basic_fit_padding_fmt(
+	bm_handle_t           handle,
+	int                   in_img_num,
+	bm_image*             input,
+	bm_image*             output,
+	int*                  crop_num_vec,
+	bmcv_rect_t*          crop_rect,
+	bmcv_padding_attr_t*  padding_attr,
+	bmcv_resize_algorithm algorithm,
+	csc_type_t            csc_type,
+	csc_matrix_t*         matrix)
+{
+    int use_bt709 = 0;
+    for (int i = 0; i < in_img_num; ++i) {
+        if (is_csc_yuv_or_rgb(input[i].image_format) == COLOR_SPACE_YUV &&
+            is_csc_yuv_or_rgb(output[i].image_format) == COLOR_SPACE_YUV) {
+            continue;
+        }
+
+        unsigned char in_r = padding_attr[i].padding_r;
+        unsigned char in_g = padding_attr[i].padding_g;
+        unsigned char in_b = padding_attr[i].padding_b;
+
+        if (output[i].image_format == FORMAT_YUV420P || output[i].image_format == FORMAT_YUV422P || output[i].image_format == FORMAT_YUV444P ||
+            output[i].image_format == FORMAT_NV12 || output[i].image_format == FORMAT_NV16 || output[i].image_format == FORMAT_NV24 ||
+            output[i].image_format == FORMAT_YUV444_PACKED || output[i].image_format == FORMAT_YUV422_YUYV) {
+            yuv_to_rgb(in_r, in_g, in_b, &padding_attr[i].padding_r, &padding_attr[i].padding_g, &padding_attr[i].padding_b, use_bt709);
+        } else if (output[i].image_format == FORMAT_NV21 || output[i].image_format == FORMAT_NV61 ||
+                   output[i].image_format == FORMAT_YVU444_PACKED || output[i].image_format == FORMAT_YUV422_YVYU) {
+            yuv_to_rgb(in_r, in_b, in_g, &padding_attr[i].padding_r, &padding_attr[i].padding_g, &padding_attr[i].padding_b, use_bt709);
+        } else if (output[i].image_format == FORMAT_YUV422_UYVY) {
+            yuv_to_rgb(in_g, in_r, in_b, &padding_attr[i].padding_r, &padding_attr[i].padding_g, &padding_attr[i].padding_b, use_bt709);
+        } else if (output[i].image_format == FORMAT_YUV422_VYUY) {
+            yuv_to_rgb(in_g, in_b, in_r, &padding_attr[i].padding_r, &padding_attr[i].padding_g, &padding_attr[i].padding_b, use_bt709);
+        } else if (output[i].image_format == FORMAT_BGR_PLANAR || output[i].image_format == FORMAT_BGR_PACKED || output[i].image_format == FORMAT_BGRP_SEPARATE) {
+            padding_attr[i].padding_r = in_b;
+            padding_attr[i].padding_b = in_r;
+        } else if (output[i].image_format == FORMAT_GRAY || output[i].image_format == FORMAT_BAYER || output[i].image_format == FORMAT_BAYER_RG8) {
+            padding_attr[i].padding_r = in_r;
+            padding_attr[i].padding_g = in_r;
+            padding_attr[i].padding_b = in_r;
+        } else if (output[i].image_format == FORMAT_HSV_PLANAR || output[i].image_format == FORMAT_HSV180_PACKED || output[i].image_format == FORMAT_HSV256_PACKED) {
+            float h = in_r;
+            float s = in_g / 255.0f;
+            float v = in_b / 255.0f;
+            if (output[i].image_format == FORMAT_HSV180_PACKED) {
+                h = h * 2.0f;
+            } else {
+                h = h * 360.0f / 255.0f;
+            }
+            hsv_to_rgb(h, s, v, &padding_attr[i].padding_r, &padding_attr[i].padding_g, &padding_attr[i].padding_b);
+        }
+    }
+
 	unsigned int chipid = BM1688;
 	bm_status_t ret = BM_SUCCESS;
 
