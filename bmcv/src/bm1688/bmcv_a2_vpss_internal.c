@@ -392,6 +392,18 @@ bm_status_t check_bm_vpss_csctype(
 			if ((input_color_space == COLOR_SPACE_RGB) && (output_color_space == COLOR_SPACE_RGB))
 				csc_cfg->csc_type = VPSS_CSC_RGB2RGB;
 			break;
+		case CSC_HW_YUV_AUTO:
+			if ((input_color_space != COLOR_SPACE_YUV) ||
+			    (output_color_space != COLOR_SPACE_YUV)) {
+				ret = BM_ERR_PARAM;
+				bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
+					"CSC_HW_YUV_AUTO needs YUV input and YUV output, %s: %s: %d\n",
+					filename(__FILE__), __func__, __LINE__);
+				break;
+			}
+			csc_cfg->hw_yuv_auto_csc = 1;
+			csc_cfg->csc_type = VPSS_CSC_YCbCr2YCbCr_BT601;
+			break;
 		case CSC_FANCY_PbPr_BT601:
 			if ((input_color_space == COLOR_SPACE_YUV) && (output_color_space == COLOR_SPACE_RGB))
 				csc_cfg->csc_type = VPSS_CSC_YPbPr2RGB_BT601;
@@ -830,6 +842,13 @@ bm_status_t bm_vpss_set_chn_csc(bmcv_vpss_csc_matrix *csc_cfg, struct vpss_chn_c
 
 bm_status_t bm_vpss_set_csc(bmcv_csc_cfg *csc_cfg, bm_vpss_cfg *vpss_cfg) {
 	bmcv_vpss_csc_matrix csc_matrix;
+
+	if (csc_cfg->hw_yuv_auto_csc) {
+		vpss_cfg->grp_csc_cfg.hw_yuv_auto_csc = 1;
+		bm_vpss_set_grp_csc(csc_cfg->is_fancy, &csc_default_matrix[8], &vpss_cfg->grp_csc_cfg);
+		bm_vpss_set_chn_csc(&csc_default_matrix[8], &vpss_cfg->chn_csc_cfg);
+		return BM_SUCCESS;
+	}
 	if (csc_cfg->csc_type == VPSS_CSC_RGB2RGB)
 		return BM_SUCCESS;
 	if (csc_cfg->is_user_defined_matrix) {

@@ -238,7 +238,11 @@ typedef enum csc_type {
     CSC_FANCY_PbPr_BT601 = 100,
     CSC_FANCY_PbPr_BT709,
     CSC_USER_DEFINED_MATRIX = 1000,
-    CSC_MAX_ENUM
+    CSC_MAX_ENUM,
+    /*
+     * YUV->YUV: try VPSS IMG bit13 auto CSC (grp hw_yuv_auto_csc).
+     */
+    CSC_HW_YUV_AUTO
 } csc_type_t;
 
 struct bm_image_private;
