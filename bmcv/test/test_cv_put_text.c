@@ -15,10 +15,10 @@
 #define IMAGE_CHN_NUM_MAX 3
 #define TIME_COST_US(start, end) ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec))
 
-static bmcv_point_t org = {50, 50};
+static bmcv_point_t org = {500, 500};
 static int fontFace = 0;
-static int fontScale = 60;
-static const char text[60] = "2026年03月24日 星期二 16:16:00 test english!";
+static int fontScale = 5;
+static const char text[30] = "Hello, world!";
 static unsigned char color[3] = {255, 0, 0};
 static int thickness = 2;
 
@@ -33,9 +33,9 @@ typedef struct {
 } cv_pt_thread_arg_t;
 
 extern int get_image_offset(int format, int width, int height, int* offset_list);
-// extern int put_text_cpu(unsigned char* input, int height, int width, const char* text,
-//                         bmcv_point_t org, int fontFace, float fontScale, int format,
-//                         unsigned char color[3], int thickness);
+extern int put_text_cpu(unsigned char* input, int height, int width, const char* text,
+                        bmcv_point_t org, int fontFace, float fontScale, int format,
+                        unsigned char color[3], int thickness);
 
 static void fill_img(unsigned char* input, int width, int height)
 {
@@ -155,7 +155,7 @@ static bm_status_t put_text_tpu(unsigned char* input,  int height, int width, co
         goto exit1;
     }
     gettimeofday(&t2, NULL);
-    printf("Put_text TPU using time: %ld(us)\n", TIME_COST_US(t1, t2) / 20);
+    printf("Put_text TPU using time: %ld(us)\n", TIME_COST_US(t1, t2));
 
     ret = bm_image_copy_device_to_host(input_img, (void**)in_ptr);
     if (ret != BM_SUCCESS) {
@@ -190,11 +190,11 @@ static int test_put_text_case(bm_handle_t handle, const char* input_path, const 
     }
     memcpy(data_tpu, data_cpu, width * height * IMAGE_CHN_NUM_MAX);
 
-    // ret = put_text_cpu(data_cpu, height, width, text, org, fontFace, fontScale, format, color, thickness);
-    // if (ret != 0) {
-    //     printf("put_text_cpu failed!\n");
-    //     goto exit;
-    // }
+    ret = put_text_cpu(data_cpu, height, width, text, org, fontFace, fontScale, format, color, thickness);
+    if (ret != 0) {
+        printf("put_text_cpu failed!\n");
+        goto exit;
+    }
 
     ret = put_text_tpu(data_tpu, height, width, text, org, fontFace, fontScale, format, color, thickness, handle);
     if (ret != 0) {
@@ -212,6 +212,12 @@ static int test_put_text_case(bm_handle_t handle, const char* input_path, const 
         total_size += offset_list[i];
     }
 
+    ret = cmp_result(data_tpu, data_cpu, total_size);
+    if (ret != 0) {
+        printf("cmp_result failed!\n");
+        goto exit;
+    }
+
     if (output_path != NULL) {
         ret = writeBin(output_path, data_tpu, total_size);
         if (ret != 0) {
@@ -219,12 +225,6 @@ static int test_put_text_case(bm_handle_t handle, const char* input_path, const 
             goto exit;
         }
     }
-
-    // ret = cmp_result(data_tpu, data_cpu, total_size);
-    // if (ret != 0) {
-    //     printf("cmp_result failed!\n");
-    //     goto exit;
-    // }
 
 exit:
     free(data_cpu);
@@ -262,19 +262,14 @@ int main(int argc, char* args[])
     int seed = tp.tv_nsec;
     srand(seed);
 
-    // int width = 100 + rand() % 1900;
-    // int height = 100 + rand() % 2048;
-    // int format = rand() % 7;
-    // char* input_path = NULL;
-    // char* output_path = NULL;
     int thread_num = 1;
-    int width = 1920;
-    int height = 1080;
-    int format = 0;
+    int width = 100 + rand() % 1900;
+    int height = 100 + rand() % 2048;
+    int format = rand() % 7;
     int loop = 1;
     int ret = 0;
-    char* input_path = "/home/linaro/put_text/1920x1080_input.bin";
-    char* output_path = "/home/linaro/put_text/output_1080p.bin";
+    char* input_path = NULL;
+    char* output_path = NULL;
     int i;
     bm_handle_t handle;
     ret = bm_dev_request(&handle, 0);
