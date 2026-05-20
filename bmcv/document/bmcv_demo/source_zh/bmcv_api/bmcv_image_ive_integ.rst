@@ -49,7 +49,7 @@ bmcv_ive_integ
     * - input
       - GRAY
       - DATA_TYPE_EXT_1N_BYTE
-      - 32x16~1920x1080
+      - 16x16~1920x1080
 
 | 【数据类型说明】
 

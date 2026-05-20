@@ -49,7 +49,7 @@ bmcv_ive_ncc
     * - input1
       - GRAY
       - DATA_TYPE_EXT_1N_BYTE
-      - 32x32~1920x1080
+      - 16x16~3840x2160
     * - input2
       - GRAY
       - DATA_TYPE_EXT_1N_BYTE

@@ -49,11 +49,15 @@ bmcv_ive_filter
     * - input
       - GRAY
 
+        NV12
+
         NV21
+
+        NV16
 
         NV61
       - DATA_TYPE_EXT_1N_BYTE
-      - 64x64~1920x1080
+      - 16x16~3840x2160
     * - output
       - 同input
       - DATA_TYPE_EXT_1N_BYTE
@@ -95,7 +99,7 @@ bmcv_ive_filter
 
 1. 输入输出图像的 width 都需要16对齐。
 
-2. 当输入数据 为 FORMAT_NV21、FORMAT_NV61 类型时, 要求输出数据跨度一致。
+2. 当输入数据 为 FORMAT_NV12、FORMAT_NV21、FORMAT_NV16、FORMAT_NV61 类型时, 要求输出数据跨度一致。
 
 3. Filter 计算公式:
 

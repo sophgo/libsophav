@@ -59,7 +59,7 @@ bmcv_ive_csc
         FORMAT_RGBP_SEPARATE
 
       - U8
-      - 64x64~1920x1080
+      - 16x16~3840x2160
     * - output
       - FORMAT_NV21
 

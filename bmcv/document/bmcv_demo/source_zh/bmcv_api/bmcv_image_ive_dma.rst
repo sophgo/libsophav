@@ -43,7 +43,7 @@ bmcv_ive_dma
       - 输入
       - DMA 在间隔拷贝模式下需要的控制参数结构体，直接拷贝可以为空。
 
-【分辨率】：32x1 ~ 1920x1080
+【分辨率】：16x1~3840x2160
 
 | 【数据类型说明】
 
@@ -107,11 +107,9 @@ bmcv_ive_dma
 
 【注意】
 
-1. 输入输出图像的 width 都需要16对齐。
+1. 模式是指 IVE_DMA_DIRECT_COPY 和 IVE_DMA_INTERVAL_COPY 模式;
 
-2. 模式是指 IVE_DMA_DIRECT_COPY 和 IVE_DMA_INTERVAL_COPY 模式;
-
-3. IVE_DMA_DIRECT_COPY : 快速拷贝模式, 可实现直接从大块内存中扣取小块内存，如图 1-1 所示，计算公式如下：
+2. IVE_DMA_DIRECT_COPY : 快速拷贝模式, 可实现直接从大块内存中扣取小块内存，如图 1-1 所示，计算公式如下：
 
   .. math::
 
@@ -125,7 +123,7 @@ bmcv_ive_dma
      :align: center
 
 
-4. IVE_DMA_INTERVAL_COPY : 间隔拷贝模式， 要求输入数据宽度为 hor_seg_size 的倍数; 间隔拷贝的方式, 即将每 ver_seg_rows 行中第一行数据分割成 hor_seg_size 大小的段, 拷贝每段的前 elem_size 大小的字节，如图 1-2 所示。
+3. IVE_DMA_INTERVAL_COPY : 间隔拷贝模式， 要求输入数据宽度为 hor_seg_size 的倍数; 间隔拷贝的方式, 即将每 ver_seg_rows 行中第一行数据分割成 hor_seg_size 大小的段, 拷贝每段的前 elem_size 大小的字节，如图 1-2 所示。
 
   **图 1-2 间隔拷贝示意图**
 

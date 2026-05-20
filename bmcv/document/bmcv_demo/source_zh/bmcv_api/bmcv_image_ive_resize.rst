@@ -51,13 +51,13 @@ bmcv_ive_resize
 
         RGB_PLANAR
       - DATA_TYPE_EXT_1N_BYTE
-      - 64x64~1920x1080
+      - 16x16~3840x2160
     * - output
       - GRAY
 
         RGB_PLANAR
       - DATA_TYPE_EXT_1N_BYTE
-      - 64x64~1920x1080
+      - 16x16~3840x2160
 
 | 【数据类型说明】
 

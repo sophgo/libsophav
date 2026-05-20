@@ -61,7 +61,7 @@ bmcv_ive_match_bgmodel
     * - cur_img
       - GRAY
       - DATA_TYPE_EXT_1N_BYTE
-      - 64x64~1920x1080
+      - 16x16~3840x2160
     * - bgmodel_img
       - GRAY
       - DATA_TYPE_EXT_1N_BYTE
@@ -69,11 +69,11 @@ bmcv_ive_match_bgmodel
     * - fgflag_img
       - GRAY
       - DATA_TYPE_EXT_1N_BYTE
-      - 64x64~1920x1080
+      - 16x16~3840x2160
     * - diff_fg_img
       - GRAY
       - DATA_TYPE_EXT_S16
-      - 64x64~1920x1080
+      - 16x16~3840x2160
     * - stat_data_mem
       - GRAY
       - DATA_TYPE_EXT_1N_BYTE

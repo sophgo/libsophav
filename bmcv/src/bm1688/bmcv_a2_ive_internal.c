@@ -116,6 +116,7 @@ ive_image_type_e bm_image_type_convert_to_ive_image_type(bm_image_format_ext ima
         case FORMAT_YUV420P:
             type = IVE_IMAGE_TYPE_YUV420P;
             break;
+        case FORMAT_NV12:
         case FORMAT_NV21:
             type = IVE_IMAGE_TYPE_YUV420SP;
             break;
@@ -127,6 +128,7 @@ ive_image_type_e bm_image_type_convert_to_ive_image_type(bm_image_format_ext ima
         case FORMAT_YUV444P:
             type = IVE_IMAGE_TYPE_U8C3_PLANAR;
             break;
+        case FORMAT_NV16:
         case FORMAT_NV61:
             type = IVE_IMAGE_TYPE_YUV422SP;
             break;
