@@ -107,6 +107,8 @@ bm_status_t bmcv_image_vpp_basic_fit_padding_fmt(
 	csc_matrix_t*         matrix)
 {
     int use_bt709 = 0;
+    if (padding_attr == NULL)
+        goto skip_padding_fmt;
     for (int i = 0; i < in_img_num; ++i) {
         if (is_csc_yuv_or_rgb(input[i].image_format) == COLOR_SPACE_YUV &&
             is_csc_yuv_or_rgb(output[i].image_format) == COLOR_SPACE_YUV) {
@@ -147,6 +149,7 @@ bm_status_t bmcv_image_vpp_basic_fit_padding_fmt(
             hsv_to_rgb(h, s, v, &padding_attr[i].padding_r, &padding_attr[i].padding_g, &padding_attr[i].padding_b);
         }
     }
+skip_padding_fmt:;
 
 	unsigned int chipid = BM1688;
 	bm_status_t ret = BM_SUCCESS;
