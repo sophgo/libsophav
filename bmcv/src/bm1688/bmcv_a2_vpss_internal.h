@@ -57,12 +57,12 @@ typedef enum bmcv_vpss_csc_type {
 	VPSS_CSC_YPbPr2YPbPr_BT709,
 	VPSS_CSC_YCbCr2YCbCr_BT709,
 	VPSS_CSC_RGB2RGB,
+	VPSS_CSC_YUV2YUV,
 } bmcv_vpss_csc_type;
 
 typedef struct bmcv_csc_cfg {
 	u8 is_fancy;
 	u8 is_user_defined_matrix;
-	u8 hw_yuv_auto_csc; /* 1: CSC_HW_YUV_AUTO path, set grp_csc_cfg.hw_yuv_auto_csc in ioctl */
 	bmcv_flip_mode flip_mode;
 	bmcv_vpss_csc_type csc_type;
 	bmcv_vpss_csc_matrix csc_matrix;

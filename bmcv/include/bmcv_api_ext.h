@@ -239,12 +239,7 @@ typedef enum csc_type {
     CSC_FANCY_PbPr_BT709,
     CSC_USER_DEFINED_MATRIX = 1000,
     CSC_MAX_ENUM,
-    /*
-     * YUV->YUV: try VPSS IMG bit13 auto CSC (grp hw_yuv_auto_csc). NV12/NV21 in+out falls
-     * back to BT601 matrix path in BMCV (bit13 + semi-planar mis-colors on current silicon).
-     * Kernel: ODMA must SCL_OUT_DISABLE for true hw path; never OUT_CSC RGB2YUV on that bus.
-     */
-    CSC_HW_YUV_AUTO
+    CSC_YUV2YUV
 } csc_type_t;
 
 struct bm_image_private;
