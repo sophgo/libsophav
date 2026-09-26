@@ -11,7 +11,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
 aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/src/. SRC)
 aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/src/Cases/. SRC_Case)
 
-link_directories(${VG_lite_path}/lib)
+link_directories(${VG_lite_path}/LD)
 
 add_executable(${sample_name} ${SRC} ${SRC_Case})
 target_link_libraries(${sample_name} vg_lite vg_lite_util m)

@@ -54,7 +54,7 @@ set(HEADERS include/bmcv_api_ext.h include/bmcv_api_ext_c.h include/bmcv_api.h)
 set(component libsophon)
 
 if(NOT "${PCIE_MODE}" STREQUAL "on")
-    find_library(VGLITE_STATIC NAMES libbmvg.a bmvg PATHS "${CMAKE_CURRENT_SOURCE_DIR}/../vglite/lib")
+    find_library(VGLITE_STATIC NAMES libbmvg.a bmvg PATHS "${CMAKE_CURRENT_SOURCE_DIR}/../vglite/LD")
 endif()
 
 add_library(${BMCV_LIB_NAME} SHARED ${SRCS})
