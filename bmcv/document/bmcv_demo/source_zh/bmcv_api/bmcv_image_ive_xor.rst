@@ -52,7 +52,7 @@ bmcv_ive_xor
 
         GRAY 二值图
       - DATA_TYPE_EXT_1N_BYTE
-      - 64x64~1920x1080
+      - 16x16~3840x2160
     * - input2
       - GRAY
 

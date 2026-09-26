@@ -32,6 +32,7 @@
 #define FISHEYE_MAX_REGION_NUM 4
 #define AFFINE_MAX_REGION_NUM 32
 #define DWA_MAX_TSK_MESH (32)
+#define DWA_MESH_IDX_INVALID (0xff)   // "no slot held" sentinel for stTask.privatedata[2]
 #define DWA_MESH_SIZE_ROT 0x60000
 #define DWA_MESH_SIZE_AFFINE 0x20000
 #define DWA_MESH_SIZE_FISHEYE 0xB0000
@@ -138,6 +139,9 @@ typedef struct _BM_DWA_BASIC_PARAM {
 typedef struct _BM_TSK_MESH_ATTR_S {
     char Name[32];
     bm_device_mem_t mem;
+    int ref_cnt;     // >0 between slot acquisition and job completion; eviction only allowed at 0
+    u32 last_used;   // acquisition stamp, LRU among ref_cnt==0 slots gets evicted
+    bm_handle_t owner;   // handle the mesh memory was allocated on; deinit frees per owner
 } bm_tsk_mesh_attr_s;
 
 typedef struct _FORMAT_8BITS_RGB {

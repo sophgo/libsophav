@@ -49,6 +49,9 @@
 #include "bmlib_runtime.h"
 
 #define MAX_SOC_NUM 64
+#define VENC_GIT_COMMIT_HASH "be78834fc8"
+#define VENC_GIT_BRANCH "master"
+#define VENC_SDK_VERSION "2.1.0"
 
 __attribute__((visibility("default")))
 static const char _venc_commit_info[] = "SDK version: " VENC_SDK_VERSION "  commit hash: " VENC_GIT_COMMIT_HASH "   branch: " VENC_GIT_BRANCH;
@@ -1064,6 +1067,9 @@ int bmvpu_enc_open(BmVpuEncoder **encoder,
     stAttr.stGopAttr.enGopMode              = VENC_GOPMODE_NORMALP;
     stAttr.stGopAttr.stNormalP.s32IPQpDelta = 2;
 
+#ifdef MEDIA_V3
+    stAttr.stVencAttr.u32MmuMode = open_params->mmu_config;
+#endif
 
     // 4. call ioctl for create channel
     ret = bmenc_ioctl_create_chn(video_enc_ctx->chn_fd, &stAttr);
@@ -1592,7 +1598,7 @@ int bmvpu_enc_get_stream(BmVpuEncoder *encoder,
     // 1. call ioctl get pkt
     venc_stream_ex_s stStreamEx;
     if (video_enc_ctx->stStream.pstPack == NULL) {
-        video_enc_ctx->stStream.pstPack = malloc(3 * sizeof(venc_pack_s));
+        video_enc_ctx->stStream.pstPack = malloc(16 * sizeof(venc_pack_s));
         if (video_enc_ctx->stStream.pstPack == NULL) {
             BMVPU_ENC_ERROR("bmenc create chn failed : 0x%x\n", ret);
             return BM_VPU_ENC_RETURN_CODE_ERROR;
@@ -1619,6 +1625,13 @@ int bmvpu_enc_get_stream(BmVpuEncoder *encoder,
         // 2. map bs data
         BmVpuEncDMABuffer dma_buf;
         dma_buf.phys_addr = pkt_drv->u64PhyAddr;
+#ifdef MEDIA_V3
+        // When the MMU is on, u64PhyAddr is the VPU hw addr (kept for buffer
+        // recycling in release_stream). The real DDR phys to mmap is carried
+        // in u64RealPhyAddr; it is 0 when the MMU is off, so fall back then.
+        if (pkt_drv->u64RealPhyAddr)
+            dma_buf.phys_addr = pkt_drv->u64RealPhyAddr;
+#endif
         dma_buf.size = pkt_drv->u32Len;
 #ifndef BM_PCIE_MODE
         ret = bmvpu_dma_buffer_map(0, &dma_buf, BM_VPU_ENC_MAPPING_FLAG_READ|BM_VPU_ENC_MAPPING_FLAG_WRITE);
@@ -1939,6 +1952,17 @@ int bmvpu_enc_dma_buffer_deattach(int vpu_core_idx, uint64_t paddr, unsigned int
 
 int bmvpu_enc_dma_buffer_flush(int vpu_core_idx, BmVpuEncDMABuffer* buf)
 {
+    if (buf == NULL) return -1;
+#ifndef BM_PCIE_MODE
+    bm_device_mem_t dev_buffer;
+    bm_set_device_mem(&dev_buffer, buf->size, buf->phys_addr);
+    dev_buffer.u.device.dmabuf_fd = buf->dmabuf_fd;
+    bm_status_t ret = bm_mem_flush_device_mem(g_bm_handle[vpu_core_idx].bm_handle, &dev_buffer);
+    if (ret != BM_SUCCESS) {
+        BMVPU_ENC_ERROR("bm_mem_flush_device_mem failed: 0x%x\n", ret);
+        return -1;
+    }
+#endif
     return 0;
 }
 

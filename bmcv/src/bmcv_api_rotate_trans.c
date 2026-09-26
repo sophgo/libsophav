@@ -46,7 +46,7 @@ bm_status_t bmcv_image_rotate2(
         bm_image output,
         int rotation_angle) {
     bm_status_t ret = BM_SUCCESS;
-    int core_id;
+    int core_id = 0;
 
     // bm_handle_check_2(handle, input, output);
     ret = bmcv_rotate_check_trans(handle, input, output, rotation_angle);
@@ -82,8 +82,8 @@ bm_status_t bmcv_image_rotate2(
     {
         case BM1688_PREV:
         case BM1688:
-            ret = bmdev_get_idle_coreid(handle, &core_id);
-            printf("current core_id = %d\n", core_id);
+            // ret = bmdev_get_idle_coreid(handle, &core_id);
+            // printf("current core_id = %d\n", core_id);
             ret = bm_tpu_kernel_launch(handle, "cv_rotate", (u8*)&api, sizeof(api), core_id);
 
             if(BM_SUCCESS != ret){

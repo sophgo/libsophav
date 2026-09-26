@@ -10,7 +10,7 @@ aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/src/. SRC)
 
 set(TDE_LIB_NAME tde CACHE INTERNAL "tde library name")
 
-link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../vglite/LD/)
+link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../vglite/lib/)
 
 add_library(${TDE_LIB_NAME} SHARED ${SRC})
 add_library(${TDE_LIB_NAME}-static STATIC ${SRC})

@@ -50,7 +50,7 @@ bmcv_ive_bersen
     * - input
       - GRAY
       - DATA_TYPE_EXT_1N_BYTE
-      - 16x16~1920x1080
+      - 16x16~3840x2160
     * - output
       - GRAY
       - DATA_TYPE_EXT_1N_BYTE

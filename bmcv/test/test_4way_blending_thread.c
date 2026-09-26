@@ -107,15 +107,28 @@ static void example_test_cmd() {
   );
 }
 
-void bm_dem_read_bin(bm_handle_t handle, bm_device_mem_t* dmem, const char *input_name, unsigned int size)
+int bm_dem_read_bin(bm_handle_t handle, bm_device_mem_t* dmem, const char *input_name, unsigned int size)
 {
+  memset(dmem, 0, sizeof(bm_device_mem_t));
+
   if (access(input_name, F_OK) != 0 || strlen(input_name) == 0 || 0 >= size)
   {
-    return;
+    printf("Invalid parameters for bm_dem_read_bin\n");
+    return -1;
   }
 
   char* input_ptr = (char *)malloc(size);
+  if (input_ptr == NULL) {
+    printf("malloc failed for input_ptr\n");
+    return -1;
+  }
+
   FILE *fp_src = fopen(input_name, "rb+");
+  if (fp_src == NULL) {
+    printf("open file %s failed\n", input_name);
+    free(input_ptr);
+    return -1;
+  }
 
   if (fread((void *)input_ptr, 1, size, fp_src) < (unsigned int)size){
       printf("file size is less than %d required bytes\n", size);
@@ -124,15 +137,18 @@ void bm_dem_read_bin(bm_handle_t handle, bm_device_mem_t* dmem, const char *inpu
 
   if (BM_SUCCESS != bm_malloc_device_byte(handle, dmem, size)){
     printf("bm_malloc_device_byte failed\n");
+    free(input_ptr);
+    return -1;
   }
-
 
   if (BM_SUCCESS != bm_memcpy_s2d(handle, *dmem, input_ptr)){
     printf("bm_memcpy_s2d failed\n");
+    free(input_ptr);
+    return -1;
   }
 
   free(input_ptr);
-  return;
+  return 0;
 }
 
 static int absdiff(unsigned char* input1, unsigned char* input2, int img_size)
@@ -338,8 +354,9 @@ static int test_4way_blending(int input_num, char** src_name, int src_w, int src
 
   }
 
-  bm_image_destroy(&src[0]);
-  bm_image_destroy(&src[1]);
+  for(int i = 0; i < input_num; i++) {
+    bm_image_destroy(&src[i]);
+  }
   bm_image_destroy(&dst);
   atomic_fetch_sub(&num_threads, 1);
 

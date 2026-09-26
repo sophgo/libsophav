@@ -39,9 +39,45 @@ bm_status_t bm_ive_image_calc_stride(bm_handle_t handle, int img_h, int img_w,
     bm_image_private image_private;
     ret = fill_default_image_private(&image_private, img_h, img_w, image_format, data_type);
     for(int i = 0; i < image_private.plane_num; i++)
+#ifdef MEDIA_V3
+        stride[i] = image_private.memory_layout[i].pitch_stride;
+#else
         stride[i] = ALIGN(image_private.memory_layout[i].pitch_stride, IVE_STRIDE_ALIGN);
+#endif
     return ret;
 }
+
+static void ive_expand_mask(void *dst_mask, const void *src_mask, int ksize, size_t elem_size) {
+    const int max_size = 9;
+    int offset = (max_size - ksize) / 2;
+
+    memset(dst_mask, 0, max_size * max_size * elem_size);
+
+    if (ksize == 9) {
+        memcpy(dst_mask, src_mask, 81 * elem_size);
+        return;
+    }
+
+    for (int i = 0; i < ksize; i++) {
+        unsigned char *dst_row = (unsigned char *)dst_mask + ((i + offset) * max_size + offset) * elem_size;
+        const unsigned char *src_row = (const unsigned char *)src_mask + (i * ksize) * elem_size;
+        memcpy(dst_row, src_row, ksize * elem_size);
+    }
+}
+
+bm_status_t bmcv_ive_dilate_ext(
+        bm_handle_t           handle,
+        bm_image              input,
+        bm_image              output,
+        unsigned char         dilate_mask[81],
+        unsigned char         ksize);
+
+bm_status_t bmcv_ive_erode_ext(
+        bm_handle_t           handle,
+        bm_image              input,
+        bm_image              output,
+        unsigned char         erode_mask[81],
+        unsigned char         ksize);
 
 bm_status_t bmcv_ive_and(
     bm_handle_t          handle,
@@ -432,12 +468,86 @@ bm_status_t bmcv_ive_lbp(
     return ret;
 }
 
+bm_status_t bmcv_ive_dilate_ext(
+        bm_handle_t           handle,
+        bm_image              input,
+        bm_image              output,
+        unsigned char         dilate_mask[81],
+        unsigned char         ksize)
+{
+    bm_status_t ret = BM_SUCCESS;
+#ifdef MEDIA_V3
+    unsigned chipid = CV84X6;
+#else
+    unsigned chipid = BM1688;
+#endif
+    unsigned char local_mask[81] = {0};
+
+    if (handle == NULL) {
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "handle is null\n");
+        return BM_ERR_FAILURE;
+    }
+
+    if (ksize != 3 && ksize != 5 && ksize != 7 && ksize != 9) {
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
+                  "ksize(%d) is invalid, only support 3, 5, 7, 9\n", ksize);
+        return BM_ERR_PARAM;
+    }
+
+    int mask_all_zero = 1;
+    for (int i = 0; i < 81; i++) {
+        if (dilate_mask[i] != 0) {
+            mask_all_zero = 0;
+            break;
+        }
+    }
+    if (mask_all_zero) {
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
+                  "mask is all zeros, please check if mask is properly initialized\n");
+        return BM_ERR_PARAM;
+    }
+
+#ifndef _FPGA
+    ret = bm_get_chipid(handle, &chipid);
+    if (BM_SUCCESS != ret)
+        return ret;
+#endif
+
+    if (ksize == 3 || ksize == 5 || ksize == 7) {
+        ive_expand_mask(local_mask, dilate_mask, ksize, sizeof(unsigned char));
+    } else {
+        memcpy(local_mask, dilate_mask, 81 * sizeof(unsigned char));
+    }
+
+    switch(chipid){
+#ifdef MEDIA_V3
+        case CV84X6:
+            ret = bm_ive_dilate(handle, &input, &output, local_mask, ksize);
+            break;
+#else
+        case BM1688_PREV:
+        case BM1688:
+            ret = BM_NOT_SUPPORTED;
+            break;
+#endif
+        default:
+            ret = BM_NOT_SUPPORTED;
+            break;
+    }
+    return ret;
+}
+
 bm_status_t bmcv_ive_dilate(
         bm_handle_t           handle,
         bm_image              input,
         bm_image              output,
         unsigned char         dilate_mask[25])
 {
+#ifdef MEDIA_V3
+    unsigned char dilate_mask_ext[81] = {0};
+    memcpy(dilate_mask_ext, dilate_mask, 25 * sizeof(unsigned char));
+    return bmcv_ive_dilate_ext(handle, input, output, dilate_mask_ext, 5);
+#else
     bm_status_t ret = BM_SUCCESS;
     unsigned chipid = BM1688;
 #ifndef _FPGA
@@ -445,12 +555,81 @@ bm_status_t bmcv_ive_dilate(
     if (BM_SUCCESS != ret)
         return ret;
 #endif
-
     switch(chipid){
         case BM1688_PREV:
         case BM1688:
             ret = bm_ive_dilate(handle, &input, &output, dilate_mask);
             break;
+        default:
+            ret = BM_NOT_SUPPORTED;
+            break;
+    }
+    return ret;
+#endif
+}
+
+bm_status_t bmcv_ive_erode_ext(
+        bm_handle_t           handle,
+        bm_image              input,
+        bm_image              output,
+        unsigned char         erode_mask[81],
+        unsigned char         ksize)
+{
+    bm_status_t ret = BM_SUCCESS;
+#ifdef MEDIA_V3
+    unsigned chipid = CV84X6;
+#else
+    unsigned chipid = BM1688;
+#endif
+    unsigned char local_mask[81] = {0};
+
+    if (handle == NULL) {
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "handle is null\n");
+        return BM_ERR_FAILURE;
+    }
+
+    if (ksize != 3 && ksize != 5 && ksize != 7 && ksize != 9) {
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
+                  "ksize(%d) is invalid, only support 3, 5, 7, 9\n", ksize);
+        return BM_ERR_PARAM;
+    }
+
+    int mask_all_zero = 1;
+    for (int i = 0; i < 81; i++) {
+        if (erode_mask[i] != 0) {
+            mask_all_zero = 0;
+            break;
+        }
+    }
+    if (mask_all_zero) {
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
+                  "mask is all zeros, please check if mask is properly initialized\n");
+        return BM_ERR_PARAM;
+    }
+
+#ifndef _FPGA
+    ret = bm_get_chipid(handle, &chipid);
+    if (BM_SUCCESS != ret)
+        return ret;
+#endif
+
+    if (ksize == 3 || ksize == 5 || ksize == 7) {
+        ive_expand_mask(local_mask, erode_mask, ksize, sizeof(unsigned char));
+    } else {
+        memcpy(local_mask, erode_mask, 81 * sizeof(unsigned char));
+    }
+
+    switch(chipid){
+#ifdef MEDIA_V3
+        case CV84X6:
+            ret = bm_ive_erode(handle, &input, &output, local_mask, ksize);
+            break;
+#else
+        case BM1688_PREV:
+        case BM1688:
+            ret = BM_NOT_SUPPORTED;
+            break;
+#endif
         default:
             ret = BM_NOT_SUPPORTED;
             break;
@@ -464,6 +643,11 @@ bm_status_t bmcv_ive_erode(
         bm_image              output,
         unsigned char         erode_mask[25])
 {
+#ifdef MEDIA_V3
+    unsigned char erode_mask_ext[81] = {0};
+    memcpy(erode_mask_ext, erode_mask, 25 * sizeof(unsigned char));
+    return bmcv_ive_erode_ext(handle, input, output, erode_mask_ext, 5);
+#else
     bm_status_t ret = BM_SUCCESS;
     unsigned chipid = BM1688;
 #ifndef _FPGA
@@ -471,7 +655,6 @@ bm_status_t bmcv_ive_erode(
     if (BM_SUCCESS != ret)
         return ret;
 #endif
-
     switch(chipid){
         case BM1688_PREV:
         case BM1688:
@@ -482,6 +665,7 @@ bm_status_t bmcv_ive_erode(
             break;
     }
     return ret;
+#endif
 }
 
 bm_status_t bmcv_ive_mag_and_ang(
@@ -518,6 +702,13 @@ bm_status_t bmcv_ive_sobel(
         bm_image *             output_v,
         bmcv_ive_sobel_ctrl    sobel_attr)
 {
+#ifdef MEDIA_V3
+    bmcv_ive_sobel_ext_ctrl sobel_attr_ext = {0};
+    sobel_attr_ext.ksize = 5;
+    sobel_attr_ext.sobel_mode = sobel_attr.sobel_mode;
+    memcpy(sobel_attr_ext.as8_mask, sobel_attr.as8_mask, 25 * sizeof(signed char));
+    return bmcv_ive_sobel_ext(handle, input, output_h, output_v, sobel_attr_ext);
+#else
     bm_status_t ret = BM_SUCCESS;
     unsigned chipid = BM1688;
 #ifndef _FPGA
@@ -525,12 +716,80 @@ bm_status_t bmcv_ive_sobel(
     if (BM_SUCCESS != ret)
         return ret;
 #endif
-
     switch(chipid){
         case BM1688_PREV:
         case BM1688:
             ret = bm_ive_sobel(handle, input, output_h, output_v, &sobel_attr);
             break;
+        default:
+            ret = BM_NOT_SUPPORTED;
+            break;
+    }
+    return ret;
+#endif
+}
+
+bm_status_t bmcv_ive_sobel_ext(
+        bm_handle_t                  handle,
+        bm_image *                   input,
+        bm_image *                   output_h,
+        bm_image *                   output_v,
+        bmcv_ive_sobel_ext_ctrl      sobel_attr)
+{
+    bm_status_t ret = BM_SUCCESS;
+#ifdef MEDIA_V3
+    unsigned chipid = CV84X6;
+#else
+    unsigned chipid = BM1688;
+#endif
+    bmcv_ive_sobel_ext_ctrl local_attr = sobel_attr;
+
+    if (handle == NULL) {
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "handle is null\n");
+        return BM_ERR_FAILURE;
+    }
+
+    if (sobel_attr.ksize != 3 && sobel_attr.ksize != 5 &&
+        sobel_attr.ksize != 7 && sobel_attr.ksize != 9) {
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
+                  "ksize(%d) is invalid, only support 3, 5, 7, 9\n", sobel_attr.ksize);
+        return BM_ERR_PARAM;
+    }
+
+    int mask_all_zero = 1;
+    for (int i = 0; i < 81; i++) {
+        if (local_attr.as8_mask[i] != 0) {
+            mask_all_zero = 0;
+            break;
+        }
+    }
+    if (mask_all_zero) {
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
+                  "mask is all zeros, please check if mask is properly initialized\n");
+        return BM_ERR_PARAM;
+    }
+
+#ifndef _FPGA
+    ret = bm_get_chipid(handle, &chipid);
+    if (BM_SUCCESS != ret) return ret;
+#endif
+    if (sobel_attr.ksize == 3 || sobel_attr.ksize == 5 || sobel_attr.ksize == 7) {
+        ive_expand_mask(local_attr.as8_mask, sobel_attr.as8_mask, sobel_attr.ksize, sizeof(signed char));
+    } else {
+        memcpy(local_attr.as8_mask, sobel_attr.as8_mask, 81 * sizeof(signed char));
+    }
+
+    switch (chipid) {
+#ifdef MEDIA_V3
+        case CV84X6:
+            ret = bm_ive_sobel(handle, input, output_h, output_v, &local_attr);
+            break;
+#else
+        case BM1688_PREV:
+        case BM1688:
+            ret = BM_NOT_SUPPORTED;
+            break;
+#endif
         default:
             ret = BM_NOT_SUPPORTED;
             break;
@@ -807,6 +1066,71 @@ bm_status_t bmcv_ive_canny(
     return ret;
 }
 
+bm_status_t bmcv_ive_filter_ext(
+        bm_handle_t                  handle,
+        bm_image                     input,
+        bm_image                     output,
+        bmcv_ive_filter_ext_ctrl     filter_attr)
+{
+    bm_status_t ret = BM_SUCCESS;
+#ifdef MEDIA_V3
+    unsigned chipid = CV84X6;
+#else
+    unsigned chipid = BM1688;
+#endif
+    bmcv_ive_filter_ext_ctrl local_attr = filter_attr;
+
+    if (handle == NULL) {
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "handle is null\n");
+        return BM_ERR_FAILURE;
+    }
+
+    if (filter_attr.ksize != 3 && filter_attr.ksize != 5 &&
+        filter_attr.ksize != 7 && filter_attr.ksize != 9) {
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
+                  "ksize(%d) is invalid, only support 3, 5, 7, 9\n", filter_attr.ksize);
+        return BM_ERR_PARAM;
+    }
+
+    int mask_all_zero = 1;
+    for (int i = 0; i < 81; i++) {
+        if (local_attr.mask[i] != 0) {
+            mask_all_zero = 0;
+            break;
+        }
+    }
+    if (mask_all_zero) {
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
+                  "mask is all zeros, please check if mask is properly initialized\n");
+        return BM_ERR_PARAM;
+    }
+
+#ifndef _FPGA
+    ret = bm_get_chipid(handle, &chipid);
+    if (BM_SUCCESS != ret) return ret;
+#endif
+
+    if (filter_attr.ksize == 3 || filter_attr.ksize == 5 || filter_attr.ksize == 7) {
+        ive_expand_mask(local_attr.mask, filter_attr.mask, filter_attr.ksize, sizeof(signed char));
+    }
+
+    switch (chipid) {
+#ifdef MEDIA_V3
+        case CV84X6:
+            ret = bm_ive_filter(handle, input, output, local_attr);
+            break;
+#else
+        case BM1688_PREV:
+        case BM1688:
+            ret = BM_NOT_SUPPORTED;
+            break;
+#endif
+        default:
+            ret = BM_NOT_SUPPORTED;
+            break;
+    }
+    return ret;
+}
 
 bm_status_t bmcv_ive_filter(
         bm_handle_t                  handle,
@@ -814,6 +1138,13 @@ bm_status_t bmcv_ive_filter(
         bm_image                     output,
         bmcv_ive_filter_ctrl         filter_attr)
 {
+#ifdef MEDIA_V3
+    bmcv_ive_filter_ext_ctrl filter_attr_ext = {0};
+    filter_attr_ext.ksize = 5;
+    filter_attr_ext.norm = filter_attr.u8_norm;
+    memcpy(filter_attr_ext.mask, filter_attr.as8_mask, 25 * sizeof(signed char));
+    return bmcv_ive_filter_ext(handle, input, output, filter_attr_ext);
+#else
     bm_status_t ret = BM_SUCCESS;
     unsigned chipid = BM1688;
 #ifndef _FPGA
@@ -821,7 +1152,6 @@ bm_status_t bmcv_ive_filter(
     if (BM_SUCCESS != ret)
         return ret;
 #endif
-
     switch(chipid){
         case BM1688_PREV:
         case BM1688:
@@ -832,6 +1162,7 @@ bm_status_t bmcv_ive_filter(
             break;
     }
     return ret;
+#endif
 }
 
 bm_status_t bmcv_ive_csc(
@@ -952,7 +1283,6 @@ bm_status_t bmcv_image_ive_sad_u8(bm_handle_t handle, bm_image dst_){
     bm_image_get_stride(dst_, stride);
 
     bm_image_create(handle, height, width, fmt, dtype, &dst_sad_u8, stride);
-
     ret = bm_image_alloc_dev_mem(dst_sad_u8, BMCV_HEAP1_ID);
     if (ret != BM_SUCCESS) {
         printf("dst_sad_u8 bm_image_alloc_dev_mem failed. ret = %d\n", ret);
@@ -1349,6 +1679,26 @@ bm_status_t bmcv_ive_erode(
     return BM_NOT_SUPPORTED;
 }
 
+bm_status_t bmcv_ive_dilate_ext(
+    bm_handle_t           handle,
+    bm_image              input,
+    bm_image              output,
+    unsigned char         dilate_mask[81],
+    unsigned char         ksize) {
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
+    return BM_NOT_SUPPORTED;
+}
+
+bm_status_t bmcv_ive_erode_ext(
+    bm_handle_t           handle,
+    bm_image              input,
+    bm_image              output,
+    unsigned char         erode_mask[81],
+    unsigned char         ksize) {
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
+    return BM_NOT_SUPPORTED;
+}
+
 bm_status_t bmcv_ive_mag_and_ang(
     bm_handle_t                   handle,
     bm_image  *                   input,
@@ -1365,6 +1715,16 @@ bm_status_t bmcv_ive_sobel(
     bm_image *            output_h,
     bm_image *            output_v,
     bmcv_ive_sobel_ctrl   sobel_attr) {
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
+    return BM_NOT_SUPPORTED;
+}
+
+bm_status_t bmcv_ive_sobel_ext(
+    bm_handle_t                  handle,
+    bm_image *                   input,
+    bm_image *                   output_h,
+    bm_image *                   output_v,
+    bmcv_ive_sobel_ext_ctrl      sobel_attr) {
     bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
     return BM_NOT_SUPPORTED;
 }
@@ -1418,6 +1778,15 @@ bm_status_t bmcv_ive_filter(
     bm_image                     input,
     bm_image                     output,
     bmcv_ive_filter_ctrl         filter_attr) {
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
+    return BM_NOT_SUPPORTED;
+}
+
+bm_status_t bmcv_ive_filter_ext(
+    bm_handle_t                  handle,
+    bm_image                     input,
+    bm_image                     output,
+    bmcv_ive_filter_ext_ctrl     filter_attr) {
     bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
     return BM_NOT_SUPPORTED;
 }

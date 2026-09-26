@@ -261,10 +261,10 @@ bm_status_t check_bm_vpss_bm_image_param(
 
 		for (i = 0; i < plane_num; i++) {
 			device_addr = device_mem[i].u.device.device_addr;
-			if ((device_addr > 0x4ffffffff) || (device_addr < 0x100000000)) {
+			if ((device_addr > MAX_ADDR) || (device_addr < MIN_ADDR)) {
 				bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
-				  "input[%d] device memory should between 0x100000000 and 0x4ffffffff %u, %s: %s: %d\n",
-				  frame_idx, device_addr, filename(__FILE__), __func__, __LINE__);
+				  "input[%d] device memory[0x%lx] should between 0x%lx and 0x%lx, %s: %s: %d\n",
+				  frame_idx, device_addr, MIN_ADDR, MAX_ADDR, filename(__FILE__), __func__, __LINE__);
 				return BM_ERR_DATA;
 			}
 		}
@@ -279,11 +279,11 @@ bm_status_t check_bm_vpss_bm_image_param(
 #ifndef USING_CMODEL
 		for (i = 0; i < plane_num; i++) {
 			device_addr = device_mem[i].u.device.device_addr;
-			if ((device_addr > 0x4ffffffff) || ((device_addr < 0x100000000) &&
+			if ((device_addr > MAX_ADDR) || ((device_addr < MIN_ADDR) &&
 				(device_addr > 0x10000)) || (device_addr <= 0)) {
 				bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
-				  "output[%d] device memory should between 0x100000000 and 0x4ffffffff %u, %s: %s: %d\n",
-				  frame_idx, device_addr, filename(__FILE__), __func__, __LINE__);
+				  "output[%d] device memory[0x%lx] should between 0x%lx and 0x%lx, %s: %s: %d\n",
+				  frame_idx, device_addr, MIN_ADDR, MAX_ADDR, filename(__FILE__), __func__, __LINE__);
 				return BM_ERR_DATA;
 			}
 		}
@@ -603,7 +603,8 @@ bm_status_t check_bm_vpss_param(
 
 	if ((algorithm != BMCV_INTER_NEAREST) &&
 		(algorithm != BMCV_INTER_LINEAR) &&
-		(algorithm != BMCV_INTER_BICUBIC)) {
+		(algorithm != BMCV_INTER_BICUBIC) &&
+		(algorithm != BMCV_INTER_AREA)) {
 		bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
 			"bm_vpss not support algorithm %d,%s: %s: %d\n",
 			algorithm, filename(__FILE__), __func__, __LINE__);
@@ -742,6 +743,9 @@ bm_status_t bm_algorithm_to_cvi(bmcv_resize_algorithm algorithm, vpss_scale_coef
 		break;
 	case BMCV_INTER_BICUBIC:
 		*enCoef = VPSS_SCALE_COEF_BICUBIC_OPENCV;
+		break;
+	case BMCV_INTER_AREA:
+		*enCoef = VPSS_SCALE_COEF_AREA;
 		break;
 	default:
 		bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "algorithm(%d) not supported, %s: %s: %d\n",
@@ -1234,10 +1238,17 @@ bm_status_t bm_vpss_asic(
 	return ret;
 }
 
-int is_need_width_align_input(bm_image input)
+int is_need_width_align_input(bm_image input, int chipid)
 {
-	if (((input.image_private->memory_layout[1].pitch_stride % 16) != 0) && is_yuv420_image(input.image_format))
-		return 1;
+	switch(chipid) {
+        case BM1688_PREV:
+        case BM1688:
+		    if (((input.image_private->memory_layout[1].pitch_stride % 16) != 0) && is_yuv420_image(input.image_format))
+		        return 1;
+		    break;
+        default:
+			break;
+	}
 	if ((input.image_private->data[0].u.device.device_addr % 2 != 0) &&
 		(input.image_format == FORMAT_GRAY || is_yuv420_image(input.image_format) ||
 		input.image_format == FORMAT_NV16 || input.image_format == FORMAT_NV61 ||
@@ -1282,7 +1293,7 @@ int out_need_reset_stride(bm_image output)
 
 bm_status_t fill_image_private(bm_image *res, int *stride);
 
-bm_status_t bm_vpss_multi_parameter_processing(
+static bm_status_t bm_vpss_multi_parameter_processing_inner(
 	bm_handle_t             handle,
 	int                     frame_number,
 	bm_image*               input,
@@ -1301,14 +1312,20 @@ bm_status_t bm_vpss_multi_parameter_processing(
 {
 	bm_status_t ret = BM_SUCCESS;
 	bm_image in_align[frame_number], out_align[frame_number];
-	bmcv_csc_cfg csc_cfg;
+	bmcv_csc_cfg csc_cfg = {0};
 	char out_need_alloc[frame_number];
 	char out_need_create[frame_number];
 	char out_need_copy[frame_number];
 	char in_need_copy[frame_number];
 	int i;
 
-	memset(&csc_cfg, 0, sizeof(bmcv_csc_cfg));
+	/* the arrays above are VLAs, C forbids initializing those at declaration */
+	memset(in_align, 0, sizeof(in_align));
+	memset(out_align, 0, sizeof(out_align));
+	memset(out_need_alloc, 0, sizeof(out_need_alloc));
+	memset(out_need_create, 0, sizeof(out_need_create));
+	memset(out_need_copy, 0, sizeof(out_need_copy));
+	memset(in_need_copy, 0, sizeof(in_need_copy));
 
 	for (i = 0; i < frame_number; i++) {
 		int dst_stride[3] = {2, 2, 2};
@@ -1335,8 +1352,15 @@ bm_status_t bm_vpss_multi_parameter_processing(
 		}
 	}
 
+	unsigned int chipid = CV84X6;
+	ret = bm_get_chipid(handle, &chipid);
+	if(ret != BM_SUCCESS) {
+		bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "VPSS get chipid error! \n");
+		return ret;
+	}
+
 	for (i = 0; i < frame_number; i++) {
-		in_need_copy[i] = is_need_width_align_input(input[i]);
+		in_need_copy[i] = is_need_width_align_input(input[i], chipid);
 		if (in_need_copy[i]) {
 			int src_stride[3];
 			int align_stride[3];
@@ -1419,6 +1443,95 @@ fail:
 			bm_image_destroy(out_align + i);
 	}
 	return ret;
+}
+
+bm_status_t bm_vpss_multi_parameter_processing(
+	bm_handle_t             handle,
+	int                     frame_number,
+	bm_image*               input,
+	bm_image*               output,
+	bmcv_rect_t*            input_crop_rect,
+	bmcv_padding_attr_t*    padding_attr,
+	bmcv_resize_algorithm   algorithm,
+	csc_type_t              csc_type,
+	csc_matrix_t*           matrix,
+	bmcv_convert_to_attr*   convert_to_attr,
+	bmcv_border*            border_param,
+	coverex_cfg*          	coverex_param,
+	bmcv_rgn_cfg*          	gop_attr,
+	bmcv_flip_mode          flip_mode,
+	bmcv_circle_cfg*        circle_attr)
+{
+#ifdef MEDIA_V3
+	bm_image pass1_out[frame_number];
+	bm_image rgb_hit[frame_number], out_hit[frame_number];
+	int hit_idx[frame_number];
+	bm_status_t ret = BM_SUCCESS;
+	int hit = 0, i;
+
+	if (flip_mode == HORIZONTAL_FLIP || flip_mode == ROTATE_180) {
+		memset(rgb_hit, 0, sizeof(rgb_hit));
+		for (i = 0; i < frame_number; i++) {
+			if (output[i].image_format == FORMAT_NV12 ||
+				output[i].image_format == FORMAT_NV21) {
+				hit_idx[hit] = i;
+				out_hit[hit] = output[i];
+				hit++;
+			} else
+				pass1_out[i] = output[i];
+		}
+	}
+
+	if (hit == 0)
+		return bm_vpss_multi_parameter_processing_inner(handle, frame_number, input, output,
+			input_crop_rect, padding_attr, algorithm, csc_type, matrix, convert_to_attr,
+			border_param, coverex_param, gop_attr, flip_mode, circle_attr);
+
+	for (i = 0; i < hit; i++) {
+		ret = bm_image_create(handle, out_hit[i].height, out_hit[i].width,
+			FORMAT_RGB_PLANAR, DATA_TYPE_EXT_1N_BYTE, &rgb_hit[i], NULL);
+		if (ret != BM_SUCCESS) {
+			bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
+				"rgb scratch create fail %s: %s: %d\n", filename(__FILE__), __func__, __LINE__);
+			goto fail;
+		}
+		if (bm_image_alloc_dev_mem(rgb_hit[i], BMCV_HEAP1_ID) != BM_SUCCESS) {
+			bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
+				"rgb scratch dev alloc fail %s: %s: %d\n", filename(__FILE__), __func__, __LINE__);
+			ret = BM_ERR_NOMEM;
+			goto fail;
+		}
+		/* assign into pass1_out only after create, otherwise the copy is an empty shell */
+		pass1_out[hit_idx[i]] = rgb_hit[i];
+	}
+
+	/* pass 1: original params + flip; hit frames land in the RGB scratch, the rest in their own output */
+	ret = bm_vpss_multi_parameter_processing_inner(handle, frame_number, input, pass1_out,
+		input_crop_rect, padding_attr, algorithm, csc_type, matrix, convert_to_attr,
+		border_param, coverex_param, gop_attr, flip_mode, circle_attr);
+	if (ret != BM_SUCCESS)
+		goto fail;
+
+	/* pass 2: RGB -> NV12/NV21, plain CSC, no flip, so it never re-enters this wrapper */
+	ret = bm_vpss_multi_parameter_processing_inner(handle, hit, rgb_hit, out_hit,
+		NULL, NULL, algorithm, CSC_MAX_ENUM, NULL, NULL, NULL, NULL, NULL, NO_FLIP, NULL);
+	if (ret != BM_SUCCESS)
+		goto fail;
+
+	/* rgb_hit is memset, so destroying slots that were never created is safe */
+	for (i = 0; i < hit; i++)
+		bm_image_destroy(&rgb_hit[i]);
+	return BM_SUCCESS;
+
+fail:
+	for (i = 0; i < hit; i++)
+		bm_image_destroy(&rgb_hit[i]);
+	return ret;
+#else
+	return bm_vpss_multi_parameter_processing_inner(handle, frame_number, input, output,
+		input_crop_rect, padding_attr, algorithm, csc_type, matrix, convert_to_attr,
+		border_param, coverex_param, gop_attr, flip_mode, circle_attr);
+#endif
 }
 
 bm_status_t check_bm_vpss_convert_to_param(bm_image* input, bm_image* output, int input_num)
@@ -1740,6 +1853,7 @@ bm_status_t bm_vpss_quick_drawrect(
 		rects.crop_w = image.width - rects.start_x;
 	if (++rects.crop_h + rects.start_y > image.height)
 		rects.crop_h = image.height - rects.start_y;
+
 	bmcv_padding_attr_t padding_attr = {
 		.if_memset = 0,
 		.dst_crop_stx = rects.start_x,
@@ -1769,10 +1883,10 @@ bm_status_t bm_vpss_draw_rectangle(
 		ret = bm_vpss_quick_drawrect(handle, image, rects[0], line_width, r, g, b);
 		return ret;
 	}
-	int draw_num = (rect_num >> 2) + 1;
+	int draw_num = (rect_num - 1) / 4 + 1;
 	for (int j = 0; j < draw_num; j++) {
 		memset(&border_cfg, 0, sizeof(border_cfg));
-		border_cfg.border_num = (j == (draw_num - 1)) ? (rect_num % 4) : 4;
+		border_cfg.border_num = (j == (draw_num - 1)) ? (rect_num - j * 4) : 4;
 		for (int k = 0; k < border_cfg.border_num; k++) {
 			int draw_idx = ((j << 2) + k);
 			border_cfg.border_cfg[k].rect_border_enable = 1;

@@ -250,6 +250,7 @@ bm_status_t bmcv_image_convert_to(
     {
         case BM1688_PREV:
         case BM1688:
+        case CV84X6:
             if(input->data_type == DATA_TYPE_EXT_1N_BYTE && (input->image_format == FORMAT_RGB_PLANAR || input->image_format == FORMAT_BGR_PLANAR /* || input->image_format == FORMAT_GRAY */)) {
                 ret = bm_vpss_convert_to(handle, input_num, convert_to_attr, input, output);
             } else{

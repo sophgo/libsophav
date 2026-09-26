@@ -85,7 +85,7 @@ bmcv_image_resize
 
 * padding_g 表示当 stretch_fit 设成 0 的情况下，g 通道上被填充的值。
 
-* interpolation 表示缩图所使用的算法。BMCV_INTER_NEAREST 表示最近邻算法，BMCV_INTER_LINEAR 表示线性插值算法。
+* interpolation 表示缩图所使用的算法。BMCV_INTER_NEAREST 表示最近邻算法，BMCV_INTER_LINEAR 表示线性插值算法，BMCV_INTER_AREA 表示区域差值算法，BMCV_INTER_BICUBIC 表示双三次插值算法。
 
 * start_x 描述了 resize 起始横坐标(相对于原图)，常用于抠图功能。
 

@@ -56,7 +56,7 @@ bmcv_image_csc_overlay
       - 所有 crop 的目标小图在 dst image 中的位置信息以及要 padding 的各通道像素值，其指向空间的长度由 crop_num 决定。若不使用 padding 功能则设置为 NULL。
     * - algorithm
       - 输入
-      - resize 算法选择，包括 BMCV_INTER_NEAREST、BMCV_INTER_LINEAR 和 BMCV_INTER_BICUBIC三种，默认情况下是双线性差值。
+      - resize 算法选择，包括 BMCV_INTER_NEAREST、BMCV_INTER_LINEAR、BMCV_INTER_AREA 和 BMCV_INTER_BICUBIC 四种，默认情况下是双线性差值。
     * - csc_type
       - 输入
       - color space convert 参数类型选择，填 CSC_MAX_ENUM 则使用默认值，默认为 CSC_YCbCr2RGB_BT601 或者 CSC_RGB2YCbCr_BT601。

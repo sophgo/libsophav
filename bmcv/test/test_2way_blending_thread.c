@@ -98,15 +98,29 @@ static void user_usage() {
   );
 }
 
-void bm_dem_read_bin(bm_handle_t handle, bm_device_mem_t* dmem, const char *input_name, unsigned int size)
+int bm_dem_read_bin(bm_handle_t handle, bm_device_mem_t* dmem, const char *input_name, unsigned int size)
 {
+  // Initialize dmem
+  memset(dmem, 0, sizeof(bm_device_mem_t));
+
   if (access(input_name, F_OK) != 0 || strlen(input_name) == 0 || 0 >= size)
   {
-    return;
+    printf("Invalid parameters for bm_dem_read_bin\n");
+    return -1;
   }
 
   char* input_ptr = (char *)malloc(size);
+  if (input_ptr == NULL) {
+    printf("malloc failed for input_ptr\n");
+    return -1;
+  }
+
   FILE *fp_src = fopen(input_name, "rb+");
+  if (fp_src == NULL) {
+    printf("open file %s failed\n", input_name);
+    free(input_ptr);
+    return -1;
+  }
 
   if (fread((void *)input_ptr, 1, size, fp_src) < (unsigned int)size){
       printf("file size is less than %d required bytes\n", size);
@@ -115,15 +129,18 @@ void bm_dem_read_bin(bm_handle_t handle, bm_device_mem_t* dmem, const char *inpu
 
   if (BM_SUCCESS != bm_malloc_device_byte(handle, dmem, size)){
     printf("bm_malloc_device_byte failed\n");
+    free(input_ptr);
+    return -1;
   }
-
 
   if (BM_SUCCESS != bm_memcpy_s2d(handle, *dmem, input_ptr)){
     printf("bm_memcpy_s2d failed\n");
+    free(input_ptr);
+    return -1;
   }
 
   free(input_ptr);
-  return;
+  return 0;
 }
 
 int compare_file(bm_image dst, char * compare_name)
@@ -508,6 +525,7 @@ int main(int argc, char *argv[])
         cv_blending2_thread_arg[i].handle = handle;
         if (pthread_create(&pid[i], NULL, test_blending, &cv_blending2_thread_arg[i]) != 0) {
             printf("create thread failed\n");
+            bm_dev_free(handle);
             return -1;
         }
   }
@@ -517,7 +535,6 @@ int main(int argc, char *argv[])
           printf("Thread join failed\n");
       }
   }
-
 
   bm_dev_free(handle);
 

@@ -88,7 +88,16 @@ int find_tpufirmaware_path(char fw_path[512], const char* path){
         return ret;
     }
 
-    /* 3.test libbmcv_so_path/libbm1688_kernel_module.so */
+    /* 3 test /lib/libbm1688_kernel_module.so */
+    memset(fw_path, 0, 512);
+    strcpy(fw_path, "/lib/");
+    strcat(fw_path, path);
+    ret = access(fw_path, F_OK);
+    if (ret == 0) {
+        return ret;
+    }
+
+    /* 4.test libbmcv_so_path/libbm1688_kernel_module.so */
     ret = dladdr((void*)find_tpufirmaware_path, &dl_info);
     if (ret == 0){
         printf("dladdr() failed: %s\n", dlerror());
@@ -1333,7 +1342,7 @@ bm_status_t bm_destroy_dwa_fd(void){
     return BM_SUCCESS;
 }
 
-int open_device(const char *dev_name, int *fd)
+int bmcv_open_device(const char *dev_name, int *fd)
 {
   struct stat st;
 
@@ -1359,7 +1368,7 @@ int open_device(const char *dev_name, int *fd)
   return 0;
 }
 
-int close_device(int *fd)
+int bmcv_close_device(int *fd)
 {
   if (*fd == -1)
     return -1;

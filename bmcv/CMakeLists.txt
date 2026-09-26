@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.16)
 project(bmcv)
 # options
+if("${SUBTYPE}" STREQUAL "fpga")
+    add_definitions(-D_FPGA)
+endif()
 if("${CHIP_NAME}" STREQUAL "bm1688")
     set(SRC_DIR bm1688)
 else()  # default
@@ -17,10 +20,15 @@ else()
     include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/osdrv)
 endif()
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include/ive_cmodel)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/ive_cmodel)
+
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/ive_cmodel/comm/include)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/${SRC_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/libjpeg-turbo/include)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../jpeg/inc)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../vglite/inc)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include/ive_cmodel)
 
 # add library files path
 link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/tpu_kernel_module/)
@@ -30,12 +38,23 @@ link_directories(${CMAKE_CURRENT_BINARY_DIR}/../jpeg)
 
 # build bmcv library
 set(BMCV_LIB_NAME bmcv CACHE INTERNAL "bmcv library name")
-file(GLOB SRCS src/*.c src/${SRC_DIR}/*.c)
+file(GLOB SRCS src/*.c
+     src/${SRC_DIR}/*.c
+     src/ive_cmodel/*.c)
+
+if("${CHIP_NAME}" STREQUAL "cv84x6")
+    list(REMOVE_ITEM SRCS ${CMAKE_CURRENT_SOURCE_DIR}/src/bmcv_dpu_internal.c)
+    list(REMOVE_ITEM SRCS ${CMAKE_CURRENT_SOURCE_DIR}/src/bmcv_dwa_internel.c)
+    list(REMOVE_ITEM SRCS ${CMAKE_CURRENT_SOURCE_DIR}/src/${SRC_DIR}/bmcv_a2_dpu_internal.c)
+    list(REMOVE_ITEM SRCS ${CMAKE_CURRENT_SOURCE_DIR}/src/${SRC_DIR}/bmcv_a2_dwa_internal.c)
+    add_definitions(-DMEDIA_V3=1)
+endif()
+
 set(HEADERS include/bmcv_api_ext.h include/bmcv_api_ext_c.h include/bmcv_api.h)
 set(component libsophon)
 
 if(NOT "${PCIE_MODE}" STREQUAL "on")
-    find_library(VGLITE_STATIC NAMES libbmvg.a bmvg PATHS "${CMAKE_CURRENT_SOURCE_DIR}/../vglite/LD")
+    find_library(VGLITE_STATIC NAMES libbmvg.a bmvg PATHS "${CMAKE_CURRENT_SOURCE_DIR}/../vglite/lib")
 endif()
 
 add_library(${BMCV_LIB_NAME} SHARED ${SRCS})
@@ -56,9 +75,18 @@ if ("${PCIE_MODE}" STREQUAL "on")
 
     add_compile_options(-Wno-unused-result)
 else ()
-    file(GLOB TEST_SRCS test/*.c)
+    file(GLOB TEST_SRCS test/*.c test/ive_test_cmodel/*.c)
+    set(IVE_TEST_OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/daily_test)
+    file(MAKE_DIRECTORY ${IVE_TEST_OUTPUT_DIR})
 endif ()
 foreach(test_src ${TEST_SRCS})
+
+    if("${CHIP_NAME}" STREQUAL "cv84x6")
+        if(${test_src} MATCHES "(dwa|dpu).*\\.c$")
+            message(STATUS "Testcase skipping (regex): ${test_src}")
+            continue()
+        endif()
+    endif()
     # filter case name from filename
     string(LENGTH ${test_src} len)
     math(EXPR len "${len} - 2")
@@ -80,6 +108,13 @@ if (NOT "${PCIE_MODE}" STREQUAL "on")
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/daily_test)
 file(GLOB DAILY_TEST_SRCS test/daily_test/*.c)
 foreach(test_src ${DAILY_TEST_SRCS})
+
+    if("${CHIP_NAME}" STREQUAL "cv84x6")
+        if(${test_src} MATCHES "(dwa|dpu).*\\.c$")
+            message(STATUS "Daily test skipping (regex): ${test_src}")
+            continue()
+        endif()
+    endif()
     # filter case name from filename
     string(LENGTH ${test_src} len)
     math(EXPR len "${len} - 2")
@@ -143,8 +178,13 @@ install(FILES ${HEADERS}
     DESTINATION include
     COMPONENT ${component}-dev)
 
-install(FILES test/test_bmcv_all.sh
+file(READ ${CMAKE_CURRENT_SOURCE_DIR}/test/test_bmcv_all.sh _bmcv_test_sh)
+string(REGEX REPLACE "CHIP_NAME=\"[^\"]*\"" "CHIP_NAME=\"${CHIP_NAME}\"" _bmcv_test_sh "${_bmcv_test_sh}")
+file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/test_bmcv_all.sh "${_bmcv_test_sh}")
+
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/test_bmcv_all.sh
     DESTINATION bin
+    PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
     COMPONENT ${component}-dev)
 
 install(DIRECTORY test/res

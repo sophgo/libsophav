@@ -57,19 +57,19 @@ bmcv_ive_normgrad
     * - input
       - GRAY
       - DATA_TYPE_EXT_1N_BYTE
-      - 64x64~1920x1080
+      - 16x16~3840x2160
     * - output_h
       - GRAY
       - DATA_TYPE_EXT_1N_BYTE_SIGNED
-      - 64x64~1920x1080
+      - 16x16~3840x2160
     * - output_v
       - GRAY
       - DATA_TYPE_EXT_1N_BYTE_SIGNED
-      - 64x64~1920x1080
+      - 16x16~3840x2160
     * - output_hv
       - GRAY
       - DATA_TYPE_EXT_U16
-      - 64x64~1920x1080
+      - 16x16~3840x2160
 
 
 【数据类型说明】

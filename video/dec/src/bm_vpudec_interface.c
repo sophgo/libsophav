@@ -251,6 +251,10 @@ BMVidDecRetStatus bmvpu_dec_create(BMVidCodHandle *pVidCodHandle, BMVidDecParam 
                         decParam.extraFrameBufferNum, decParam.cmd_queue_depth);
     }
 
+#ifdef MEDIA_V3
+    stAttr.u32MmuMode = decParam.mmu_config;
+#endif
+
     if(getenv("NO_FRAMEBUFFER")!=NULL && strcmp(getenv("NO_FRAMEBUFFER"),"1")==0)
     {
         BMVPU_DEC_INFO("Capture the environment variable <NO_FRAMEBUFFER>!\n");

@@ -32,6 +32,7 @@ bm_status_t bmcv_image_vpp_basic(
 #ifndef USING_CMODEL
 		case BM1688_PREV:
 		case BM1688:
+		case CV84X6:
 			ret = bm_vpss_basic(handle, in_img_num, input,
 				output, crop_num_vec, crop_rect, padding_attr, algorithm, csc_type, matrix);
 			break;
@@ -67,6 +68,7 @@ bm_status_t bmcv_image_vpp_convert(
 #ifndef USING_CMODEL
 		case BM1688_PREV:
 		case BM1688:
+		case CV84X6:
 			ret = bm_vpss_convert_internal(
 				handle, output_num, input, output, crop_rect, algorithm, NULL);
 
@@ -104,6 +106,7 @@ bm_status_t bmcv_image_vpp_csc_matrix_convert(
 #ifndef USING_CMODEL
 		case BM1688_PREV:
 		case BM1688:
+		case CV84X6:
 			ret = bm_vpss_csc_matrix_convert(
 				handle, output_num, input, output, csc, matrix, algorithm, crop_rect);
 			break;
@@ -137,6 +140,7 @@ bm_status_t bmcv_image_storage_convert_with_csctype(
 	{
 		case BM1688_PREV:
 		case BM1688:
+		case CV84X6:
 			ret = bm_vpss_storage_convert(handle, image_num, input_, output_, csc_type);
 			break;
 
@@ -186,6 +190,7 @@ bm_status_t bmcv_image_vpp_convert_padding(
 	{
 		case BM1688_PREV:
 		case BM1688:
+		case CV84X6:
 			ret = bm_vpss_cvt_padding(handle, output_num, input, output,\
 				padding_attr, crop_rect, algorithm, NULL);
 			break;
@@ -284,6 +289,7 @@ bm_status_t bmcv_image_draw_rectangle(
 	{
 		case BM1688_PREV:
 		case BM1688:
+		case CV84X6:
 			ret = bm_vpss_draw_rectangle(handle, image, rect_num, rects,
 				line_width, draw_val[0], draw_val[1], draw_val[2]);
 			break;
@@ -322,6 +328,7 @@ bm_status_t bmcv_image_csc_convert_to(
 	{
 		case BM1688_PREV:
 		case BM1688:
+		case CV84X6:
 			ret = bm_vpss_csc_convert_to(handle, img_num, input, output, crop_num_vec,
 				crop_rect, padding_attr, algorithm, csc_type, matrix, convert_to_attr);
 			break;
@@ -355,6 +362,7 @@ bm_status_t bmcv_image_copy_to_vpss(
 	{
 		case BM1688_PREV:
 		case BM1688:
+		case CV84X6:
 			if ((data_type == DATA_TYPE_EXT_1N_BYTE)) {
 				ret = bm_vpss_copy_to(handle, copy_to_attr, input, output);
 			} else if ((data_type == DATA_TYPE_EXT_FLOAT32) ||
@@ -396,6 +404,7 @@ bm_status_t bmcv_image_vpp_stitch(
 	{
 		case BM1688_PREV:
 		case BM1688:
+		case CV84X6:
 			ret = bm_vpss_stitch(handle,
 				input_num, input, output, dst_crop_rect, src_crop_rect, algorithm);
 			break;
@@ -495,6 +504,7 @@ bm_status_t bmcv_image_mosaic(
 	{
 		case BM1688_PREV:
 		case BM1688:
+		case CV84X6:
 			ret = bm_vpss_mosaic(handle, mosaic_num, input, crop_rect);
 			break;
 
@@ -544,6 +554,7 @@ bm_status_t bmcv_image_fill_rectangle(
 	{
 		case BM1688_PREV:
 		case BM1688:
+		case CV84X6:
 			ret = bm_vpss_fill_rectangle(handle, &image, rect_num, rects, r, g, b);
 			if (ret != BM_SUCCESS) {
 				BMCV_ERR_LOG("error bm1688 fill rectangle\n");
@@ -742,6 +753,7 @@ bm_status_t bmcv_image_watermark_superpose(
 	{
 		case BM1688_PREV:
 		case BM1688:
+		case CV84X6:
 			ret = bmcv_vpss_watermark_superpose(handle, image, bitmap_mem,
 				bitmap_num, bitmap_type, pitch, rects, color);
 			break;
@@ -775,6 +787,7 @@ bm_status_t bmcv_image_watermark_repeat_superpose(
 	{
 		case BM1688_PREV:
 		case BM1688:
+		case CV84X6:
 			ret = bmcv_vpss_watermark_repeat_superpose(handle, image, bitmap_mem,
 				bitmap_num, bitmap_type, pitch, rects, color);
 			break;
@@ -806,6 +819,7 @@ bm_status_t bmcv_image_overlay(
 	{
 		case BM1688_PREV:
 		case BM1688:
+		case CV84X6:
 			ret = bm_vpss_overlay(handle, image, overlay_num, overlay_info, overlay_image);
 			break;
 
@@ -834,6 +848,7 @@ bm_status_t bmcv_image_flip(
 	{
 		case BM1688_PREV:
 		case BM1688:
+		case CV84X6:
 			ret = bm_vpss_flip(handle, input, output, flip_mode);
 			break;
 
@@ -865,6 +880,7 @@ bm_status_t bmcv_image_circle(
 	{
 		case BM1688_PREV:
 		case BM1688:
+		case CV84X6:
 			if (line_width == CIR_EMPTY || line_width == CIR_SHAPE) cir_mode = line_width;
 			ret = bm_vpss_circle(handle, image, cir_mode, center, radius,
 				line_width, color.r, color.g, color.b);
@@ -900,6 +916,7 @@ bm_status_t bmcv_image_draw_point(
 	{
 		case BM1688_PREV:
 		case BM1688:
+		case CV84X6:
 			for (int i = 0; i < point_num; i++) {
 				rects.start_x = coord[i].x;
 				rects.start_y = coord[i].y;
@@ -945,6 +962,7 @@ bm_status_t bmcv_image_csc_overlay(
 	{
 		case BM1688_PREV:
 		case BM1688:
+		case CV84X6:
 			ret = bm_vpss_all_func(handle, crop_num, input, output, crop_rect,
 				padding_attr, algorithm, csc_type, flip_mode, convert_to_attr,
 				overlay_attr, draw_rect_attr, fill_rect_attr, circle_attr);

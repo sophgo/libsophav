@@ -15,7 +15,7 @@
 #include <errno.h>
 #endif
 
-bm_meshdata_all ldc_meshdata;
+static pthread_mutex_t s_tsk_mesh_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 bm_tsk_mesh_attr_s tsk_mesh[LDC_MAX_TSK_MESH];
 
@@ -1368,6 +1368,7 @@ bm_status_t mesh_gen_ldc(size_s in_size,
     bm_coord2d_int_hw *src_1st_list = NULL, *src_2nd_list = NULL;
     bm_ldc_attr *cfg = NULL;
     bm_ldc_rgn_attr *rgn_attr = NULL;
+    bm_meshdata_all ldc_meshdata = {0};
 
     (void)mesh_phy_addr;
     (void)rot;
@@ -1530,6 +1531,15 @@ bm_status_t mesh_gen_ldc(size_s in_size,
     free(cfg);
     free(rgn_attr);
 
+    if (pstLDCAttr->grid_info_attr.enable) {
+        free(ldc_meshdata.pgrid_src);
+        free(ldc_meshdata.pgrid_dst);
+        free(ldc_meshdata.pmesh_src);
+        free(ldc_meshdata.pmesh_dst);
+        free(ldc_meshdata.pnode_src);
+        free(ldc_meshdata.pnode_dst);
+    }
+
     return ret;
 }
 
@@ -1627,8 +1637,10 @@ bm_status_t bm_ldc_gen_gdc_mesh(bm_handle_t handle,
 dump_fail:
 #endif
 
+        pthread_mutex_lock(&s_tsk_mesh_mutex);
         idx = ldc_get_idle_tsk_mesh();
         if (idx >= LDC_MAX_TSK_MESH) {
+            pthread_mutex_unlock(&s_tsk_mesh_mutex);
             bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "tsk mesh count(%d) is out of range(%d)\n", idx + 1, LDC_MAX_TSK_MESH);
             return BM_ERR_FAILURE;
         }
@@ -1636,6 +1648,7 @@ dump_fail:
         strcpy(tsk_mesh[idx].Name, name);
         tsk_mesh[idx].paddr = (uint64_t)dmem.u.device.device_addr;
         tsk_mesh[idx].vaddr = NULL;
+        pthread_mutex_unlock(&s_tsk_mesh_mutex);
 
         // for debug
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "idx in bm_ldc_gen_gdc_mesh for loop = %d\n", idx);
@@ -1702,8 +1715,10 @@ bm_status_t bm_ldc_save_gdc_mesh(bm_handle_t handle,
         }
         free(buffer);
 
+        pthread_mutex_lock(&s_tsk_mesh_mutex);
         idx = ldc_get_idle_tsk_mesh();
         if (idx >= LDC_MAX_TSK_MESH) {
+            pthread_mutex_unlock(&s_tsk_mesh_mutex);
             bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "tsk mesh count(%d) is out of range(%d)\n", idx + 1, LDC_MAX_TSK_MESH);
             return BM_ERR_FAILURE;
         }
@@ -1711,6 +1726,7 @@ bm_status_t bm_ldc_save_gdc_mesh(bm_handle_t handle,
         strcpy(tsk_mesh[idx].Name, name);
         tsk_mesh[idx].paddr = (uint64_t)(*dmem).u.device.device_addr;
         tsk_mesh[idx].vaddr = NULL;
+        pthread_mutex_unlock(&s_tsk_mesh_mutex);
 
         // for debug
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "idx in bm_ldc_save_gdc_mesh = %d\n", idx);
@@ -1750,15 +1766,18 @@ bm_status_t bm_ldc_load_gdc_mesh(bm_handle_t handle,
 
     if (idx >= LDC_MAX_TSK_MESH) {
 
+        pthread_mutex_lock(&s_tsk_mesh_mutex);
         idx = ldc_get_idle_tsk_mesh();      // 0
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "idx = %d \n", idx + 1);
         if (idx >= LDC_MAX_TSK_MESH) {
+            pthread_mutex_unlock(&s_tsk_mesh_mutex);
             bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "tsk mesh count(%d) is out of range(%d)\n", idx + 1, LDC_MAX_TSK_MESH);
             return BM_ERR_FAILURE;
         }
         strcpy(tsk_mesh[idx].Name, tskName);
         tsk_mesh[idx].paddr = (uint64_t)(*dmem).u.device.device_addr;
         tsk_mesh[idx].vaddr = (void*)vaddr;
+        pthread_mutex_unlock(&s_tsk_mesh_mutex);
 
         // for debug
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "idx in bm_ldc_load_gdc_mesh for = %d\n", idx);
@@ -1920,6 +1939,7 @@ static bm_status_t ldc_free_cur_tsk_mesh(char* meshName)
     bm_status_t ret = BM_SUCCESS;
     u8 i = LDC_MAX_TSK_MESH;
 
+    pthread_mutex_lock(&s_tsk_mesh_mutex);
     i = ldc_get_valid_tsk_mesh_by_name2(meshName);
     // for debug
     bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "i in ldc_free_cur_tsk_mesh = %d\n", i);
@@ -1933,6 +1953,7 @@ static bm_status_t ldc_free_cur_tsk_mesh(char* meshName)
         tsk_mesh[i].vaddr = 0;
         memset(tsk_mesh[i].Name, 0, sizeof(tsk_mesh[i].Name));
     }
+    pthread_mutex_unlock(&s_tsk_mesh_mutex);
     return ret;
 }
 
@@ -1944,6 +1965,7 @@ bm_status_t bm_ldc_free_cur_task_mesh(char *tskName)
 bm_status_t bm_ldc_free_all_tsk_mesh(void)
 {
     bm_status_t ret = BM_SUCCESS;
+    pthread_mutex_lock(&s_tsk_mesh_mutex);
     for (u8 i = 0; i < LDC_MAX_TSK_MESH; i++)
     {
         if (tsk_mesh[i].paddr && tsk_mesh[i].vaddr)
@@ -1957,6 +1979,7 @@ bm_status_t bm_ldc_free_all_tsk_mesh(void)
             ret = BM_ERR_PARAM;
         }
     }
+    pthread_mutex_unlock(&s_tsk_mesh_mutex);
     return ret;
 }
 
@@ -2080,7 +2103,7 @@ bm_status_t bm_ldc_add_rotation_task(int fd, GDC_HANDLE hHandle, gdc_task_attr_s
         return BM_ERR_PARAM;
     }
 
-    if (enRotation != ROTATION_0 && enRotation != ROTATION_90 && enRotation != ROTATION_270)
+    if (enRotation != ROTATION_0 && enRotation != ROTATION_90 && enRotation != ROTATION_270 && enRotation != ROTATION_XY_FLIP)
     {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "ldc_add_rotation_task failed, do not support this rotation.\n");
         return BM_NOT_SUPPORTED;
@@ -2436,7 +2459,7 @@ bm_status_t bm_ldc_rot_internal(bm_handle_t          handle,
     bm_status_t ret = BM_SUCCESS;
     bm_ldc_basic_param param = {0};
     rotation_e rotation_mode = (rotation_e)rot_mode;
-    if((rotation_mode != ROTATION_0) && (rotation_mode != ROTATION_90) && (rotation_mode != ROTATION_270)) {
+    if((rotation_mode != ROTATION_0) && (rotation_mode != ROTATION_90) && (rotation_mode != ROTATION_270) && (rotation_mode != ROTATION_XY_FLIP)) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "ERROR! LDC output mode not supported!\n");
         return BM_ERR_FAILURE;
     }
@@ -2472,6 +2495,8 @@ bm_status_t bm_ldc_gdc_internal(bm_handle_t          handle,
                                 bm_image             out_image,
                                 bmcv_gdc_attr        ldc_attr)
 {
+    static volatile unsigned int s_gdc_call_id = 0;
+    unsigned int call_id = __sync_fetch_and_add(&s_gdc_call_id, 1);
     bm_status_t ret = BM_SUCCESS;
     ldc_attr_s ldc_param = {0};
     bm_ldc_basic_param param = {0};
@@ -2499,7 +2524,7 @@ bm_status_t bm_ldc_gdc_internal(bm_handle_t          handle,
     memset(&gdc_with_grid, 0, sizeof(gdc_with_grid));
 
     if (ldc_attr.grid_info.size == 0) {
-        snprintf(param.stTask.name, sizeof(param.stTask.name), "tsk_gdc");      // mesh name
+        snprintf(param.stTask.name, sizeof(param.stTask.name), "tsk_gdc_%u", call_id);      // mesh name
         // snprintf(param.identity.Name, sizeof(param.identity.Name), "job_gdc");
 
         gdc_with_grid.ldc_attr.aspect = ldc_attr.bAspect;
@@ -2512,7 +2537,7 @@ bm_status_t bm_ldc_gdc_internal(bm_handle_t          handle,
         gdc_with_grid.ldc_attr.grid_info_attr.enable = false;
         gdc_with_grid.grid = NULL;
     } else {
-        snprintf(param.stTask.name, sizeof(param.stTask.name), "tsk_gdc_grid_0");
+        snprintf(param.stTask.name, sizeof(param.stTask.name), "tsk_gdc_grid_%u", call_id);
         // snprintf(param.identity.Name, sizeof(param.identity.Name), "job_gdc_grid_0");
 
         gdc_with_grid.ldc_attr.grid_info_attr.enable = true;
@@ -2535,6 +2560,8 @@ bm_status_t bm_ldc_gdc_gen_mesh_internal(bm_handle_t          handle,
                                          bmcv_gdc_attr        ldc_attr,
                                          bm_device_mem_t      dmem)
 {
+    static volatile unsigned int s_gdc_gen_call_id = 0;
+    unsigned int call_id = __sync_fetch_and_add(&s_gdc_gen_call_id, 1);
     bm_status_t ret = BM_SUCCESS;
     bm_ldc_basic_param param = {0};
 
@@ -2544,7 +2571,7 @@ bm_status_t bm_ldc_gdc_gen_mesh_internal(bm_handle_t          handle,
     param.size_out.height = (out_image.height + (LDC_ALIGN - 1)) & ~(LDC_ALIGN - 1);
     bm_image_format_to_cvi_format(in_image.image_format, in_image.data_type, &param.enPixelFormat);
 
-    snprintf(param.stTask.name, sizeof(param.stTask.name), "tsk_gdc");      // mesh name
+    snprintf(param.stTask.name, sizeof(param.stTask.name), "tsk_gdc_gen_%u", call_id);      // mesh name
     param.identity.mod_id = ID_USER;
     param.identity.id = 0;
     param.identity.sync_io = true;
@@ -2584,6 +2611,8 @@ bm_status_t bm_ldc_gdc_load_mesh_internal(bm_handle_t          handle,
                                           bm_image             out_image,
                                           bm_device_mem_t      dmem)
 {
+    static volatile unsigned int s_gdc_load_call_id = 0;
+    unsigned int call_id = __sync_fetch_and_add(&s_gdc_load_call_id, 1);
     bm_status_t ret = BM_SUCCESS;
     bm_ldc_basic_param param = {0};
 
@@ -2593,7 +2622,7 @@ bm_status_t bm_ldc_gdc_load_mesh_internal(bm_handle_t          handle,
     param.size_out.height = (out_image.height + (LDC_ALIGN - 1)) & ~(LDC_ALIGN - 1);
     bm_image_format_to_cvi_format(in_image.image_format, in_image.data_type, &param.enPixelFormat);
 
-    snprintf(param.stTask.name, sizeof(param.stTask.name), "tsk_gdc");
+    snprintf(param.stTask.name, sizeof(param.stTask.name), "tsk_gdc_load_%u", call_id);
     param.identity.mod_id = ID_USER;
     param.identity.id = 0;
     // snprintf(param.identity.Name, sizeof(param.identity.Name), "job_gdc");

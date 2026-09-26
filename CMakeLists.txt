@@ -138,6 +138,15 @@ message(STATUS "CMAKE_INSTALL_PREFIX........ " ${CMAKE_INSTALL_PREFIX})
 # add sub-modules
 find_package(Sophav)
 ADD_TARGET_YUV_LIB(yuv_lib ${PLATFORM} off libsophon ${LIBSOPHAV_OUT_PATH})
+
+# If cv_internal/ is present, build libcmodel + libvg_lite locally and overwrite
+# the corresponding prebuilt library files (libsophav/3rdparty/.../libcmodel.so
+# and libsophav/vglite/lib/libvg_lite.{a,so}). If cv_internal/ is absent, fall back
+# to the prebuilt libraries shipped in the tree.
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cv_internal/CMakeLists.txt")
+    message(STATUS "cv_internal detected -> building libcmodel + libvg_lite locally")
+    add_subdirectory(cv_internal)
+endif()
 add_subdirectory(jpeg)
 add_subdirectory(video/dec)
 add_subdirectory(video/enc)

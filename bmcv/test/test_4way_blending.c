@@ -7,6 +7,9 @@
 #include "signal.h"
 #include "bmcv_api_ext_c.h"
 #include "bmcv_internal.h"
+#include <stdatomic.h>
+
+static volatile sig_atomic_t g_signal_received = 0;
 
 extern void bm_read_bin(bm_image src, const char *input_name);
 extern void bm_write_bin(bm_image dst, const char *output_name);
@@ -73,15 +76,27 @@ static void example_test_cmd() {
   );
 }
 
-void bm_dem_read_bin(bm_handle_t handle, bm_device_mem_t* dmem, const char *input_name, unsigned int size)
+int bm_dem_read_bin(bm_handle_t handle, bm_device_mem_t* dmem, const char *input_name, unsigned int size)
 {
+  memset(dmem, 0, sizeof(bm_device_mem_t));
+
   if (access(input_name, F_OK) != 0 || strlen(input_name) == 0 || 0 >= size)
   {
-    return;
+    return -1;
   }
 
   char* input_ptr = (char *)malloc(size);
+  if (input_ptr == NULL) {
+    printf("malloc failed for input_ptr\n");
+    return -1;
+  }
+
   FILE *fp_src = fopen(input_name, "rb+");
+  if (fp_src == NULL) {
+    printf("open file %s failed\n", input_name);
+    free(input_ptr);
+    return -1;
+  }
 
   if (fread((void *)input_ptr, 1, size, fp_src) < (unsigned int)size){
       printf("file size is less than %d required bytes\n", size);
@@ -90,15 +105,18 @@ void bm_dem_read_bin(bm_handle_t handle, bm_device_mem_t* dmem, const char *inpu
 
   if (BM_SUCCESS != bm_malloc_device_byte(handle, dmem, size)){
     printf("bm_malloc_device_byte failed\n");
+    free(input_ptr);
+    return -1;
   }
-
 
   if (BM_SUCCESS != bm_memcpy_s2d(handle, *dmem, input_ptr)){
     printf("bm_memcpy_s2d failed\n");
+    free(input_ptr);
+    return -1;
   }
 
   free(input_ptr);
-  return;
+  return 0;
 }
 
 static int absdiff(unsigned char* input1, unsigned char* input2, int img_size)
@@ -139,7 +157,19 @@ int compare_file(bm_image dst, char * compare_name)
   }
 
   input_ptr = (unsigned char *)malloc(byte_size);
+  if (input_ptr == NULL) {
+    printf("malloc failed for input_ptr\n");
+    fclose(fp);
+    return -1;
+  }
+
   bmcv_output_ptr = (unsigned char *)malloc(byte_size);
+  if (bmcv_output_ptr == NULL) {
+    printf("malloc failed for bmcv_output_ptr\n");
+    free(input_ptr);
+    fclose(fp);
+    return -1;
+  }
 
   void* out_ptr[4] = {(void*)bmcv_output_ptr,
                      (void*)((char*)bmcv_output_ptr + image_byte_size[0]),
@@ -181,7 +211,7 @@ void blend_HandleSig(int signum)
 
   printf("signal happen  %d \n",signum);
 
-  exit(-1);
+  g_signal_received = 1;
 }
 
 
@@ -256,6 +286,11 @@ int main(int argc, char *argv[]) {
         break;
       case 'a':
         src_name[0] = optarg;
+        if (!src_name[0]) {
+          printf("Error: src_name[0] cannot be null\n");
+          user_usage();
+          return -1;
+        }
         break;
       case 'b':
         src_name[1] = optarg;
@@ -341,9 +376,43 @@ int main(int argc, char *argv[]) {
     }
   }
 
+  // Validate required parameters
+  for(i = 0; i < input_num; i++) {
+    if (src_name[i] == NULL) {
+      printf("Error: src_name[%u] is NULL. Please provide input image with -%c\n", i, 'a' + i);
+      user_usage();
+      return -1;
+    }
+  }
+  if (dst_name == NULL) {
+    printf("Error: dst_name is NULL. Please provide output filename with -h\n");
+    user_usage();
+    return -1;
+  }
+  // Validate weight files for overlapping regions
+  // input_num=2: 1 overlap region, needs 2 weight files (alpha, beta)
+  // input_num=4: 3 overlap regions, needs 6 weight files (alpha, beta for each)
+  int overlap_num = input_num - 1;
+  for(i = 0; i < overlap_num; i++) {
+    if(stitch_config.ovlap_attr.ovlp_lx[i] <= stitch_config.ovlap_attr.ovlp_rx[i]) {
+        // Check alpha weight file
+        if (wgt_name[i * 2] == NULL) {
+            printf("Error: wgt_name[%u] (alpha) is NULL. Please provide weight file\n", i * 2);
+            user_usage();
+            return -1;
+        }
+        // Check beta weight file
+        if (wgt_name[i * 2 + 1] == NULL) {
+            printf("Error: wgt_name[%u] (beta) is NULL. Please provide weight file\n", i * 2 + 1);
+            user_usage();
+            return -1;
+        }
+    }
+  }
+
   bm_status_t ret1    = bm_dev_request(&handle, dev_id);
   if (ret1 != BM_SUCCESS) {
-      printf("Create bm handle failed. ret = %d\n", ret);
+      printf("Create bm handle failed. ret = %d\n", ret1);
       exit(-1);
   }
 
@@ -361,16 +430,19 @@ int main(int argc, char *argv[]) {
     bm_image_alloc_dev_mem(src[i],1);
     bm_read_bin(src[i],src_name[i]);
   }
-
+  int wgt_allocated[6] = {0};
   for(i = 0;i < (input_num - 1)*2; i++)
   {
     j = i/2;
     wgtWidth = ALIGN(stitch_config.ovlap_attr.ovlp_rx[j] - stitch_config.ovlap_attr.ovlp_lx[j] + 1, 16);
     wgtHeight = src_h;
     wgt_len = wgtWidth * wgtHeight;
-    if (stitch_config.wgt_mode == BM_STITCH_WGT_UV_SHARE)
-      wgt_len = wgt_len << 1;
-    bm_dem_read_bin(handle, &stitch_config.wgt_phy_mem[j][i%2], wgt_name[i],  wgt_len);
+    if (stitch_config.wgt_mode == BM_STITCH_WGT_UV_SHARE){
+        wgt_len = wgt_len << 1;
+    }
+    if (bm_dem_read_bin(handle, &stitch_config.wgt_phy_mem[j][i%2], wgt_name[i], wgt_len) == 0) {
+        wgt_allocated[i] = 1;
+    }
   }
 
   bm_image_create(handle, dst_h, dst_w, dst_fmt, DATA_TYPE_EXT_1N_BYTE, &dst, dst_stride);
@@ -378,6 +450,10 @@ int main(int argc, char *argv[]) {
 
 
   for(i = 0;i < loop_time; i++){
+    if (g_signal_received) {
+        printf("Received signal, exiting loop early at iteration %u\n", i);
+        break;
+    }
 #ifdef __linux__
     gettimeofday(&tv_start, NULL);
 #endif
@@ -424,9 +500,19 @@ int main(int argc, char *argv[]) {
 
   }
 
-  bm_image_destroy(&src[0]);
-  bm_image_destroy(&src[1]);
+  for(i = 0; i < input_num; i++) {
+    bm_image_destroy(&src[i]);
+  }
+
   bm_image_destroy(&dst);
+
+  for(i = 0; i < (input_num - 1) * 2; i++) {
+    if (wgt_allocated[i]) {
+        j = i / 2;
+        bm_free_device(handle, stitch_config.wgt_phy_mem[j][i%2]);
+    }
+  }
+
   bm_dev_free(handle);
 
   return ret;

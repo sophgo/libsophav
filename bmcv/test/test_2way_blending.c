@@ -8,6 +8,9 @@
 #include "bmcv_api_ext_c.h"
 #include <stdatomic.h>
 #include "bmcv_internal.h"
+#include <stdatomic.h>
+
+static volatile sig_atomic_t g_signal_received = 0;
 
 extern bm_status_t bm_blend_image_calc_stride(bm_handle_t handle,
                                      int img_h,
@@ -66,15 +69,26 @@ static void user_usage() {
   );
 }
 
-void bm_dem_read_bin(bm_handle_t handle, bm_device_mem_t* dmem, const char *input_name, unsigned int size)
+int bm_dem_read_bin(bm_handle_t handle, bm_device_mem_t* dmem, const char *input_name, unsigned int size)
 {
+  memset(dmem, 0, sizeof(bm_device_mem_t));
   if (access(input_name, F_OK) != 0 || strlen(input_name) == 0 || 0 >= size)
   {
-    return;
+    return -1;
   }
 
   char* input_ptr = (char *)malloc(size);
+  if (input_ptr == NULL) {
+    printf("malloc failed for input_ptr\n");
+    return -1;
+  }
+
   FILE *fp_src = fopen(input_name, "rb+");
+  if (fp_src == NULL) {
+    printf("open file %s failed\n", input_name);
+    free(input_ptr);
+    return -1;
+  }
 
   if (fread((void *)input_ptr, 1, size, fp_src) < (unsigned int)size){
       printf("file size is less than %d required bytes\n", size);
@@ -83,15 +97,18 @@ void bm_dem_read_bin(bm_handle_t handle, bm_device_mem_t* dmem, const char *inpu
 
   if (BM_SUCCESS != bm_malloc_device_byte(handle, dmem, size)){
     printf("bm_malloc_device_byte failed\n");
+    free(input_ptr);
+    return -1;
   }
-
 
   if (BM_SUCCESS != bm_memcpy_s2d(handle, *dmem, input_ptr)){
     printf("bm_memcpy_s2d failed\n");
+    free(input_ptr);
+    return -1;
   }
 
   free(input_ptr);
-  return;
+  return 0;
 }
 
 int compare_file(bm_image dst, char * compare_name)
@@ -109,7 +126,19 @@ int compare_file(bm_image dst, char * compare_name)
   }
 
   input_ptr = (char *)malloc(byte_size);
+  if (input_ptr == NULL) {
+    printf("malloc failed for input_ptr\n");
+    fclose(fp);
+    return -1;
+  }
+
   bmcv_output_ptr = (char *)malloc(byte_size);
+  if (bmcv_output_ptr == NULL) {
+    printf("malloc failed for bmcv_output_ptr\n");
+    free(input_ptr);
+    fclose(fp);
+    return -1;
+  }
 
   void* out_ptr[4] = {(void*)bmcv_output_ptr,
                      (void*)((char*)bmcv_output_ptr + image_byte_size[0]),
@@ -151,7 +180,7 @@ void blend_HandleSig(int signum)
 
   printf("signal happen  %d \n",signum);
 
-  exit(-1);
+  g_signal_received = 1;
 }
 
 int main(int argc, char *argv[]) {
@@ -277,7 +306,7 @@ int main(int argc, char *argv[]) {
 
   bm_status_t ret1    = bm_dev_request(&handle, dev_id);
   if (ret1 != BM_SUCCESS) {
-      printf("Create bm handle failed. ret = %d\n", ret);
+      printf("Create bm handle failed. ret = %d\n", ret1);
       exit(-1);
   }
 
@@ -292,6 +321,7 @@ int main(int argc, char *argv[]) {
   wgtWidth = ALIGN(stitch_config.ovlap_attr.ovlp_rx[0] - stitch_config.ovlap_attr.ovlp_lx[0] + 1, 16);
   wgtHeight = src_h[0];
 
+  int wgt_allocated[2] = {0};
   for(i = 0;i < 2; i++)
   {
     bm_image_create(handle, src_h[i], src_w[i], src_fmt, DATA_TYPE_EXT_1N_BYTE, &src[i], src_stride[i]);
@@ -301,13 +331,19 @@ int main(int argc, char *argv[]) {
     if (stitch_config.wgt_mode == BM_STITCH_WGT_UV_SHARE)
       wgt_len = wgt_len << 1;
 
-    bm_dem_read_bin(handle, &stitch_config.wgt_phy_mem[0][i], wgt_name[i],  wgt_len);
+    if (bm_dem_read_bin(handle, &stitch_config.wgt_phy_mem[0][i], wgt_name[i], wgt_len) == 0) {
+        wgt_allocated[i] = 1;
+    }
   }
   bm_image_create(handle, dst_h, dst_w, dst_fmt, DATA_TYPE_EXT_1N_BYTE, &dst, dst_stride);
   bm_image_alloc_dev_mem(dst, 1);
 
 
   for(i = 0;i < loop_time; i++){
+    if (g_signal_received) {
+        printf("Received signal, exiting loop early\n");
+        break;
+    }
 #ifdef __linux__
     gettimeofday(&tv_start, NULL);
 #endif
@@ -356,6 +392,12 @@ int main(int argc, char *argv[]) {
   bm_image_destroy(&src[0]);
   bm_image_destroy(&src[1]);
   bm_image_destroy(&dst);
+  if (wgt_allocated[0]) {
+    bm_free_device(handle, stitch_config.wgt_phy_mem[0][0]);
+  }
+  if (wgt_allocated[1]) {
+    bm_free_device(handle, stitch_config.wgt_phy_mem[0][1]);
+  }
   bm_dev_free(handle);
 
   return ret;

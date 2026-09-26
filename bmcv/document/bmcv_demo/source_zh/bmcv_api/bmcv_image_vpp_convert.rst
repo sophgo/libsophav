@@ -45,7 +45,7 @@ bmcv_image_vpp_convert
       - 每个输出 bm_image 对象所对应的在输入图像上 crop 的参数。
     * - algorithm
       - 输入
-      - resize 算法选择，包括 BMCV_INTER_NEAREST、BMCV_INTER_LINEAR 和 BMCV_INTER_BICUBIC 三种，默认情况下是双线性差值。
+      - resize 算法选择，包括 BMCV_INTER_NEAREST、BMCV_INTER_LINEAR、BMCV_INTER_AREA 和 BMCV_INTER_BICUBIC 四种，默认情况下是双线性差值。
 
 | 【注意】
 

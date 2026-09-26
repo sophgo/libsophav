@@ -65,7 +65,7 @@ bmcv_ive_update_bgmodel
     * - cur_img
       - GRAY
       - DATA_TYPE_EXT_1N_BYTE
-      - 64x64~1920x1080
+      - 16x16~3840x2160
     * - bgmodel_img
       - GRAY
       - DATA_TYPE_EXT_1N_BYTE
@@ -73,15 +73,15 @@ bmcv_ive_update_bgmodel
     * - fgflag_img
       - GRAY
       - DATA_TYPE_EXT_1N_BYTE
-      - 64x64~1920x1080
+      - 16x16~3840x2160
     * - bg_img
       - GRAY
       - DATA_TYPE_EXT_S16
-      - 64x64~1920x1080
+      - 16x16~3840x2160
     * - chgsta_img
       - GRAY
       - DATA_TYPE_EXT_U32
-      - 64x64~1920x1080
+      - 16x16~3840x2160
 
 
 | 【数据类型说明】

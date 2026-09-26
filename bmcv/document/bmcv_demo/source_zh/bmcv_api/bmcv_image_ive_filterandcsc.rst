@@ -51,11 +51,15 @@ bmcv_ive_filter_and_csc
       - **数据类型**
       - **分辨率**
     * - input
-      - NV21
+      - NV12
+
+        NV21
+
+        NV16
 
         NV61
       - DATA_TYPE_EXT_1N_BYTE
-      - 64x64~1920x1080
+      - 16x16~3840x2160
     * - output
       - RGB_PLANAR
 

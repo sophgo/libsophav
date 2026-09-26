@@ -3,9 +3,15 @@
 # example (run in libsophav root dir)
 GCC_V="630"
 PLATFORM=soc
+CHIP_NAME=${CHIP_NAME:-bm1688}
 DISABLE_BMCV_DOC=on
+
 if [ $# -ge 1 ]; then
     GCC_V=$1
+fi
+
+if [ $# -ge 2 ]; then
+    CHIP_NAME=$2
 fi
 
 if [ $GCC_V = "930" ]; then
@@ -41,7 +47,7 @@ cmake -DPLATFORM=${PLATFORM} -DSUBTYPE=asic -DCMAKE_INSTALL_PREFIX=../install -D
     -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER} \
     -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER} \
     -DDISABLE_BMCV_DOC=${DISABLE_BMCV_DOC} \
-    -DCHIP_NAME=bm1688 \
+    -DCHIP_NAME=${CHIP_NAME} \
     -DCMAKE_BUILD_TYPE=Release \
     ..
 

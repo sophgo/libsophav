@@ -170,8 +170,32 @@ void* test_raw12_to_uint16(void* args) {
     const char* input_path = raw12_to_uint16_thread_arg->input_path;
     const char* output_path = raw12_to_uint16_thread_arg->output_path;
     bm_handle_t handle = raw12_to_uint16_thread_arg->handle;
+
+    struct {
+        int width;
+        int height;
+    } supported_sizes[] = {
+        {640, 480},
+        {640, 1932},
+        {640, 3864},
+        {640, 5796},
+        {320, 972},
+        {320, 1944},
+        {320, 2916}
+    };
+
     for (int i = 0; i < loop_num; i++) {
-        if (0 != test_raw12_to_uint16_random(use_real_img, height, width, input_path, output_path, handle)){
+        int test_width = width;
+        int test_height = height;
+
+        if (loop_num > 1) {
+            int size_index = i % (sizeof(supported_sizes)/sizeof(supported_sizes[0]));
+            test_width = supported_sizes[size_index].width;
+            test_height = supported_sizes[size_index].height;
+            printf("Testing (loop %d/%d)\n",  i+1, loop_num);
+        }
+
+        if (0 != test_raw12_to_uint16_random(use_real_img, test_height, test_width, input_path, output_path, handle)){
             printf("------TEST RAW12_TO_UINT16 FAILED------\n");
             bm_dev_free(handle);
             exit(-1);

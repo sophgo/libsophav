@@ -930,6 +930,7 @@ ERR_ENC_INIT:
 int MultiInstanceTest(MultiConfigParam *param)
 {
     int i;
+    long long totalFrames = 0;
 #ifdef _WIN32
     HANDLE thread_id[MAX_NUM_INSTANCE];
 #else
@@ -938,6 +939,7 @@ int MultiInstanceTest(MultiConfigParam *param)
     void *ret[MAX_NUM_INSTANCE] = {0};
     DecConfigParam *pDecConfig;
     EncConfigParam *pEncConfig;
+    struct timeval tStart, tEnd;
 
     for(i=0; i<param->numMulti; i++)
     {
@@ -974,6 +976,15 @@ int MultiInstanceTest(MultiConfigParam *param)
 
     }
 
+    /* Start timing AFTER all threads have been spawned so the per-instance
+     * 1s launch gaps (usleep/Sleep above) are excluded from the elapsed window.
+     * This measures the concurrent-execution throughput, not launch overhead. */
+#ifdef _WIN32
+    s_gettimeofday(&tStart, NULL);
+#else
+    gettimeofday(&tStart, NULL);
+#endif
+
     for(i=0; i<param->numMulti; i++)
     {
 #ifdef _WIN32
@@ -986,6 +997,12 @@ int MultiInstanceTest(MultiConfigParam *param)
 
     }
 
+#ifdef _WIN32
+    s_gettimeofday(&tEnd, NULL);
+#else
+    gettimeofday(&tEnd, NULL);
+#endif
+
     for(i=0; i<param->numMulti; i++)
     {
         if (ret[i] != 0)
@@ -993,6 +1010,24 @@ int MultiInstanceTest(MultiConfigParam *param)
             printf("error: thread %d  faild, ret = %lld\n",i, (long long)ret[i]);
             return 1;
         }
+        /* Sum total frames processed by each instance (loopNums frames per loop). */
+        if (param->multiMode[i])
+            totalFrames += param->decConfig[i].loopNums;
+        else
+            totalFrames += param->encConfig[i].loopNums;
+    }
+
+    {
+        double elapsed = (tEnd.tv_sec + tEnd.tv_usec / 1000000.0)
+                       - (tStart.tv_sec + tStart.tv_usec / 1000000.0);
+        if (elapsed <= 0.0)
+            elapsed = 1e-6;
+        printf("==================================================\n");
+        printf(" Multi-instance done: instances=%d\n", param->numMulti);
+        printf(" Total frames      : %lld\n", totalFrames);
+        printf(" Elapsed time       : %.3f sec\n", elapsed);
+        printf(" Throughput (FPS)   : %.2f\n", (double)totalFrames / elapsed);
+        printf("==================================================\n");
     }
     return 0;
 }

@@ -17,7 +17,6 @@
 extern bm_status_t bm_image_format_to_cvi(bm_image_format_ext fmt, bm_image_data_format_ext datatype,
                                           pixel_format_e * cvi_fmt);
 
-unsigned short uncommonly_used_idx = DWA_MAX_TSK_MESH - 1;
 static int meshHor = MESH_HOR_DEFAULT;
 static int meshVer = MESH_HOR_DEFAULT;
 static int MESH_EDGE[4][2] = {
@@ -29,6 +28,8 @@ static int MESH_EDGE[4][2] = {
 
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 bm_tsk_mesh_attr_s dwa_tskMesh[DWA_MAX_TSK_MESH];
+
+static u32 s_mesh_lru_stamp = 0;   // protected by mutex
 
 // static s32 dwa_init(s32 fd)
 // {
@@ -693,25 +694,37 @@ static void dwa_mesh_gen_get_size(size_s in_size, size_s out_size, u32 *mesh_id_
     *mesh_id_size = 0x50000;
 }
 
+// Must be called with mutex held. Returns a slot with no cached mesh and no
+// in-flight user; caller must fill Name/mem. When the table is full, evicts the
+// least-recently-used slot whose ref_cnt is 0. Slots still referenced by an
+// in-flight job are never evicted; if all 32 are, returns DWA_MAX_TSK_MESH.
 static unsigned char get_idle_tsk_mesh(bm_handle_t handle)
 {
-    unsigned char i = DWA_MAX_TSK_MESH;
+    unsigned char i;
+    unsigned char lru_idx = DWA_MAX_TSK_MESH;
 
     for (i = 0; i < DWA_MAX_TSK_MESH; i++) {
         if (strcmp(dwa_tskMesh[i].Name, "") == 0 && !dwa_tskMesh[i].mem.u.device.device_addr && !dwa_tskMesh[i].mem.u.system.system_addr)
-            break;
+            return i;
     }
 
-    if(i == DWA_MAX_TSK_MESH){
-        bm_device_mem_t mem;
-        uncommonly_used_idx++;
-        uncommonly_used_idx = uncommonly_used_idx % DWA_MAX_TSK_MESH;
-        mem = dwa_tskMesh[uncommonly_used_idx].mem;
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "device_addr = %lx, dmabuf_fd = %d, size = %d\n", mem.u.device.device_addr, mem.u.device.dmabuf_fd, mem.size);
-        bm_free_device(handle, mem);
-        return uncommonly_used_idx;
+    for (i = 0; i < DWA_MAX_TSK_MESH; i++) {
+        if (dwa_tskMesh[i].ref_cnt != 0)
+            continue;
+        if (lru_idx == DWA_MAX_TSK_MESH || dwa_tskMesh[i].last_used < dwa_tskMesh[lru_idx].last_used)
+            lru_idx = i;
     }
-    return i;
+
+    if (lru_idx != DWA_MAX_TSK_MESH) {
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "tsk mesh full, evict LRU slot[%d-%s] device_addr=%lx\n",
+                    lru_idx, dwa_tskMesh[lru_idx].Name, dwa_tskMesh[lru_idx].mem.u.device.device_addr);
+        bm_free_device(dwa_tskMesh[lru_idx].owner, dwa_tskMesh[lru_idx].mem);
+        memset(&dwa_tskMesh[lru_idx], 0, sizeof(dwa_tskMesh[lru_idx]));
+        return lru_idx;
+    }
+
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "all %d tsk mesh slots are in use\n", DWA_MAX_TSK_MESH);
+    return DWA_MAX_TSK_MESH;
 }
 
 static void bm_ldc_attr_map(const ldc_attr_s *pstLDCAttr,
@@ -2448,33 +2461,114 @@ static bm_status_t bm_dwa_rotation_check_size(rotation_e enRotation, const gdc_t
     return BM_SUCCESS;
 }
 
+// Must be called with mutex held. Cache lookup is by MD5 over the whole task
+// params (name), so a hit skips mesh gen + device alloc + s2d copy. Both hit
+// and miss take a reference on the slot (ref_cnt++) so a concurrent eviction
+// cannot free the mesh while our job is in flight; the caller releases it via
+// bm_dwa_put_tsk_mesh() once the (sync) job has finished.
+// Returns BM_SUCCESS on cache hit, BM_ERR_FAILURE on miss (slot acquired,
+// caller must generate the mesh), and leaves *idx untouched == DWA_MAX_TSK_MESH
+// only when no slot could be acquired.
 static bm_status_t bm_get_valid_tsk_mesh_by_name(bm_handle_t handle, const char *name, u8 *idx)
 {
     u8 i = DWA_MAX_TSK_MESH;
 
-    if (!name) {
+    if (!name || name[0] == '\0') {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "tsk mesh name is null\n");
-        *idx = i;
+        *idx = DWA_MAX_TSK_MESH;
         return BM_ERR_FAILURE;
     }
     for (i = 0; i < DWA_MAX_TSK_MESH; i++) {
-        if (strcmp(dwa_tskMesh[i].Name, name) == 0 /*&& dwa_tskMesh[i].paddr*/) {
+        if (strcmp(dwa_tskMesh[i].Name, name) == 0) {
             bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "got remain tsk mesh[%d-%s-%llx]\n", i, dwa_tskMesh[i].Name, dwa_tskMesh[i].mem.u.device.device_addr);       // for debug
+            dwa_tskMesh[i].ref_cnt++;
+            dwa_tskMesh[i].last_used = ++s_mesh_lru_stamp;
             *idx = i;
-            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "idx = (%d)\n", *idx);       // for debug
             return BM_SUCCESS;
         }
     }
     *idx = get_idle_tsk_mesh(handle);
     if (*idx >= DWA_MAX_TSK_MESH) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "tsk mesh count(%d) is out of range(%d)\n", *idx + 1, DWA_MAX_TSK_MESH);
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "idx = (%d)\n", *idx);
-        return BM_ERR_FAILURE;
-    } else {
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "start alloc new tsk mesh-[%d]-[%s]\n", *idx, name);       // for debug
-        strcpy(dwa_tskMesh[*idx].Name, name);
         return BM_ERR_FAILURE;
     }
+    strcpy(dwa_tskMesh[*idx].Name, name);
+    dwa_tskMesh[*idx].ref_cnt = 1;          // held by this call until mesh gen completes
+    dwa_tskMesh[*idx].last_used = ++s_mesh_lru_stamp;
+    dwa_tskMesh[*idx].owner = handle;
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "start alloc new tsk mesh-[%d]-[%s]\n", *idx, name);       // for debug
+    return BM_ERR_FAILURE;
+}
+
+// Drop the reference taken by bm_get_valid_tsk_mesh_by_name(). The slot stays
+// cached (ref_cnt 0, evictable) so later calls with the same params hit it.
+// Must be called with mutex held.
+static void bm_dwa_put_tsk_mesh(u8 idx)
+{
+    if (idx >= DWA_MAX_TSK_MESH)
+        return;
+    if (dwa_tskMesh[idx].ref_cnt > 0)
+        dwa_tskMesh[idx].ref_cnt--;
+    else
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "tsk mesh[%d-%s] ref_cnt underflow\n", idx, dwa_tskMesh[idx].Name);
+}
+
+// Must be called with mutex held. Drop the reference and wipe a slot whose mesh
+// generation failed midway, so a half-filled slot can never be served as a
+// cache hit. Safe to call on a freshly acquired (mem empty) or a filled slot.
+// Frees with the slot's owner handle (the allocator); the passed-in handle is
+// only a fallback for slots predating the owner field.
+static void bm_dwa_discard_tsk_mesh(bm_handle_t handle, u8 idx)
+{
+    if (idx >= DWA_MAX_TSK_MESH)
+        return;
+    if (dwa_tskMesh[idx].mem.u.device.device_addr || dwa_tskMesh[idx].mem.u.system.system_addr)
+        bm_free_device(dwa_tskMesh[idx].owner ? dwa_tskMesh[idx].owner : handle, dwa_tskMesh[idx].mem);
+    memset(&dwa_tskMesh[idx], 0, sizeof(dwa_tskMesh[idx]));
+}
+
+// Free all cached meshes allocated on this handle. Call it before bm_dev_free(handle)
+// when the application destroys the device while the process keeps running;
+// slots still referenced by in-flight jobs are left untouched (the caller must
+// guarantee no in-flight jobs at that point). Safe to call multiple times.
+void bm_dwa_mesh_cache_deinit(bm_handle_t handle)
+{
+    u8 i;
+
+    if (!handle)
+        return;
+    pthread_mutex_lock(&mutex);
+    for (i = 0; i < DWA_MAX_TSK_MESH; i++) {
+        if (dwa_tskMesh[i].owner != handle)
+            continue;
+        if (dwa_tskMesh[i].ref_cnt != 0) {
+            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
+                        "tsk mesh[%d-%s] still in use (ref_cnt %d), skip free on deinit\n",
+                        i, dwa_tskMesh[i].Name, dwa_tskMesh[i].ref_cnt);
+            continue;
+        }
+        if (dwa_tskMesh[i].mem.u.device.device_addr || dwa_tskMesh[i].mem.u.system.system_addr)
+            bm_free_device(handle, dwa_tskMesh[i].mem);
+        memset(&dwa_tskMesh[i], 0, sizeof(dwa_tskMesh[i]));
+    }
+    pthread_mutex_unlock(&mutex);
+}
+
+// Last-resort cleanup if the app never calls bm_dwa_mesh_cache_deinit(): the
+// process-exit path frees everything anyway, but this keeps ref counts sane for
+// valgrind-style runs that dlopen/dlclose libbmcv.
+__attribute__((destructor)) static void bm_dwa_mesh_cache_fini(void)
+{
+    u8 i;
+
+    pthread_mutex_lock(&mutex);
+    for (i = 0; i < DWA_MAX_TSK_MESH; i++) {
+        if (dwa_tskMesh[i].ref_cnt != 0)
+            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE,
+                        "tsk mesh[%d-%s] still referenced at exit\n", i, dwa_tskMesh[i].Name);
+        memset(&dwa_tskMesh[i], 0, sizeof(dwa_tskMesh[i]));
+    }
+    pthread_mutex_unlock(&mutex);
 }
 
 static void bm_dwa_mesh_gen_rotation(size_s in_size,
@@ -2959,9 +3053,13 @@ static bm_status_t bm_dwa_add_ldc_task(bm_handle_t handle, int fd, GDC_HANDLE hH
     }
 
     struct gdc_task_attr attr;
-    u8 idx;
+    u8 idx = DWA_MAX_TSK_MESH;
     pthread_mutex_lock(&mutex);
     ret = bm_get_valid_tsk_mesh_by_name(handle, pstTask->name, &idx);
+    if (idx >= DWA_MAX_TSK_MESH) {
+        pthread_mutex_unlock(&mutex);
+        return BM_ERR_FAILURE;
+    }
 
     if (ret != BM_SUCCESS) {
         size_s in_size, out_size;
@@ -2975,11 +3073,18 @@ static bm_status_t bm_dwa_add_ldc_task(bm_handle_t handle, int fd, GDC_HANDLE hH
         out_size.height = pstTask->img_out.video_frame.height;
         dwa_mesh_gen_get_size(in_size, out_size, &mesh_1st_size, &mesh_2nd_size);
 
-        bm_malloc_device_byte(handle, &pmem, mesh_1st_size + mesh_2nd_size);
+        if (bm_malloc_device_byte(handle, &pmem, mesh_1st_size + mesh_2nd_size) != BM_SUCCESS) {
+            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "malloc device mem for mesh failed!\n");
+            bm_dwa_discard_tsk_mesh(handle, idx);
+            pthread_mutex_unlock(&mutex);
+            return BM_ERR_NOMEM;
+        }
         paddr = pmem.u.device.device_addr;
         char *buffer = (char *)malloc(mesh_1st_size + mesh_2nd_size);
         if (buffer == NULL) {
             bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "malloc buffer for mesh failed!\n");
+            bm_free_device(handle, pmem);
+            bm_dwa_discard_tsk_mesh(handle, idx);
             pthread_mutex_unlock(&mutex);
             return BM_ERR_NOMEM;
         }
@@ -2989,7 +3094,7 @@ static bm_status_t bm_dwa_add_ldc_task(bm_handle_t handle, int fd, GDC_HANDLE hH
         // fwrite mesh_id_table & mesh_table for debug
         char mesh_name[128];
         snprintf(mesh_name, 128, "./fwrite_gen_mesh_%d_%d_%d_%d_%d_%d_%d.bin", pstLDCAttr->aspect, pstLDCAttr->x_ratio, pstLDCAttr->y_ratio,
-                 pstLDCAttr->xy_ratio, pstLDCAttr->center_x_offset, pstLDCAttr->center_y_offset, pstLDCAttr->distortion_ratio);
+                 pstLDCAttr->center_x_offset, pstLDCAttr->center_y_offset, pstLDCAttr->distortion_ratio);
         FILE *fp = fopen(mesh_name, "wb");
         if (!fp) {
             bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "open file[%s] failed.\n", mesh_name);
@@ -3005,13 +3110,14 @@ static bm_status_t bm_dwa_add_ldc_task(bm_handle_t handle, int fd, GDC_HANDLE hH
         fclose(fp);
         */
         ret = bm_memcpy_s2d(handle, pmem, (void*)buffer);
+        free(buffer);
         if (ret != BM_SUCCESS) {
             bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "bm_memcpy_s2d failed!\n");
-            free(buffer);
+            bm_free_device(handle, pmem);
+            bm_dwa_discard_tsk_mesh(handle, idx);
             pthread_mutex_unlock(&mutex);
             return BM_ERR_NOMEM;
         }
-        free(buffer);
 
         dwa_tskMesh[idx].mem = pmem;
     }
@@ -3029,6 +3135,7 @@ static bm_status_t bm_dwa_add_ldc_task(bm_handle_t handle, int fd, GDC_HANDLE hH
 
     pstTask->privatedata[0] = dwa_tskMesh[idx].mem.u.device.device_addr;
     pstTask->privatedata[1] = (u64)((uintptr_t)dwa_tskMesh[idx].mem.u.system.system_addr);
+    pstTask->privatedata[2] = idx;      // slot id, released in bm_dwa_basic after the job
     return dwa_add_ldc_task(fd, &attr);
 }
 
@@ -3054,8 +3161,6 @@ static bm_status_t bm_dwa_add_rotation_task(bm_handle_t handle, int fd, DWA_HAND
     }
 
     struct gdc_task_attr attr;
-    u64 paddr;
-    bm_device_mem_t pmem;
     size_s in_size, out_size;
 
     in_size.width = pstTask->img_in.video_frame.width;
@@ -3063,15 +3168,28 @@ static bm_status_t bm_dwa_add_rotation_task(bm_handle_t handle, int fd, DWA_HAND
     out_size.width = pstTask->img_out.video_frame.width;
     out_size.height = pstTask->img_out.video_frame.height;
 
-    u8 idx;
+    u8 idx = DWA_MAX_TSK_MESH;
     pthread_mutex_lock(&mutex);
     ret = bm_get_valid_tsk_mesh_by_name(handle, pstTask->name, &idx);
+    if (idx >= DWA_MAX_TSK_MESH) {
+        pthread_mutex_unlock(&mutex);
+        return BM_ERR_FAILURE;
+    }
     if (ret != BM_SUCCESS) {
-        bm_malloc_device_byte(handle, &pmem, DWA_MESH_SIZE_ROT);
+        u64 paddr;
+        bm_device_mem_t pmem;
+        if (bm_malloc_device_byte(handle, &pmem, DWA_MESH_SIZE_ROT) != BM_SUCCESS) {
+            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "malloc device mem for mesh failed!\n");
+            bm_dwa_discard_tsk_mesh(handle, idx);
+            pthread_mutex_unlock(&mutex);
+            return BM_ERR_NOMEM;
+        }
         paddr = pmem.u.device.device_addr;
         char *buffer = (char *)malloc(DWA_MESH_SIZE_ROT);
         if (buffer == NULL) {
             bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "malloc buffer for mesh failed!\n");
+            bm_free_device(handle, pmem);
+            bm_dwa_discard_tsk_mesh(handle, idx);
             pthread_mutex_unlock(&mutex);
             return BM_ERR_NOMEM;
         }
@@ -3079,13 +3197,14 @@ static bm_status_t bm_dwa_add_rotation_task(bm_handle_t handle, int fd, DWA_HAND
         bm_dwa_mesh_gen_rotation(in_size, out_size, enRotation, paddr, (void*)buffer);
 
         ret = bm_memcpy_s2d(handle, pmem, (void*)buffer);
+        free(buffer);
         if (ret != BM_SUCCESS) {
             bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "bm_memcpy_s2d failed!\n");
-            free(buffer);
+            bm_free_device(handle, pmem);
+            bm_dwa_discard_tsk_mesh(handle, idx);
             pthread_mutex_unlock(&mutex);
             return BM_ERR_NOMEM;
         }
-        free(buffer);
 
         dwa_tskMesh[idx].mem = pmem;
     }
@@ -3101,6 +3220,7 @@ static bm_status_t bm_dwa_add_rotation_task(bm_handle_t handle, int fd, DWA_HAND
 
     pstTask->privatedata[0] = dwa_tskMesh[idx].mem.u.device.device_addr;
     pstTask->privatedata[1] = (u64)((uintptr_t)dwa_tskMesh[idx].mem.u.system.system_addr);
+    pstTask->privatedata[2] = idx;      // slot id, released in bm_dwa_basic after the job
     return dwa_add_rotation_task(fd, &attr);
 }
 
@@ -3159,9 +3279,13 @@ static bm_status_t bm_dwa_add_correction_task(bm_handle_t handle, int fd, GDC_HA
 
     struct gdc_task_attr attr;
 
-    u8 idx;
+    u8 idx = DWA_MAX_TSK_MESH;
     pthread_mutex_lock(&mutex);
     ret = bm_get_valid_tsk_mesh_by_name(handle, pstTask->name, &idx);
+    if (idx >= DWA_MAX_TSK_MESH) {
+        pthread_mutex_unlock(&mutex);
+        return BM_ERR_FAILURE;
+    }
     if (ret != BM_SUCCESS) {
         size_s in_size, out_size;
         u64 paddr;
@@ -3172,11 +3296,18 @@ static bm_status_t bm_dwa_add_correction_task(bm_handle_t handle, int fd, GDC_HA
         out_size.width = pstTask->img_out.video_frame.width;
         out_size.height = pstTask->img_out.video_frame.height;
 
-        bm_malloc_device_byte(handle, &pmem, DWA_MESH_SIZE_FISHEYE);
+        if (bm_malloc_device_byte(handle, &pmem, DWA_MESH_SIZE_FISHEYE) != BM_SUCCESS) {
+            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "malloc device mem for mesh failed!\n");
+            bm_dwa_discard_tsk_mesh(handle, idx);
+            pthread_mutex_unlock(&mutex);
+            return BM_ERR_NOMEM;
+        }
         paddr = pmem.u.device.device_addr;
         char *buffer = (char *)malloc(DWA_MESH_SIZE_FISHEYE);
         if (buffer == NULL) {
             bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "malloc buffer for mesh failed!\n");
+            bm_free_device(handle, pmem);
+            bm_dwa_discard_tsk_mesh(handle, idx);
             pthread_mutex_unlock(&mutex);
             return BM_ERR_NOMEM;
         }
@@ -3184,13 +3315,14 @@ static bm_status_t bm_dwa_add_correction_task(bm_handle_t handle, int fd, GDC_HA
         dwa_mesh_gen_fisheye(in_size, out_size, pstFishEyeAttr, paddr, (void*)buffer, ROTATION_0, grid);
 
         ret = bm_memcpy_s2d(handle, pmem, (void*)buffer);
+        free(buffer);
         if (ret != BM_SUCCESS) {
             bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "bm_memcpy_s2d failed!\n");
-            free(buffer);
+            bm_free_device(handle, pmem);
+            bm_dwa_discard_tsk_mesh(handle, idx);
             pthread_mutex_unlock(&mutex);
             return BM_ERR_NOMEM;
         }
-        free(buffer);
 
         dwa_tskMesh[idx].mem = pmem;
     }
@@ -3208,6 +3340,7 @@ static bm_status_t bm_dwa_add_correction_task(bm_handle_t handle, int fd, GDC_HA
 
     pstTask->privatedata[0] = dwa_tskMesh[idx].mem.u.device.device_addr;
     pstTask->privatedata[1] = (u64)((uintptr_t)dwa_tskMesh[idx].mem.u.system.system_addr);
+    pstTask->privatedata[2] = idx;      // slot id, released in bm_dwa_basic after the job
     return dwa_add_correction_task(fd, &attr);
 
 }
@@ -3261,9 +3394,13 @@ static bm_status_t bm_dwa_add_affine_task(bm_handle_t handle, int fd, GDC_HANDLE
 
     struct gdc_task_attr attr;
 
-    u8 idx;
+    u8 idx = DWA_MAX_TSK_MESH;
     pthread_mutex_lock(&mutex);
     ret = bm_get_valid_tsk_mesh_by_name(handle, pstTask->name, &idx);
+    if (idx >= DWA_MAX_TSK_MESH) {
+        pthread_mutex_unlock(&mutex);
+        return BM_ERR_FAILURE;
+    }
     if (ret != BM_SUCCESS) {
         size_s in_size, out_size;
         u64 paddr;
@@ -3274,11 +3411,18 @@ static bm_status_t bm_dwa_add_affine_task(bm_handle_t handle, int fd, GDC_HANDLE
         out_size.width = pstTask->img_out.video_frame.width;
         out_size.height = pstTask->img_out.video_frame.height;
 
-        bm_malloc_device_byte(handle, &pmem, DWA_MESH_SIZE_AFFINE);
+        if (bm_malloc_device_byte(handle, &pmem, DWA_MESH_SIZE_AFFINE) != BM_SUCCESS) {
+            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "malloc device mem for mesh failed!\n");
+            bm_dwa_discard_tsk_mesh(handle, idx);
+            pthread_mutex_unlock(&mutex);
+            return BM_ERR_NOMEM;
+        }
         paddr = pmem.u.device.device_addr;
         char *buffer = (char *)malloc(DWA_MESH_SIZE_AFFINE);
         if (buffer == NULL) {
             bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "malloc buffer for mesh failed!\n");
+            bm_free_device(handle, pmem);
+            bm_dwa_discard_tsk_mesh(handle, idx);
             pthread_mutex_unlock(&mutex);
             return BM_ERR_NOMEM;
         }
@@ -3286,13 +3430,14 @@ static bm_status_t bm_dwa_add_affine_task(bm_handle_t handle, int fd, GDC_HANDLE
         dwa_mesh_gen_affine(in_size, out_size, pstAffineAttr, paddr, (void*)buffer);
 
         ret = bm_memcpy_s2d(handle, pmem, (void*)buffer);
+        free(buffer);
         if (ret != BM_SUCCESS) {
             bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "bm_memcpy_s2d failed!\n");
-            free(buffer);
+            bm_free_device(handle, pmem);
+            bm_dwa_discard_tsk_mesh(handle, idx);
             pthread_mutex_unlock(&mutex);
             return BM_ERR_NOMEM;
         }
-        free(buffer);
 
         dwa_tskMesh[idx].mem = pmem;
     }
@@ -3309,6 +3454,7 @@ static bm_status_t bm_dwa_add_affine_task(bm_handle_t handle, int fd, GDC_HANDLE
 
     pstTask->privatedata[0] = dwa_tskMesh[idx].mem.u.device.device_addr;
     pstTask->privatedata[1] = (u64)((uintptr_t)dwa_tskMesh[idx].mem.u.system.system_addr);
+    pstTask->privatedata[2] = idx;      // slot id, released in bm_dwa_basic after the job
     return dwa_add_affine_task(fd, &attr);
 }
 
@@ -3339,9 +3485,13 @@ static bm_status_t bm_dwa_add_dewarp_task(bm_handle_t handle, int fd, GDC_HANDLE
 
     struct gdc_task_attr attr;
 
-    u8 idx;
+    u8 idx = DWA_MAX_TSK_MESH;
     pthread_mutex_lock(&mutex);
     ret = bm_get_valid_tsk_mesh_by_name(handle, pstTask->name, &idx);
+    if (idx >= DWA_MAX_TSK_MESH) {
+        pthread_mutex_unlock(&mutex);
+        return BM_ERR_FAILURE;
+    }
     if (ret != BM_SUCCESS) {
         size_s in_size, out_size;
         u64 paddr;
@@ -3352,11 +3502,18 @@ static bm_status_t bm_dwa_add_dewarp_task(bm_handle_t handle, int fd, GDC_HANDLE
         out_size.width = pstTask->img_out.video_frame.width;
         out_size.height = pstTask->img_out.video_frame.height;
 
-        bm_malloc_device_byte(handle, &pmem, DWA_MESH_SIZE_FISHEYE);
+        if (bm_malloc_device_byte(handle, &pmem, DWA_MESH_SIZE_FISHEYE) != BM_SUCCESS) {
+            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "malloc device mem for mesh failed!\n");
+            bm_dwa_discard_tsk_mesh(handle, idx);
+            pthread_mutex_unlock(&mutex);
+            return BM_ERR_NOMEM;
+        }
         paddr = pmem.u.device.device_addr;
         char *buffer = (char *)malloc(DWA_MESH_SIZE_FISHEYE);
         if (buffer == NULL) {
             bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "malloc buffer for mesh failed!\n");
+            bm_free_device(handle, pmem);
+            bm_dwa_discard_tsk_mesh(handle, idx);
             pthread_mutex_unlock(&mutex);
             return BM_ERR_NOMEM;
         }
@@ -3364,13 +3521,14 @@ static bm_status_t bm_dwa_add_dewarp_task(bm_handle_t handle, int fd, GDC_HANDLE
         dwa_mesh_gen_warp(in_size, out_size, pstWarpAttr, paddr, (void*)buffer, grid);
 
         ret = bm_memcpy_s2d(handle, pmem, (void*)buffer);
+        free(buffer);
         if (ret != BM_SUCCESS) {
             bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "bm_memcpy_s2d failed!\n");
-            free(buffer);
+            bm_free_device(handle, pmem);
+            bm_dwa_discard_tsk_mesh(handle, idx);
             pthread_mutex_unlock(&mutex);
             return BM_ERR_NOMEM;
         }
-        free(buffer);
 
         dwa_tskMesh[idx].mem = pmem;
     }
@@ -3387,6 +3545,7 @@ static bm_status_t bm_dwa_add_dewarp_task(bm_handle_t handle, int fd, GDC_HANDLE
 
     pstTask->privatedata[0] = dwa_tskMesh[idx].mem.u.device.device_addr;
     pstTask->privatedata[1] = (u64)((uintptr_t)dwa_tskMesh[idx].mem.u.system.system_addr);
+    pstTask->privatedata[2] = idx;      // slot id, released in bm_dwa_basic after the job
     return dwa_add_warp_task(fd, &attr);
 }
 
@@ -3671,6 +3830,19 @@ fail:
             ret |= bm_dwa_cancel_job(fd, param->hHandle);
         }
     }
+    // The add_task helpers stash the acquired mesh slot id in stTask.privatedata[2]
+    // (DWA_MESH_IDX_INVALID until one is acquired). The job is (sync) done here,
+    // success or fail: drop the reference so the cached slot stays reusable while
+    // never being evicted under an in-flight job.
+    {
+        u8 mesh_idx = (u8)param->stTask.privatedata[2];
+        if (mesh_idx != DWA_MESH_IDX_INVALID) {
+            pthread_mutex_lock(&mutex);
+            bm_dwa_put_tsk_mesh(mesh_idx);
+            pthread_mutex_unlock(&mutex);
+            param->stTask.privatedata[2] = DWA_MESH_IDX_INVALID;
+        }
+    }
     return ret;
 }
 
@@ -3685,6 +3857,7 @@ bm_status_t bmcv_dwa_rot_internel(bm_handle_t          handle,
     char md5_str[MD5_STRING_LENGTH + 1];
     memset(&rot_name, 0, sizeof(rot_name));
     memset(&param, 0, sizeof(param));
+    param.stTask.privatedata[2] = DWA_MESH_IDX_INVALID;   // no slot acquired yet
 
     param.size_in.width = input_image.width;
     param.size_in.height = input_image.height;
@@ -3703,7 +3876,8 @@ bm_status_t bmcv_dwa_rot_internel(bm_handle_t          handle,
     rot_name.rotation_mode = rotation_mode;
     md5_get((unsigned char *)&rot_name, sizeof(rot_name), md5_str, 0);
 
-    snprintf(param.stTask.name, sizeof(param.stTask.name) + 1, "%s", md5_str);
+    // cache key: MD5 over the whole task params; identical calls share one mesh
+    snprintf(param.stTask.name, sizeof(param.stTask.name), "%.20s", md5_str);
     // snprintf(param.identity.Name, sizeof(param.identity.Name), "job_rot");
     ret = bm_dwa_basic(handle, input_image, output_image, &param, (void *)&rotation_mode);
     if(ret != BM_SUCCESS){
@@ -3724,6 +3898,7 @@ bm_status_t bmcv_dwa_gdc_internel(bm_handle_t          handle,
     memset(&gdc_name, 0, sizeof(gdc_name));
     memset(&param, 0, sizeof(param));
     memset(&gdc_with_grid, 0, sizeof(gdc_with_grid));
+    param.stTask.privatedata[2] = DWA_MESH_IDX_INVALID;   // no slot acquired yet
 
     param.size_in.width = input_image.width;
     param.size_in.height = input_image.height;
@@ -3755,7 +3930,7 @@ bm_status_t bmcv_dwa_gdc_internel(bm_handle_t          handle,
         gdc_name.ldc_attr = gdc_with_grid.ldc_attr;
 
         md5_get((unsigned char *)&gdc_name, sizeof(gdc_name), md5_str, 0);
-        snprintf(param.stTask.name, sizeof(param.stTask.name) + 1, "%s", md5_str);
+        snprintf(param.stTask.name, sizeof(param.stTask.name), "%.20s", md5_str);
         // snprintf(param.identity.Name, sizeof(param.identity.Name), "job_gdc");
     } else {
         gdc_with_grid.ldc_attr.grid_info_attr.enable = true;
@@ -3778,7 +3953,7 @@ bm_status_t bmcv_dwa_gdc_internel(bm_handle_t          handle,
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_TRACE, "grid_info md5 = [%s]\n", md5_grid_info);
         strcpy(gdc_name.grid, md5_grid_info);
         md5_get((unsigned char *)&gdc_name, sizeof(gdc_name), md5_str, 0);
-        snprintf(param.stTask.name, sizeof(param.stTask.name) + 1, "%s", md5_str);
+        snprintf(param.stTask.name, sizeof(param.stTask.name), "%.20s", md5_str);
         strcpy(gdc_with_grid.ldc_attr.grid_info_attr.grid_file_name, "grid_info_79_43_3397_80_45_1280x720.dat");
     }
 
@@ -3802,6 +3977,7 @@ bm_status_t bmcv_dwa_fisheye_internel(bm_handle_t          handle,
     memset(&param, 0, sizeof(param));
     memset(&dwa_fisheye_attr, 0, sizeof(dwa_fisheye_attr));
     memset(&fisheye_with_grid, 0, sizeof(fisheye_with_grid));
+    param.stTask.privatedata[2] = DWA_MESH_IDX_INVALID;   // no slot acquired yet
 
     param.size_in.width = input_image.width;
     param.size_in.height = input_image.height;
@@ -3833,7 +4009,7 @@ bm_status_t bmcv_dwa_fisheye_internel(bm_handle_t          handle,
         fisheye_name.param = param;
         fisheye_name.fisheye_attr = fisheye_with_grid.fisheye_attr;
         md5_get((unsigned char *)&fisheye_name, sizeof(fisheye_name), md5_str, 0);
-        snprintf(param.stTask.name, sizeof(param.stTask.name) + 1, "%s", md5_str);
+        snprintf(param.stTask.name, sizeof(param.stTask.name), "%.20s", md5_str);
         // snprintf(param.identity.Name, sizeof(param.identity.Name), "job_fisheye");
     } else {
         fisheye_with_grid.fisheye_attr.enable = fisheye_attr.bEnable;
@@ -3849,7 +4025,7 @@ bm_status_t bmcv_dwa_fisheye_internel(bm_handle_t          handle,
         strcpy(fisheye_with_grid.fisheye_attr.grid_info_attr.grid_bind_name, md5_grid_info);
         strcpy(fisheye_name.grid, md5_grid_info);
         md5_get((unsigned char *)&fisheye_name, sizeof(fisheye_name), md5_str, 0);
-        snprintf(param.stTask.name, sizeof(param.stTask.name) + 1, "%s", md5_str);
+        snprintf(param.stTask.name, sizeof(param.stTask.name), "%.20s", md5_str);
         strcpy(fisheye_with_grid.fisheye_attr.grid_info_attr.grid_file_name, "L_grid_info_68_68_4624_70_70_dst_2240x2240_src_2240x2240.dat");
     }
 
@@ -3872,6 +4048,7 @@ bm_status_t bmcv_dwa_affine_internel(bm_handle_t          handle,
     memset(&param, 0, sizeof(param));
     memset(&dwa_affine_attr, 0, sizeof(dwa_affine_attr));
     memset(&affine_name, 0, sizeof(affine_name));
+    param.stTask.privatedata[2] = DWA_MESH_IDX_INVALID;   // no slot acquired yet
 
     param.size_in.width = input_image.width;
     param.size_in.height = input_image.height;
@@ -3885,16 +4062,17 @@ bm_status_t bmcv_dwa_affine_internel(bm_handle_t          handle,
 
     param.op = DWA_TEST_AFFINE;
 
-    affine_name.param = param;
-    affine_name.affine_attr = dwa_affine_attr;
-    md5_get((unsigned char *)&affine_name, sizeof(affine_name), md5_str, 0);
-    snprintf(param.stTask.name, sizeof(param.stTask.name) + 1, "%s", md5_str);
-    // snprintf(param.identity.Name, sizeof(param.identity.Name), "job_affine");
-
     dwa_affine_attr.region_num = affine_attr.u32RegionNum;
     memcpy(dwa_affine_attr.region_attr, affine_attr.astRegionAttr, sizeof(affine_attr.astRegionAttr));    // user input
     dwa_affine_attr.dest_size.width = affine_attr.stDestSize.u32Width;
     dwa_affine_attr.dest_size.height = affine_attr.stDestSize.u32Height;
+
+    // md5 must be computed after dwa_affine_attr is fully filled so the name reflects the real params
+    affine_name.param = param;
+    affine_name.affine_attr = dwa_affine_attr;
+    md5_get((unsigned char *)&affine_name, sizeof(affine_name), md5_str, 0);
+    snprintf(param.stTask.name, sizeof(param.stTask.name), "%.20s", md5_str);
+    // snprintf(param.identity.Name, sizeof(param.identity.Name), "job_affine");
 
     ret = bm_dwa_basic(handle, input_image, output_image, &param, (void *)&dwa_affine_attr);
     if(ret != BM_SUCCESS){
@@ -3906,14 +4084,14 @@ bm_status_t bmcv_dwa_affine_internel(bm_handle_t          handle,
 bm_status_t bmcv_dwa_dewarp_internel(bm_handle_t          handle,
                                      bm_image             input_image,
                                      bm_image             output_image,
-                                     bm_device_mem_t      grid_info){
-    bm_status_t ret = BM_SUCCESS;
+                                     bm_device_mem_t      grid_info){    bm_status_t ret = BM_SUCCESS;
     bm_dwa_basic_param param;
     bm_dewarp_name dewarp_name;
     bm_dewarp_attr_and_grid dewarp_with_grid;
     memset(&param, 0, sizeof(param));
     memset(&dewarp_name, 0, sizeof(dewarp_name));
     memset(&dewarp_with_grid, 0, sizeof(dewarp_with_grid));
+    param.stTask.privatedata[2] = DWA_MESH_IDX_INVALID;   // no slot acquired yet
 
     char md5_str[MD5_STRING_LENGTH + 1];
     param.size_in.width = input_image.width;
@@ -3941,7 +4119,7 @@ bm_status_t bmcv_dwa_dewarp_internel(bm_handle_t          handle,
     strcpy(dewarp_with_grid.dewarp_attr.grid_info_attr.grid_bind_name, md5_grid_info);
     strcpy(dewarp_name.grid, md5_grid_info);
     md5_get((unsigned char *)&dewarp_name, sizeof(dewarp_name), md5_str, 0);
-    snprintf(param.stTask.name, sizeof(param.stTask.name) + 1, "%s", md5_str);
+    snprintf(param.stTask.name, sizeof(param.stTask.name), "%.20s", md5_str);
     strcpy(dewarp_with_grid.dewarp_attr.grid_info_attr.grid_file_name, "grid_info_79_43_3397_80_45_1280x720.dat");
 
     ret = bm_dwa_basic(handle, input_image, output_image, &param, (void *)&dewarp_with_grid);

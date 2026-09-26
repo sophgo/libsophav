@@ -567,6 +567,7 @@ typedef enum bm_cv_nms_alg_ {
 } bm_cv_nms_alg_e;
 
 
+#ifndef MEDIA_V3
 // dpu struct
 
 /*
@@ -701,7 +702,7 @@ typedef struct bmcv_dpu_fgs_attrs_{
     unsigned int         fxbase_line;
     bmcv_dpu_depth_unit  depth_unit_en;
 } bmcv_dpu_fgs_attrs;
-
+#endif
 
 // ldc/dwa/blend struct
 /*
@@ -946,11 +947,11 @@ typedef enum bmcv_ive_thresh_mode_e{
     // s16
     IVE_THRESH_S16_TO_S8_MIN_MID_MAX = 0x8,
     IVE_THRESH_S16_TO_S8_MIN_ORI_MAX = 0x9,
-    IVE_THRESH_S16_TO_U8_MIN_MID_MAX = 0x10,
-    IVE_THRESH_S16_TO_U8_MIN_ORI_MAX = 0x11,
+    IVE_THRESH_S16_TO_U8_MIN_MID_MAX = 0xa,
+    IVE_THRESH_S16_TO_U8_MIN_ORI_MAX = 0xb,
     // u16
-    IVE_THRESH_U16_TO_U8_MIN_MID_MAX = 0x12,
-    IVE_THRESH_U16_TO_U8_MIN_ORI_MAX = 0x13,
+    IVE_THRESH_U16_TO_U8_MIN_MID_MAX = 0xc,
+    IVE_THRESH_U16_TO_U8_MIN_ORI_MAX = 0xd,
 
 } bmcv_ive_thresh_mode;
 
@@ -994,10 +995,14 @@ typedef enum bmcv_ive_map_mode_s{
 * DMA mode
 * IVE_DMA_DIRECT_COPY is copy directly from one memory space to another
 * IVE_DMA_INTERVAL_COPY is copy an interval from one memory space to another
+* IVE_DMA_SET_3BYTE is amplitude form is 3 bytes in a DMA operation
+* IVE_DMA_SET_8BYTE is amplitude form is 8 bytes in a DMA operation
 */
 typedef enum bmcv_ive_dma_mode_e {
     IVE_DMA_DIRECT_COPY = 0x0,
-    IVE_DMA_INTERVAL_COPY = 0x1
+    IVE_DMA_INTERVAL_COPY = 0x1,
+    IVE_DMA_SET_3_BYTE = 0x2,
+    IVE_DMA_SET_8_BYTE = 0x3
 } bmcv_ive_dma_mode;
 
 /*
@@ -1135,6 +1140,17 @@ typedef struct bmcv_ive_sobel_ctrl_s{
 } bmcv_ive_sobel_ctrl;
 
 /*
+* sobel_ext control parameter
+* sobel_mode is output mode; as8_mask is template parameter
+* ksize is kernel size, only support 3,5,7,9
+*/
+typedef struct bmcv_ive_sobel_ext_ctrl_s{
+    bmcv_ive_sobel_out_mode sobel_mode;
+    unsigned char ksize;
+    signed char as8_mask[81];
+} bmcv_ive_sobel_ext_ctrl;
+
+/*
 * gradient information output control mode
 * BM_IVE_NORM_GRAD_OUT_HOR_AND_VER is H and V component gradient output
 * BM_IVE_NORM_GRAD_OUT_HOR is H graphs of gradient output
@@ -1262,6 +1278,18 @@ typedef struct bmcv_ive_filter_ctrl_s{
     signed char as8_mask[25];
     unsigned char u8_norm;
 } bmcv_ive_filter_ctrl;
+
+/*
+* Template filtering control information (extended version)
+* mask is template parameter filter coefficient, The number of masks read is controlled by ksize
+* norm is normalization parameter, by right s_ft
+* ksize is filter kernel size, only support 3,5,7,9
+*/
+typedef struct bmcv_ive_filter_ext_ctrl_s {
+	signed char mask[81];
+	unsigned char norm;
+    unsigned char ksize;
+} bmcv_ive_filter_ext_ctrl;
 
 /*
 * Shi-Tomas-like candidate corner point calculation control parameters
@@ -3417,6 +3445,7 @@ DECL_EXPORT bm_status_t bmcv_ldc_gdc_load_mesh(
     bm_image             out_image,
     bm_device_mem_t      dmem);
 
+#ifdef MEDIA_V3
 /**
  * Dedistorting affine (DWA) module rotation function
  * input_image is image to be rotated;output_image is rotated image
@@ -3472,6 +3501,18 @@ DECL_EXPORT bm_status_t bmcv_dwa_dewarp(
     bm_image             output_image,
     bm_device_mem_t      grid_info);
 
+/**
+ * Free all DWA mesh-cache device memory allocated on this handle.
+ * The DWA functions cache generated meshes per parameter set, so repeated calls
+ * with the same parameters reuse the cached mesh instead of regenerating it.
+ * Call this BEFORE bm_dev_free(handle) when the application destroys the device
+ * while the process keeps running; it is not needed if the process exits right
+ * after the device is freed. Must not be called while DWA jobs on this handle
+ * are still in flight. Safe to call multiple times.
+*/
+DECL_EXPORT void bm_dwa_mesh_cache_deinit(
+    bm_handle_t          handle);
+#endif
 /**
  * It can realize the fusion of 2~4 pictures
  * input_num is image number;input is input image pointer;
@@ -3645,6 +3686,18 @@ DECL_EXPORT bm_status_t bmcv_ive_dilate(
     unsigned char         dilate_mask[25]);
 
 /**
+ * Create a binary image 9x9 template bloat task
+ * input output is src and dst;dilate_mask is 9x9 expansion template coefficient array
+ * ksize is dilate template size, support 3,5,7,9
+*/
+DECL_EXPORT bm_status_t bmcv_ive_dilate_ext(
+    bm_handle_t           handle,
+    bm_image              input,
+    bm_image              output,
+    unsigned char         dilate_mask[81],
+    unsigned char         ksize);
+
+/**
  * Create a binary image 5x5 template erode task
  * input output is src and dst;erode_mask is 5x5 erode template coefficient array
 */
@@ -3653,6 +3706,19 @@ DECL_EXPORT bm_status_t bmcv_ive_erode(
     bm_image              input,
     bm_image              output,
     unsigned char         erode_mask[25]);
+
+/**
+ * Create a binary image 9x9 template erode task
+ * input output is src and dst;erode_mask is 9x9 erode template coefficient array;
+ * ksize is erode template size, support 3,5,7,9
+**/
+DECL_EXPORT bm_status_t bmcv_ive_erode_ext(
+    bm_handle_t           handle,
+    bm_image              input,
+    bm_image              output,
+    unsigned char         erode_mask[81],
+    unsigned char         ksize);
+
 
 /**
  * Calculate the amplitude and Angle of the gradient of pixel change in gray level map
@@ -3676,6 +3742,19 @@ DECL_EXPORT bm_status_t bmcv_ive_sobel(
     bm_image *            output_h,
     bm_image *            output_v,
     bmcv_ive_sobel_ctrl   sobel_attr);
+
+/**
+ * 9x9 template Sobel-like gradient calculation task
+ * input is src;output_h is gradient of the H component;
+ * output_v is gradient of the V component;sobel_attr is sobel control attr
+*/
+DECL_EXPORT bm_status_t bmcv_ive_sobel_ext(
+    bm_handle_t           handle,
+    bm_image *            input,
+    bm_image *            output_h,
+    bm_image *            output_v,
+    bmcv_ive_sobel_ext_ctrl   sobel_attr);
+
 
 /**
  * Create a normalized gradient calculation task

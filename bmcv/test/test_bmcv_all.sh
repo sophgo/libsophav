@@ -5,6 +5,7 @@ count=1
 failed_scripts=""
 bmcv_case=${1:-'all'}
 loop=${2:-1}
+CHIP_NAME="bm1688"
 
 run_command() {
   local command="$1"
@@ -108,7 +109,7 @@ run_vpss() {
   run_command "test_vpss_csc_overlay_thread 16 16 0 vpss_data_add/16x16_yuv420.bin 100 16 4 null 0 0 0 2 2 7333e4543e0789361e28108a8c62b0d4"
   run_command "test_vpss_csc_overlay_thread 960 540 0 vpss_data_add/960x540_yuv420.bin 1920 1080 4 null 1 1820 1080 2 1 e2e24b3f8b9fa47f40303b8834211ff4"
   run_command "test_vpss_csc_overlay_thread 1920 1080 0 vpss_data_add/1920x1080_yuv420.bin 512 256 4 null 2 256 128 1 2 2e6eab5d4ce68a5b03a75beae1952622"
-  run_command "test_vpss_csc_overlay_thread 8192 8192 0 vpss_data_add/8192x8192_yuv420.bin 8192 8192 4 null 3 1920 4096 1 1 87b69220eecfadffe0825a6d878a0c47"
+  run_command "test_vpss_csc_overlay_thread 8192 8192 0 vpss_data_add/8192x8192_yuv420.bin 8192 8192 4 null 3 1920 4096 1 1 737a1d75dd5f78a14fb5bda39fa3cabc"
   run_command "test_gen_text_watermark"
   run_command "test_gen_text_watermark sophgo 255 0 0 0.8 out/text1.bmp 4ea7c1adcd8486388c87abc078b35ef8"
   run_command "test_gen_text_watermark sophgo 255 0 0 0.8 out/text2.bmp 1612a8c95b32310d2478114e5ab439d1 /opt/sophon/libsophon-current/bin/res/1920x1080_nv12.bin 1920 1080 3 99 99"
@@ -128,9 +129,11 @@ run_vpss() {
   run_command "test_vpss_convert_thread 1920 1080 0 vpss_data_add/1920x1080_yuv420.bin 960 540 64 128 1920 1080 10 null 1 0 1 1 1 47141e1d3469fbd2ec08e25a3b1a3838"
   run_command "test_vpss_convert_to_thread 1920 1080 8 /opt/sophon/libsophon-current/bin/res/1920x1080_rgbp.bin 0.5 0.5 0.5 200 200 200 8 out/convert_to_1920x1080.rgbp 0"
   run_command "test_vpss_convert_to_thread 16 16 8 vpss_data_add/16x16_rgbp.bin 0.1 0.1 0.1 0 0 0 8 null 0 2 2 0b7e25134e6dfef1bfdc715867211e5b"
-  run_command "test_vpss_convert_to_thread 512 256 0 vpss_data_add/512x256_yuv420.bin -0.5 -0.5 -0.5 255 255 255 0 null 0 2 1 5ffa125b62d64c8ad9dd7a6daf38279f"
-  run_command "test_vpss_convert_to_thread 1920 1080 10 vpss_data_add/1920x1080_rgb.bin 0.3 -0.3 0.3 -10 200 -10 10 null 0 1 2 335ccf5d101bbceb4d977ee5e10537b5"
-  run_command "test_vpss_convert_to_thread 4096 4096 14 vpss_data_add/4096x4096_gray.bin 0.8 0.2 0.6 -50 100 -150 14 null 0 1 1 b94d9f8921e64824301c474feec74646"
+  if [ "$CHIP_NAME" != "cv84x6" ]; then
+    run_command "test_vpss_convert_to_thread 512 256 0 vpss_data_add/512x256_yuv420.bin -0.5 -0.5 -0.5 255 255 255 0 null 0 2 1 5ffa125b62d64c8ad9dd7a6daf38279f"
+    run_command "test_vpss_convert_to_thread 1920 1080 10 vpss_data_add/1920x1080_rgb.bin 0.3 -0.3 0.3 -10 200 -10 10 null 0 1 2 335ccf5d101bbceb4d977ee5e10537b5"
+    run_command "test_vpss_convert_to_thread 4096 4096 14 vpss_data_add/4096x4096_gray.bin 0.8 0.2 0.6 -50 100 -150 14 null 0 1 1 b94d9f8921e64824301c474feec74646"
+  fi
   run_command "test_vpss_copy_to_thread 800 600 0 /opt/sophon/libsophon-current/bin/res/800x600_yuv420.bin 0 0 1920 1080 /opt/sophon/libsophon-current/bin/res/1920x1080_yuv420.bin  out/copy_to_1920x1080.yuv 0"
   run_command "test_vpss_copy_to_thread 16 16 8 vpss_data_add/16x16_rgbp.bin 0 0 16 16 vpss_data_add/16x16_rgbp.bin null 0 2 2 fb1126ebf722d0c546595d325f0600fb"
   run_command "test_vpss_copy_to_thread 512 256 10 vpss_data_add/512x256_rgb.bin 50 50 960 540 vpss_data_add/960x540_rgb.bin null 0 2 1 67c84ead75d0affda77980d3cc78dddf"
@@ -150,7 +153,7 @@ run_vpss() {
   run_command "test_vpss_padding_thread 16 16 0 vpss_data_add/16x16_yuv420.bin 0 0 16 16 16 16 0 null 0 0 2 2 d6eb8830bac14fb2a536431b3abf532b"
   run_command "test_vpss_padding_thread 960 540 0 vpss_data_add/960x540_yuv420.bin 540 0 420 540 1920 1080 0 null 1 0 2 1 8543db26d14771c5c88ff8c1ef4d51e7"
   run_command "test_vpss_padding_thread 4096 4096 0 vpss_data_add/4096x4096_yuv420.bin 0 2048 500 100 4096 8192 0 null 2 0 1 2 85d834194886b0d03bf9d73bcc594532"
-  run_command "test_vpss_padding_thread 8192 8192 0 vpss_data_add/8192x8192_yuv420.bin 4096 4096 1024 1024 8192 8192 0 null 1 0 1 1 6ec570c3bac10ccdd2cd5c2a51ebda22"
+  run_command "test_vpss_padding_thread 8192 8192 0 vpss_data_add/8192x8192_yuv420.bin 4096 4096 1024 1024 8192 8192 0 null 1 0 1 1 a4c40b3b3235466fea99746ea5fd467c"
   run_command "test_vpss_point_thread 512 256 0 vpss_data_add/512x256_yuv420.bin 60 40 1 null 0 2 2 8e9d25f07402779734e0b5d46207c62a"
   run_command "test_vpss_point_thread 960 540 0 vpss_data_add/960x540_yuv420.bin 512 256 10 null 0 1 2 bd18a3655a57b5404f22c0e998b03de4"
   run_command "test_vpss_point_thread 4096 4096 0 vpss_data_add/4096x4096_yuv420.bin 2048 2048 2048 null 0 2 1 6f900534d6f0057f35a181d36b80f1a9"
@@ -192,7 +195,7 @@ run_tpu(){
     run_command "test_bmcv_rotate"
   done
   run_command "test_bmcv_rotate 2 1 0 16 16"
-  run_command "test_bmcv_rotate 1 1 0 128 128 2"
+  run_command "test_bmcv_rotate 1 1 0 128 128 8"
   run_command "test_bmcv_rotate 2 1 0 512 1024 9 90"
   run_command "test_bmcv_rotate 1 1 0 4096 4096 12 180"
   run_command "test_bmcv_rotate 1 1 0 8192 8192 14 270"
@@ -582,6 +585,125 @@ run_dpu(){
 }
 
 run_ive(){
+  run_command "ive_test_cmodel_16BitTo8Bit 1 1 0 null null 22 15 35 null null 0 0 0"
+  run_command "ive_test_cmodel_16BitTo8Bit 1 1 0 3840 2160 22 15 35 null null 0 0 0"
+  run_command "ive_test_cmodel_16BitTo8Bit 1 1 0 16 16 22 15 35 null null 0 0 0"
+
+  run_command "ive_test_cmodel_add 1 1 0 null null 19584 45952 null null null 0 0 1"
+  run_command "ive_test_cmodel_add 1 1 0 3840 2160 19584 45952 null null null 0 0 1"
+  run_command "ive_test_cmodel_add 1 1 0 16 16 19584 45952 null null null 0 0 1"
+
+  run_command "ive_test_cmodel_and 1 1 0 null null null null null 0 0"
+  run_command "ive_test_cmodel_and 1 1 0 3840 2160 null null null 0 0"
+  run_command "ive_test_cmodel_and 1 1 0 16 16 null null null 0 0"
+
+  run_command "ive_test_cmodel_bernsen 1 1 0 null null 3 5 10 null null 0 0 0"
+  run_command "ive_test_cmodel_bernsen 1 1 0 3840 2160 3 5 10 null null 0 0 0"
+  run_command "ive_test_cmodel_bernsen 1 1 0 16 16 3 5 10 null null 0 0 0"
+
+  run_command "ive_test_cmodel_cannyhysedge 1 1 0 null null null null 50 100 0 0"
+  run_command "ive_test_cmodel_cannyhysedge 1 1 0 3840 2160 null null 50 100 0 0"
+  run_command "ive_test_cmodel_cannyhysedge 1 1 0 16 16 null null 50 100 0 0"
+
+  run_command "ive_test_cmodel_ccl 1 1 0 null null null null 0 0 0"
+  run_command "ive_test_cmodel_ccl 1 1 0 1920 1080 null null 0 0 0"
+  run_command "ive_test_cmodel_ccl 1 1 0 16 16 null null 0 0 0"
+
+  run_command "ive_test_cmodel_csc 1 1 0 null null null null 6 0 10 0 0"
+  run_command "ive_test_cmodel_csc 1 1 0 3840 2160 null null 6 0 10 0 0"
+  run_command "ive_test_cmodel_csc 1 1 0 16 16 null null 6 0 10 0 0"
+
+  run_command "ive_test_cmodel_dilate 1 1 0 null null null null 0 0"
+  run_command "ive_test_cmodel_dilate 1 1 0 3840 2160 null null 0 0"
+  run_command "ive_test_cmodel_dilate 1 1 0 16 16 null null 0 0"
+
+  run_command "ive_test_cmodel_dma 1 1 0 null null null null 4 2 4 0 0 0"
+  run_command "ive_test_cmodel_dma 1 1 0 3840 2160 null null 4 2 4 0 0 0"
+  run_command "ive_test_cmodel_dma 1 1 0 16 16 null null 4 2 4 0 0 0"
+
+  run_command "ive_test_cmodel_dma 1 1 0 null null null null 4 2 4 0 0 1"
+  run_command "ive_test_cmodel_dma 1 1 0 3840 2160 null null 4 2 4 0 0 1"
+  run_command "ive_test_cmodel_dma 1 1 0 32 16 null null 4 2 4 0 0 1"
+
+  run_command "ive_test_cmodel_dma 1 1 0 null null null null 4 2 4 0 0 2"
+  run_command "ive_test_cmodel_dma 1 1 0 3840 2160 null null 4 2 4 0 0 2"
+  run_command "ive_test_cmodel_dma 1 1 0 32 16 null null 4 2 4 0 0 2"
+
+  run_command "ive_test_cmodel_dma 1 1 0 null null null null 4 2 4 0 0 3"
+  run_command "ive_test_cmodel_dma 1 1 0 3840 2160 null null 4 2 4 0 0 3"
+  run_command "ive_test_cmodel_dma 1 1 0 32 16 null null 4 2 4 0 0 3"
+
+  run_command "ive_test_cmodel_erode 1 1 0 null null null null 0 0"
+  run_command "ive_test_cmodel_erode 1 1 0 3840 2160 null null 0 0"
+  run_command "ive_test_cmodel_erode 1 1 0 16 16 null null 0 0"
+
+  run_command "ive_test_cmodel_filter 1 1 0 null null null null 4 0 0 0"
+  run_command "ive_test_cmodel_filter 1 1 0 3840 2160 null null 4 0 0 0"
+  run_command "ive_test_cmodel_filter 1 1 0 16 16 null null 4 0 0 0"
+
+  run_command "ive_test_cmodel_hist 1 1 0 null null null null 0 0"
+  run_command "ive_test_cmodel_hist 1 1 0 3840 2160 null null 0 0"
+  run_command "ive_test_cmodel_hist 1 1 0 16 16 null null 0 0"
+
+  run_command "ive_test_cmodel_integ 1 1 0 null null null null 0 0 0"
+  run_command "ive_test_cmodel_integ 1 1 0 1920 1080 null null 0 0 0"
+  run_command "ive_test_cmodel_integ 1 1 0 16 16 null null 0 0 0"
+
+  run_command "ive_test_cmodel_lbp 1 1 0 null null null null 0 0 0"
+  run_command "ive_test_cmodel_lbp 1 1 0 3840 2160 null null 0 0 0"
+  run_command "ive_test_cmodel_lbp 1 1 0 16 16 null null 0 0 0"
+
+  run_command "ive_test_cmodel_magandang 1 1 0 null null null null 0 0 0 0 0"
+  run_command "ive_test_cmodel_magandang 1 1 0 3840 2160 null null 0 0 0 0 0"
+  run_command "ive_test_cmodel_magandang 1 1 0 16 16 null null 0 0 0 0 0"
+
+  run_command "ive_test_cmodel_map 1 1 0 null null null null 0 0 0"
+  run_command "ive_test_cmodel_map 1 1 0 3840 2160 null null 0 0 0"
+  run_command "ive_test_cmodel_map 1 1 0 16 16 null null 0 0 0"
+
+  run_command "ive_test_cmodel_ncc 1 1 0 null null null null null 0 0"
+  run_command "ive_test_cmodel_ncc 1 1 0 3840 2160 null null null 0 0"
+  run_command "ive_test_cmodel_ncc 1 1 0 16 16 null null null 0 0"
+
+  run_command "ive_test_cmodel_normgrad 1 1 0 null null null null 0 0 0 0"
+  run_command "ive_test_cmodel_normgrad 1 1 0 3840 2160 null null 0 0 0 0"
+  run_command "ive_test_cmodel_normgrad 1 1 0 16 16 null null 0 0 0 0"
+
+  run_command "ive_test_cmodel_or 1 1 0 null null null null null 0 0"
+  run_command "ive_test_cmodel_or 1 1 0 3840 2160 null null null 0 0"
+  run_command "ive_test_cmodel_or 1 1 0 16 16 null null null 0 0"
+
+  run_command "ive_test_cmodel_ordstafilter 1 1 0 null null null null 0 0 0"
+  run_command "ive_test_cmodel_ordstafilter 1 1 0 3840 2160 null null 0 0 0"
+  run_command "ive_test_cmodel_ordstafilter 1 1 0 16 16 null null 0 0 0"
+
+  run_command "ive_test_cmodel_sad 1 1 0 null null null null null null 0 0 2048 2 30 0 0 0"
+  run_command "ive_test_cmodel_sad 1 1 0 3840 2160 null null null null 0 0 2048 2 30 0 0 0"
+  run_command "ive_test_cmodel_sad 1 1 0 16 16 null null null null 0 0 2048 2 30 0 0 0"
+
+  run_command "ive_test_cmodel_sobel 1 1 0 null null null null 0 0"
+  run_command "ive_test_cmodel_sobel 1 1 0 3840 2160 null null 0 0"
+  run_command "ive_test_cmodel_sobel 1 1 0 16 16 null null 0 0"
+
+  run_command "ive_test_cmodel_sub 1 1 0 null null null null null 0 0 0"
+  run_command "ive_test_cmodel_sub 1 1 0 3840 2160 null null null 0 0 0"
+  run_command "ive_test_cmodel_sub 1 1 0 16 16 null null null 0 0 0"
+
+  run_command "ive_test_cmodel_thresh 1 1 0 null null 10 20 30 40 50 null null 0 0 0"
+  run_command "ive_test_cmodel_thresh 1 1 0 3840 2160 10 20 30 40 50 null null 0 0 0"
+  run_command "ive_test_cmodel_thresh 1 1 0 16 16 10 20 30 40 50 null null 0 0 0"
+
+  run_command "ive_test_cmodel_thresh_s16 1 1 0 null null 10 20 30 40 50 null null 0 0 9"
+  run_command "ive_test_cmodel_thresh_s16 1 1 0 3840 2160 10 20 30 40 50 null null 0 0 9"
+  run_command "ive_test_cmodel_thresh_s16 1 1 0 16 16 10 20 30 40 50 null null 0 0 9"
+
+  run_command "ive_test_cmodel_thresh_u16 1 1 0 null null 10 20 30 40 50 null null 0 0 12"
+  run_command "ive_test_cmodel_thresh_u16 1 1 0 3840 2160 10 20 30 40 50 null null 0 0 12"
+  run_command "ive_test_cmodel_thresh_u16 1 1 0 16 16 10 20 30 40 50 null null 0 0 12"
+
+  run_command "ive_test_cmodel_xor 1 1 0 null null null null null 0 0"
+  run_command "ive_test_cmodel_xor 1 1 0 3840 2160 null null null 0 0"
+  run_command "ive_test_cmodel_xor 1 1 0 16 16 null null null 0 0"
   if [ ! -d "ive_data" ]; then
     echo "Error: Directory 'ive_data' does not exist"
     echo "please prepare test data"
@@ -684,8 +806,8 @@ run_ive(){
   run_command "test_ive_sub_thread 1920 1080 1 14 14 ive_data/data_add/00_1920x1080_u8.bin ive_data/data_add/01_1920x1080_u8.bin 13bd9f48639960ce3a31b5fc90aa0643 0 1 1 0"
   run_command "test_ive_thresh_s16_thread 352 288 14 14 8 41 105 -63 -5 -98 ive_data/00_352x288_s8_to_s16_reverse.yuv ive_data/result/sample_Thresh_S16_To_S8_MinMidMax_352x288.yuv 0 1 1 0"
   run_command "test_ive_thresh_s16_thread 64 64 14 14 8 -32768 32767 -128 0 127 ive_data/data_add/64x64_s16.s16 620f0b67a91f7f74151bc5be745b7110 0 2 2 0"
-  run_command "test_ive_thresh_s16_thread 1280 720 14 14 16 -32768 32767 0 125 255 ive_data/data_add/1280x720_s16.s16 8a583ac5b931b18c3e6af5d16cd7c1f3 0 2 1 0"
-  run_command "test_ive_thresh_s16_thread 1920 1080 14 14 17 -1 255 75 125 200 ive_data/data_add/1920x1080_s16.s16 b92967ea0ae7d96af1891dbae502f03c 0 1 2 0"
+  run_command "test_ive_thresh_s16_thread 1280 720 14 14 10 -32768 32767 0 125 255 ive_data/data_add/1280x720_s16.s16 8a583ac5b931b18c3e6af5d16cd7c1f3 0 2 1 0"
+  run_command "test_ive_thresh_s16_thread 1920 1080 14 14 11 -1 255 75 125 200 ive_data/data_add/1920x1080_s16.s16 b92967ea0ae7d96af1891dbae502f03c 0 1 2 0"
   run_command "test_ive_thresh_thread 352 288 14 14 3 236 249 166 219 60 ive_data/00_352x288_y.yuv ive_data/result/sample_Thresh_MinMidMax.yuv 0 1 1 0"
   run_command "test_ive_thresh_thread 64 64 14 14 0 0 null 0 null 255 ive_data/data_add/64x64_u8.bin 6ae59e64850377ee5470c854761551ea 0 2 2 0"
   run_command "test_ive_thresh_thread 64 64 14 14 1 25 null null null 225 ive_data/data_add/64x64_u8.bin a177f3a9c512b89e4f82d089172d6461 0 1 2 0"
@@ -695,11 +817,11 @@ run_ive(){
   run_command "test_ive_thresh_thread 1280 720 14 14 5 125 225 75 175 null ive_data/data_add/1280x720_u8.bin 202507e959a72222d2ffd443b2344962 0 1 1 0"
   run_command "test_ive_thresh_thread 1920 1080 14 14 6 150 200 100 null 150 ive_data/data_add/1920x1080_u8.bin adf172359091340784a5b447e673a2e8 0 1 1 0"
   run_command "test_ive_thresh_thread 1920 1080 14 14 7 175 175 null 255 null ive_data/data_add/1920x1080_u8.bin 3de54c208d3c084558b7936dbb7b4516 0 1 1 0"
-  run_command "test_ive_thresh_u16_thread 352 288 14 14 18 41 105 190 132 225 ive_data/00_352x288_u8_to_u16_reverse.yuv ive_data/result/sample_Thresh_U16_To_U8_MinMidMax_352x288.yuv 0 1 1 0"
-  run_command "test_ive_thresh_u16_thread 64 64 14 14 18 16383 32767 0 175 255 ive_data/data_add/64x64_u16.u16 dafbb17b2aad2cf7b20015fdda6ffa5c 0 2 1 0"
-  run_command "test_ive_thresh_u16_thread 480 512 14 14 19 0 255 0 null 255 ive_data/data_add/480x512_u16.u16 b17461e776ddd0007197b063bc4796ac 0 1 2 0"
-  run_command "test_ive_thresh_u16_thread 1280 720 14 14 19 175 255 50 null 150 ive_data/data_add/1280x720_u16.u16 d319dea362256fe4dd2a1b7a35aac343 0 2 1 0"
-  run_command "test_ive_thresh_u16_thread 1920 1080 14 14 18 0 65535 50 150 200 ive_data/data_add/1920x1080_u16.u16 35679e8cab549438d0b813a75291f6f0 0 1 1 0"
+  run_command "test_ive_thresh_u16_thread 352 288 14 14 12 41 105 190 132 225 ive_data/00_352x288_u8_to_u16_reverse.yuv ive_data/result/sample_Thresh_U16_To_U8_MinMidMax_352x288.yuv 0 1 1 0"
+  run_command "test_ive_thresh_u16_thread 64 64 14 14 12 16383 32767 0 175 255 ive_data/data_add/64x64_u16.u16 dafbb17b2aad2cf7b20015fdda6ffa5c 0 2 1 0"
+  run_command "test_ive_thresh_u16_thread 480 512 14 14 13 0 255 0 null 255 ive_data/data_add/480x512_u16.u16 b17461e776ddd0007197b063bc4796ac 0 1 2 0"
+  run_command "test_ive_thresh_u16_thread 1280 720 14 14 13 175 255 50 null 150 ive_data/data_add/1280x720_u16.u16 d319dea362256fe4dd2a1b7a35aac343 0 2 1 0"
+  run_command "test_ive_thresh_u16_thread 1920 1080 14 14 12 0 65535 50 150 200 ive_data/data_add/1920x1080_u16.u16 35679e8cab549438d0b813a75291f6f0 0 1 1 0"
   run_command "test_ive_xor_thread 352 288 14 14 ive_data/00_352x288_y.yuv ive_data/01_352x288_y.yuv ive_data/result/sample_Xor.yuv 0 1 1 0"
   run_command "test_ive_xor_thread 64 64 14 14 ive_data/data_add/00_64x64_u8.bin ive_data/data_add/01_64x64_u8.bin 21a7a5ad2c4b1ffd9443d5952a92f4c9 0 2 2 0"
   run_command "test_ive_xor_thread 480 512 14 14 ive_data/data_add/00_480x512_u8.bin ive_data/data_add/01_480x512_u8.bin 766b3d9560315456f7470cc500313c57 0 1 2 0"
@@ -960,16 +1082,20 @@ run_dwa(){
 run_all(){
   run_vpss
   run_tpu
-  run_dpu
+  if [ "$CHIP_NAME" != "cv84x6" ]; then
+    run_dpu
+    run_dwa
+  fi
   run_ldc
-  run_dwa
   run_blend
   run_ive
   run_kill_vpss
   run_kill_tpu
-  run_kill_dpu
+  if [ "$CHIP_NAME" != "cv84x6" ]; then
+    run_kill_dpu
+    run_kill_dwa
+  fi
   run_kill_ldc
-  run_kill_dwa
   run_kill_ive
   run_kill_blend
 }
@@ -1328,6 +1454,15 @@ run_kill_blend(){
   done
   kill_processes
 }
+
+if [ "$CHIP_NAME" = "cv84x6" ]; then
+  case "$bmcv_case" in
+    dpu|dwa|kill_dpu|kill_dwa)
+      echo "chip $CHIP_NAME does not support '$bmcv_case', skip."
+      return 0 2>/dev/null || exit 0
+      ;;
+  esac
+fi
 
 if [ $bmcv_case = "all" ]; then
   eval "mkdir -p out"

@@ -626,6 +626,13 @@ typedef struct
     int enable_intraNxN;
 } BmVpuEncH265Params;
 
+typedef enum {
+    BMENC_MMU_DISABLE = 0,
+    BMENC_MMU_PAGE_2M,
+    BMENC_MMU_PAGE_1M,
+    BMENC_MMU_PAGE_512K,
+} BmVpuEncMmuConfig;
+
 
 /* Structure used together with bmvpu_enc_open() */
 typedef struct
@@ -773,6 +780,9 @@ typedef struct
     BmVpuEncBufferAllocFunc buffer_alloc_func;
     BmVpuEncBufferFreeFunc buffer_free_func;
     void *buffer_context;
+#ifdef MEDIA_V3
+    BmVpuEncMmuConfig mmu_config;
+#endif
 } BmVpuEncOpenParams;
 
 /* Initial encoding information, produced by the encoder. This structure is

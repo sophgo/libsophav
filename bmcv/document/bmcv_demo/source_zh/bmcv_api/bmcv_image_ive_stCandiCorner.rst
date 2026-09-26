@@ -49,7 +49,7 @@ bmcv_ive_stcandicorner
     * - input
       - GRAY
       - DATA_TYPE_EXT_1N_BYTE
-      - 64x64～1920x1080
+      - 16x16~3840x2160
     * - output
       - GRAY
       - DATA_TYPE_EXT_1N_BYTE

@@ -5,6 +5,11 @@
 #include <float.h>
 #include <math.h>
 
+static bool is_dual_core_enabled(void) {
+    const char *env = getenv("TPU_CORES");
+    return env && (strcmp(env, "2") == 0 || strcmp(env, "both") == 0);
+}
+
 static int get_gaussian_sep_kernel(int n, float sigma, float *k_sep) {
     const int SMALL_GAUSSIAN_SIZE = 3;
     static const float small_gaussian_tab[3] = {0.25f, 0.5f, 0.25f};
@@ -58,16 +63,12 @@ static bm_status_t bmcv_gaussian_blur_check(bm_handle_t handle, bm_image input, 
         bmlib_log("GAUSSIAN_BLUR", BMLIB_LOG_ERROR, "Can not get handle!\r\n");
         return BM_ERR_PARAM;
     }
-    if (kw > 7 || kh > 7) {
-        bmlib_log("GAUSSIAN_BLUR", BMLIB_LOG_ERROR, "The kernel max size: 7!\n");
-        return BM_ERR_PARAM;
-    }
-    if (kw != 3 && kw != 5 && kw != 7) {
-        bmlib_log("GAUSSIAN_BLUR", BMLIB_LOG_ERROR, "The kernel size only support 3, 5, 7!\n");
+    if (kw != 3 && kw != 5 && kw != 7 && kw != 9) {
+        bmlib_log("GAUSSIAN_BLUR", BMLIB_LOG_ERROR, "The kernel size only support 3, 5, 7, 9!\n");
         return BM_ERR_PARAM;
     }
     if (kw != kh) {
-        bmlib_log("GAUSSIAN_BLUR", BMLIB_LOG_ERROR, "The kernel size onlt support 3*3, 5*5, 7*7!\n");
+        bmlib_log("GAUSSIAN_BLUR", BMLIB_LOG_ERROR, "The kernel size only support square kernel (kw=%d, kh=%d)!\n", kw, kh);
         return BM_ERR_PARAM;
     }
     bm_image_format_ext src_format = input.image_format;
@@ -79,16 +80,12 @@ static bm_status_t bmcv_gaussian_blur_check(bm_handle_t handle, bm_image input, 
     int image_dh = output.height;
     int image_dw = output.width;
 
-    if ((kw == 3) && (image_sw > 4096)) {
-        bmlib_log("GAUSSIAN_BLUR", BMLIB_LOG_ERROR, "when ksize = 3, image max_width: 4096!\r\n");
+    if (image_sw < 8 || image_sw > 8192) {
+        bmlib_log("GAUSSIAN_BLUR", BMLIB_LOG_ERROR, "image width out of range [8, 8192]: %d!\r\n", image_sw);
         return BM_ERR_PARAM;
     }
-    if ((kw == 5) && (image_sw > 2048)) {
-        bmlib_log("GAUSSIAN_BLUR", BMLIB_LOG_ERROR, "when ksize = 5, image max_width: 2048!\r\n");
-        return BM_ERR_PARAM;
-    }
-    if ((kw == 7) && (image_sw > 1500)) {
-        bmlib_log("GAUSSIAN_BLUR", BMLIB_LOG_ERROR, "when ksize = 7, image max_width: 1500!\r\n");
+    if (image_sh < 8 || image_sh > 8192) {
+        bmlib_log("GAUSSIAN_BLUR", BMLIB_LOG_ERROR, "image height out of range [8, 8192]: %d!\r\n", image_sh);
         return BM_ERR_PARAM;
     }
     if (src_format != FORMAT_RGB_PLANAR &&
@@ -97,6 +94,11 @@ static bm_status_t bmcv_gaussian_blur_check(bm_handle_t handle, bm_image input, 
         src_format != FORMAT_BGR_PACKED &&
         src_format != FORMAT_BGRP_SEPARATE &&
         src_format != FORMAT_RGBP_SEPARATE &&
+        src_format != FORMAT_YUV444P &&
+        src_format != FORMAT_NV12 &&
+        src_format != FORMAT_NV21 &&
+        src_format != FORMAT_NV16 &&
+        src_format != FORMAT_NV61 &&
         src_format != FORMAT_GRAY) {
         bmlib_log("GAUSSIAN_BLUR", BMLIB_LOG_ERROR, "Not supported input image format!\n");
         return BM_NOT_SUPPORTED;
@@ -113,6 +115,26 @@ static bm_status_t bmcv_gaussian_blur_check(bm_handle_t handle, bm_image input, 
     if (image_sh != image_dh || image_sw != image_dw) {
         bmlib_log("GAUSSIAN_BLUR", BMLIB_LOG_ERROR, "input and output image size should be same\n");
         return BM_NOT_SUPPORTED;
+    }
+    if ((src_format == FORMAT_NV12 || src_format == FORMAT_NV21) && ((image_sw | image_sh) & 1)) {
+        bmlib_log("GAUSSIAN_BLUR", BMLIB_LOG_ERROR, "NV12/NV21 format requires even width and height (w=%d, h=%d)\n", image_sw, image_sh);
+        return BM_NOT_SUPPORTED;
+    }
+    if ((src_format == FORMAT_NV16 || src_format == FORMAT_NV61) && (image_sw & 1)) {
+        bmlib_log("GAUSSIAN_BLUR", BMLIB_LOG_ERROR, "NV16/NV61 format requires even width (w=%d)\n", image_sw);
+        return BM_NOT_SUPPORTED;
+    }
+    // NV format under dual-core mode (TPU_CORES=2/both) only supports up to 1920x1080
+    if (src_format == FORMAT_NV12 || src_format == FORMAT_NV21 ||
+        src_format == FORMAT_NV16 || src_format == FORMAT_NV61) {
+        if (is_dual_core_enabled()) {
+            if (image_sw > 1920 || image_sh > 1080) {
+                bmlib_log("GAUSSIAN_BLUR", BMLIB_LOG_ERROR,
+                          "NV format with dual-core only supports up to 1920x1080 (w=%d, h=%d)!\n",
+                          image_sw, image_sh);
+                return BM_NOT_SUPPORTED;
+            }
+        }
     }
     return BM_SUCCESS;
 }
@@ -171,13 +193,43 @@ bm_status_t bmcv_image_gaussian_blur(bm_handle_t handle, bm_image input, bm_imag
     api.delta = 0;
     api.is_packed = (input.image_format == FORMAT_RGB_PACKED || input.image_format == FORMAT_BGR_PACKED);
     api.out_type = 0;   // 0-uint8  1-uint16
-    for (int i = 0; i < channel; i++) {
-        api.input_addr[i] = bm_mem_get_device_addr(input_mem[i]);
-        api.output_addr[i] = bm_mem_get_device_addr(output_mem[i]);
-        api.width = input.image_private->memory_layout[i].W / (api.is_packed ? 3 : 1);
-        api.height = input.image_private->memory_layout[i].H;
-        api.stride_i = stride_i[i];
-        api.stride_o = stride_o[i];
+    api.format = 0;
+
+    // NV format temp buffer flags and pointers
+    int is_nv_format = (input.image_format == FORMAT_NV12 || input.image_format == FORMAT_NV21 ||
+                        input.image_format == FORMAT_NV16 || input.image_format == FORMAT_NV61);
+    bm_device_mem_t nv_temp_in_mem, nv_temp_out_mem;
+    int nv_temp_in_alloc = 0, nv_temp_out_alloc = 0;
+
+    if (is_nv_format) {
+        size_t temp_in_size = (size_t)stride_i[0] * input.height * 2;
+        size_t temp_out_size = (size_t)stride_o[0] * input.height * 2;
+        if (bm_malloc_device_byte(handle, &nv_temp_in_mem, temp_in_size) != BM_SUCCESS) goto nv_cleanup;
+        nv_temp_in_alloc = 1;
+        if (bm_malloc_device_byte(handle, &nv_temp_out_mem, temp_out_size) != BM_SUCCESS) goto nv_cleanup;
+        nv_temp_out_alloc = 1;
+
+        api.channel = 3;
+        api.width = input.width;
+        api.height = input.height;
+        api.stride_i = stride_i[0];
+        api.stride_o = stride_o[0];
+        api.input_addr[0] = bm_mem_get_device_addr(input_mem[0]);
+        api.input_addr[1] = bm_mem_get_device_addr(input_mem[1]);
+        api.input_addr[2] = bm_mem_get_device_addr(nv_temp_in_mem);
+        api.output_addr[0] = bm_mem_get_device_addr(output_mem[0]);
+        api.output_addr[1] = bm_mem_get_device_addr(output_mem[1]);
+        api.output_addr[2] = bm_mem_get_device_addr(nv_temp_out_mem);
+        api.format = input.image_format;
+    } else {
+        for (int i = 0; i < channel; i++) {
+            api.input_addr[i] = bm_mem_get_device_addr(input_mem[i]);
+            api.output_addr[i] = bm_mem_get_device_addr(output_mem[i]);
+            api.width = input.image_private->memory_layout[i].W / (api.is_packed ? 3 : 1);
+            api.height = input.image_private->memory_layout[i].H;
+            api.stride_i = stride_i[i];
+            api.stride_o = stride_o[i];
+        }
     }
     if (input.image_format == FORMAT_RGB_PLANAR ||
         input.image_format == FORMAT_BGR_PLANAR) {
@@ -203,7 +255,7 @@ bm_status_t bmcv_image_gaussian_blur(bm_handle_t handle, bm_image input, bm_imag
                     if_core0 = 0;
                     if_core1 = 1;
                     bmlib_log("GAUSSIAN_BLUR", BMLIB_LOG_DEBUG, "Use TPU Core1\n");
-                } else if (strcmp(tpu_env, "2") == 0 || strcmp(tpu_env, "both") == 0) {
+                } else if (is_dual_core_enabled()) {
                     if_core1 = 1;
                     bmlib_log("GAUSSIAN_BLUR", BMLIB_LOG_DEBUG, "Use ALL TPU Cores(0 and 1)\n");
                 } else {
@@ -234,10 +286,10 @@ bm_status_t bmcv_image_gaussian_blur(bm_handle_t handle, bm_image input, bm_imag
                     tpu_params[n].param_size = sizeof(sg_api_cv_gaussian_blur_dual_core_t);
                 }
 
-                ret = bm_tpu_kernel_launch_dual_core(handle, "cv_gaussian_blur_dual_core", tpu_params, core_list, BM1688_MAX_CORES);
+                ret = bm_tpu_kernel_launch_dual_core(handle, "cv_gaussian_blur_dual_core_split_col", tpu_params, core_list, BM1688_MAX_CORES);
             } else {
                 int core_id = if_core1 == 1 ? 1 : 0;
-                ret = bm_tpu_kernel_launch(handle, "cv_gaussian_blur", (u8 *)&api, sizeof(api), core_id);
+                ret = bm_tpu_kernel_launch(handle, "cv_gaussian_blur_split_col", (u8 *)&api, sizeof(api), core_id);
             }
 
             if (BM_SUCCESS != ret) {
@@ -254,6 +306,13 @@ bm_status_t bmcv_image_gaussian_blur(bm_handle_t handle, bm_image input, bm_imag
             bm_free_device(handle,output_mem[0]);
         }
     }
+
+    // NV post-processing is now done on device side
+
+nv_cleanup:
+    if (nv_temp_in_alloc)  bm_free_device(handle, nv_temp_in_mem);
+    if (nv_temp_out_alloc) bm_free_device(handle, nv_temp_out_mem);
+
     sg_free_device_mem(handle, kernel_mem);
     free(tpu_kernel);
     return ret;

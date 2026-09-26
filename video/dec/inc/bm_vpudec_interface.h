@@ -137,6 +137,13 @@ typedef enum {
     BMDEC_BS_MODE_PIC_END   = 2,    /**< Picture end mode */
 } BmVpuDecBitStreamMode;
 
+typedef enum {
+    BMDEC_MMU_DISBALE = 0,
+    RMDEC_MMU_PAGE_2M,
+    RMDEC_MMU_PAGE_1M,
+    RMDEC_MMU_PAGE_512K,
+} BmVpuDecMmuConfig;
+
 typedef enum
 {
     BM_VPU_DEC_PIX_FORMAT_YUV420P = 0,   /* planar 4:2:0 chroma_interleave is 0;*/
@@ -186,6 +193,9 @@ typedef struct {
     BmVpuDecDMABuffer*          frame_buffer;
     BmVpuDecDMABuffer*          Ytable_buffer;
     BmVpuDecDMABuffer*          Ctable_buffer;
+#ifdef MEDIA_V3
+    BmVpuDecMmuConfig           mmu_config;
+#endif
     int                         reserved[13];
 } BMVidDecParam;
 

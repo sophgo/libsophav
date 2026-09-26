@@ -100,6 +100,8 @@ bmcv_faiss_indexflatIP
 
 6. 该接口可通过设置环境变量启用双核计算，运行程序前：export TPU_CORES=2或export TPU_CORES=both即可。
 
+7. 当输入数据类型为 char (input_dtype=1) 时，sort_cnt 需小于等于 128，否则接口返回 BM_NOT_SUPPORTED。
+
 
 **示例代码：**
 

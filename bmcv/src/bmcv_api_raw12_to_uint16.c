@@ -14,14 +14,35 @@ static bm_status_t bmcv_raw12_to_uint16_check(bm_handle_t handle, int width, int
         bmlib_log("RAW12_TO_UINT16", BMLIB_LOG_ERROR, "Can not get handle!\r\n");
         return BM_ERR_PARAM;
     }
-    if (width != 640) {
-        bmlib_log("RAW12_TO_UINT16", BMLIB_LOG_ERROR, "width must be 640!\r\n");
+
+    struct {
+        int width;
+        int height;
+    } supported_sizes[] = {
+        {640, 480},
+        {640, 1932},
+        {640, 3864},
+        {640, 5796},
+        {320, 972},
+        {320, 1944},
+        {320, 2916}
+    };
+
+    int size_supported = 0;
+
+    for (int i = 0; i < sizeof(supported_sizes)/sizeof(supported_sizes[0]); i++) {
+        if (width == supported_sizes[i].width && height == supported_sizes[i].height) {
+            size_supported = 1;
+            break;
+        }
+    }
+
+    if (!size_supported) {
+        bmlib_log("RAW12_TO_UINT16", BMLIB_LOG_ERROR,
+                 "Unsupported size! Supported sizes: 640x480, 640x1932, 640x3864, 640x5796, 320x972, 320x1944, 320x2916\n");
         return BM_ERR_PARAM;
     }
-    if (height != 480) {
-        bmlib_log("RAW12_TO_UINT16", BMLIB_LOG_ERROR, "height must be 480!\r\n");
-        return BM_ERR_PARAM;
-    }
+
     return BM_SUCCESS;
 }
 

@@ -94,6 +94,21 @@ bm_status_t bm_ive_lbp(
     bm_image *               output,
     bmcv_ive_lbp_ctrl_attr * lbp_attr);
 
+#ifdef MEDIA_V3
+bm_status_t bm_ive_dilate(
+    bm_handle_t           handle,
+    bm_image *            input,
+    bm_image *            output,
+    unsigned char *       dilate_mask,
+    unsigned char         ksize);
+
+bm_status_t bm_ive_erode(
+    bm_handle_t           handle,
+    bm_image *            input,
+    bm_image *            output,
+    unsigned char *       erode_mask,
+    unsigned char         ksize);
+#else
 bm_status_t bm_ive_dilate(
     bm_handle_t           handle,
     bm_image *            input,
@@ -105,6 +120,7 @@ bm_status_t bm_ive_erode(
     bm_image *            input,
     bm_image *            output,
     unsigned char *       erode_mask);
+#endif
 
 bm_status_t bm_ive_mag_and_ang(
     bm_handle_t                   handle,
@@ -113,12 +129,21 @@ bm_status_t bm_ive_mag_and_ang(
     bm_image *                    ang_output,
     bmcv_ive_mag_and_ang_ctrl *   attr);
 
+#ifdef MEDIA_V3
 bm_status_t bm_ive_sobel(
-    bm_handle_t           handle,
-    bm_image *            input,
-    bm_image *            outputH,
-    bm_image *            outputV,
-    bmcv_ive_sobel_ctrl * sobel_attr);
+    bm_handle_t               handle,
+    bm_image *                input,
+    bm_image *                outputH,
+    bm_image *                outputV,
+    bmcv_ive_sobel_ext_ctrl * sobel_attr);
+#else
+bm_status_t bm_ive_sobel(
+    bm_handle_t               handle,
+    bm_image *                input,
+    bm_image *                outputH,
+    bm_image *                outputV,
+    bmcv_ive_sobel_ctrl *     sobel_attr);
+#endif
 
 bm_status_t bm_ive_normgrad(
     bm_handle_t              handle,
@@ -153,11 +178,19 @@ bm_status_t bm_ive_canny_hsy_edge(
     bm_device_mem_t *              output_stack,
     bmcv_ive_canny_hys_edge_ctrl * canny_hys_edge_attr);
 
+#ifdef MEDIA_V3
+bm_status_t bm_ive_filter(
+    bm_handle_t                  handle,
+    bm_image                     input,
+    bm_image                     output,
+    bmcv_ive_filter_ext_ctrl     filter_attr);
+#else
 bm_status_t bm_ive_filter(
     bm_handle_t                  handle,
     bm_image                     input,
     bm_image                     output,
     bmcv_ive_filter_ctrl         filter_attr);
+#endif
 
 bm_status_t bm_ive_csc(
     bm_handle_t     handle,
