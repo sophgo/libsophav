@@ -65,7 +65,7 @@ void resizeMode_to_str(bmcv_resize_algorithm enMode, char* res) {
         strcpy(res, "BMCV_INTER_LINEAR");
         break;
     case BMCV_INTER_AREA:
-        strcpy(res, "BMCV_INTER_LINEAR");
+        strcpy(res, "BMCV_INTER_AREA");
         break;
     default:
         printf("Not support such mode in ive \n");
@@ -151,6 +151,7 @@ static void *ive_resize(void* arg) {
     }
     time_avg = time_total / loop_time;
     fps_actual = 1000000 / time_avg;
+
     if (ctx.i == 0) {
         for (int j = 0; j < IMG_NUM; j++) {
             int image_byte_size[4] = {0};

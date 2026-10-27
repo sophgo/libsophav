@@ -256,7 +256,7 @@ static int rotate_tpu(
         unsigned char *input_addr[3] = {input, input + height * width, input + 2 * height * width};
         bm_image_copy_host_to_device(input_img, (void **)(input_addr));
     }
-
+    
     gettimeofday(&t1, NULL);
     if(format == FORMAT_NV12 || format == FORMAT_NV21) {
         ret = bmcv_image_rotate_trans(handle, nv12_input_img, output_img, rotation_angle);
@@ -464,7 +464,7 @@ void* test_rotate(void* args) {
         count++;
         if (0 != test_rotate_random(thread_idx, width, height, format, rotation_angle, use_real_img, input_path, output_path, handle)){
             printf("------TEST CV_ROTATE FAILED------\n");
-            bm_dev_free(handle);
+            bm_dev_free(handle); 
             exit(-1);
         }
         printf("------TEST CV_ROTATE PASSED!------%d\n", count);

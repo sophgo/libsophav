@@ -49,7 +49,7 @@ bmcv_image_vpp_stitch
       - 在src image上，各个目标小图的坐标和宽高信息。
     * - algorithm
       - 输入
-      - resize 算法选择，包括 BMCV_INTER_NEAREST、BMCV_INTER_LINEAR 和 BMCV_INTER_BICUBIC三种，默认情况下是双线性差值。
+      - resize 算法选择，包括 BMCV_INTER_NEAREST、BMCV_INTER_LINEAR、BMCV_INTER_AREA 和 BMCV_INTER_BICUBIC 四种，默认情况下是双线性差值。
 
 | 【返回值】
 

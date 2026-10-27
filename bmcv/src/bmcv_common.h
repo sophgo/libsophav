@@ -509,25 +509,27 @@ typedef struct sg_api_cv_gaussian_blur {
   float delta;
   int is_packed;
   int out_type;
+  int format;
 }__attribute__((packed)) sg_api_cv_gaussian_blur_t;
 
 typedef struct sg_api_cv_gaussian_blur_dual_core {
-  int channel;
-  u64 input_addr[3];
-  u64 kernel_addr;
-  u64 output_addr[3];
-  int width;
-  int height;
-  int kw;
-  int kh;
-  int stride_i;
-  int stride_o;
-  float delta;
-  int is_packed;
-  int out_type;
-  int core_id;
-  int core_num;
-  int base_msg_id;
+    int channel;
+    u64 input_addr[3];
+    u64 kernel_addr;
+    u64 output_addr[3];
+    int width;
+    int height;
+    int kw;
+    int kh;
+    int stride_i;
+    int stride_o;
+    float delta;
+    int is_packed;
+    int out_type;
+    int format;
+    int core_id;
+    int core_num;
+    int base_msg_id;
 }__attribute__((packed)) sg_api_cv_gaussian_blur_dual_core_t;
 
 typedef struct bm_api_cv_bayer2rgb {

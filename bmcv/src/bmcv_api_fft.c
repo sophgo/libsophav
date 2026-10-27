@@ -249,7 +249,7 @@ static bm_status_t bmcv_fft_0d_execute(bm_handle_t handle, bm_device_mem_t input
     return ret;
 }
 
-static bm_status_t bmcv_fft_1d_execute_bm1684X(bm_handle_t handle, bm_device_mem_t inputReal,
+static bm_status_t bmcv_fft_1d_execute(bm_handle_t handle, bm_device_mem_t inputReal,
                                        bm_device_mem_t inputImag, bm_device_mem_t outputReal,
                                        bm_device_mem_t outputImag, const void *plan, bool realInput,
                                        int trans)
@@ -259,7 +259,6 @@ static bm_status_t bmcv_fft_1d_execute_bm1684X(bm_handle_t handle, bm_device_mem
     struct FFT1DPlan* P = (struct FFT1DPlan*)plan;
     int i;
     int core_id = 0;
-    unsigned int chipid;
 
     api.XR = bm_mem_get_device_addr(inputReal);
     api.XI = realInput ? 0 : bm_mem_get_device_addr(inputImag);
@@ -279,56 +278,10 @@ static bm_status_t bmcv_fft_1d_execute_bm1684X(bm_handle_t handle, bm_device_mem
         api.factors[i] = P->factors[i];
     }
 
-    ret = bm_get_chipid(handle, &chipid);
-    if (ret) {
-        printf("get chipid is error !\n");
-        return BM_ERR_FAILURE;
-    }
-    switch(chipid) {
-        case BM1688_PREV:
-        case BM1688:
-            ret = bm_tpu_kernel_launch(handle, "cv_fft", (u8*)(&api), sizeof(api), core_id);
-            if(ret != BM_SUCCESS){
-                bmlib_log("FFT_1D", BMLIB_LOG_ERROR, "fft_1d sync api error\n");
-                return ret;
-            }
-            break;
-        default:
-            printf("BM_NOT_SUPPORTED!\n");
-            ret = BM_NOT_SUPPORTED;
-            break;
-    }
-    return ret;
-}
-
-static bm_status_t bmcv_fft_1d_execute(bm_handle_t handle, bm_device_mem_t inputReal,
-                                       bm_device_mem_t inputImag, bm_device_mem_t outputReal,
-                                       bm_device_mem_t outputImag, const void *plan, bool realInput,
-                                       int trans)
-{
-    unsigned int chipid;
-    bm_status_t ret = BM_SUCCESS;
-
-    ret = bm_get_chipid(handle, &chipid);
-    if (ret) {
-        printf("get chipid is error !\n");
-        return BM_ERR_FAILURE;
-    }
-    switch(chipid) {
-        case BM1688_PREV:
-        case BM1688:
-            ret = bmcv_fft_1d_execute_bm1684X(handle, inputReal, inputImag, outputReal, outputImag,
-                                            plan, realInput, trans);
-            if(ret != BM_SUCCESS){
-                bmlib_log("FFT", BMLIB_LOG_ERROR, "fft_1d sync api error\n");
-                return ret;
-            }
-            break;
-
-        default:
-            printf("BM_NOT_SUPPORTED!\n");
-            ret = BM_NOT_SUPPORTED;
-            break;
+    ret = bm_tpu_kernel_launch(handle, "cv_fft", (u8*)(&api), sizeof(api), core_id);
+    if(ret != BM_SUCCESS){
+        bmlib_log("FFT_1D", BMLIB_LOG_ERROR, "fft_1d sync api error\n");
+        return ret;
     }
     return ret;
 }

@@ -558,6 +558,61 @@ void put_text(bmMat mat, const char* text, bmcv_point_t org, int fontFace, float
     return;
 }
 
+/*
+ * Segmented layout of the 24x24 bitmap font bmcv_test_res_2424_unicode_1.
+ * Each glyph is 24 rows x 3 bytes = 72 bytes, MSB-first per row,
+ * same convention as the ASCII font 1624_ez.
+ *
+ *   [0x000000] U+3400-U+9FA5  x27558  1984176 B  Han ideographs (legacy data, bytes unchanged)
+ *   [0x1E46B0] U+3000-U+303F  x   64    4608 B  CJK punctuation
+ *   [0x1E58B0] U+3040-U+30FF  x  192   13824 B  Hiragana / Katakana
+ *   [0x1E8EB0] U+AC00-U+D7A3  x11172  804384 B  Hangul syllables
+ *   [0x2AD4D0] U+FF00-U+FFEF  x  240   17280 B  Fullwidth forms
+ *
+ * The table is ordered by ascending offset, matching the physical font order;
+ * a linear scan is fast enough (at most 4 comparisons).
+ */
+#define CJK_GLYPH_BYTES 72
+#define HAN_START       0x3400
+#define HAN_END         0x9FA5
+
+typedef struct {
+    unsigned int start;
+    unsigned int count;
+    unsigned int offset;
+} cjk_range_t;
+
+static const cjk_range_t g_cjk_ranges[] = {
+    { 0x3000,   64, 1984176 },   /* CJK punctuation */
+    { 0x3040,  192, 1988784 },   /* Hiragana / Katakana */
+    { 0xAC00, 11172, 2002608 },  /* Hangul syllables */
+    { 0xFF00,  240, 2806992 },   /* Fullwidth forms */
+};
+#define CJK_RANGE_NUM (sizeof(g_cjk_ranges) / sizeof(g_cjk_ranges[0]))
+#define CJK_INVALID_OFFSET ((unsigned int)-1)
+
+/*
+ * Return the byte offset of the 24x24 glyph for a codepoint.
+ * CJK_INVALID_OFFSET means the font has no glyph for it.
+ */
+static inline unsigned int cjk_glyph_offset(unsigned int cp)
+{
+    unsigned int k;
+
+    if (cp >= HAN_START && cp <= HAN_END) {
+        return (cp - HAN_START) * CJK_GLYPH_BYTES;
+    }
+
+    for (k = 0; k < CJK_RANGE_NUM; ++k) {
+        const cjk_range_t* r = &g_cjk_ranges[k];
+        if (cp >= r->start && cp < r->start + r->count) {
+            return r->offset + (cp - r->start) * CJK_GLYPH_BYTES;
+        }
+    }
+
+    return CJK_INVALID_OFFSET;
+}
+
 static void paint_mat(unsigned char* font_buff, unsigned long offset, int datasize, int stride,
     unsigned char* vir_addr, bmcv_color_t color, unsigned char fontScale, unsigned char is_ascii){
 
@@ -746,10 +801,10 @@ bm_status_t bmcv_gen_text_watermark(
     fontscale_u8 = fontscale_u8 > 10 ? 10 : fontscale_u8;
     fontscale_u8 = fontscale_u8 < 1 ? 1 : fontscale_u8;
     for (int m = 0; hexcode[m] != 0; m++){
-        if (hexcode[m] > 0x3400)
+        if (cjk_glyph_offset((unsigned int)hexcode[m]) != CJK_INVALID_OFFSET)
             hz_num++;
         else
-            en_num++;
+            en_num++;   /* all non-CJK chars are laid out with the ASCII width of 11 */
     }
 
     output_w = ALIGN_TO((hz_num * 24 + en_num * 11) * fontscale_u8, 4);
@@ -782,14 +837,22 @@ bm_status_t bmcv_gen_text_watermark(
     memset((void*)virt_addr, 0, 24 * fontscale_u8 * stride_w);
 
     for (int m = 0; m < hz_num + en_num; m++){
-        if (hexcode[m] > 0x3400){ //zh start 0x3400
-            // zh 72 byte store
-            offset = (hexcode[m] - 13312) * 72;
+        unsigned int cp = (unsigned int)hexcode[m];
+        offset = cjk_glyph_offset(cp);
+        if (offset != CJK_INVALID_OFFSET){
+            /* 24x24 font (72 B per glyph): Han / kana / Hangul / fullwidth */
+            if (idx + 24 * fontscale_u8 > output_w)
+                break;  /* defensive truncation to avoid writing out of bounds */
             paint_mat(HZK, offset, datasize, stride_w, (unsigned char*)virt_addr + idx * datasize,
                 color, fontscale_u8, false);
             idx += 24 * fontscale_u8;
-        } else { // en 48 byte store, ASCll start 32
-            offset = (hexcode[m] - 32) * 48;
+        } else {
+            /* 16x24 font (48 B per glyph), ASCII starts at 32; fall back to '?' when absent */
+            if (cp < 32 || cp > 127)
+                cp = '?';
+            if (idx + 11 * fontscale_u8 > output_w)
+                break;
+            offset = (cp - 32) * 48;
             paint_mat(ASCII, offset, datasize, stride_w, (unsigned char*)virt_addr + idx * datasize,
                 color, fontscale_u8, true);
             idx += 11 * fontscale_u8;

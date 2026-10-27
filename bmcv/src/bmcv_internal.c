@@ -88,7 +88,16 @@ int find_tpufirmaware_path(char fw_path[512], const char* path){
         return ret;
     }
 
-    /* 3.test libbmcv_so_path/libbm1688_kernel_module.so */
+    /* 3 test /lib/libbm1688_kernel_module.so */
+    memset(fw_path, 0, 512);
+    strcpy(fw_path, "/lib/");
+    strcat(fw_path, path);
+    ret = access(fw_path, F_OK);
+    if (ret == 0) {
+        return ret;
+    }
+
+    /* 4.test libbmcv_so_path/libbm1688_kernel_module.so */
     ret = dladdr((void*)find_tpufirmaware_path, &dl_info);
     if (ret == 0){
         printf("dladdr() failed: %s\n", dlerror());
@@ -166,7 +175,7 @@ bm_status_t bm_load_tpu_module(bm_handle_t handle, tpu_kernel_module_t *tpu_modu
     static bool first = true;
     if(first){
         if(0 != find_tpufirmaware_path(fw_path, fw_fname)){
-            printf("libbm1688_kernel_module.so does not exist\n");
+            printf("%s does not exist\n", fw_fname);
             return BM_ERR_FAILURE;
         }
         first = false;
@@ -198,7 +207,15 @@ bm_status_t bm_tpu_kernel_launch(bm_handle_t handle,
         return BM_ERR_FAILURE;
     }
     func_id = tpu_kernel_get_function_from_core(handle, tpu_module, (char*)func_name, core_id);
+#ifdef MEDIA_V3
+    ret = tpu_kernel_launch_from_multi_cores(handle, func_id, param, size, 1, 1);
+    /* 84x6 launch is async: sync before unloading the module */
+    if (ret == BM_SUCCESS) {
+        bm_thread_sync_from_core(handle, core_id);
+    }
+#else
     ret = tpu_kernel_launch_from_core(handle, func_id, param, size, core_id);
+#endif
     if(BM_SUCCESS != tpu_kernel_free_module(handle, tpu_module)){
         printf("tpu module unload failed \n");
         return BM_ERR_FAILURE;
@@ -681,51 +698,45 @@ bm_status_t update_memory_layout(bm_handle_t     handle,
                                   bm_device_mem_t dst,
                                   plane_layout    dst_layout){
     ASSERT(src_layout.data_size == dst_layout.data_size &&
-            src_layout.C == dst_layout.C && src_layout.N == dst_layout.N);
+        src_layout.C == dst_layout.C && src_layout.N == dst_layout.N);
 
-  int N = bm_min(src_layout.N, dst_layout.N);
-  int C = bm_min(src_layout.C, dst_layout.C);
-  int H = bm_min(src_layout.H, dst_layout.H);
-  int W = bm_min(src_layout.W, dst_layout.W);
-
-  bm_api_cv_width_align_t api = {bm_mem_get_device_addr(src),
-                                 bm_mem_get_device_addr(dst),
-                                 N,
-                                 C,
-                                 H,
-                                 W,
-                                 src_layout.batch_stride / src_layout.data_size,
-                                 src_layout.channel_stride / src_layout.data_size,
-                                 src_layout.pitch_stride / src_layout.data_size,
-                                 dst_layout.batch_stride / dst_layout.data_size,
-                                 dst_layout.channel_stride / dst_layout.data_size,
-                                 dst_layout.pitch_stride / dst_layout.data_size,
-                                 src_layout.data_size
-                                 };
-
-  bm_api_cv_width_align_dual_core_t api_dual_core = {bm_mem_get_device_addr(src),
-                                           bm_mem_get_device_addr(dst),
-                                           N,
-                                           C,
-                                           H,
-                                           W,
-                                           src_layout.batch_stride / src_layout.data_size,
-                                           src_layout.channel_stride / src_layout.data_size,
-                                           src_layout.pitch_stride / src_layout.data_size,
-                                           dst_layout.batch_stride / dst_layout.data_size,
-                                           dst_layout.channel_stride / dst_layout.data_size,
-                                           dst_layout.pitch_stride / dst_layout.data_size,
-                                           src_layout.data_size
-                                           };
-    int core_id = 0;
-    unsigned int chipid;
     bm_status_t ret = BM_SUCCESS;
+    int core_id = 0;
+    int N = bm_min(src_layout.N, dst_layout.N);
+    int C = bm_min(src_layout.C, dst_layout.C);
+    int H = bm_min(src_layout.H, dst_layout.H);
+    int W = bm_min(src_layout.W, dst_layout.W);
 
-    ret = bm_get_chipid(handle, &chipid);
-    if (ret != BM_SUCCESS) {
-        printf("get chipid is error !\n");
-        return BM_ERR_DEVNOTREADY;
-    }
+    bm_api_cv_width_align_t api = {
+        bm_mem_get_device_addr(src),
+        bm_mem_get_device_addr(dst),
+        N,
+        C,
+        H,
+        W,
+        src_layout.batch_stride / src_layout.data_size,
+        src_layout.channel_stride / src_layout.data_size,
+        src_layout.pitch_stride / src_layout.data_size,
+        dst_layout.batch_stride / dst_layout.data_size,
+        dst_layout.channel_stride / dst_layout.data_size,
+        dst_layout.pitch_stride / dst_layout.data_size,
+        src_layout.data_size};
+#ifndef MEDIA_V3
+    bm_api_cv_width_align_dual_core_t api_dual_core = {
+        bm_mem_get_device_addr(src),
+        bm_mem_get_device_addr(dst),
+        N,
+        C,
+        H,
+        W,
+        src_layout.batch_stride / src_layout.data_size,
+        src_layout.channel_stride / src_layout.data_size,
+        src_layout.pitch_stride / src_layout.data_size,
+        dst_layout.batch_stride / dst_layout.data_size,
+        dst_layout.channel_stride / dst_layout.data_size,
+        dst_layout.pitch_stride / dst_layout.data_size,
+        src_layout.data_size};
+
     tpu_launch_param_t launch_params[BM1688_MAX_CORES];
     int if_core0 = 1;
     int if_core1 = 0;
@@ -767,35 +778,18 @@ bm_status_t update_memory_layout(bm_handle_t     handle,
             launch_params[core_idx].param_data = &params[core_idx];
             launch_params[core_idx].param_size = sizeof(bm_api_cv_width_align_dual_core_t);
         }
-        switch (chipid) {
-            case BM1688_PREV:
-            case BM1688:
-                ret = bm_tpu_kernel_launch_dual_core(handle, "cv_width_align_bm1688", launch_params, core_list, core_nums);
-                if(BM_SUCCESS != ret) {
-                    bmlib_log("QUANTIFY", BMLIB_LOG_ERROR, "quantify sync api error\n");
-                    return ret;
-                }
-                break;
-            default:
-                ret = BM_NOT_SUPPORTED;
-                printf("BM_NOT_SUPPORTED!\n");
-                break;
+        ret = bm_tpu_kernel_launch_dual_core(handle, "cv_width_align_bm1688", launch_params, core_list, core_nums);
+        if(BM_SUCCESS != ret) {
+            bmlib_log("WIDTH_ALIGN", BMLIB_LOG_ERROR, "cv_width_align_bm1688 sync api error\n");
+            return ret;
         }
-    } else {
-        switch (chipid) {
-            case BM1688_PREV:
-            case BM1688:
-                ret = bm_tpu_kernel_launch(handle, "cv_width_align", (u8*)&api, sizeof(api), core_id);
-                if(BM_SUCCESS != ret){
-                    bmlib_log("WIDTH_ALIGN", BMLIB_LOG_ERROR, "width_align sync api error\n");
-                    return ret;
-                }
-                break;
-
-            default:
-                printf("ChipID is NOT supported\n");
-                ret = BM_ERR_NOFEATURE;
-                break;
+    } else
+#endif
+    {
+        ret = bm_tpu_kernel_launch(handle, "cv_width_align", (u8*)&api, sizeof(api), core_id);
+        if(BM_SUCCESS != ret) {
+            bmlib_log("WIDTH_ALIGN", BMLIB_LOG_ERROR, "width_align sync api error\n");
+            return ret;
         }
     }
 
@@ -1333,7 +1327,7 @@ bm_status_t bm_destroy_dwa_fd(void){
     return BM_SUCCESS;
 }
 
-int open_device(const char *dev_name, int *fd)
+int bmcv_open_device(const char *dev_name, int *fd)
 {
   struct stat st;
 
@@ -1359,7 +1353,7 @@ int open_device(const char *dev_name, int *fd)
   return 0;
 }
 
-int close_device(int *fd)
+int bmcv_close_device(int *fd)
 {
   if (*fd == -1)
     return -1;

@@ -33,7 +33,6 @@ static bm_status_t bmcv_win(bm_device_mem_t XR, bm_device_mem_t XI, bm_device_me
 {
     bm_api_win api;
     int core_id = 0;
-    unsigned int chipid;
     bm_status_t ret = BM_SUCCESS;
 
     api.XR = bm_mem_get_device_addr(XR);
@@ -43,25 +42,10 @@ static bm_status_t bmcv_win(bm_device_mem_t XR, bm_device_mem_t XI, bm_device_me
     api.L = n_fft;
     api.real_input = real_input;
 
-    ret = bm_get_chipid(handle, &chipid);
-    if (ret) {
-        printf("get chipid is error !\n");
-        return BM_ERR_FAILURE;
-    }
-
-    switch(chipid) {
-        case BM1688_PREV:
-        case BM1688:
-            ret = bm_tpu_kernel_launch(handle, "cv_fft_window", (u8*)(&api), sizeof(api), core_id);
-            if(ret != BM_SUCCESS){
-                bmlib_log("FFT_WINDOW", BMLIB_LOG_ERROR, "cv_fft_window sync api error\n");
-                return ret;
-            }
-            break;
-        default:
-            printf("BMCV_WIN BM_NOT_SUPPORTED!\n");
-            ret = BM_NOT_SUPPORTED;
-            break;
+    ret = bm_tpu_kernel_launch(handle, "cv_fft_window", (u8*)(&api), sizeof(api), core_id);
+    if(ret != BM_SUCCESS){
+        bmlib_log("FFT_WINDOW", BMLIB_LOG_ERROR, "cv_fft_window sync api error\n");
+        return ret;
     }
 
     return ret;
@@ -75,7 +59,6 @@ static bm_status_t bmcv_fft_apply(bm_handle_t handle, bm_device_mem_t inputReal,
     struct FFT1DPlan* P = (struct FFT1DPlan*)plan;
     int i;
     int core_id = 0;
-    unsigned int chipid;
 
     api.XR = bm_mem_get_device_addr(inputReal);
     api.XI = realInput ? 0 : bm_mem_get_device_addr(inputImag);
@@ -94,24 +77,10 @@ static bm_status_t bmcv_fft_apply(bm_handle_t handle, bm_device_mem_t inputReal,
     for (i = 0; i < P->factors_size; i++) {
         api.factors[i] = P->factors[i];
     }
-    ret = bm_get_chipid(handle, &chipid);
-    if (ret) {
-        printf("get chipid is error!\n");
-        return BM_ERR_FAILURE;
-    }
-    switch(chipid) {
-        case BM1688_PREV:
-        case BM1688:
-            ret = bm_tpu_kernel_launch(handle, "cv_fft", (u8*)(&api), sizeof(api), core_id);
-            if(ret != BM_SUCCESS){
-                bmlib_log("FFT_1D", BMLIB_LOG_ERROR, "fft_1d sync api error\n");
-                return ret;
-            }
-            break;
-        default:
-            printf(" BMCV_FFT_APPLY BM_NOT_SUPPORTED!\n");
-            ret = BM_NOT_SUPPORTED;
-            break;
+    ret = bm_tpu_kernel_launch(handle, "cv_fft", (u8*)(&api), sizeof(api), core_id);
+    if(ret != BM_SUCCESS){
+        bmlib_log("FFT_1D", BMLIB_LOG_ERROR, "fft_1d sync api error\n");
+        return ret;
     }
 
     return ret;

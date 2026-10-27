@@ -11,7 +11,7 @@
 #include "test_misc.h"
 
 #ifndef USING_CMODEL
-// #define _FPGA
+// #define _FPGA  _FPGA is now controlled by CMake SUBTYPE=fpga (see bmcv/CMakeLists.txt)
 
 #include "bm_jpeg_interface.h"
 
@@ -105,6 +105,14 @@ typedef signed long long int s64;
 #define MAX_bm_image_CHANNEL 4
 #define BM1688 0x1688
 #define BM1688_PREV 0x1686a200
+#define CV84X6 0x1694
+#ifdef MEDIA_V3
+    #define MAX_ADDR 0x1fffffffff
+    #define MIN_ADDR 0x1000000000
+#else
+    #define MAX_ADDR 0x4ffffffff
+    #define MIN_ADDR 0x100000000
+#endif
 #define COLOR_SPACE_YUV             0
 #define COLOR_SPACE_RGB             1
 #define COLOR_SPACE_HSV             2

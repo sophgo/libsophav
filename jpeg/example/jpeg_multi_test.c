@@ -422,7 +422,7 @@ RUN_LAST_ENC_CMD:
                         memset(&multiConfig.encConfig[i], 0x00, sizeof(EncConfigParam));
                         strcpy(multiConfig.encConfig[i].cfgFileName, str);
                         multiConfig.encConfig[i].device_index = atoi(str_device_index);
-                        if(0 != str_ref[0])
+                        if(strcmp("0", str_ref))
                         {
                             strcpy(multiConfig.encConfig[i].refFileName, str_ref);
                             memset(str_ref, 0, 128);

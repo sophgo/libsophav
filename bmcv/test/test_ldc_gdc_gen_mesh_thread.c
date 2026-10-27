@@ -184,7 +184,8 @@ static void * ldc_gdc_gen_mesh(void * arg)
                     goto fail;
                 }
                 fclose(fp);
-                exit(-1);
+                free(buffer);
+                goto fail;
             }
             free(buffer);
         }
@@ -199,10 +200,14 @@ static void * ldc_gdc_gen_mesh(void * arg)
     printf("idx:%d, bmcv_ldc_gdc_gen_mesh: loop %d cycles, time_max = %llu, time_avg = %llu, fps %llu, %lluM pps\n",
             ctx.i, loop_time, time_max, time_avg, fps_actual, pixel_per_sec);
 
+    bm_image_destroy(&src);
+    bm_image_destroy(&dst);
+    return NULL;
+
 fail:
     bm_image_destroy(&src);
     bm_image_destroy(&dst);
-    return 0;
+    return (void *)-1;   /* failure: reported via pthread_join in main, becomes the exit code */
 }
 
 int main(int argc, char **argv) {
@@ -268,6 +273,7 @@ int main(int argc, char **argv) {
     }
 
     ldc_gdc_ctx ctx[MAX_THREAD_NUM];
+    int test_failed = 0;
 #ifdef __linux__
     pthread_t pid[MAX_THREAD_NUM];
     for (int i = 0; i < test_threads_num; i++) {
@@ -280,15 +286,20 @@ int main(int argc, char **argv) {
         }
     }
     for (int i = 0; i < test_threads_num; i++) {
-        ret = pthread_join(pid[i], NULL);
-        if (ret != 0) {
+        void *thread_ret = NULL;
+        int join_ret = pthread_join(pid[i], &thread_ret);
+        if (join_ret != 0) {
             perror("Thread join failed");
             exit(-1);
+        }
+        if (thread_ret != NULL) {
+            printf("idx:%d, thread test failed\n", i);
+            test_failed = 1;
         }
     }
     bm_dev_free(handle);
     printf("--------ALL THREADS TEST OVER---------\n");
 #endif
 
-    return 0;
+    return test_failed ? -1 : 0;
 }

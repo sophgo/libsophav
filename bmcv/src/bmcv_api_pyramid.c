@@ -47,7 +47,6 @@ bm_status_t bmcv_image_pyramid_down(bm_handle_t handle, bm_image input, bm_image
     int stride_i, stride_o;
     bm_device_mem_t input_mem, output_mem;
     bm_api_cv_pyramid_t api;
-    unsigned int chipid;
     int core_id = 0;
 
     ret = bmcv_pyramid_check(handle, input, output, true);
@@ -111,29 +110,11 @@ bm_status_t bmcv_image_pyramid_down(bm_handle_t handle, bm_image input, bm_image
     api.stride_i = stride_i;
     api.stride_o = stride_o;
 
-    ret = bm_get_chipid(handle, &chipid);
+    ret = bm_tpu_kernel_launch(handle, "cv_pyramid", (u8*)&api, sizeof(api), core_id);
     if (ret != BM_SUCCESS) {
-        printf("get chipid is error !\n");
+        bmlib_log("PYRAMID", BMLIB_LOG_ERROR, "pyramid sync api error\n");
         bm_free_device(handle, kernel_mem);
-        return BM_ERR_FAILURE;
-    }
-
-    switch(chipid) {
-        case BM1688_PREV:
-        case BM1688:
-            ret = bm_tpu_kernel_launch(handle, "cv_pyramid", (u8*)&api,
-                                                sizeof(api), core_id);
-            if (ret != BM_SUCCESS) {
-                bmlib_log("PYRAMID", BMLIB_LOG_ERROR, "pyramid sync api error\n");
-                bm_free_device(handle, kernel_mem);
-                return ret;
-            }
-            break;
-        default:
-            printf("BM_NOT_SUPPORTED!\n");
-            bm_free_device(handle, kernel_mem);
-            ret = BM_NOT_SUPPORTED;
-            break;
+        return ret;
     }
 
     bm_free_device(handle, kernel_mem);

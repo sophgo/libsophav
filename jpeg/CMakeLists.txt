@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 3.16)
 project(jpeg)
 
+if(("${CHIP_NAME}" STREQUAL "cv84x2") OR ("${CHIP_NAME}" STREQUAL "cv84x6"))
+    add_definitions(-DMEDIA_V3)
+endif()
+
 if("${SUBTYPE}" STREQUAL "fpga")
     add_definitions(-DBOARD_FPGA=1)
 endif()

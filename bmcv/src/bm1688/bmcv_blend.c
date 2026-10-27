@@ -43,8 +43,8 @@ struct vdev {
 #define STITCH_TIMEOUT 60000
 pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 
-int open_device(const char *dev_name, int *fd);
-int close_device(int *fd);
+int bmcv_open_device(const char *dev_name, int *fd);
+int bmcv_close_device(int *fd);
 
 static atomic_bool stitch_init_once = ATOMIC_VAR_INIT(false);
 
@@ -66,7 +66,7 @@ static int bm_stitch_dev_open(void)
 
   dev_stitch.fd = -1;
 
-  s32Ret=open_device(DEV_STITCH_NAME, &dev_stitch.fd);
+  s32Ret=bmcv_open_device(DEV_STITCH_NAME, &dev_stitch.fd);
 
   if (-1 == s32Ret)
   {
@@ -82,7 +82,7 @@ static inline int bm_stitch_dev_close(void)
 {
   int s32Ret = BM_SUCCESS;
 
-  s32Ret = close_device(&dev_stitch.fd);
+  s32Ret = bmcv_close_device(&dev_stitch.fd);
   if (s32Ret != BM_SUCCESS) {
     perror("stitch close failed\n");
     s32Ret = BM_ERR_FAILURE;

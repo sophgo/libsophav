@@ -49,44 +49,40 @@ int cpu_add_weighted_float(float* input1, float* input2, float* output,
     return 0;
 }
 
-static void readBin_uchar(const char* path, unsigned char* input_data, int size)
+static int readBin(const char *path, void *input_data, int unit, int count)
 {
     FILE *fp_src = fopen(path, "rb");
-    if (fread((void *)input_data, 1, size, fp_src) < (unsigned int)size) {
-        printf("file size is less than %d required bytes\n", size);
-    };
+    if (fp_src == NULL) {
+        printf("open %s failed!\n", path);
+        return -1;
+    }
+    if (fread(input_data, unit, count, fp_src) < (unsigned int)count) {
+        printf("read %s failed: file size is less than %d required bytes\n", path, (int)(count * unit));
+        fclose(fp_src);
+        return -1;
+    }
 
     fclose(fp_src);
+    return 0;
 }
 
-static void readBin_float(const char* path, float* input_data, int size)
-{
-    FILE *fp_src = fopen(path, "rb");
-    if (fread((void *)input_data, sizeof(float), size, fp_src) < (unsigned int)size) {
-        printf("file size is less than %d required bytes\n", size);
-    };
-
-    fclose(fp_src);
-}
-
-static void writeBin_uchar(const char * path, unsigned char* input_data, int size)
+static int writeBin(const char *path, void *input_data, int unit, int count)
 {
     FILE *fp_dst = fopen(path, "wb");
-    if (fwrite((void *)input_data, 1, size, fp_dst) < (unsigned int)size){
-        printf("file size is less than %d required bytes\n", size);
-    };
+    int written;
+    if (fp_dst == NULL) {
+        printf("open %s failed!\n", path);
+        return -1;
+    }
+    written = fwrite(input_data, unit, count, fp_dst);
+    if (written < count) {
+        printf("write %s failed: only %d of %d elements written\n", path, written, count);
+        fclose(fp_dst);
+        return -1;
+    }
 
     fclose(fp_dst);
-}
-
-static void writeBin_float(const char * path, float* input_data, int size)
-{
-    FILE *fp_dst = fopen(path, "wb");
-    if (fwrite((void *)input_data, sizeof(float), size, fp_dst) < (unsigned int)size){
-        printf("file size is less than %d required bytes\n", size);
-    };
-
-    fclose(fp_dst);
+    return 0;
 }
 
 static void fill_img_uchar(unsigned char* input, int img_size)
@@ -345,8 +341,10 @@ static int test_add_weighted_random(int if_use_img, void* frame, int format, int
 
         if (if_use_img) {
             printf("test real img \n");
-            readBin_uchar(src1_name, input1_data, img_size);
-            readBin_uchar(src2_name, input2_data, img_size);
+            if (readBin(src1_name, input1_data, 1, img_size) ||
+                readBin(src2_name, input2_data, 1, img_size)) {
+                return -1;
+            }
         } else {
             printf("test random data !\n");
             fill_img_uchar(input1_data, img_size);
@@ -377,7 +375,9 @@ static int test_add_weighted_random(int if_use_img, void* frame, int format, int
         }
         if(if_use_img){
             printf("output img by tpu\n");
-            writeBin_uchar(dst_name, output_tpu, img_size);
+            if (writeBin(dst_name, output_tpu, 1, img_size)) {
+                return -1;
+            }
         }
         free(input1_data);
         free(input2_data);
@@ -391,8 +391,10 @@ static int test_add_weighted_random(int if_use_img, void* frame, int format, int
 
         if (if_use_img) {
             printf("test real img \n");
-            readBin_float(src1_name, input1_data, img_size);
-            readBin_float(src2_name, input2_data, img_size);
+            if (readBin(src1_name, input1_data, sizeof(float), img_size) ||
+                readBin(src2_name, input2_data, sizeof(float), img_size)) {
+                return -1;
+            }
         } else {
             printf("test random data !\n");
             fill_img_float(input1_data, img_size);
@@ -423,7 +425,9 @@ static int test_add_weighted_random(int if_use_img, void* frame, int format, int
         }
         if(if_use_img){
             printf("output img by tpu\n");
-            writeBin_float(dst_name, output_tpu, img_size);
+            if (writeBin(dst_name, output_tpu, sizeof(float), img_size)) {
+                return -1;
+            }
         }
         free(input1_data);
         free(input2_data);

@@ -59,86 +59,70 @@ bm_status_t  bmcv_image_axpy(
     api.input_n = input_n;
     api.input_h = input_h;
     api.input_w = input_w;
+    tpu_env = getenv("TPU_CORES");
+    if (tpu_env) {
+        if (strcmp(tpu_env, "0") == 0) {
+            bmlib_log("AXPY", BMLIB_LOG_DEBUG, "Use TPU Core0\n");
+        } else if (strcmp(tpu_env, "1") == 0) {
+            if_core0 = 0;
+            if_core1 = 1;
+            bmlib_log("AXPY", BMLIB_LOG_DEBUG, "Use TPU Core1\n");
+        } else if (strcmp(tpu_env, "2") == 0 || strcmp(tpu_env, "both") == 0) {
+#ifndef MEDIA_V3
+            if_core1 = 1;
+#endif
+            bmlib_log("AXPY", BMLIB_LOG_DEBUG, "Use All TPU Cores(0 and 1)\n");
+        } else {
+            bmlib_log("AXPY", BMLIB_LOG_ERROR, "Invalid TPU_CORES value: %s\n", tpu_env);
+            bmlib_log("AXPY", BMLIB_LOG_ERROR, "Available options: 0, 1, 2/both\n");
+            exit(EXIT_FAILURE);
+        }
+    }
 
-    unsigned int chipid = BM1688;
-    ret = bm_get_chipid(handle, &chipid);
-    if (BM_SUCCESS != ret)
-      return ret;
+    if (if_core0 && if_core1) {
+        bm_api_cv_axpy_dual_core_t dual_api;
+        int core_list[BM1688_MAX_CORES] = {0, 1};
 
-    switch(chipid)
-    {
-        case BM1688_PREV:
-        case BM1688:
-            tpu_env = getenv("TPU_CORES");
-            if (tpu_env) {
-                if (strcmp(tpu_env, "0") == 0) {
-                    bmlib_log("AXPY", BMLIB_LOG_DEBUG, "Use TPU Core0\n");
-                } else if (strcmp(tpu_env, "1") == 0) {
-                    if_core0 = 0;
-                    if_core1 = 1;
-                    bmlib_log("AXPY", BMLIB_LOG_DEBUG, "Use TPU Core1\n");
-                } else if (strcmp(tpu_env, "2") == 0 || strcmp(tpu_env, "both") == 0) {
-                    if_core1 = 1;
-                    bmlib_log("AXPY", BMLIB_LOG_DEBUG, "Use All TPU Cores(0 and 1)\n");
-                } else {
-                    bmlib_log("AXPY", BMLIB_LOG_ERROR, "Invalid TPU_CORES value: %s\n", tpu_env);
-                    bmlib_log("AXPY", BMLIB_LOG_ERROR, "Available options: 0, 1, 2/both\n");
-                    exit(EXIT_FAILURE);
-                }
-            }
+        bm_api_cv_axpy_dual_core_t dual_params[BM1688_MAX_CORES];
+        tpu_launch_param_t tpu_params[BM1688_MAX_CORES];
 
-            if (if_core0 && if_core1) {
-                bm_api_cv_axpy_dual_core_t dual_api;
-                int core_list[BM1688_MAX_CORES] = {0, 1};
+        memcpy(&dual_api, &api, sizeof(bm_api_cv_axpy_t));
 
-                bm_api_cv_axpy_dual_core_t dual_params[BM1688_MAX_CORES];
-                tpu_launch_param_t tpu_params[BM1688_MAX_CORES];
+        dual_api.core_num = BM1688_MAX_CORES;
+        dual_api.base_msg_id = BM1688_BASE_MSG_ID;
 
-                memcpy(&dual_api, &api, sizeof(bm_api_cv_axpy_t));
+        for (int n = 0; n < BM1688_MAX_CORES; n++) {
+            dual_api.core_id = n;
 
-                dual_api.core_num = BM1688_MAX_CORES;
-                dual_api.base_msg_id = BM1688_BASE_MSG_ID;
+            dual_params[n] = dual_api;
+            tpu_params[n].core_id = n;
+            tpu_params[n].param_data = &dual_params[n];
+            tpu_params[n].param_size = sizeof(bm_api_cv_axpy_dual_core_t);
+        }
 
-                for (int n = 0; n < BM1688_MAX_CORES; n++) {
-                    dual_api.core_id = n;
+        ret = bm_tpu_kernel_launch_dual_core(handle, "cv_axpy_dual_core", tpu_params, core_list, BM1688_MAX_CORES);
+    } else {
+        int core_id = if_core1 == 1 ? 1 : 0;
+        ret = bm_tpu_kernel_launch(handle, "cv_axpy", (u8 *)&api, sizeof(api), core_id);
+    }
 
-                    dual_params[n] = dual_api;
-                    tpu_params[n].core_id = n;
-                    tpu_params[n].param_data = &dual_params[n];
-                    tpu_params[n].param_size = sizeof(bm_api_cv_axpy_dual_core_t);
-                }
+    if (BM_SUCCESS != ret) {
+        bmlib_log("AXPY", BMLIB_LOG_ERROR, "axpy sync api error\n");
+        if(bm_mem_get_type(tensor_F) == BM_MEM_TYPE_SYSTEM){
+            bm_free_device(handle, tensor_F_mem);
+        }
 
-                ret = bm_tpu_kernel_launch_dual_core(handle, "cv_axpy_dual_core", tpu_params, core_list, BM1688_MAX_CORES);
+        if (bm_mem_get_type(tensor_X) == BM_MEM_TYPE_SYSTEM) {
+            bm_free_device(handle, tensor_X_mem);
+        }
+        if (bm_mem_get_type(tensor_Y) == BM_MEM_TYPE_SYSTEM) {
+            bm_free_device(handle, tensor_Y_mem);
+        }
+        if (bm_mem_get_type(tensor_A) == BM_MEM_TYPE_SYSTEM) {
+            bm_free_device(handle, tensor_A_mem);
+        }
 
-            } else {
-                int core_id = if_core1 == 1 ? 1 : 0;
-                ret = bm_tpu_kernel_launch(handle, "cv_axpy", (u8 *)&api, sizeof(api), core_id);
-            }
-
-            if (BM_SUCCESS != ret) {
-                bmlib_log("AXPY", BMLIB_LOG_ERROR, "axpy sync api error\n");
-                if(bm_mem_get_type(tensor_F) == BM_MEM_TYPE_SYSTEM){
-                    bm_free_device(handle, tensor_F_mem);
-                }
-
-                if (bm_mem_get_type(tensor_X) == BM_MEM_TYPE_SYSTEM) {
-                    bm_free_device(handle, tensor_X_mem);
-                }
-                if (bm_mem_get_type(tensor_Y) == BM_MEM_TYPE_SYSTEM) {
-                    bm_free_device(handle, tensor_Y_mem);
-                }
-                if (bm_mem_get_type(tensor_A) == BM_MEM_TYPE_SYSTEM) {
-                    bm_free_device(handle, tensor_A_mem);
-                }
-
-                return ret;
-            }
-            break;
-
-        default:
-            printf("BM_NOT_SUPPORTED! \n");
-            ret = BM_NOT_SUPPORTED;
-            break;
+        return ret;
     }
 
     if(bm_mem_get_type(tensor_F) == BM_MEM_TYPE_SYSTEM){

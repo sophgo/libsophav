@@ -5,6 +5,7 @@ count=1
 failed_scripts=""
 bmcv_case=${1:-'all'}
 loop=${2:-1}
+CHIP_NAME="bm1688"
 
 run_command() {
   local command="$1"
@@ -20,6 +21,13 @@ run_command() {
   fi
 
   echo ""
+}
+
+# Record a failure that is not a single test command (missing test data, etc.)
+add_failure() {
+  echo "Command failed: $1"
+  failed_count=$((failed_count + 1))
+  failed_scripts="$failed_scripts$1\n"
 }
 
 run_tde(){
@@ -45,7 +53,7 @@ run_tde(){
   run_command "test_tde_thread warp 1920 1080 10 /opt/sophon/libsophon-current/bin/res/1920x1080_rgb.bin 500 500 10 out/tde_warp2_500x500_rgb.bin 1430 210 1530 180 1430 480 1 1 7dddbd03836eba4af6f08e605353a4ef"
 }
 
-run_vpss() {
+run_vpss_nodata(){
   run_command "test_vpss_convert 1920 1080 0 0 1920 1080 1920 1080 0 10 1 1 1 /opt/sophon/libsophon-current/bin/res/1920x1080_yuv420.bin"
   run_command "test_vpss_convert 1920 1080 480 270 960 540 960 540 8 10 1 1 1 /opt/sophon/libsophon-current/bin/res/1920x1080_rgbp.bin"
   run_command "test_vpss_convert 1920 1080 0 0 1920 1080 666 888 8 9 1 1 1 /opt/sophon/libsophon-current/bin/res/1920x1080_rgbp.bin"
@@ -65,11 +73,6 @@ run_vpss() {
   run_command "test_vpss_fill_rectangle 2048 2048 10 1 2046 0 2 2048 0 255 255 0"
   run_command "test_vpss_fill_rectangle 4096 4096 11 1 4 4 4000 4000 255 125 255 0"
   run_command "test_vpss_watermark 1920 1080 128 128 8 1 900 480 128 128 151 255 152 1 /opt/sophon/libsophon-current/bin/res/128x128_sophgo.bin /opt/sophon/libsophon-current/bin/res/1920x1080_rgbp.bin"
-  run_command "test_vpss_watermark 16 16 16 16 8 1 0 0 32 32 0 0 0 1 vpss_data_add/16x16_rgbp.bin vpss_data_add/water_16x16_u8.bin"
-  run_command "test_vpss_watermark 512 256 64 64 8 1 128 0 64 64 255 255 255 1 vpss_data_add/512x256_rgbp.bin vpss_data_add/water_64x64_binary.raw"
-  run_command "test_vpss_watermark 1920 1080 1920 540 10 1 0 540 1920 540 0 128 255 1 vpss_data_add/512x256_rgb.bin vpss_data_add/water_1920x540_binary.raw"
-  run_command "test_vpss_watermark 4096 4096 1280 720 10 1 2048 2048 1280 720 0 128 255 1 vpss_data_add/4096x4096_rgb.bin vpss_data_add/water_1280x720_binary.raw"
-  run_command "test_vpss_watermark 8192 8192 2048 4096 10 1 0 0 2048 4096 255 0 128 1 vpss_data_add/8192x8192_rgb.bin vpss_data_add/water_2048x4096_u8.bin"
   run_command "test_vpss_convert_to 1920 1080 1.1 0.9 3.14159 10 20 -30 8 1 /opt/sophon/libsophon-current/bin/res/1920x1080_rgbp.bin"
   run_command "test_vpss_convert_to 16 16 1 1 1 0 0 0 8 0"
   run_command "test_vpss_convert_to 512 512 10 10 10 -10 -10 -10 9 0"
@@ -85,34 +88,19 @@ run_vpss() {
   run_command "test_vpss_convert_to_thread"
   run_command "test_vpss_copy_to_thread"
   run_command "test_vpss_draw_rectangle_thread"
-  run_command "test_vpss_draw_rectangle_thread 64 64 0 vpss_data_add/64x64_yuv420.bin 60 60 128 128 null 0 2 2 2b2b07a33ada2cb8bcb8dd9e11002e4b"
-  run_command "test_vpss_draw_rectangle_thread 512 256 2 vpss_data_add/512x256_yuv444.bin 256 128 128 512 null 0 2 1 7c87b47c4a08eac1c43f57acca642069"
-  run_command "test_vpss_draw_rectangle_thread 960 540 3 vpss_data_add/960x540_nv12.bin 100 100 860 340 null 0 2 1 6a52666454a09ee37239804b320cd8dd"
-  run_command "test_vpss_draw_rectangle_thread 1920 1080 4 vpss_data_add/1920x1080_nv21.bin 192 108 2048 2048 null 0 1 2 7da1365102f2e49d8d6910adb7c67b01"
-  run_command "test_vpss_draw_rectangle_thread 4096 4096 10 vpss_data_add/4096x4096_rgb.bin 2048 2048 128 512 null 0 1 1 ed431f366e26b73cd1df3f126b7175ba"
-  run_command "test_vpss_draw_rectangle_thread 8192 8192 14 vpss_data_add/8192x8192_gray.bin 1920 1080 4096 4096 null 0 1 1 032bfa20b1d63b1ff175dcc8eecc1b54"
   run_command "test_vpss_fbd_thread"
   run_command "test_vpss_fill_rectangle_thread"
-  run_command "test_vpss_fill_rectangle_thread 16 16 0 vpss_data_add/16x16_yuv420.bin 14 14 2 2 null 0 2 2 bbe8f73703cf0a128797ac4cbf1b75a8"
-  run_command "test_vpss_fill_rectangle_thread 512 256 2 vpss_data_add/512x256_yuv444.bin 256 128 256 128 null 0 1 2 6b1d50fe3031b258c6efa4574fede1dd"
-  run_command "test_vpss_fill_rectangle_thread 960 540 4 vpss_data_add/960x540_nv21.bin 0 270 480 54 null 0 1 2 be30e62d3a3b5e0a187813a62d588a53"
-  run_command "test_vpss_fill_rectangle_thread 1920 1080 8 vpss_data_add/1920x1080_rgbp.bin 512 653 512 128 null 0 2 1 67321b80e023f5f8eca6f12522a745ac"
-  run_command "test_vpss_fill_rectangle_thread 4096 4096 14 vpss_data_add/4096x4096_gray.bin 4000 400 40 400 null 0 1 1 2d0649d1b0ef3b696edf4900ca9460c2"
-  run_command "test_vpss_fill_rectangle_thread 8192 8192 10 vpss_data_add/8192x8192_rgb.bin 0 0 8192 8192 null 0 1 1 496301de8b1e121eeb211fcaa06349c9"
   run_command "test_vpss_mosaic_thread"
   run_command "test_vpss_padding_thread"
   run_command "test_vpss_stitch_thread"
   run_command "test_vpss_water_thread"
   run_command "test_vpss_point_thread"
   run_command "test_vpss_csc_overlay_thread"
-  run_command "test_vpss_csc_overlay_thread 16 16 0 vpss_data_add/16x16_yuv420.bin 100 16 4 null 0 0 0 2 2 7333e4543e0789361e28108a8c62b0d4"
-  run_command "test_vpss_csc_overlay_thread 960 540 0 vpss_data_add/960x540_yuv420.bin 1920 1080 4 null 1 1820 1080 2 1 e2e24b3f8b9fa47f40303b8834211ff4"
-  run_command "test_vpss_csc_overlay_thread 1920 1080 0 vpss_data_add/1920x1080_yuv420.bin 512 256 4 null 2 256 128 1 2 2e6eab5d4ce68a5b03a75beae1952622"
-  run_command "test_vpss_csc_overlay_thread 8192 8192 0 vpss_data_add/8192x8192_yuv420.bin 8192 8192 4 null 3 1920 4096 1 1 87b69220eecfadffe0825a6d878a0c47"
   run_command "test_gen_text_watermark"
   run_command "test_gen_text_watermark sophgo 255 0 0 0.8 out/text1.bmp 4ea7c1adcd8486388c87abc078b35ef8"
   run_command "test_gen_text_watermark sophgo 255 0 0 0.8 out/text2.bmp 1612a8c95b32310d2478114e5ab439d1 /opt/sophon/libsophon-current/bin/res/1920x1080_nv12.bin 1920 1080 3 99 99"
   run_command "test_gen_text_watermark sophgo 255 0 0 2 out/text3.bmp eda2b2de92dc1b1dfeb6fc686ab35a3a /opt/sophon/libsophon-current/bin/res/1920x1080_yuv420.bin 1920 1080 0 1810 100"
+  run_command 'test_gen_text_watermark "算能 sophgo 산넝 テスト" 255 0 0 0.8 out/text4.bmp 9d77ecec8c520cddff6b7578e446c795'
   run_command "test_vpss_random_thread 10 1000"
   run_command "test_vpss_random_thread 1920 1080 0 0 0 1917 1077 1917 1077 3 0 0"
   run_command "test_vpss_random_thread 1917 1077 0 0 0 1917 1077 1920 1080 3 0 0"
@@ -122,65 +110,91 @@ run_vpss() {
   run_command "test_vpss_convert_thread 1920 1080 0 /opt/sophon/libsophon-current/bin/res/1920x1080_yuv420.bin 0 0 1920 1080 1920 1080 10 out/convert_1920x1080.rgb 1 0"
   run_command "test_vpss_convert_thread 1920 1080 0 /opt/sophon/libsophon-current/bin/res/1920x1080_yuv420.bin 0 0 800 600 800 600 0 out/crop_800x600.yuv420 1 0"
   run_command "test_vpss_convert_thread 1920 1080 0 /opt/sophon/libsophon-current/bin/res/1920x1080_yuv420.bin 0 0 800 600 600 800 0 out/resize_600x800.yuv420 0 0 0 1 1 d2b6a3d00c40c585ef9e2fd2ef725443"
-  run_command "test_vpss_convert_thread 16 16 0 vpss_data_add/16x16_yuv420.bin 0 0 16 16 16 16 0 null 0 0 1 2 2 d6eb8830bac14fb2a536431b3abf532b"
-  run_command "test_vpss_convert_thread 64 64 10 vpss_data_add/64x64_rgb.bin 8 8 40 40 16 16 10 null 1 0 1 2 1 a9fb1210e0cb7a7a566bf8c4d0a1bbee"
-  run_command "test_vpss_convert_thread 960 540 10 vpss_data_add/960x540_rgb.bin 20 20 532 276 256 256 0 null 2 0 1 1 2 d31bd44827d8ca77cf764a68605374bf"
-  run_command "test_vpss_convert_thread 1920 1080 0 vpss_data_add/1920x1080_yuv420.bin 960 540 64 128 1920 1080 10 null 1 0 1 1 1 47141e1d3469fbd2ec08e25a3b1a3838"
   run_command "test_vpss_convert_to_thread 1920 1080 8 /opt/sophon/libsophon-current/bin/res/1920x1080_rgbp.bin 0.5 0.5 0.5 200 200 200 8 out/convert_to_1920x1080.rgbp 0"
-  run_command "test_vpss_convert_to_thread 16 16 8 vpss_data_add/16x16_rgbp.bin 0.1 0.1 0.1 0 0 0 8 null 0 2 2 0b7e25134e6dfef1bfdc715867211e5b"
-  run_command "test_vpss_convert_to_thread 512 256 0 vpss_data_add/512x256_yuv420.bin -0.5 -0.5 -0.5 255 255 255 0 null 0 2 1 5ffa125b62d64c8ad9dd7a6daf38279f"
-  run_command "test_vpss_convert_to_thread 1920 1080 10 vpss_data_add/1920x1080_rgb.bin 0.3 -0.3 0.3 -10 200 -10 10 null 0 1 2 335ccf5d101bbceb4d977ee5e10537b5"
-  run_command "test_vpss_convert_to_thread 4096 4096 14 vpss_data_add/4096x4096_gray.bin 0.8 0.2 0.6 -50 100 -150 14 null 0 1 1 b94d9f8921e64824301c474feec74646"
   run_command "test_vpss_copy_to_thread 800 600 0 /opt/sophon/libsophon-current/bin/res/800x600_yuv420.bin 0 0 1920 1080 /opt/sophon/libsophon-current/bin/res/1920x1080_yuv420.bin  out/copy_to_1920x1080.yuv 0"
-  run_command "test_vpss_copy_to_thread 16 16 8 vpss_data_add/16x16_rgbp.bin 0 0 16 16 vpss_data_add/16x16_rgbp.bin null 0 2 2 fb1126ebf722d0c546595d325f0600fb"
-  run_command "test_vpss_copy_to_thread 512 256 10 vpss_data_add/512x256_rgb.bin 50 50 960 540 vpss_data_add/960x540_rgb.bin null 0 2 1 67c84ead75d0affda77980d3cc78dddf"
-  run_command "test_vpss_copy_to_thread 960 540 10 vpss_data_add/960x540_rgb.bin 500 500 1920 1080 vpss_data_add/1920x1080_rgb.bin null 0 1 2 621c31493ed3c64f8e0c3281ef3a30a9"
-  run_command "test_vpss_copy_to_thread 4096 4096 14 vpss_data_add/4096x4096_gray.bin 4096 4096 8192 8192 vpss_data_add/8192x8192_gray.bin null 0 1 1 98ba545d623d9348e5cd1f5fabb8944e"
   run_command "test_vpss_draw_rectangle_thread 1920 1080 0 /opt/sophon/libsophon-current/bin/res/1920x1080_yuv420.bin 0 0 800 600 out/draw_rect_1920x1080.yuv420 0"
   run_command "test_vpss_fbd_thread 1920 1080 69632 /opt/sophon/libsophon-current/bin/res/fbc/1920x1080_table_y.bin /opt/sophon/libsophon-current/bin/res/fbc/1920x1080_data_y.bin /opt/sophon/libsophon-current/bin/res/fbc/1920x1080_table_c.bin /opt/sophon/libsophon-current/bin/res/fbc/1920x1080_data_c.bin 0 0 1920 1080 1920 1080 0 out/fbd_1920x1080.yuv420 0"
   run_command "test_vpss_fill_rectangle_thread 1920 1080 0 /opt/sophon/libsophon-current/bin/res/1920x1080_yuv420.bin 100 100 200 200 out/fill_rect_1920x1080_yuv420.bin 0"
   run_command "test_vpss_mosaic_thread 1920 1080 10 /opt/sophon/libsophon-current/bin/res/1920x1080_rgb.bin 100 100 500 500 out/mosaic_1920x1080.rgb 0"
+  run_command "test_vpss_padding_thread 1920 1080 0 /opt/sophon/libsophon-current/bin/res/1920x1080_yuv420.bin 0 0 1920 1080 2048 2048 0 out/pad_2048x2048_yuv420.bin 1 0"
+  run_command "test_vpss_padding_thread 1920 1080 0 /opt/sophon/libsophon-current/bin/res/1920x1080_yuv420.bin 0 0 150 150 150 220 0 out/pad_150x220_yuv420.bin 1 0 1 1 14f7de62b33736eda6eb95a4b81c69e7"
+  run_command "test_vpss_stitch_thread 1920 1080 0 /opt/sophon/libsophon-current/bin/res/1920x1080_yuv420.bin 0 0 1920 1080 0 1080 1920 1080 1920 2160 out/stitch_1920x2160_yuv420.bin 0"
+  run_command "test_vpss_water_thread 1920 1080 0 /opt/sophon/libsophon-current/bin/res/1920x1080_yuv420.bin /opt/sophon/libsophon-current/bin/res/128x128_sophgo.bin 16384 128 0 100 100 out/water_1920x1080.yuv420 0"
+  run_command "test_vpss_overlay_thread 1920 1080 10 300 300 17 20 20 /opt/sophon/libsophon-current/bin/res/car_rgb888.rgb /opt/sophon/libsophon-current/bin/res/300x300_argb8888_dog.rgb 663ce7ae1f1b3154a66a6366a6332559"
+  run_command "test_vpss_overlay_thread 1920 1080 10 80 60 30 100 100 /opt/sophon/libsophon-current/bin/res/car_rgb888.rgb /opt/sophon/libsophon-current/bin/res/dog_s_80x60_pngto4444.bin 52e0003832180b4c74b71395c200c72e"
+  run_command "test_vpss_overlay_thread 1920 1080 10 80 60 32  200 200 /opt/sophon/libsophon-current/bin/res/car_rgb888.rgb /opt/sophon/libsophon-current/bin/res/dog_s_80x60_pngto1555.bin a858701cb01131f1356f80c76e7813c0"
+  run_command "test_vpss_flip_thread 1920 1080 0 /opt/sophon/libsophon-current/bin/res/1920x1080_yuv420.bin 1 h_flip.bin 0 1 1 37890f4ab5d6458b57824de9e24ba94f"
+  run_command "test_vpss_flip_thread 1920 1080 0 /opt/sophon/libsophon-current/bin/res/1920x1080_yuv420.bin 2 v_flip.bin 0 1 1 a3a86425b349c6517a2506e4df2334f0"
+  run_command "test_vpss_flip_thread 1920 1080 0 /opt/sophon/libsophon-current/bin/res/1920x1080_yuv420.bin 3 hv_flip.bin 0 1 1 80062a883675498f41d3309cfc6ddb52"
+  run_command "test_vpss_circle_thread 1920 1080 0 /opt/sophon/libsophon-current/bin/res/1920x1080_yuv420.bin 960 540 250 -2 empty.bin 0 1 1 94a364c93d13aad8db3d38146c5ba4fa"
+  run_command "test_vpss_circle_thread 1920 1080 0 /opt/sophon/libsophon-current/bin/res/1920x1080_yuv420.bin 960 540 250 -1 shape.bin 0 1 1 d2c467732a8021d3f212e27dd0a98677"
+  run_command "test_vpss_circle_thread 1920 1080 0 /opt/sophon/libsophon-current/bin/res/1920x1080_yuv420.bin 960 540 250 10 line.bin 0 1 1 583e2f078ceccfa73b4b084d7cf74aca"
+}
+
+run_vpss() {
+  # cases that need the vpss_data_add fixture
+  run_vpss_nodata
+  run_command "test_vpss_watermark 16 16 16 16 8 1 0 0 32 32 0 0 0 1 vpss_data_add/16x16_rgbp.bin vpss_data_add/water_16x16_u8.bin"
+  run_command "test_vpss_watermark 512 256 64 64 8 1 128 0 64 64 255 255 255 1 vpss_data_add/512x256_rgbp.bin vpss_data_add/water_64x64_binary.raw"
+  run_command "test_vpss_watermark 1920 1080 1920 540 10 1 0 540 1920 540 0 128 255 1 vpss_data_add/512x256_rgb.bin vpss_data_add/water_1920x540_binary.raw"
+  run_command "test_vpss_watermark 4096 4096 1280 720 10 1 2048 2048 1280 720 0 128 255 1 vpss_data_add/4096x4096_rgb.bin vpss_data_add/water_1280x720_binary.raw"
+  run_command "test_vpss_watermark 8192 8192 2048 4096 10 1 0 0 2048 4096 255 0 128 1 vpss_data_add/8192x8192_rgb.bin vpss_data_add/water_2048x4096_u8.bin"
+  run_command "test_vpss_draw_rectangle_thread 64 64 0 vpss_data_add/64x64_yuv420.bin 60 60 128 128 null 0 2 2 2b2b07a33ada2cb8bcb8dd9e11002e4b"
+  run_command "test_vpss_draw_rectangle_thread 512 256 2 vpss_data_add/512x256_yuv444.bin 256 128 128 512 null 0 2 1 7c87b47c4a08eac1c43f57acca642069"
+  run_command "test_vpss_draw_rectangle_thread 960 540 3 vpss_data_add/960x540_nv12.bin 100 100 860 340 null 0 2 1 6a52666454a09ee37239804b320cd8dd"
+  run_command "test_vpss_draw_rectangle_thread 1920 1080 4 vpss_data_add/1920x1080_nv21.bin 192 108 2048 2048 null 0 1 2 7da1365102f2e49d8d6910adb7c67b01"
+  run_command "test_vpss_draw_rectangle_thread 4096 4096 10 vpss_data_add/4096x4096_rgb.bin 2048 2048 128 512 null 0 1 1 ed431f366e26b73cd1df3f126b7175ba"
+  run_command "test_vpss_draw_rectangle_thread 8192 8192 14 vpss_data_add/8192x8192_gray.bin 1920 1080 4096 4096 null 0 1 1 032bfa20b1d63b1ff175dcc8eecc1b54"
+  run_command "test_vpss_fill_rectangle_thread 16 16 0 vpss_data_add/16x16_yuv420.bin 14 14 2 2 null 0 2 2 bbe8f73703cf0a128797ac4cbf1b75a8"
+  run_command "test_vpss_fill_rectangle_thread 512 256 2 vpss_data_add/512x256_yuv444.bin 256 128 256 128 null 0 1 2 6b1d50fe3031b258c6efa4574fede1dd"
+  run_command "test_vpss_fill_rectangle_thread 960 540 4 vpss_data_add/960x540_nv21.bin 0 270 480 54 null 0 1 2 be30e62d3a3b5e0a187813a62d588a53"
+  run_command "test_vpss_fill_rectangle_thread 1920 1080 8 vpss_data_add/1920x1080_rgbp.bin 512 653 512 128 null 0 2 1 67321b80e023f5f8eca6f12522a745ac"
+  run_command "test_vpss_fill_rectangle_thread 4096 4096 14 vpss_data_add/4096x4096_gray.bin 4000 400 40 400 null 0 1 1 2d0649d1b0ef3b696edf4900ca9460c2"
+  run_command "test_vpss_fill_rectangle_thread 8192 8192 10 vpss_data_add/8192x8192_rgb.bin 0 0 8192 8192 null 0 1 1 496301de8b1e121eeb211fcaa06349c9"
+  run_command "test_vpss_csc_overlay_thread 16 16 0 vpss_data_add/16x16_yuv420.bin 100 16 4 null 0 0 0 2 2 7333e4543e0789361e28108a8c62b0d4"
+  run_command "test_vpss_csc_overlay_thread 960 540 0 vpss_data_add/960x540_yuv420.bin 1920 1080 4 null 1 1820 1080 2 1 e2e24b3f8b9fa47f40303b8834211ff4"
+  run_command "test_vpss_csc_overlay_thread 1920 1080 0 vpss_data_add/1920x1080_yuv420.bin 512 256 4 null 2 256 128 1 2 2e6eab5d4ce68a5b03a75beae1952622"
+  run_command "test_vpss_csc_overlay_thread 8192 8192 0 vpss_data_add/8192x8192_yuv420.bin 8192 8192 4 null 3 1920 4096 1 1 737a1d75dd5f78a14fb5bda39fa3cabc"
+  run_command "test_vpss_convert_thread 16 16 0 vpss_data_add/16x16_yuv420.bin 0 0 16 16 16 16 0 null 0 0 1 2 2 d6eb8830bac14fb2a536431b3abf532b"
+  run_command "test_vpss_convert_thread 64 64 10 vpss_data_add/64x64_rgb.bin 8 8 40 40 16 16 10 null 1 0 1 2 1 a9fb1210e0cb7a7a566bf8c4d0a1bbee"
+  run_command "test_vpss_convert_thread 960 540 10 vpss_data_add/960x540_rgb.bin 20 20 532 276 256 256 0 null 2 0 1 1 2 d31bd44827d8ca77cf764a68605374bf"
+  run_command "test_vpss_convert_thread 1920 1080 0 vpss_data_add/1920x1080_yuv420.bin 960 540 64 128 1920 1080 10 null 1 0 1 1 1 47141e1d3469fbd2ec08e25a3b1a3838"
+  run_command "test_vpss_convert_to_thread 16 16 8 vpss_data_add/16x16_rgbp.bin 0.1 0.1 0.1 0 0 0 8 null 0 2 2 0b7e25134e6dfef1bfdc715867211e5b"
+  run_command "test_vpss_convert_to_thread 512 256 0 vpss_data_add/512x256_yuv420.bin -0.5 -0.5 -0.5 255 255 255 0 null 0 2 1 5ffa125b62d64c8ad9dd7a6daf38279f"
+  run_command "test_vpss_convert_to_thread 1920 1080 10 vpss_data_add/1920x1080_rgb.bin 0.3 -0.3 0.3 -10 200 -10 10 null 0 1 2 335ccf5d101bbceb4d977ee5e10537b5"
+  run_command "test_vpss_convert_to_thread 4096 4096 14 vpss_data_add/4096x4096_gray.bin 0.8 0.2 0.6 -50 100 -150 14 null 0 1 1 b94d9f8921e64824301c474feec74646"
+  run_command "test_vpss_copy_to_thread 16 16 8 vpss_data_add/16x16_rgbp.bin 0 0 16 16 vpss_data_add/16x16_rgbp.bin null 0 2 2 fb1126ebf722d0c546595d325f0600fb"
+  run_command "test_vpss_copy_to_thread 512 256 10 vpss_data_add/512x256_rgb.bin 50 50 960 540 vpss_data_add/960x540_rgb.bin null 0 2 1 67c84ead75d0affda77980d3cc78dddf"
+  run_command "test_vpss_copy_to_thread 960 540 10 vpss_data_add/960x540_rgb.bin 500 500 1920 1080 vpss_data_add/1920x1080_rgb.bin null 0 1 2 621c31493ed3c64f8e0c3281ef3a30a9"
+  run_command "test_vpss_copy_to_thread 4096 4096 14 vpss_data_add/4096x4096_gray.bin 4096 4096 8192 8192 vpss_data_add/8192x8192_gray.bin null 0 1 1 98ba545d623d9348e5cd1f5fabb8944e"
   run_command "test_vpss_mosaic_thread 16 16 14 vpss_data_add/16x16_gray.bin 0 0 8 8 null 0 2 2 ec71e28cc59e6a71b21c1586c5340e76"
   run_command "test_vpss_mosaic_thread 64 64 10 vpss_data_add/64x64_rgb.bin 56 56 8 8 null 0 1 2 5fa44628ee2b30d30c60700116a15be0"
   run_command "test_vpss_mosaic_thread 512 256 9 vpss_data_add/512x256_bgrp.bin 51 25 81 81 null 0 2 1 a3efc714d994b7361e8e12a71317e942"
   run_command "test_vpss_mosaic_thread 4096 4096 3 vpss_data_add/4096x4096_nv12.bin 2048 2048 2048 1024 null 0 1 2 d7d325ad7246c3a5e4ab5b4e8db9bb7a"
   run_command "test_vpss_mosaic_thread 8192 8192 2 vpss_data_add/8192x8192_yuv444.bin 6512 3512 512 512 null 0 1 1 04e15fbb4f02c44ef6ba77ebcccc8ed7"
-  run_command "test_vpss_padding_thread 1920 1080 0 /opt/sophon/libsophon-current/bin/res/1920x1080_yuv420.bin 0 0 1920 1080 2048 2048 0 out/pad_2048x2048_yuv420.bin 1 0"
-  run_command "test_vpss_padding_thread 1920 1080 0 /opt/sophon/libsophon-current/bin/res/1920x1080_yuv420.bin 0 0 150 150 150 220 0 out/pad_150x220_yuv420.bin 1 0 1 1 14f7de62b33736eda6eb95a4b81c69e7"
   run_command "test_vpss_padding_thread 16 16 0 vpss_data_add/16x16_yuv420.bin 0 0 16 16 16 16 0 null 0 0 2 2 d6eb8830bac14fb2a536431b3abf532b"
   run_command "test_vpss_padding_thread 960 540 0 vpss_data_add/960x540_yuv420.bin 540 0 420 540 1920 1080 0 null 1 0 2 1 8543db26d14771c5c88ff8c1ef4d51e7"
   run_command "test_vpss_padding_thread 4096 4096 0 vpss_data_add/4096x4096_yuv420.bin 0 2048 500 100 4096 8192 0 null 2 0 1 2 85d834194886b0d03bf9d73bcc594532"
-  run_command "test_vpss_padding_thread 8192 8192 0 vpss_data_add/8192x8192_yuv420.bin 4096 4096 1024 1024 8192 8192 0 null 1 0 1 1 6ec570c3bac10ccdd2cd5c2a51ebda22"
+  run_command "test_vpss_padding_thread 8192 8192 0 vpss_data_add/8192x8192_yuv420.bin 4096 4096 1024 1024 8192 8192 0 null 1 0 1 1 a4c40b3b3235466fea99746ea5fd467c"
   run_command "test_vpss_point_thread 512 256 0 vpss_data_add/512x256_yuv420.bin 60 40 1 null 0 2 2 8e9d25f07402779734e0b5d46207c62a"
   run_command "test_vpss_point_thread 960 540 0 vpss_data_add/960x540_yuv420.bin 512 256 10 null 0 1 2 bd18a3655a57b5404f22c0e998b03de4"
   run_command "test_vpss_point_thread 4096 4096 0 vpss_data_add/4096x4096_yuv420.bin 2048 2048 2048 null 0 2 1 6f900534d6f0057f35a181d36b80f1a9"
   run_command "test_vpss_point_thread 8192 8192 0 vpss_data_add/8192x8192_yuv420.bin 1024 4096 512 null 0 1 1 daf5c311d1964851cf86b825dadd83cc"
-  run_command "test_vpss_stitch_thread 1920 1080 0 /opt/sophon/libsophon-current/bin/res/1920x1080_yuv420.bin 0 0 1920 1080 0 1080 1920 1080 1920 2160 out/stitch_1920x2160_yuv420.bin 0"
   run_command "test_vpss_stitch_thread 16 16 0 vpss_data_add/16x16_yuv420.bin 0 0 16 16 0 16 16 16 16 32 out/stitch_16x32_yuv420.bin 0 2 2"
   run_command "test_vpss_stitch_thread 64 64 0 vpss_data_add/64x64_yuv420.bin 8 0 56 32 0 32 32 64 64 256 out/stitch_64x256_yuv420.bin 0 2 1"
   run_command "test_vpss_stitch_thread 512 256 0 vpss_data_add/512x256_yuv420.bin 64 0 192 128 64 128 64 64 256 512 out/stitch_256x512_yuv420.bin 0 1 2"
   run_command "test_vpss_stitch_thread 8192 8192 0 vpss_data_add/8192x8192_yuv420.bin 4096 512 2048 1024 4096 128 1024 256 6144 4096 out/stitch_6144x4096_yuv420.bin 0 1 1"
-  run_command "test_vpss_water_thread 1920 1080 0 /opt/sophon/libsophon-current/bin/res/1920x1080_yuv420.bin /opt/sophon/libsophon-current/bin/res/128x128_sophgo.bin 16384 128 0 100 100 out/water_1920x1080.yuv420 0"
   run_command "test_vpss_water_thread 16 16 0 vpss_data_add/16x16_yuv420.bin vpss_data_add/water_16x16_u8.bin 256 16 0 0 0 result/16x16_yuv420_water_res.bin 0 2 2 faa07a8b084dae79fdc5fabbbc1df6a0"
   run_command "test_vpss_water_thread 4096 4096 0 vpss_data_add/4096x4096_yuv420.bin vpss_data_add/water_1920x540_binary.raw 1036800 1920 0 2048 0 result/4096x4096_yuv420_water_res.bin 0 1 2 7e62bd976896a0abe841bf783247562e"
   run_command "test_vpss_water_thread 8192 8192 0 vpss_data_add/8192x8192_yuv420.bin vpss_data_add/water_2048x4096_u8.bin 8388608 2048 0 0 0 result/8192x8192_yuv420_water_res.bin 0 1 1 7607bd4936dca5f1086a1a8632715bec"
-  run_command "test_vpss_overlay_thread 1920 1080 10 300 300 17 20 20 /opt/sophon/libsophon-current/bin/res/car_rgb888.rgb /opt/sophon/libsophon-current/bin/res/300x300_argb8888_dog.rgb 663ce7ae1f1b3154a66a6366a6332559"
-  run_command "test_vpss_overlay_thread 1920 1080 10 80 60 30 100 100 /opt/sophon/libsophon-current/bin/res/car_rgb888.rgb /opt/sophon/libsophon-current/bin/res/dog_s_80x60_pngto4444.bin 52e0003832180b4c74b71395c200c72e"
-  run_command "test_vpss_overlay_thread 1920 1080 10 80 60 32  200 200 /opt/sophon/libsophon-current/bin/res/car_rgb888.rgb /opt/sophon/libsophon-current/bin/res/dog_s_80x60_pngto1555.bin a858701cb01131f1356f80c76e7813c0"
   run_command "test_vpss_overlay_thread 16 16 10 16 16 17 0 0 vpss_data_add/16x16_rgb.bin vpss_data_add/16x16_argb.bin 0691aebf511120cd343b074494d06007 0 0 2 2"
   run_command "test_vpss_overlay_thread 960 540 10 512 256 30 200 20 vpss_data_add/960x540_rgb.bin vpss_data_add/512x256_argb4444.bin 5cf931177c2b79140ac79cae0e707743 0 0 2 1"
   run_command "test_vpss_overlay_thread 1920 1080 10 960 540 32 960 0 vpss_data_add/1920x1080_rgb.bin vpss_data_add/960x540_argb1555.bin 22793f042487e7a9440bba4a7ab62345 0 0 1 2"
   run_command "test_vpss_overlay_thread 8192 8192 10 4096 4096 17 0 4096 vpss_data_add/8192x8192_rgb.bin vpss_data_add/4096x4096_argb.bin 81470049e67aca2f159f0455effce154 0 0 1 1"
-  run_command "test_vpss_flip_thread 1920 1080 0 /opt/sophon/libsophon-current/bin/res/1920x1080_yuv420.bin 1 h_flip.bin 0 1 1 37890f4ab5d6458b57824de9e24ba94f"
-  run_command "test_vpss_flip_thread 1920 1080 0 /opt/sophon/libsophon-current/bin/res/1920x1080_yuv420.bin 2 v_flip.bin 0 1 1 a3a86425b349c6517a2506e4df2334f0"
-  run_command "test_vpss_flip_thread 1920 1080 0 /opt/sophon/libsophon-current/bin/res/1920x1080_yuv420.bin 3 hv_flip.bin 0 1 1 80062a883675498f41d3309cfc6ddb52"
   run_command "test_vpss_flip_thread 16 16 0 vpss_data_add/16x16_yuv420.bin 1 null 0 2 2 e9549948cc20f7a871aecc6b1978535c"
   run_command "test_vpss_flip_thread 960 540 0 vpss_data_add/960x540_yuv420.bin 2 null 0 1 2 cf530e4ac304f5707852ad6cce444573"
   run_command "test_vpss_flip_thread 4096 4096 0 vpss_data_add/4096x4096_yuv420.bin 3 null 0 2 1 314f16c4429997ed72b8d0303154ffd9"
   run_command "test_vpss_flip_thread 8192 8192 0 vpss_data_add/8192x8192_yuv420.bin 2 null 0 1 1 5e0b0366eef62edcbf6ddb224b4df45c"
-  run_command "test_vpss_circle_thread 1920 1080 0 /opt/sophon/libsophon-current/bin/res/1920x1080_yuv420.bin 960 540 250 -2 empty.bin 0 1 1 94a364c93d13aad8db3d38146c5ba4fa"
-  run_command "test_vpss_circle_thread 1920 1080 0 /opt/sophon/libsophon-current/bin/res/1920x1080_yuv420.bin 960 540 250 -1 shape.bin 0 1 1 d2c467732a8021d3f212e27dd0a98677"
-  run_command "test_vpss_circle_thread 1920 1080 0 /opt/sophon/libsophon-current/bin/res/1920x1080_yuv420.bin 960 540 250 10 line.bin 0 1 1 583e2f078ceccfa73b4b084d7cf74aca"
   run_command "test_vpss_circle_thread 16 16 0 vpss_data_add/16x16_yuv420.bin 16 16 17 -1 null 0 2 2 19e5e9bc4a957a9f53f1f687ed6f0ea1"
   run_command "test_vpss_circle_thread 512 256 0 vpss_data_add/512x256_yuv420.bin 200 50 50 -2 null 0 2 1 0db54759b597133bd28b7e94f6cb07fb"
   run_command "test_vpss_circle_thread 960 540 0 vpss_data_add/960x540_yuv420.bin 300 250 100 0 null 0 1 2 3086e0aa404772465ed4d6648485d2da"
@@ -192,7 +206,7 @@ run_tpu(){
     run_command "test_bmcv_rotate"
   done
   run_command "test_bmcv_rotate 2 1 0 16 16"
-  run_command "test_bmcv_rotate 1 1 0 128 128 2"
+  run_command "test_bmcv_rotate 1 1 0 128 128 8"
   run_command "test_bmcv_rotate 2 1 0 512 1024 9 90"
   run_command "test_bmcv_rotate 1 1 0 4096 4096 12 180"
   run_command "test_bmcv_rotate 1 1 0 8192 8192 14 270"
@@ -211,7 +225,7 @@ run_tpu(){
   run_command "test_cv_add_weight 2"
   run_command "test_cv_add_weight 2 1"
   run_command "test_cv_add_weight 2 1 0 8 8 12 0 0.6 0.4 10"
-  run_command "test_cv_add_weight 1 1 1 1920 1080 10 0 0.5 0.5 10 /opt/sophon/libsophon-current/bin/res/1920x1080_rgb.bin /opt/sophon/libsophon-current/bin/res/1920x1080_rgb.bin out/add_weight_output.bin"
+  run_command "test_cv_add_weight 1 1 1 1920 1080 10 1 0.5 0.5 10 /opt/sophon/libsophon-current/bin/res/1920x1080_rgb.bin /opt/sophon/libsophon-current/bin/res/1920x1080_rgb.bin out/add_weight_output.bin"
   run_command "test_cv_add_weight 1 1 0 128"
   run_command "test_cv_add_weight 2 2 0 512 128"
   run_command "test_cv_add_weight 2 1 0 1024 128 0"
@@ -552,6 +566,7 @@ run_dpu(){
   if [ ! -d "dpu_data" ]; then
     echo "Error: Directory 'dpu_data' does not exist"
     echo "please prepare test data"
+    add_failure "test data directory 'dpu_data' is missing"
     return 1
   fi
   run_command "test_dpu_sgbm_thread 1 1 512 284 dpu_data/sofa_left_img_512x284.bin dpu_data/sofa_right_img_512x284.bin dpu_data/205pU8Disp_ref_512x284.bin dpu_data/205pU8Disp_ref_512x284_output.bin"
@@ -582,9 +597,129 @@ run_dpu(){
 }
 
 run_ive(){
+  run_command "ive_test_cmodel_16BitTo8Bit 1 1 0 null null 22 15 35 null null 0 0 0"
+  run_command "ive_test_cmodel_16BitTo8Bit 1 1 0 3840 2160 22 15 35 null null 0 0 0"
+  run_command "ive_test_cmodel_16BitTo8Bit 1 1 0 16 16 22 15 35 null null 0 0 0"
+
+  run_command "ive_test_cmodel_add 1 1 0 null null 19584 45952 null null null 0 0 1"
+  run_command "ive_test_cmodel_add 1 1 0 3840 2160 19584 45952 null null null 0 0 1"
+  run_command "ive_test_cmodel_add 1 1 0 16 16 19584 45952 null null null 0 0 1"
+
+  run_command "ive_test_cmodel_and 1 1 0 null null null null null 0 0"
+  run_command "ive_test_cmodel_and 1 1 0 3840 2160 null null null 0 0"
+  run_command "ive_test_cmodel_and 1 1 0 16 16 null null null 0 0"
+
+  run_command "ive_test_cmodel_bernsen 1 1 0 null null 3 5 10 null null 0 0 0"
+  run_command "ive_test_cmodel_bernsen 1 1 0 3840 2160 3 5 10 null null 0 0 0"
+  run_command "ive_test_cmodel_bernsen 1 1 0 16 16 3 5 10 null null 0 0 0"
+
+  run_command "ive_test_cmodel_cannyhysedge 1 1 0 null null null null 50 100 0 0"
+  run_command "ive_test_cmodel_cannyhysedge 1 1 0 3840 2160 null null 50 100 0 0"
+  run_command "ive_test_cmodel_cannyhysedge 1 1 0 16 16 null null 50 100 0 0"
+
+  run_command "ive_test_cmodel_ccl 1 1 0 null null null null 0 0 0"
+  run_command "ive_test_cmodel_ccl 1 1 0 1920 1080 null null 0 0 0"
+  run_command "ive_test_cmodel_ccl 1 1 0 16 16 null null 0 0 0"
+
+  run_command "ive_test_cmodel_csc 1 1 0 null null null null 6 0 10 0 0"
+  run_command "ive_test_cmodel_csc 1 1 0 3840 2160 null null 6 0 10 0 0"
+  run_command "ive_test_cmodel_csc 1 1 0 16 16 null null 6 0 10 0 0"
+
+  run_command "ive_test_cmodel_dilate 1 1 0 null null null null 0 0"
+  run_command "ive_test_cmodel_dilate 1 1 0 3840 2160 null null 0 0"
+  run_command "ive_test_cmodel_dilate 1 1 0 16 16 null null 0 0"
+
+  run_command "ive_test_cmodel_dma 1 1 0 null null null null 4 2 4 0 0 0"
+  run_command "ive_test_cmodel_dma 1 1 0 3840 2160 null null 4 2 4 0 0 0"
+  run_command "ive_test_cmodel_dma 1 1 0 16 16 null null 4 2 4 0 0 0"
+
+  run_command "ive_test_cmodel_dma 1 1 0 null null null null 4 2 4 0 0 1"
+  run_command "ive_test_cmodel_dma 1 1 0 3840 2160 null null 4 2 4 0 0 1"
+  run_command "ive_test_cmodel_dma 1 1 0 32 16 null null 4 2 4 0 0 1"
+
+  run_command "ive_test_cmodel_dma 1 1 0 null null null null 4 2 4 0 0 2"
+  run_command "ive_test_cmodel_dma 1 1 0 3840 2160 null null 4 2 4 0 0 2"
+  run_command "ive_test_cmodel_dma 1 1 0 32 16 null null 4 2 4 0 0 2"
+
+  run_command "ive_test_cmodel_dma 1 1 0 null null null null 4 2 4 0 0 3"
+  run_command "ive_test_cmodel_dma 1 1 0 3840 2160 null null 4 2 4 0 0 3"
+  run_command "ive_test_cmodel_dma 1 1 0 32 16 null null 4 2 4 0 0 3"
+
+  run_command "ive_test_cmodel_erode 1 1 0 null null null null 0 0"
+  run_command "ive_test_cmodel_erode 1 1 0 3840 2160 null null 0 0"
+  run_command "ive_test_cmodel_erode 1 1 0 16 16 null null 0 0"
+
+  run_command "ive_test_cmodel_filter 1 1 0 null null null null 4 0 0 0"
+  run_command "ive_test_cmodel_filter 1 1 0 3840 2160 null null 4 0 0 0"
+  run_command "ive_test_cmodel_filter 1 1 0 16 16 null null 4 0 0 0"
+
+  run_command "ive_test_cmodel_hist 1 1 0 null null null null 0 0"
+  run_command "ive_test_cmodel_hist 1 1 0 3840 2160 null null 0 0"
+  run_command "ive_test_cmodel_hist 1 1 0 16 16 null null 0 0"
+
+  run_command "ive_test_cmodel_integ 1 1 0 null null null null 0 0 0"
+  run_command "ive_test_cmodel_integ 1 1 0 1920 1080 null null 0 0 0"
+  run_command "ive_test_cmodel_integ 1 1 0 16 16 null null 0 0 0"
+
+  run_command "ive_test_cmodel_lbp 1 1 0 null null null null 0 0 0"
+  run_command "ive_test_cmodel_lbp 1 1 0 3840 2160 null null 0 0 0"
+  run_command "ive_test_cmodel_lbp 1 1 0 16 16 null null 0 0 0"
+
+  run_command "ive_test_cmodel_magandang 1 1 0 null null null null 0 0 0 0 0"
+  run_command "ive_test_cmodel_magandang 1 1 0 3840 2160 null null 0 0 0 0 0"
+  run_command "ive_test_cmodel_magandang 1 1 0 16 16 null null 0 0 0 0 0"
+
+  run_command "ive_test_cmodel_map 1 1 0 null null null null 0 0 0"
+  run_command "ive_test_cmodel_map 1 1 0 3840 2160 null null 0 0 0"
+  run_command "ive_test_cmodel_map 1 1 0 16 16 null null 0 0 0"
+
+  run_command "ive_test_cmodel_ncc 1 1 0 null null null null null 0 0"
+  run_command "ive_test_cmodel_ncc 1 1 0 3840 2160 null null null 0 0"
+  run_command "ive_test_cmodel_ncc 1 1 0 16 16 null null null 0 0"
+
+  run_command "ive_test_cmodel_normgrad 1 1 0 null null null null 0 0 0 0"
+  run_command "ive_test_cmodel_normgrad 1 1 0 3840 2160 null null 0 0 0 0"
+  run_command "ive_test_cmodel_normgrad 1 1 0 16 16 null null 0 0 0 0"
+
+  run_command "ive_test_cmodel_or 1 1 0 null null null null null 0 0"
+  run_command "ive_test_cmodel_or 1 1 0 3840 2160 null null null 0 0"
+  run_command "ive_test_cmodel_or 1 1 0 16 16 null null null 0 0"
+
+  run_command "ive_test_cmodel_ordstafilter 1 1 0 null null null null 0 0 0"
+  run_command "ive_test_cmodel_ordstafilter 1 1 0 3840 2160 null null 0 0 0"
+  run_command "ive_test_cmodel_ordstafilter 1 1 0 16 16 null null 0 0 0"
+
+  run_command "ive_test_cmodel_sad 1 1 0 null null null null null null 0 0 2048 2 30 0 0 0"
+  run_command "ive_test_cmodel_sad 1 1 0 3840 2160 null null null null 0 0 2048 2 30 0 0 0"
+  run_command "ive_test_cmodel_sad 1 1 0 16 16 null null null null 0 0 2048 2 30 0 0 0"
+
+  run_command "ive_test_cmodel_sobel 1 1 0 null null null null 0 0"
+  run_command "ive_test_cmodel_sobel 1 1 0 3840 2160 null null 0 0"
+  run_command "ive_test_cmodel_sobel 1 1 0 16 16 null null 0 0"
+
+  run_command "ive_test_cmodel_sub 1 1 0 null null null null null 0 0 0"
+  run_command "ive_test_cmodel_sub 1 1 0 3840 2160 null null null 0 0 0"
+  run_command "ive_test_cmodel_sub 1 1 0 16 16 null null null 0 0 0"
+
+  run_command "ive_test_cmodel_thresh 1 1 0 null null 10 20 30 40 50 null null 0 0 0"
+  run_command "ive_test_cmodel_thresh 1 1 0 3840 2160 10 20 30 40 50 null null 0 0 0"
+  run_command "ive_test_cmodel_thresh 1 1 0 16 16 10 20 30 40 50 null null 0 0 0"
+
+  run_command "ive_test_cmodel_thresh_s16 1 1 0 null null 10 20 30 40 50 null null 0 0 9"
+  run_command "ive_test_cmodel_thresh_s16 1 1 0 3840 2160 10 20 30 40 50 null null 0 0 9"
+  run_command "ive_test_cmodel_thresh_s16 1 1 0 16 16 10 20 30 40 50 null null 0 0 9"
+
+  run_command "ive_test_cmodel_thresh_u16 1 1 0 null null 10 20 30 40 50 null null 0 0 12"
+  run_command "ive_test_cmodel_thresh_u16 1 1 0 3840 2160 10 20 30 40 50 null null 0 0 12"
+  run_command "ive_test_cmodel_thresh_u16 1 1 0 16 16 10 20 30 40 50 null null 0 0 12"
+
+  run_command "ive_test_cmodel_xor 1 1 0 null null null null null 0 0"
+  run_command "ive_test_cmodel_xor 1 1 0 3840 2160 null null null 0 0"
+  run_command "ive_test_cmodel_xor 1 1 0 16 16 null null null 0 0"
   if [ ! -d "ive_data" ]; then
     echo "Error: Directory 'ive_data' does not exist"
     echo "please prepare test data"
+    add_failure "test data directory 'ive_data' is missing"
     return 1
   fi
   run_command "test_ive_add_thread 352 288 14 14 19584 45952 ive_data/00_352x288_y.yuv ive_data/01_352x288_y.yuv ive_data/result/sample_Add.yuv 0 1 1 0"
@@ -684,8 +819,8 @@ run_ive(){
   run_command "test_ive_sub_thread 1920 1080 1 14 14 ive_data/data_add/00_1920x1080_u8.bin ive_data/data_add/01_1920x1080_u8.bin 13bd9f48639960ce3a31b5fc90aa0643 0 1 1 0"
   run_command "test_ive_thresh_s16_thread 352 288 14 14 8 41 105 -63 -5 -98 ive_data/00_352x288_s8_to_s16_reverse.yuv ive_data/result/sample_Thresh_S16_To_S8_MinMidMax_352x288.yuv 0 1 1 0"
   run_command "test_ive_thresh_s16_thread 64 64 14 14 8 -32768 32767 -128 0 127 ive_data/data_add/64x64_s16.s16 620f0b67a91f7f74151bc5be745b7110 0 2 2 0"
-  run_command "test_ive_thresh_s16_thread 1280 720 14 14 16 -32768 32767 0 125 255 ive_data/data_add/1280x720_s16.s16 8a583ac5b931b18c3e6af5d16cd7c1f3 0 2 1 0"
-  run_command "test_ive_thresh_s16_thread 1920 1080 14 14 17 -1 255 75 125 200 ive_data/data_add/1920x1080_s16.s16 b92967ea0ae7d96af1891dbae502f03c 0 1 2 0"
+  run_command "test_ive_thresh_s16_thread 1280 720 14 14 10 -32768 32767 0 125 255 ive_data/data_add/1280x720_s16.s16 8a583ac5b931b18c3e6af5d16cd7c1f3 0 2 1 0"
+  run_command "test_ive_thresh_s16_thread 1920 1080 14 14 11 -1 255 75 125 200 ive_data/data_add/1920x1080_s16.s16 b92967ea0ae7d96af1891dbae502f03c 0 1 2 0"
   run_command "test_ive_thresh_thread 352 288 14 14 3 236 249 166 219 60 ive_data/00_352x288_y.yuv ive_data/result/sample_Thresh_MinMidMax.yuv 0 1 1 0"
   run_command "test_ive_thresh_thread 64 64 14 14 0 0 null 0 null 255 ive_data/data_add/64x64_u8.bin 6ae59e64850377ee5470c854761551ea 0 2 2 0"
   run_command "test_ive_thresh_thread 64 64 14 14 1 25 null null null 225 ive_data/data_add/64x64_u8.bin a177f3a9c512b89e4f82d089172d6461 0 1 2 0"
@@ -695,11 +830,11 @@ run_ive(){
   run_command "test_ive_thresh_thread 1280 720 14 14 5 125 225 75 175 null ive_data/data_add/1280x720_u8.bin 202507e959a72222d2ffd443b2344962 0 1 1 0"
   run_command "test_ive_thresh_thread 1920 1080 14 14 6 150 200 100 null 150 ive_data/data_add/1920x1080_u8.bin adf172359091340784a5b447e673a2e8 0 1 1 0"
   run_command "test_ive_thresh_thread 1920 1080 14 14 7 175 175 null 255 null ive_data/data_add/1920x1080_u8.bin 3de54c208d3c084558b7936dbb7b4516 0 1 1 0"
-  run_command "test_ive_thresh_u16_thread 352 288 14 14 18 41 105 190 132 225 ive_data/00_352x288_u8_to_u16_reverse.yuv ive_data/result/sample_Thresh_U16_To_U8_MinMidMax_352x288.yuv 0 1 1 0"
-  run_command "test_ive_thresh_u16_thread 64 64 14 14 18 16383 32767 0 175 255 ive_data/data_add/64x64_u16.u16 dafbb17b2aad2cf7b20015fdda6ffa5c 0 2 1 0"
-  run_command "test_ive_thresh_u16_thread 480 512 14 14 19 0 255 0 null 255 ive_data/data_add/480x512_u16.u16 b17461e776ddd0007197b063bc4796ac 0 1 2 0"
-  run_command "test_ive_thresh_u16_thread 1280 720 14 14 19 175 255 50 null 150 ive_data/data_add/1280x720_u16.u16 d319dea362256fe4dd2a1b7a35aac343 0 2 1 0"
-  run_command "test_ive_thresh_u16_thread 1920 1080 14 14 18 0 65535 50 150 200 ive_data/data_add/1920x1080_u16.u16 35679e8cab549438d0b813a75291f6f0 0 1 1 0"
+  run_command "test_ive_thresh_u16_thread 352 288 14 14 12 41 105 190 132 225 ive_data/00_352x288_u8_to_u16_reverse.yuv ive_data/result/sample_Thresh_U16_To_U8_MinMidMax_352x288.yuv 0 1 1 0"
+  run_command "test_ive_thresh_u16_thread 64 64 14 14 12 16383 32767 0 175 255 ive_data/data_add/64x64_u16.u16 dafbb17b2aad2cf7b20015fdda6ffa5c 0 2 1 0"
+  run_command "test_ive_thresh_u16_thread 480 512 14 14 13 0 255 0 null 255 ive_data/data_add/480x512_u16.u16 b17461e776ddd0007197b063bc4796ac 0 1 2 0"
+  run_command "test_ive_thresh_u16_thread 1280 720 14 14 13 175 255 50 null 150 ive_data/data_add/1280x720_u16.u16 d319dea362256fe4dd2a1b7a35aac343 0 2 1 0"
+  run_command "test_ive_thresh_u16_thread 1920 1080 14 14 12 0 65535 50 150 200 ive_data/data_add/1920x1080_u16.u16 35679e8cab549438d0b813a75291f6f0 0 1 1 0"
   run_command "test_ive_xor_thread 352 288 14 14 ive_data/00_352x288_y.yuv ive_data/01_352x288_y.yuv ive_data/result/sample_Xor.yuv 0 1 1 0"
   run_command "test_ive_xor_thread 64 64 14 14 ive_data/data_add/00_64x64_u8.bin ive_data/data_add/01_64x64_u8.bin 21a7a5ad2c4b1ffd9443d5952a92f4c9 0 2 2 0"
   run_command "test_ive_xor_thread 480 512 14 14 ive_data/data_add/00_480x512_u8.bin ive_data/data_add/01_480x512_u8.bin 766b3d9560315456f7470cc500313c57 0 1 2 0"
@@ -815,7 +950,7 @@ run_ive(){
   run_command "test_ive_filterandcsc_thread 352 288 1 0 4 4 8 ive_data/00_352x288_SP420.yuv ive_data/result/sample_FilterAndCSC_420SPToVideoPlanar3x3.yuv"
   run_command "test_ive_filterandcsc_thread 352 288 1 1 7 4 8 ive_data/00_352x288_SP420.yuv ive_data/result/sample_FilterAndCSC_420SPToVideoPlanar5x5.yuv"
   run_command "test_ive_filterandcsc_thread 64 64 0 0 0 4 10 ive_data/data_add/64x64.nv21 775aab02f89965208d1bc4d2f7297b96 0 2 2 0"
-  run_command "test_ive_filterandcsc_thread 960 540 0 1 5 6 8 ive_data/data_add/960x540.nv61 0e119a018d05b60a2721089860617b77 0 1 2 0"
+  run_command "test_ive_filterandcsc_thread 960 540 0 1 5 6 8 ive_data/data_add/960x540.nv61 2ab6c72647cc25a7155c029ab7a87b56 0 1 2 0"
   run_command "test_ive_filterandcsc_thread 1280 720 3 0 13 6 8 ive_data/data_add/1280x720.nv61 14ccef94b471a701abe62a728a39add4 0 2 1 0"
   run_command "test_ive_filterandcsc_thread 1920 1080 3 1 7 4 10 ive_data/data_add/1920x1080.nv21 db3ff8f2b61b7cdc00dbe71f710d5c9e 0 1 1 0"
   run_command "test_ive_16bitto8bit_thread 352 288 0 41 18508 0 6 2 ive_data/00_704x576.s16 ive_data/result/sample_16BitTo8Bit_S16ToS8.yuv"
@@ -838,6 +973,7 @@ run_blend(){
   if [ ! -d "stitch" ]; then
     echo "Error: Directory 'stitch' does not exist"
     echo "please prepare test data"
+    add_failure "test data directory 'stitch' is missing"
     return 1
   fi
   run_command "test_2way_blending -a stitch/c01_img1__2304x288-lft.yuv -b stitch/c01_img2__4608x288-lft.yuv -c 2304 -d 288 -e 4608 -f 288 -g 0 -h out/2way-4608x288.yuv420p -i 4608 -j 288 -k 0 -l 0 -m 2303 -r stitch/c01_alpha12_444p_m2__0_288x2304.bin -s stitch/c01_beta12_444p_m2__0_288x2304.bin -z stitch/c01_result_420p_c2_4608x288_lft_ovlp.yuv"
@@ -865,60 +1001,66 @@ run_ldc(){
   if [ ! -d "ldc_data" ]; then
     echo "Error: Directory 'ldc_data' does not exist"
     echo "please prepare test data"
+    add_failure "test data directory 'ldc_data' is missing"
     return 1
   fi
   run_command "test_ldc_rot_thread ldc_data/1920x1088_nv21.bin ldc_data/out_1920x1088_rot0.yuv 1920 1088 0 4 4 1 1"
   run_command "test_ldc_rot_thread ldc_data/1920x1088_nv21.bin ldc_data/out_1920x1088_rot90.yuv 1920 1088 1 4 4 1 1"
   run_command "test_ldc_rot_thread ldc_data/1920x1088_nv21.bin ldc_data/out_1920x1088_rot270.yuv 1920 1088 3 4 4 1 1"
-  run_command "test_ldc_gdc_load_mesh_thread ldc_data/1920x1080_barrel_0.3.yuv ldc_data/out_load_mesh_barrel_0.yuv 1920 1080 4 4 ldc_data/1920x1080_barrel_0.3_r0_ofst_0_0_d-200.mesh 1 1"
-  run_command "test_ldc_gdc_load_mesh_thread ldc_data/1920x1080_barrel_0.3.yuv ldc_data/out_load_mesh_barrel_1.yuv 1920 1080 4 4 ldc_data/test_mesh_1920x1080_1_0_0_90_0_0_-200.mesh 1 1"
-  run_command "test_ldc_gdc_load_mesh_thread ldc_data/1920x1080_pincushion_0.3.yuv ldc_data/out_load_mesh_pincushion_0.yuv 1920 1080 4 4 ldc_data/1920x1080_pincushion_0.3_r0_ofst_0_0_d400.mesh 1 1"
-  run_command "test_ldc_gdc_load_mesh_thread ldc_data/1920x1080_pincushion_0.3.yuv ldc_data/out_load_mesh_pincushion_1.yuv 1920 1080 4 4 ldc_data/1920x1080_pincushion_0.3_r100_ofst_0_0_d400.mesh 1 1"
-  run_command "test_ldc_gdc_thread ldc_data/1920x1080_barrel_0.3.yuv ldc_data/out_barrel_0.yuv 1920 1080 4 4 1 0 0 0 0 0 -200 1 1"
-  run_command "test_ldc_gdc_thread ldc_data/1920x1080_barrel_0.3.yuv ldc_data/out_barrel_90.yuv 1920 1080 4 4 1 0 0 90 0 0 -200 1 1"
-  run_command "test_ldc_gdc_thread ldc_data/1920x1080_pincushion_0.3.yuv ldc_data/out_pincushion_0.yuv 1920 1080 4 4 1 0 0 0 0 0 400 1 1"
-  run_command "test_ldc_gdc_thread ldc_data/1920x1080_pincushion_0.3.yuv ldc_data/out_pincushion_100.yuv 1920 1080 4 4 1 0 0 100 0 0 400 1 1"
-  run_command "test_ldc_gdc_gen_mesh_thread ldc_data/1920x1080_barrel_0.3.yuv ldc_data/out_barrel_0.yuv 1920 1080 4 4 1 0 0 0 0 0 -200 1 1"
-  run_command "test_ldc_gdc_gen_mesh_thread ldc_data/1920x1080_barrel_0.3.yuv ldc_data/out_barrel_100.yuv 1920 1080 4 4 1 0 0 100 0 0 -200 1 1"
-  run_command "test_ldc_gdc_gen_mesh_thread ldc_data/1920x1080_pincushion_0.3.yuv ldc_data/out_pincushion_0.yuv 1920 1080 4 4 1 0 0 0 0 0 400 1 1"
-  run_command "test_ldc_gdc_gen_mesh_thread ldc_data/1920x1080_pincushion_0.3.yuv ldc_data/out_pincushion_100.yuv 1920 1080 4 4 1 0 0 100 0 0 400 1 1"
   run_command "test_ldc_rot_thread ldc_data/1920x1088_nv21.bin ldc_data/out_1920x1088_rot0.yuv 1920 1088 0 4 4 1 1 03fd51eb71461e1fcc64e072588b5754"
   run_command "test_ldc_rot_thread ldc_data/1920x1088_nv21.bin ldc_data/out_1920x1088_rot90.yuv 1920 1088 1 4 4 1 1 03ba2f6618972aa7d7e7194191a274a5"
   run_command "test_ldc_rot_thread ldc_data/1920x1088_nv21.bin ldc_data/out_1920x1088_rot270.yuv 1920 1088 3 4 4 1 1 808de3490552a1eedf94bf11a6dccd76"
-  run_command "test_ldc_gdc_load_mesh_thread ldc_data/1920x1080_barrel_0.3.yuv ldc_data/out_load_mesh_barrel_0.yuv 1920 1080 4 4 ldc_data/1920x1080_barrel_0.3_r0_ofst_0_0_d-200.mesh 1 1 9858d320f4ae52cade10d20ea61473c4"
-  run_command "test_ldc_gdc_load_mesh_thread ldc_data/1920x1080_barrel_0.3.yuv ldc_data/out_load_mesh_barrel_1.yuv 1920 1080 4 4 ldc_data/test_mesh_1920x1080_1_0_0_90_0_0_-200.mesh 1 1 2da6c1a297a52d0916bec1a7226fed53"
-  run_command "test_ldc_gdc_load_mesh_thread ldc_data/1920x1080_pincushion_0.3.yuv ldc_data/out_load_mesh_pincushion_0.yuv 1920 1080 4 4 ldc_data/1920x1080_pincushion_0.3_r0_ofst_0_0_d400.mesh 1 1 78acfb91bd08f159623a85fe03a01169"
-  run_command "test_ldc_gdc_load_mesh_thread ldc_data/1920x1080_pincushion_0.3.yuv ldc_data/out_load_mesh_pincushion_1.yuv 1920 1080 4 4 ldc_data/1920x1080_pincushion_0.3_r100_ofst_0_0_d400.mesh 1 1 8766b0ba7e315e5a8b413f69e0a26127"
-  run_command "test_ldc_gdc_thread ldc_data/1920x1080_barrel_0.3.yuv ldc_data/out_barrel_0.yuv 1920 1080 4 4 1 0 0 0 0 0 -200 1 1 9858d320f4ae52cade10d20ea61473c4"
-  run_command "test_ldc_gdc_thread ldc_data/1920x1080_barrel_0.3.yuv ldc_data/out_barrel_90.yuv 1920 1080 4 4 1 0 0 90 0 0 -200 1 1 2da6c1a297a52d0916bec1a7226fed53"
-  run_command "test_ldc_gdc_thread ldc_data/1920x1080_pincushion_0.3.yuv ldc_data/out_pincushion_0.yuv 1920 1080 4 4 1 0 0 0 0 0 400 1 1 78acfb91bd08f159623a85fe03a01169"
-  run_command "test_ldc_gdc_thread ldc_data/1920x1080_pincushion_0.3.yuv ldc_data/out_pincushion_100.yuv 1920 1080 4 4 1 0 0 100 0 0 400 1 1 8766b0ba7e315e5a8b413f69e0a26127"
-  run_command "test_ldc_gdc_gen_mesh_thread ldc_data/1920x1080_barrel_0.3.yuv ldc_data/out_barrel_0.yuv 1920 1080 4 4 1 0 0 0 0 0 -200 1 1 eabb55a370ece25767ffc09915b802b0"
-  run_command "test_ldc_gdc_gen_mesh_thread ldc_data/1920x1080_barrel_0.3.yuv ldc_data/out_barrel_100.yuv 1920 1080 4 4 1 0 0 100 0 0 -200 1 1 26488964ba2b88354f4d665ca6056836"
-  run_command "test_ldc_gdc_gen_mesh_thread ldc_data/1920x1080_pincushion_0.3.yuv ldc_data/out_pincushion_0.yuv 1920 1080 4 4 1 0 0 0 0 0 400 1 1 fcb419d98eb1e8422bbc81cb9b5a0d6f"
-  run_command "test_ldc_gdc_gen_mesh_thread ldc_data/1920x1080_pincushion_0.3.yuv ldc_data/out_pincushion_100.yuv 1920 1080 4 4 1 0 0 100 0 0 400 1 1 af4c825e1cca6b622d4d49476f7184cb"
   # multi-thread
   run_command "test_ldc_rot_thread ldc_data/1920x1088_nv21.bin ldc_data/out_1920x1088_rot0.yuv 1920 1088 0 4 4 8 1000 03fd51eb71461e1fcc64e072588b5754"
   run_command "test_ldc_rot_thread ldc_data/1920x1088_nv21.bin ldc_data/out_1920x1088_rot90.yuv 1920 1088 1 4 4 8 1000 03ba2f6618972aa7d7e7194191a274a5"
   run_command "test_ldc_rot_thread ldc_data/1920x1088_nv21.bin ldc_data/out_1920x1088_rot270.yuv 1920 1088 3 4 4 8 1000 808de3490552a1eedf94bf11a6dccd76"
-  run_command "test_ldc_gdc_load_mesh_thread ldc_data/1920x1080_barrel_0.3.yuv ldc_data/out_load_mesh_barrel_0.yuv 1920 1080 4 4 ldc_data/1920x1080_barrel_0.3_r0_ofst_0_0_d-200.mesh 8 1000 9858d320f4ae52cade10d20ea61473c4"
-  run_command "test_ldc_gdc_load_mesh_thread ldc_data/1920x1080_barrel_0.3.yuv ldc_data/out_load_mesh_barrel_1.yuv 1920 1080 4 4 ldc_data/test_mesh_1920x1080_1_0_0_90_0_0_-200.mesh 8 1000 2da6c1a297a52d0916bec1a7226fed53"
-  run_command "test_ldc_gdc_load_mesh_thread ldc_data/1920x1080_pincushion_0.3.yuv ldc_data/out_load_mesh_pincushion_0.yuv 1920 1080 4 4 ldc_data/1920x1080_pincushion_0.3_r0_ofst_0_0_d400.mesh 8 1000 78acfb91bd08f159623a85fe03a01169"
-  run_command "test_ldc_gdc_load_mesh_thread ldc_data/1920x1080_pincushion_0.3.yuv ldc_data/out_load_mesh_pincushion_1.yuv 1920 1080 4 4 ldc_data/1920x1080_pincushion_0.3_r100_ofst_0_0_d400.mesh 8 1000 8766b0ba7e315e5a8b413f69e0a26127"
-  # grid_info
-  run_command "test_ldc_gdc_grid_info_thread ldc_data/1280x768.yuv ldc_data/out_grid_info.yuv 1280 768 4 4 ldc_data/grid_info_79_44_3476_80_45_1280x720.dat 336080 1 1 9fe88b54ed51a09a9d245b805b346435"
-  run_command "test_ldc_gdc_grid_info_thread ldc_data/grid_info_in_nv21/left_00.yuv ldc_data/grid_info_out_nv21/out_left_00.yuv 1280 720 4 4 ldc_data/bianli_grid_info_79_44_3476_80_45_1280x720.dat 336080 1 1 c547898b0af47720760c4ef40145a772"
-  # run_command "test_ldc_gdc_grid_info_thread 1 1"
   # parameters loop test
   # run_command "test_ldc_rot_thread 1 1 64 64"
-  # run_command "test_ldc_gdc_load_mesh_thread 1 1 64 64"
-  # run_command "test_ldc_gdc_thread 1 1 64 64"
+  if [ "$CHIP_NAME" != "cv84x6" ]; then
+    run_command "test_ldc_gdc_load_mesh_thread ldc_data/1920x1080_barrel_0.3.yuv ldc_data/out_load_mesh_barrel_0.yuv 1920 1080 4 4 ldc_data/1920x1080_barrel_0.3_r0_ofst_0_0_d-200.mesh 1 1"
+    run_command "test_ldc_gdc_load_mesh_thread ldc_data/1920x1080_barrel_0.3.yuv ldc_data/out_load_mesh_barrel_1.yuv 1920 1080 4 4 ldc_data/test_mesh_1920x1080_1_0_0_90_0_0_-200.mesh 1 1"
+    run_command "test_ldc_gdc_load_mesh_thread ldc_data/1920x1080_pincushion_0.3.yuv ldc_data/out_load_mesh_pincushion_0.yuv 1920 1080 4 4 ldc_data/1920x1080_pincushion_0.3_r0_ofst_0_0_d400.mesh 1 1"
+    run_command "test_ldc_gdc_load_mesh_thread ldc_data/1920x1080_pincushion_0.3.yuv ldc_data/out_load_mesh_pincushion_1.yuv 1920 1080 4 4 ldc_data/1920x1080_pincushion_0.3_r100_ofst_0_0_d400.mesh 1 1"
+    run_command "test_ldc_gdc_thread ldc_data/1920x1080_barrel_0.3.yuv ldc_data/out_barrel_0.yuv 1920 1080 4 4 1 0 0 0 0 0 -200 1 1"
+    run_command "test_ldc_gdc_thread ldc_data/1920x1080_barrel_0.3.yuv ldc_data/out_barrel_90.yuv 1920 1080 4 4 1 0 0 90 0 0 -200 1 1"
+    run_command "test_ldc_gdc_thread ldc_data/1920x1080_pincushion_0.3.yuv ldc_data/out_pincushion_0.yuv 1920 1080 4 4 1 0 0 0 0 0 400 1 1"
+    run_command "test_ldc_gdc_thread ldc_data/1920x1080_pincushion_0.3.yuv ldc_data/out_pincushion_100.yuv 1920 1080 4 4 1 0 0 100 0 0 400 1 1"
+    run_command "test_ldc_gdc_gen_mesh_thread ldc_data/1920x1080_barrel_0.3.yuv ldc_data/out_barrel_0.yuv 1920 1080 4 4 1 0 0 0 0 0 -200 1 1"
+    run_command "test_ldc_gdc_gen_mesh_thread ldc_data/1920x1080_barrel_0.3.yuv ldc_data/out_barrel_100.yuv 1920 1080 4 4 1 0 0 100 0 0 -200 1 1"
+    run_command "test_ldc_gdc_gen_mesh_thread ldc_data/1920x1080_pincushion_0.3.yuv ldc_data/out_pincushion_0.yuv 1920 1080 4 4 1 0 0 0 0 0 400 1 1"
+    run_command "test_ldc_gdc_gen_mesh_thread ldc_data/1920x1080_pincushion_0.3.yuv ldc_data/out_pincushion_100.yuv 1920 1080 4 4 1 0 0 100 0 0 400 1 1"
+    run_command "test_ldc_gdc_load_mesh_thread ldc_data/1920x1080_barrel_0.3.yuv ldc_data/out_load_mesh_barrel_0.yuv 1920 1080 4 4 ldc_data/1920x1080_barrel_0.3_r0_ofst_0_0_d-200.mesh 1 1 9858d320f4ae52cade10d20ea61473c4"
+    run_command "test_ldc_gdc_load_mesh_thread ldc_data/1920x1080_barrel_0.3.yuv ldc_data/out_load_mesh_barrel_1.yuv 1920 1080 4 4 ldc_data/test_mesh_1920x1080_1_0_0_90_0_0_-200.mesh 1 1 2da6c1a297a52d0916bec1a7226fed53"
+    run_command "test_ldc_gdc_load_mesh_thread ldc_data/1920x1080_pincushion_0.3.yuv ldc_data/out_load_mesh_pincushion_0.yuv 1920 1080 4 4 ldc_data/1920x1080_pincushion_0.3_r0_ofst_0_0_d400.mesh 1 1 78acfb91bd08f159623a85fe03a01169"
+    run_command "test_ldc_gdc_load_mesh_thread ldc_data/1920x1080_pincushion_0.3.yuv ldc_data/out_load_mesh_pincushion_1.yuv 1920 1080 4 4 ldc_data/1920x1080_pincushion_0.3_r100_ofst_0_0_d400.mesh 1 1 8766b0ba7e315e5a8b413f69e0a26127"
+    run_command "test_ldc_gdc_thread ldc_data/1920x1080_barrel_0.3.yuv ldc_data/out_barrel_0.yuv 1920 1080 4 4 1 0 0 0 0 0 -200 1 1 9858d320f4ae52cade10d20ea61473c4"
+    run_command "test_ldc_gdc_thread ldc_data/1920x1080_barrel_0.3.yuv ldc_data/out_barrel_90.yuv 1920 1080 4 4 1 0 0 90 0 0 -200 1 1 2da6c1a297a52d0916bec1a7226fed53"
+    run_command "test_ldc_gdc_thread ldc_data/1920x1080_pincushion_0.3.yuv ldc_data/out_pincushion_0.yuv 1920 1080 4 4 1 0 0 0 0 0 400 1 1 78acfb91bd08f159623a85fe03a01169"
+    run_command "test_ldc_gdc_thread ldc_data/1920x1080_pincushion_0.3.yuv ldc_data/out_pincushion_100.yuv 1920 1080 4 4 1 0 0 100 0 0 400 1 1 8766b0ba7e315e5a8b413f69e0a26127"
+    run_command "test_ldc_gdc_gen_mesh_thread ldc_data/1920x1080_barrel_0.3.yuv ldc_data/out_barrel_0.yuv 1920 1080 4 4 1 0 0 0 0 0 -200 1 1 eabb55a370ece25767ffc09915b802b0"
+    run_command "test_ldc_gdc_gen_mesh_thread ldc_data/1920x1080_barrel_0.3.yuv ldc_data/out_barrel_100.yuv 1920 1080 4 4 1 0 0 100 0 0 -200 1 1 26488964ba2b88354f4d665ca6056836"
+    run_command "test_ldc_gdc_gen_mesh_thread ldc_data/1920x1080_pincushion_0.3.yuv ldc_data/out_pincushion_0.yuv 1920 1080 4 4 1 0 0 0 0 0 400 1 1 fcb419d98eb1e8422bbc81cb9b5a0d6f"
+    run_command "test_ldc_gdc_gen_mesh_thread ldc_data/1920x1080_pincushion_0.3.yuv ldc_data/out_pincushion_100.yuv 1920 1080 4 4 1 0 0 100 0 0 400 1 1 af4c825e1cca6b622d4d49476f7184cb"
+    # multi-thread
+    run_command "test_ldc_gdc_load_mesh_thread ldc_data/1920x1080_barrel_0.3.yuv ldc_data/out_load_mesh_barrel_0.yuv 1920 1080 4 4 ldc_data/1920x1080_barrel_0.3_r0_ofst_0_0_d-200.mesh 8 1000 9858d320f4ae52cade10d20ea61473c4"
+    run_command "test_ldc_gdc_load_mesh_thread ldc_data/1920x1080_barrel_0.3.yuv ldc_data/out_load_mesh_barrel_1.yuv 1920 1080 4 4 ldc_data/test_mesh_1920x1080_1_0_0_90_0_0_-200.mesh 8 1000 2da6c1a297a52d0916bec1a7226fed53"
+    run_command "test_ldc_gdc_load_mesh_thread ldc_data/1920x1080_pincushion_0.3.yuv ldc_data/out_load_mesh_pincushion_0.yuv 1920 1080 4 4 ldc_data/1920x1080_pincushion_0.3_r0_ofst_0_0_d400.mesh 8 1000 78acfb91bd08f159623a85fe03a01169"
+    run_command "test_ldc_gdc_load_mesh_thread ldc_data/1920x1080_pincushion_0.3.yuv ldc_data/out_load_mesh_pincushion_1.yuv 1920 1080 4 4 ldc_data/1920x1080_pincushion_0.3_r100_ofst_0_0_d400.mesh 8 1000 8766b0ba7e315e5a8b413f69e0a26127"
+    # grid_info
+    run_command "test_ldc_gdc_grid_info_thread ldc_data/1280x768.yuv ldc_data/out_grid_info.yuv 1280 768 4 4 ldc_data/grid_info_79_44_3476_80_45_1280x720.dat 336080 1 1 9fe88b54ed51a09a9d245b805b346435"
+    run_command "test_ldc_gdc_grid_info_thread ldc_data/grid_info_in_nv21/left_00.yuv ldc_data/grid_info_out_nv21/out_left_00.yuv 1280 720 4 4 ldc_data/bianli_grid_info_79_44_3476_80_45_1280x720.dat 336080 1 1 c547898b0af47720760c4ef40145a772"
+    # run_command "test_ldc_gdc_grid_info_thread 1 1"
+    # parameters loop test
+    # run_command "test_ldc_gdc_load_mesh_thread 1 1 64 64"
+    # run_command "test_ldc_gdc_thread 1 1 64 64"
+  fi
 }
 
 run_dwa(){
   if [ ! -d "dwa_data" ]; then
     echo "Error: Directory 'dwa_data' does not exist"
     echo "please prepare test data"
+    add_failure "test data directory 'dwa_data' is missing"
     return 1
   fi
   run_command "test_dwa_rot_thread 128 128 14 dwa_data/128x128_sophgo.bin 128 128 dwa_data/out_128x128_rot0.bin 0 1 1 e001fc14213febf4751fbd8d739d8f28"
@@ -958,30 +1100,29 @@ run_dwa(){
 }
 
 run_all(){
+  run_tde
   run_vpss
   run_tpu
-  run_dpu
+  if [ "$CHIP_NAME" != "cv84x6" ]; then
+    run_dpu
+    run_dwa
+    run_blend
+  fi
   run_ldc
-  run_dwa
-  run_blend
   run_ive
-  run_kill_vpss
-  run_kill_tpu
-  run_kill_dpu
-  run_kill_ldc
-  run_kill_dwa
-  run_kill_ive
-  run_kill_blend
+  run_kill
 }
 
 run_kill(){
   run_kill_vpss
   run_kill_tpu
-  run_kill_dpu
   run_kill_ldc
-  run_kill_dwa
   run_kill_ive
-  run_kill_blend
+  if [ "$CHIP_NAME" != "cv84x6" ]; then
+    run_kill_dpu
+    run_kill_dwa
+    run_kill_blend
+  fi
 }
 
 run_kill_vpss(){
@@ -1088,6 +1229,7 @@ run_kill_dpu(){
   if [ ! -d "dpu_data" ]; then
     echo "Error: Directory 'dpu_data' does not exist"
     echo "please prepare test data"
+    add_failure "test data directory 'dpu_data' is missing"
     return 1
   fi
   COMMAND1="test_dpu_sgbm_thread 512 284 3 dpu_data/sofa_left_img_512x284.bin dpu_data/sofa_right_img_512x284.bin dpu_data/205pU8Disp_ref_512x284.bin 1 0 1 1500 &
@@ -1132,6 +1274,7 @@ run_kill_ldc(){
   if [ ! -d "ldc_data" ]; then
     echo "Error: Directory 'ldc_data' does not exist"
     echo "please prepare test data"
+    add_failure "test data directory 'ldc_data' is missing"
     return 1
   fi
   COMMAND1="test_ldc_rot_thread ldc_data/1920x1088_nv21.bin ldc_data/out_1920x1088_rot0.yuv 1920 1088 0 4 4 1 1 &
@@ -1184,6 +1327,7 @@ run_kill_dwa(){
   if [ ! -d "dwa_data" ]; then
     echo "Error: Directory 'dwa_data' does not exist"
     echo "please prepare test data"
+    add_failure "test data directory 'dwa_data' is missing"
     return 1
   fi
   COMMAND1="test_dwa_rot_thread 128 128 14 dwa_data/128x128_sophgo.bin 128 128 dwa_data/out_128x128_rot0.bin 0 1 1 e001fc14213febf4751fbd8d739d8f28 &
@@ -1236,6 +1380,7 @@ run_kill_ive(){
   if [ ! -d "ive_data" ]; then
     echo "Error: Directory 'ive_data' does not exist"
     echo "please prepare test data"
+    add_failure "test data directory 'ive_data' is missing"
     return 1
   fi
   COMMAND1="test_ive_add_thread 352 288 14 14 19584 45952 ive_data/00_352x288_y.yuv ive_data/01_352x288_y.yuv ive_data/result/sample_Add.yuv 0 1 1 0 &
@@ -1288,6 +1433,7 @@ run_kill_blend(){
   if [ ! -d "stitch" ]; then
     echo "Error: Directory 'stitch' does not exist"
     echo "please prepare test data"
+    add_failure "test data directory 'stitch' is missing"
     return 1
   fi
   COMMAND1="test_2way_blending -a stitch/c01_lft__1536x384_pure_color.yuv -b stitch/c01_rht__1088x384_pure_color.yuv -c 1536 -d 384 -e 1088 -f 384 -g 0 -h out/2way-2400x384.yuv420p -i 2400 -j 384 -k 0 -l 1312 -m 1535 -r stitch/c01_alpha_m2__384x224_short.bin -s stitch/c01_beta_m2__384x224_short.bin -z stitch/c01_result_c2_2400x384_pure_color1.yuv &
@@ -1329,12 +1475,25 @@ run_kill_blend(){
   kill_processes
 }
 
+if [ "$CHIP_NAME" = "cv84x6" ]; then
+  case "$bmcv_case" in
+    dpu|dwa|blend|kill_dpu|kill_dwa|kill_blend)
+      echo "chip $CHIP_NAME does not support '$bmcv_case', skip."
+      # pytest treats "All tests pass!" as the pass marker, so emit it on skip too
+      echo "All tests pass! (case '$bmcv_case' skipped on $CHIP_NAME)"
+      return 0 2>/dev/null || exit 0
+      ;;
+  esac
+fi
+
 if [ $bmcv_case = "all" ]; then
   eval "mkdir -p out"
   if [ ! -d "out" ]; then
     echo "Error: Directory 'out' does not exist after creation attempt"
     echo "please check the current directory permissions"
-    return 1
+    add_failure "output directory 'out' cannot be created"
+    # return when sourced, exit when executed, so an interactive shell is not killed
+    return 1 2>/dev/null || exit 1
   fi
   while [ $count -le $loop ]
   do
@@ -1348,7 +1507,9 @@ if [ $bmcv_case = "kill" ]; then
   if [ ! -d "out" ]; then
     echo "Error: Directory 'out' does not exist after creation attempt"
     echo "please check the current directory permissions"
-    return 1
+    add_failure "output directory 'out' cannot be created"
+    # return when sourced, exit when executed, so an interactive shell is not killed
+    return 1 2>/dev/null || exit 1
   fi
   while [ $count -le $loop ]
   do
@@ -1362,11 +1523,29 @@ if [ $bmcv_case = "vpss" ]; then
   if [ ! -d "out" ]; then
     echo "Error: Directory 'out' does not exist after creation attempt"
     echo "please check the current directory permissions"
-    return 1
+    add_failure "output directory 'out' cannot be created"
+    # return when sourced, exit when executed, so an interactive shell is not killed
+    return 1 2>/dev/null || exit 1
   fi
   while [ $count -le $loop ]
   do
       run_vpss
+      ((count++))
+  done
+fi
+
+if [ $bmcv_case = "vpss_nodata" ]; then
+  eval "mkdir -p out"
+  if [ ! -d "out" ]; then
+    echo "Error: Directory 'out' does not exist after creation attempt"
+    echo "please check the current directory permissions"
+    add_failure "output directory 'out' cannot be created"
+    # return when sourced, exit when executed, so an interactive shell is not killed
+    return 1 2>/dev/null || exit 1
+  fi
+  while [ $count -le $loop ]
+  do
+      run_vpss_nodata
       ((count++))
   done
 fi
@@ -1376,7 +1555,9 @@ if [ $bmcv_case = "tpu" ]; then
   if [ ! -d "out" ]; then
     echo "Error: Directory 'out' does not exist after creation attempt"
     echo "please check the current directory permissions"
-    return 1
+    add_failure "output directory 'out' cannot be created"
+    # return when sourced, exit when executed, so an interactive shell is not killed
+    return 1 2>/dev/null || exit 1
   fi
   while [ $count -le $loop ]
   do
@@ -1390,7 +1571,9 @@ if [ $bmcv_case = "dpu" ]; then
   if [ ! -d "out" ]; then
     echo "Error: Directory 'out' does not exist after creation attempt"
     echo "please check the current directory permissions"
-    return 1
+    add_failure "output directory 'out' cannot be created"
+    # return when sourced, exit when executed, so an interactive shell is not killed
+    return 1 2>/dev/null || exit 1
   fi
   while [ $count -le $loop ]
   do
@@ -1404,7 +1587,9 @@ if [ $bmcv_case = "ldc" ]; then
   if [ ! -d "out" ]; then
     echo "Error: Directory 'out' does not exist after creation attempt"
     echo "please check the current directory permissions"
-    return 1
+    add_failure "output directory 'out' cannot be created"
+    # return when sourced, exit when executed, so an interactive shell is not killed
+    return 1 2>/dev/null || exit 1
   fi
   while [ $count -le $loop ]
   do
@@ -1418,7 +1603,9 @@ if [ $bmcv_case = "dwa" ]; then
   if [ ! -d "out" ]; then
     echo "Error: Directory 'out' does not exist after creation attempt"
     echo "please check the current directory permissions"
-    return 1
+    add_failure "output directory 'out' cannot be created"
+    # return when sourced, exit when executed, so an interactive shell is not killed
+    return 1 2>/dev/null || exit 1
   fi
   while [ $count -le $loop ]
   do
@@ -1432,7 +1619,9 @@ if [ $bmcv_case = "blend" ]; then
   if [ ! -d "out" ]; then
     echo "Error: Directory 'out' does not exist after creation attempt"
     echo "please check the current directory permissions"
-    return 1
+    add_failure "output directory 'out' cannot be created"
+    # return when sourced, exit when executed, so an interactive shell is not killed
+    return 1 2>/dev/null || exit 1
   fi
   while [ $count -le $loop ]
   do
@@ -1446,7 +1635,9 @@ if [ $bmcv_case = "ive" ]; then
   if [ ! -d "out" ]; then
     echo "Error: Directory 'out' does not exist after creation attempt"
     echo "please check the current directory permissions"
-    return 1
+    add_failure "output directory 'out' cannot be created"
+    # return when sourced, exit when executed, so an interactive shell is not killed
+    return 1 2>/dev/null || exit 1
   fi
   while [ $count -le $loop ]
   do
@@ -1460,7 +1651,9 @@ if [ $bmcv_case = "tde" ]; then
   if [ ! -d "out" ]; then
     echo "Error: Directory 'out' does not exist after creation attempt"
     echo "please check the current directory permissions"
-    return 1
+    add_failure "output directory 'out' cannot be created"
+    # return when sourced, exit when executed, so an interactive shell is not killed
+    return 1 2>/dev/null || exit 1
   fi
   while [ $count -le $loop ]
   do
@@ -1474,7 +1667,9 @@ if [ $bmcv_case = "kill_vpss" ]; then
   if [ ! -d "out" ]; then
     echo "Error: Directory 'out' does not exist after creation attempt"
     echo "please check the current directory permissions"
-    return 1
+    add_failure "output directory 'out' cannot be created"
+    # return when sourced, exit when executed, so an interactive shell is not killed
+    return 1 2>/dev/null || exit 1
   fi
   while [ $count -le $loop ]
   do
@@ -1488,7 +1683,9 @@ if [ $bmcv_case = "kill_tpu" ]; then
   if [ ! -d "out" ]; then
     echo "Error: Directory 'out' does not exist after creation attempt"
     echo "please check the current directory permissions"
-    return 1
+    add_failure "output directory 'out' cannot be created"
+    # return when sourced, exit when executed, so an interactive shell is not killed
+    return 1 2>/dev/null || exit 1
   fi
   while [ $count -le $loop ]
   do
@@ -1502,7 +1699,9 @@ if [ $bmcv_case = "kill_dpu" ]; then
   if [ ! -d "out" ]; then
     echo "Error: Directory 'out' does not exist after creation attempt"
     echo "please check the current directory permissions"
-    return 1
+    add_failure "output directory 'out' cannot be created"
+    # return when sourced, exit when executed, so an interactive shell is not killed
+    return 1 2>/dev/null || exit 1
   fi
   while [ $count -le $loop ]
   do
@@ -1516,7 +1715,9 @@ if [ $bmcv_case = "kill_ldc" ]; then
   if [ ! -d "out" ]; then
     echo "Error: Directory 'out' does not exist after creation attempt"
     echo "please check the current directory permissions"
-    return 1
+    add_failure "output directory 'out' cannot be created"
+    # return when sourced, exit when executed, so an interactive shell is not killed
+    return 1 2>/dev/null || exit 1
   fi
   while [ $count -le $loop ]
   do
@@ -1530,7 +1731,9 @@ if [ $bmcv_case = "kill_dwa" ]; then
   if [ ! -d "out" ]; then
     echo "Error: Directory 'out' does not exist after creation attempt"
     echo "please check the current directory permissions"
-    return 1
+    add_failure "output directory 'out' cannot be created"
+    # return when sourced, exit when executed, so an interactive shell is not killed
+    return 1 2>/dev/null || exit 1
   fi
   while [ $count -le $loop ]
   do
@@ -1544,7 +1747,9 @@ if [ $bmcv_case = "kill_ive" ]; then
   if [ ! -d "out" ]; then
     echo "Error: Directory 'out' does not exist after creation attempt"
     echo "please check the current directory permissions"
-    return 1
+    add_failure "output directory 'out' cannot be created"
+    # return when sourced, exit when executed, so an interactive shell is not killed
+    return 1 2>/dev/null || exit 1
   fi
   while [ $count -le $loop ]
   do
@@ -1558,7 +1763,9 @@ if [ $bmcv_case = "kill_blend" ]; then
   if [ ! -d "out" ]; then
     echo "Error: Directory 'out' does not exist after creation attempt"
     echo "please check the current directory permissions"
-    return 1
+    add_failure "output directory 'out' cannot be created"
+    # return when sourced, exit when executed, so an interactive shell is not killed
+    return 1 2>/dev/null || exit 1
   fi
   while [ $count -le $loop ]
   do
@@ -1570,6 +1777,8 @@ fi
 if [ $failed_count -gt 0 ]; then
   echo "Total failed commands: $failed_count"
   echo -e "Failed scripts:\n$failed_scripts"
+  # return when sourced, exit when executed, so an interactive shell is not killed
+  return 1 2>/dev/null || exit 1
 else
   echo "All tests pass!"
 fi

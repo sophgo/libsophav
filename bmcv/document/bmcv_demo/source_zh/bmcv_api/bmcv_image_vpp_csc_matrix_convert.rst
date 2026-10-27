@@ -50,7 +50,7 @@ bmcv_image_vpp_csc_matrix_convert
       - 色域转换自定义矩阵，当且仅当 csc 为 CSC_USER_DEFINED_MATRIX 时这个值才生效。
     * - algorithm
       - 输入
-      - resize 算法选择，包括 BMCV_INTER_NEAREST、BMCV_INTER_LINEAR 和 BMCV_INTER_BICUBIC 三种，默认情况下是双线性差值。
+      - resize 算法选择，包括 BMCV_INTER_NEAREST、BMCV_INTER_LINEAR、BMCV_INTER_AREA 和 BMCV_INTER_BICUBIC 四种，默认情况下是双线性差值。
 
 | 【注意】
 

@@ -44,49 +44,34 @@ bm_status_t bmcv_image_rotate_direct(
         bm_image    output,
         int         rotation_angle) {
     bm_status_t ret    = BM_SUCCESS;
-    unsigned    chipid = BM1688;
 
     ret = bmcv_rotate_check(handle, input, output, rotation_angle);
     if (BM_SUCCESS != ret) {
         return ret;
     }
-    ret = bm_get_chipid(handle, &chipid);
-    if (ret != BM_SUCCESS) {
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "rotate get chipid error! \n");
-        return ret;
-    }
 
     bmcv_rot_mode rot_mode = BMCV_ROTATION_0;
-    switch (chipid) {
-        case BM1688_PREV:
-        case BM1688:
-            switch (rotation_angle) {
-                case 90:
-                    rot_mode = BMCV_ROTATION_90;
-                    break;
-                case 270:
-                    rot_mode = BMCV_ROTATION_270;
-                    break;
-                default:
-                    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
-                              "ERROR! Rotation_angle is not supported!\n");
-                    return BM_NOT_SUPPORTED;
-                    break;
-            }
-#ifndef BM_PCIE_MODE
-            ret = bmcv_ldc_rot(handle, input, output, rot_mode);
-#else
-            ret = bmcv_image_rotate_trans(handle, input, output, rot_mode);
-#endif
-            if (ret != BM_SUCCESS) {
-                bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "Bmcv ldc execution failed! \n");
-                return ret;
-            }
+    switch (rotation_angle) {
+        case 90:
+            rot_mode = BMCV_ROTATION_90;
+            break;
+        case 270:
+            rot_mode = BMCV_ROTATION_270;
             break;
         default:
-            ret = BM_NOT_SUPPORTED;
-            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "not support! \n");
+            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
+                        "ERROR! Rotation_angle is not supported!\n");
+            return BM_NOT_SUPPORTED;
             break;
+    }
+#ifndef BM_PCIE_MODE
+    ret = bmcv_ldc_rot(handle, input, output, rot_mode);
+#else
+    ret = bmcv_image_rotate_trans(handle, input, output, rot_mode);
+#endif
+    if (ret != BM_SUCCESS) {
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "Bmcv ldc execution failed! \n");
+        return ret;
     }
     return ret;
 }

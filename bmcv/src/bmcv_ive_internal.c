@@ -39,9 +39,36 @@ bm_status_t bm_ive_image_calc_stride(bm_handle_t handle, int img_h, int img_w,
     bm_image_private image_private;
     ret = fill_default_image_private(&image_private, img_h, img_w, image_format, data_type);
     for(int i = 0; i < image_private.plane_num; i++)
+#ifdef MEDIA_V3
+        stride[i] = image_private.memory_layout[i].pitch_stride;
+#else
         stride[i] = ALIGN(image_private.memory_layout[i].pitch_stride, IVE_STRIDE_ALIGN);
+#endif
     return ret;
 }
+
+#ifdef MEDIA_V3
+static void ive_expand_mask(void *dst_mask, const void *src_mask, int ksize, size_t elem_size) {
+    const int max_size = 9;
+    int offset = (max_size - ksize) / 2;
+
+    memset(dst_mask, 0, max_size * max_size * elem_size);
+
+    if (ksize == 9) {
+        memcpy(dst_mask, src_mask, 81 * elem_size);
+        return;
+    }
+
+    for (int i = 0; i < ksize; i++) {
+        unsigned char *dst_row = (unsigned char *)dst_mask + ((i + offset) * max_size + offset) * elem_size;
+        const unsigned char *src_row = (const unsigned char *)src_mask + (i * ksize) * elem_size;
+        memcpy(dst_row, src_row, ksize * elem_size);
+    }
+}
+#endif /* MEDIA_V3 */
+#else
+#include "bmcv_internal.h"
+#endif
 
 bm_status_t bmcv_ive_and(
     bm_handle_t          handle,
@@ -49,26 +76,12 @@ bm_status_t bmcv_ive_and(
     bm_image             input2,
     bm_image             output)
 {
-    bm_status_t ret = BM_SUCCESS;
-    unsigned int chipid = BM1688;
-#ifndef _FPGA
-    ret = bm_get_chipid(handle, &chipid);
-    if (BM_SUCCESS != ret)
-        return ret;
+#ifdef BM_PCIE_MODE
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
+    return BM_NOT_SUPPORTED;
+#else
+    return bm_ive_and(handle, input1, input2, output);
 #endif
-    switch(chipid)
-    {
-        case BM1688_PREV:
-        case BM1688:
-            ret = bm_ive_and(handle, input1, input2, output);
-            break;
-
-        default:
-            ret = BM_NOT_SUPPORTED;
-            break;
-        }
-
-    return ret;
 }
 
 bm_status_t bmcv_ive_add(
@@ -78,26 +91,12 @@ bm_status_t bmcv_ive_add(
     bm_image             output,
     bmcv_ive_add_attr    attr)
 {
-    bm_status_t ret = BM_SUCCESS;
-    unsigned int chipid = BM1688;
-#ifndef _FPGA
-    ret = bm_get_chipid(handle, &chipid);
-    if (BM_SUCCESS != ret)
-        return ret;
+#ifdef BM_PCIE_MODE
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
+    return BM_NOT_SUPPORTED;
+#else
+    return bm_ive_add(handle, input1, input2, output, attr);
 #endif
-    switch(chipid)
-    {
-        case BM1688_PREV:
-        case BM1688:
-            ret = bm_ive_add(handle, input1, input2, output, attr);
-            break;
-
-        default:
-            ret = BM_NOT_SUPPORTED;
-            break;
-        }
-
-    return ret;
 }
 
 bm_status_t bmcv_ive_or(
@@ -106,26 +105,12 @@ bm_status_t bmcv_ive_or(
     bm_image             input2,
     bm_image             output)
 {
-    bm_status_t ret = BM_SUCCESS;
-    unsigned int chipid = BM1688;
-#ifndef _FPGA
-    ret = bm_get_chipid(handle, &chipid);
-    if (BM_SUCCESS != ret)
-        return ret;
+#ifdef BM_PCIE_MODE
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
+    return BM_NOT_SUPPORTED;
+#else
+    return bm_ive_or(handle, input1, input2, output);
 #endif
-    switch(chipid)
-    {
-        case BM1688_PREV:
-        case BM1688:
-            ret = bm_ive_or(handle, input1, input2, output);
-            break;
-
-        default:
-            ret = BM_NOT_SUPPORTED;
-            break;
-        }
-
-    return ret;
 }
 
 bm_status_t bmcv_ive_xor(
@@ -134,26 +119,12 @@ bm_status_t bmcv_ive_xor(
     bm_image             input2,
     bm_image             output)
 {
-    bm_status_t ret = BM_SUCCESS;
-    unsigned int chipid = BM1688;
-#ifndef _FPGA
-    ret = bm_get_chipid(handle, &chipid);
-    if (BM_SUCCESS != ret)
-        return ret;
+#ifdef BM_PCIE_MODE
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
+    return BM_NOT_SUPPORTED;
+#else
+    return bm_ive_xor(handle, input1, input2, output);
 #endif
-    switch(chipid)
-    {
-        case BM1688_PREV:
-        case BM1688:
-            ret = bm_ive_xor(handle, input1, input2, output);
-            break;
-
-        default:
-            ret = BM_NOT_SUPPORTED;
-            break;
-        }
-
-    return ret;
 }
 
 bm_status_t bmcv_ive_sub(
@@ -163,26 +134,12 @@ bm_status_t bmcv_ive_sub(
     bm_image             output,
     bmcv_ive_sub_attr      attr)
 {
-    bm_status_t ret = BM_SUCCESS;
-    unsigned int chipid = BM1688;
-#ifndef _FPGA
-    ret = bm_get_chipid(handle, &chipid);
-    if (BM_SUCCESS != ret)
-        return ret;
+#ifdef BM_PCIE_MODE
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
+    return BM_NOT_SUPPORTED;
+#else
+    return bm_ive_sub(handle, input1, input2, output, attr);
 #endif
-    switch(chipid)
-    {
-        case BM1688_PREV:
-        case BM1688:
-            ret = bm_ive_sub(handle, input1, input2, output, attr);
-            break;
-
-        default:
-            ret = BM_NOT_SUPPORTED;
-            break;
-        }
-
-    return ret;
 }
 
 bm_status_t bmcv_ive_thresh(
@@ -192,26 +149,12 @@ bm_status_t bmcv_ive_thresh(
     bmcv_ive_thresh_mode      thresh_mode,
     bmcv_ive_thresh_attr      attr)
 {
-    bm_status_t ret = BM_SUCCESS;
-    unsigned int chipid = BM1688;
-#ifndef _FPGA
-    ret = bm_get_chipid(handle, &chipid);
-    if (BM_SUCCESS != ret)
-        return ret;
+#ifdef BM_PCIE_MODE
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
+    return BM_NOT_SUPPORTED;
+#else
+    return bm_ive_thresh(handle, input, output, thresh_mode, attr);
 #endif
-    switch(chipid)
-    {
-        case BM1688_PREV:
-        case BM1688:
-            ret = bm_ive_thresh(handle, input, output, thresh_mode, attr);
-            break;
-
-        default:
-            ret = BM_NOT_SUPPORTED;
-            break;
-        }
-
-    return ret;
 }
 bm_status_t bmcv_ive_dma_set(
     bm_handle_t                      handle,
@@ -219,26 +162,12 @@ bm_status_t bmcv_ive_dma_set(
     bmcv_ive_dma_set_mode            dma_set_mode,
     unsigned long long               val)
 {
-    bm_status_t ret = BM_SUCCESS;
-    unsigned int chipid = BM1688;
-#ifndef _FPGA
-    ret = bm_get_chipid(handle, &chipid);
-    if (BM_SUCCESS != ret)
-        return ret;
+#ifdef BM_PCIE_MODE
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
+    return BM_NOT_SUPPORTED;
+#else
+    return bm_ive_dma_set(handle, image, dma_set_mode, val);
 #endif
-    switch(chipid)
-    {
-        case BM1688_PREV:
-        case BM1688:
-            ret = bm_ive_dma_set(handle, image, dma_set_mode, val);
-            break;
-
-        default:
-            ret = BM_NOT_SUPPORTED;
-            break;
-        }
-
-    return ret;
 }
 
 bm_status_t bmcv_ive_dma(
@@ -248,26 +177,12 @@ bm_status_t bmcv_ive_dma(
     bmcv_ive_dma_mode                dma_mode,
     bmcv_ive_interval_dma_attr *     attr)
 {
-    bm_status_t ret = BM_SUCCESS;
-    unsigned int chipid = BM1688;
-#ifndef _FPGA
-    ret = bm_get_chipid(handle, &chipid);
-    if (BM_SUCCESS != ret)
-        return ret;
+#ifdef BM_PCIE_MODE
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
+    return BM_NOT_SUPPORTED;
+#else
+    return bm_ive_dma(handle, input, output, dma_mode, attr);
 #endif
-    switch(chipid)
-    {
-        case BM1688_PREV:
-        case BM1688:
-            ret = bm_ive_dma(handle, input, output, dma_mode, attr);
-            break;
-
-        default:
-            ret = BM_NOT_SUPPORTED;
-            break;
-        }
-
-    return ret;
 }
 
 bm_status_t bmcv_ive_map(
@@ -276,355 +191,362 @@ bm_status_t bmcv_ive_map(
     bm_image                output,
     bm_device_mem_t         map_table)
 {
-    bm_status_t ret = BM_SUCCESS;
-    unsigned int chipid = BM1688;
-#ifndef _FPGA
-    ret = bm_get_chipid(handle, &chipid);
-    if (BM_SUCCESS != ret)
-        return ret;
+#ifdef BM_PCIE_MODE
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
+    return BM_NOT_SUPPORTED;
+#else
+    return bm_ive_map(handle, input, output, map_table);
 #endif
-    switch(chipid)
-    {
-        case BM1688_PREV:
-        case BM1688:
-            ret = bm_ive_map(handle, input, output, map_table);
-            break;
-
-        default:
-            ret = BM_NOT_SUPPORTED;
-            break;
-        }
-
-    return ret;
 }
 
 bm_status_t bmcv_ive_hist(
-        bm_handle_t          handle,
-        bm_image             input,
-        bm_device_mem_t      output)
+    bm_handle_t          handle,
+    bm_image             input,
+    bm_device_mem_t      output)
 {
-    bm_status_t ret = BM_SUCCESS;
-    unsigned chipid = BM1688;
+#ifdef BM_PCIE_MODE
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
+    return BM_NOT_SUPPORTED;
+#else
     if (output.size != 1024){
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
             "output size alloc less 1024 %s: %s: %d\n",
             filename(__FILE__), __func__, __LINE__);
     }
-#ifndef _FPGA
-    ret = bm_get_chipid(handle, &chipid);
-    if (BM_SUCCESS != ret)
-        return ret;
+
+    return bm_ive_hist(handle, input, output);
 #endif
-
-    switch(chipid){
-        case BM1688_PREV:
-        case BM1688:
-            ret = bm_ive_hist(handle, input, output);
-            break;
-        default:
-            ret = BM_NOT_SUPPORTED;
-            break;
-    }
-
-    return ret;
 }
 
 bm_status_t bmcv_ive_integ(
-        bm_handle_t              handle,
-        bm_image                 input,
-        bm_device_mem_t          output,
-        bmcv_ive_integ_ctrl_s    integ_attr){
-    bm_status_t ret = BM_SUCCESS;
-    unsigned chipid = BM1688;
-#ifndef _FPGA
-    ret = bm_get_chipid(handle, &chipid);
-    if (BM_SUCCESS != ret)
-        return ret;
+    bm_handle_t              handle,
+    bm_image                 input,
+    bm_device_mem_t          output,
+    bmcv_ive_integ_ctrl_s    integ_attr){
+#ifdef BM_PCIE_MODE
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
+    return BM_NOT_SUPPORTED;
+#else
+    return bm_ive_integ(handle, input, output, integ_attr);
 #endif
-
-    switch(chipid){
-        case BM1688_PREV:
-        case BM1688:
-            ret = bm_ive_integ(handle, input, output, integ_attr);
-            break;
-        default:
-            ret = BM_NOT_SUPPORTED;
-            break;
-    }
-
-    return ret;
 }
 
 bm_status_t bmcv_ive_ncc(
-        bm_handle_t          handle,
-        bm_image             input1,
-        bm_image             input2,
-        bm_device_mem_t      output){
-    bm_status_t ret = BM_SUCCESS;
-    unsigned chipid = BM1688;
-#ifndef _FPGA
-    ret = bm_get_chipid(handle, &chipid);
-    if (BM_SUCCESS != ret)
-        return ret;
+    bm_handle_t          handle,
+    bm_image             input1,
+    bm_image             input2,
+    bm_device_mem_t      output){
+#ifdef BM_PCIE_MODE
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
+    return BM_NOT_SUPPORTED;
+#else
+    return bm_ive_ncc(handle, input1, input2, output);
 #endif
-
-    switch(chipid){
-        case BM1688_PREV:
-        case BM1688:
-            ret = bm_ive_ncc(handle, input1, input2, output);
-            break;
-        default:
-            ret = BM_NOT_SUPPORTED;
-            break;
-    }
-    return ret;
 }
 
 bm_status_t bmcv_ive_ord_stat_filter(
-        bm_handle_t                   handle,
-        bm_image                      input,
-        bm_image                      output,
-        bmcv_ive_ord_stat_filter_mode mode)
+    bm_handle_t                   handle,
+    bm_image                      input,
+    bm_image                      output,
+    bmcv_ive_ord_stat_filter_mode mode)
 {
-    bm_status_t ret = BM_SUCCESS;
-    unsigned chipid = BM1688;
-#ifndef _FPGA
-    ret = bm_get_chipid(handle, &chipid);
-    if (BM_SUCCESS != ret)
-        return ret;
+#ifdef BM_PCIE_MODE
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
+    return BM_NOT_SUPPORTED;
+#else
+    return bm_ive_ord_stat_filter(handle, &input, &output, mode);
 #endif
-
-    switch(chipid){
-        case BM1688_PREV:
-        case BM1688:
-            ret = bm_ive_ord_stat_filter(handle, &input, &output, mode);
-            break;
-        default:
-            ret = BM_NOT_SUPPORTED;
-            break;
-    }
-    return ret;
 }
 
 bm_status_t bmcv_ive_lbp(
-        bm_handle_t              handle,
-        bm_image                 input,
-        bm_image                 output,
-        bmcv_ive_lbp_ctrl_attr   lbp_attr)
+    bm_handle_t              handle,
+    bm_image                 input,
+    bm_image                 output,
+    bmcv_ive_lbp_ctrl_attr   lbp_attr)
 {
-    bm_status_t ret = BM_SUCCESS;
-    unsigned chipid = BM1688;
-#ifndef _FPGA
-    ret = bm_get_chipid(handle, &chipid);
-    if (BM_SUCCESS != ret)
-        return ret;
+#ifdef BM_PCIE_MODE
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
+    return BM_NOT_SUPPORTED;
+#else
+    return bm_ive_lbp(handle, &input, &output, &lbp_attr);
 #endif
+}
 
-    switch(chipid){
-        case BM1688_PREV:
-        case BM1688:
-            ret = bm_ive_lbp(handle, &input, &output, &lbp_attr);
-            break;
-        default:
-            ret = BM_NOT_SUPPORTED;
-            break;
+bm_status_t bmcv_ive_dilate_ext(
+    bm_handle_t           handle,
+    bm_image              input,
+    bm_image              output,
+    unsigned char         dilate_mask[81],
+    unsigned char         ksize)
+{
+#ifdef BM_PCIE_MODE
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
+    return BM_NOT_SUPPORTED;
+#elif defined(MEDIA_V3)
+    unsigned char local_mask[81] = {0};
+
+    if (handle == NULL) {
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "handle is null\n");
+        return BM_ERR_FAILURE;
     }
-    return ret;
+
+    if (ksize != 3 && ksize != 5 && ksize != 7 && ksize != 9) {
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
+                  "ksize(%d) is invalid, only support 3, 5, 7, 9\n", ksize);
+        return BM_ERR_PARAM;
+    }
+
+    int mask_all_zero = 1;
+    for (int i = 0; i < 81; i++) {
+        if (dilate_mask[i] != 0) {
+            mask_all_zero = 0;
+            break;
+        }
+    }
+    if (mask_all_zero) {
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
+                  "mask is all zeros, please check if mask is properly initialized\n");
+        return BM_ERR_PARAM;
+    }
+
+    if (ksize == 3 || ksize == 5 || ksize == 7) {
+        ive_expand_mask(local_mask, dilate_mask, ksize, sizeof(unsigned char));
+    } else {
+        memcpy(local_mask, dilate_mask, 81 * sizeof(unsigned char));
+    }
+
+    return bm_ive_dilate(handle, &input, &output, local_mask, ksize);
+#else
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "1688 not support!\n");
+    return BM_NOT_SUPPORTED;
+#endif
 }
 
 bm_status_t bmcv_ive_dilate(
-        bm_handle_t           handle,
-        bm_image              input,
-        bm_image              output,
-        unsigned char         dilate_mask[25])
+    bm_handle_t           handle,
+    bm_image              input,
+    bm_image              output,
+    unsigned char         dilate_mask[25])
 {
-    bm_status_t ret = BM_SUCCESS;
-    unsigned chipid = BM1688;
-#ifndef _FPGA
-    ret = bm_get_chipid(handle, &chipid);
-    if (BM_SUCCESS != ret)
-        return ret;
+#ifdef BM_PCIE_MODE
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
+    return BM_NOT_SUPPORTED;
+#elif defined(MEDIA_V3)
+    unsigned char dilate_mask_ext[81] = {0};
+    memcpy(dilate_mask_ext, dilate_mask, 25 * sizeof(unsigned char));
+    return bmcv_ive_dilate_ext(handle, input, output, dilate_mask_ext, 5);
+#else
+    return bm_ive_dilate(handle, &input, &output, dilate_mask);
 #endif
+}
 
-    switch(chipid){
-        case BM1688_PREV:
-        case BM1688:
-            ret = bm_ive_dilate(handle, &input, &output, dilate_mask);
-            break;
-        default:
-            ret = BM_NOT_SUPPORTED;
-            break;
+bm_status_t bmcv_ive_erode_ext(
+    bm_handle_t           handle,
+    bm_image              input,
+    bm_image              output,
+    unsigned char         erode_mask[81],
+    unsigned char         ksize)
+{
+#ifdef BM_PCIE_MODE
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
+    return BM_NOT_SUPPORTED;
+#elif defined(MEDIA_V3)
+    unsigned char local_mask[81] = {0};
+
+    if (handle == NULL) {
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "handle is null\n");
+        return BM_ERR_FAILURE;
     }
-    return ret;
+
+    if (ksize != 3 && ksize != 5 && ksize != 7 && ksize != 9) {
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
+                  "ksize(%d) is invalid, only support 3, 5, 7, 9\n", ksize);
+        return BM_ERR_PARAM;
+    }
+
+    int mask_all_zero = 1;
+    for (int i = 0; i < 81; i++) {
+        if (erode_mask[i] != 0) {
+            mask_all_zero = 0;
+            break;
+        }
+    }
+    if (mask_all_zero) {
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
+                  "mask is all zeros, please check if mask is properly initialized\n");
+        return BM_ERR_PARAM;
+    }
+
+    if (ksize == 3 || ksize == 5 || ksize == 7) {
+        ive_expand_mask(local_mask, erode_mask, ksize, sizeof(unsigned char));
+    } else {
+        memcpy(local_mask, erode_mask, 81 * sizeof(unsigned char));
+    }
+
+    return bm_ive_erode(handle, &input, &output, local_mask, ksize);
+#else
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "1688 not support!\n");
+    return BM_NOT_SUPPORTED;
+#endif
 }
 
 bm_status_t bmcv_ive_erode(
-        bm_handle_t           handle,
-        bm_image              input,
-        bm_image              output,
-        unsigned char         erode_mask[25])
+    bm_handle_t           handle,
+    bm_image              input,
+    bm_image              output,
+    unsigned char         erode_mask[25])
 {
-    bm_status_t ret = BM_SUCCESS;
-    unsigned chipid = BM1688;
-#ifndef _FPGA
-    ret = bm_get_chipid(handle, &chipid);
-    if (BM_SUCCESS != ret)
-        return ret;
+#ifdef BM_PCIE_MODE
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
+    return BM_NOT_SUPPORTED;
+#elif defined(MEDIA_V3)
+    unsigned char erode_mask_ext[81] = {0};
+    memcpy(erode_mask_ext, erode_mask, 25 * sizeof(unsigned char));
+    return bmcv_ive_erode_ext(handle, input, output, erode_mask_ext, 5);
+#else
+    return bm_ive_erode(handle, &input, &output, erode_mask);
 #endif
-
-    switch(chipid){
-        case BM1688_PREV:
-        case BM1688:
-            ret = bm_ive_erode(handle, &input, &output, erode_mask);
-            break;
-        default:
-            ret = BM_NOT_SUPPORTED;
-            break;
-    }
-    return ret;
 }
 
 bm_status_t bmcv_ive_mag_and_ang(
-        bm_handle_t                   handle,
-        bm_image  *                   input,
-        bm_image  *                   mag_output,
-        bm_image  *                   ang_output,
-        bmcv_ive_mag_and_ang_ctrl     attr)
+    bm_handle_t                   handle,
+    bm_image  *                   input,
+    bm_image  *                   mag_output,
+    bm_image  *                   ang_output,
+    bmcv_ive_mag_and_ang_ctrl     attr)
 {
-    bm_status_t ret = BM_SUCCESS;
-    unsigned chipid = BM1688;
-#ifndef _FPGA
-    ret = bm_get_chipid(handle, &chipid);
-    if (BM_SUCCESS != ret)
-        return ret;
+#ifdef BM_PCIE_MODE
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
+    return BM_NOT_SUPPORTED;
+#else
+    return bm_ive_mag_and_ang(handle, input, mag_output, ang_output, &attr);
 #endif
-
-    switch(chipid){
-        case BM1688_PREV:
-        case BM1688:
-            ret = bm_ive_mag_and_ang(handle, input, mag_output, ang_output, &attr);
-            break;
-        default:
-            ret = BM_NOT_SUPPORTED;
-            break;
-    }
-    return ret;
 }
 
 bm_status_t bmcv_ive_sobel(
-        bm_handle_t            handle,
-        bm_image *             input,
-        bm_image *             output_h,
-        bm_image *             output_v,
-        bmcv_ive_sobel_ctrl    sobel_attr)
+    bm_handle_t            handle,
+    bm_image *             input,
+    bm_image *             output_h,
+    bm_image *             output_v,
+    bmcv_ive_sobel_ctrl    sobel_attr)
 {
-    bm_status_t ret = BM_SUCCESS;
-    unsigned chipid = BM1688;
-#ifndef _FPGA
-    ret = bm_get_chipid(handle, &chipid);
-    if (BM_SUCCESS != ret)
-        return ret;
+#ifdef BM_PCIE_MODE
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
+    return BM_NOT_SUPPORTED;
+#elif defined(MEDIA_V3)
+    bmcv_ive_sobel_ext_ctrl sobel_attr_ext = {0};
+    sobel_attr_ext.ksize = 5;
+    sobel_attr_ext.sobel_mode = sobel_attr.sobel_mode;
+    memcpy(sobel_attr_ext.as8_mask, sobel_attr.as8_mask, 25 * sizeof(signed char));
+    return bmcv_ive_sobel_ext(handle, input, output_h, output_v, sobel_attr_ext);
+#else
+    return bm_ive_sobel(handle, input, output_h, output_v, &sobel_attr);
 #endif
+}
 
-    switch(chipid){
-        case BM1688_PREV:
-        case BM1688:
-            ret = bm_ive_sobel(handle, input, output_h, output_v, &sobel_attr);
-            break;
-        default:
-            ret = BM_NOT_SUPPORTED;
-            break;
+bm_status_t bmcv_ive_sobel_ext(
+    bm_handle_t                  handle,
+    bm_image *                   input,
+    bm_image *                   output_h,
+    bm_image *                   output_v,
+    bmcv_ive_sobel_ext_ctrl      sobel_attr)
+{
+#ifdef BM_PCIE_MODE
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
+    return BM_NOT_SUPPORTED;
+#elif defined(MEDIA_V3)
+    bmcv_ive_sobel_ext_ctrl local_attr = sobel_attr;
+
+    if (handle == NULL) {
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "handle is null\n");
+        return BM_ERR_FAILURE;
     }
-    return ret;
+
+    if (sobel_attr.ksize != 3 && sobel_attr.ksize != 5 &&
+        sobel_attr.ksize != 7 && sobel_attr.ksize != 9) {
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
+                  "ksize(%d) is invalid, only support 3, 5, 7, 9\n", sobel_attr.ksize);
+        return BM_ERR_PARAM;
+    }
+
+    int mask_all_zero = 1;
+    for (int i = 0; i < 81; i++) {
+        if (local_attr.as8_mask[i] != 0) {
+            mask_all_zero = 0;
+            break;
+        }
+    }
+    if (mask_all_zero) {
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
+                  "mask is all zeros, please check if mask is properly initialized\n");
+        return BM_ERR_PARAM;
+    }
+
+    if (sobel_attr.ksize == 3 || sobel_attr.ksize == 5 || sobel_attr.ksize == 7) {
+        ive_expand_mask(local_attr.as8_mask, sobel_attr.as8_mask, sobel_attr.ksize, sizeof(signed char));
+    } else {
+        memcpy(local_attr.as8_mask, sobel_attr.as8_mask, 81 * sizeof(signed char));
+    }
+
+    return bm_ive_sobel(handle, input, output_h, output_v, &local_attr);
+#else
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "1688 not support!\n");
+    return BM_NOT_SUPPORTED;
+#endif
 }
 
 bm_status_t bmcv_ive_norm_grad(
-        bm_handle_t              handle,
-        bm_image *               input,
-        bm_image *               output_h,
-        bm_image *               output_v,
-        bm_image *               output_hv,
-        bmcv_ive_normgrad_ctrl   normgrad_attr)
+    bm_handle_t              handle,
+    bm_image *               input,
+    bm_image *               output_h,
+    bm_image *               output_v,
+    bm_image *               output_hv,
+    bmcv_ive_normgrad_ctrl   normgrad_attr)
 {
-    bm_status_t ret = BM_SUCCESS;
-    unsigned chipid = BM1688;
-#ifndef _FPGA
-    ret = bm_get_chipid(handle, &chipid);
-    if (BM_SUCCESS != ret)
-        return ret;
+#ifdef BM_PCIE_MODE
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
+    return BM_NOT_SUPPORTED;
+#else
+    return bm_ive_normgrad(handle, input, output_h, output_v, output_hv, &normgrad_attr);
 #endif
-
-    switch(chipid){
-        case BM1688_PREV:
-        case BM1688:
-            ret = bm_ive_normgrad(handle, input, output_h, output_v, output_hv, &normgrad_attr);
-            break;
-        default:
-            ret = BM_NOT_SUPPORTED;
-            break;
-    }
-    return ret;
 }
 
 bm_status_t bmcv_ive_gmm(
-        bm_handle_t            handle,
-        bm_image               input,
-        bm_image               output_fg,
-        bm_image               output_bg,
-        bm_device_mem_t        output_model,
-        bmcv_ive_gmm_ctrl      gmm_attr)
+    bm_handle_t            handle,
+    bm_image               input,
+    bm_image               output_fg,
+    bm_image               output_bg,
+    bm_device_mem_t        output_model,
+    bmcv_ive_gmm_ctrl      gmm_attr)
 {
-    bm_status_t ret = BM_SUCCESS;
-    unsigned chipid = BM1688;
-#ifndef _FPGA
-    ret = bm_get_chipid(handle, &chipid);
-    if (BM_SUCCESS != ret)
-        return ret;
+#ifdef BM_PCIE_MODE
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
+    return BM_NOT_SUPPORTED;
+#else
+    return bm_ive_gmm(handle, &input, &output_fg, &output_bg, &output_model, &gmm_attr);
 #endif
-
-    switch(chipid){
-        case BM1688_PREV:
-        case BM1688:
-            ret = bm_ive_gmm(handle, &input, &output_fg, &output_bg, &output_model, &gmm_attr);
-            break;
-        default:
-            ret = BM_NOT_SUPPORTED;
-            break;
-    }
-    return ret;
 }
 
 bm_status_t bmcv_ive_gmm2(
-        bm_handle_t            handle,
-        bm_image *             input,
-        bm_image *             input_factor,
-        bm_image *             output_fg,
-        bm_image *             output_bg,
-        bm_image *             output_match_model_info,
-        bm_device_mem_t        output_model,
-        bmcv_ive_gmm2_ctrl     gmm2_attr)
+    bm_handle_t            handle,
+    bm_image *             input,
+    bm_image *             input_factor,
+    bm_image *             output_fg,
+    bm_image *             output_bg,
+    bm_image *             output_match_model_info,
+    bm_device_mem_t        output_model,
+    bmcv_ive_gmm2_ctrl     gmm2_attr)
 {
-    bm_status_t ret = BM_SUCCESS;
-    unsigned chipid = BM1688;
-#ifndef _FPGA
-    ret = bm_get_chipid(handle, &chipid);
-    if (BM_SUCCESS != ret)
-        return ret;
-#endif
-
-    switch(chipid){
-        case BM1688_PREV:
-        case BM1688:
-            ret = bm_ive_gmm2(handle, input, input_factor, output_fg,
+#ifdef BM_PCIE_MODE
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
+    return BM_NOT_SUPPORTED;
+#else
+    return bm_ive_gmm2(handle, input, input_factor, output_fg,
                             output_bg, output_match_model_info, &output_model, &gmm2_attr);
-            break;
-        default:
-            ret = BM_NOT_SUPPORTED;
-            break;
-    }
-    return ret;
+#endif
 }
 
+#ifndef BM_PCIE_MODE
 void boundary_check(bm_ive_point_u16 *point, int width, int height)
 {
     if ((short)point->u16_x < 0) {
@@ -780,84 +702,102 @@ bm_status_t bmcv_ive_canny_internal(
                                     tmp_edge.width, tmp_edge.height, stride[0]);
     return ret;
 }
+#endif
 
 bm_status_t bmcv_ive_canny(
-        bm_handle_t                    handle,
-        bm_image                       input,
-        bm_device_mem_t                output_edge,
-        bmcv_ive_canny_hys_edge_ctrl   canny_hys_edge_attr)
+    bm_handle_t                    handle,
+    bm_image                       input,
+    bm_device_mem_t                output_edge,
+    bmcv_ive_canny_hys_edge_ctrl   canny_hys_edge_attr)
 {
-    bm_status_t ret = BM_SUCCESS;
-    unsigned chipid = BM1688;
-#ifndef _FPGA
-    ret = bm_get_chipid(handle, &chipid);
-    if (BM_SUCCESS != ret)
-        return ret;
+#ifdef BM_PCIE_MODE
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
+    return BM_NOT_SUPPORTED;
+#else
+    return bmcv_ive_canny_internal(handle, &input, output_edge, &canny_hys_edge_attr);
 #endif
-
-    switch(chipid){
-        case BM1688_PREV:
-        case BM1688:
-            ret = bmcv_ive_canny_internal(handle, &input, output_edge, &canny_hys_edge_attr);
-            break;
-        default:
-            ret = BM_NOT_SUPPORTED;
-            break;
-    }
-    return ret;
 }
 
+bm_status_t bmcv_ive_filter_ext(
+    bm_handle_t                  handle,
+    bm_image                     input,
+    bm_image                     output,
+    bmcv_ive_filter_ext_ctrl     filter_attr)
+{
+#ifdef BM_PCIE_MODE
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
+    return BM_NOT_SUPPORTED;
+#elif defined(MEDIA_V3)
+    bmcv_ive_filter_ext_ctrl local_attr = filter_attr;
+
+    if (handle == NULL) {
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "handle is null\n");
+        return BM_ERR_FAILURE;
+    }
+
+    if (filter_attr.ksize != 3 && filter_attr.ksize != 5 &&
+        filter_attr.ksize != 7 && filter_attr.ksize != 9) {
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
+                  "ksize(%d) is invalid, only support 3, 5, 7, 9\n", filter_attr.ksize);
+        return BM_ERR_PARAM;
+    }
+
+    int mask_all_zero = 1;
+    for (int i = 0; i < 81; i++) {
+        if (local_attr.mask[i] != 0) {
+            mask_all_zero = 0;
+            break;
+        }
+    }
+    if (mask_all_zero) {
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
+                  "mask is all zeros, please check if mask is properly initialized\n");
+        return BM_ERR_PARAM;
+    }
+
+    if (filter_attr.ksize == 3 || filter_attr.ksize == 5 || filter_attr.ksize == 7) {
+        ive_expand_mask(local_attr.mask, filter_attr.mask, filter_attr.ksize, sizeof(signed char));
+    }
+
+    return bm_ive_filter(handle, input, output, local_attr);
+#else
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "1688 not support!\n");
+    return BM_NOT_SUPPORTED;
+#endif
+}
 
 bm_status_t bmcv_ive_filter(
-        bm_handle_t                  handle,
-        bm_image                     input,
-        bm_image                     output,
-        bmcv_ive_filter_ctrl         filter_attr)
+    bm_handle_t                  handle,
+    bm_image                     input,
+    bm_image                     output,
+    bmcv_ive_filter_ctrl         filter_attr)
 {
-    bm_status_t ret = BM_SUCCESS;
-    unsigned chipid = BM1688;
-#ifndef _FPGA
-    ret = bm_get_chipid(handle, &chipid);
-    if (BM_SUCCESS != ret)
-        return ret;
+#ifdef BM_PCIE_MODE
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
+    return BM_NOT_SUPPORTED;
+#elif defined(MEDIA_V3)
+    bmcv_ive_filter_ext_ctrl filter_attr_ext = {0};
+    filter_attr_ext.ksize = 5;
+    filter_attr_ext.norm = filter_attr.u8_norm;
+    memcpy(filter_attr_ext.mask, filter_attr.as8_mask, 25 * sizeof(signed char));
+    return bmcv_ive_filter_ext(handle, input, output, filter_attr_ext);
+#else
+    return bm_ive_filter(handle, input, output, filter_attr);
 #endif
-
-    switch(chipid){
-        case BM1688_PREV:
-        case BM1688:
-            ret = bm_ive_filter(handle, input, output, filter_attr);
-            break;
-        default:
-            ret = BM_NOT_SUPPORTED;
-            break;
-    }
-    return ret;
 }
 
 bm_status_t bmcv_ive_csc(
-        bm_handle_t     handle,
-        bm_image        input,
-        bm_image        output,
-        csc_type_t      csc_type)
+    bm_handle_t     handle,
+    bm_image        input,
+    bm_image        output,
+    csc_type_t      csc_type)
 {
-    bm_status_t ret = BM_SUCCESS;
-    unsigned chipid = BM1688;
-#ifndef _FPGA
-    ret = bm_get_chipid(handle, &chipid);
-    if (BM_SUCCESS != ret)
-        return ret;
+#ifdef BM_PCIE_MODE
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
+    return BM_NOT_SUPPORTED;
+#else
+    return bm_ive_csc(handle, &input, &output, csc_type);
 #endif
-
-    switch(chipid){
-        case BM1688_PREV:
-        case BM1688:
-            ret = bm_ive_csc(handle, &input, &output, csc_type);
-            break;
-        default:
-            ret = BM_NOT_SUPPORTED;
-            break;
-    }
-    return ret;
 }
 
 bm_status_t bmcv_ive_resize(
@@ -866,50 +806,26 @@ bm_status_t bmcv_ive_resize(
     bm_image                  output,
     bmcv_resize_algorithm     resize_mode)
 {
-    bm_status_t ret = BM_SUCCESS;
-    unsigned chipid = BM1688;
-#ifndef _FPGA
-    ret = bm_get_chipid(handle, &chipid);
-    if (BM_SUCCESS != ret)
-        return ret;
+#ifdef BM_PCIE_MODE
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
+    return BM_NOT_SUPPORTED;
+#else
+    return bm_ive_resize(handle, &input, &output, resize_mode);
 #endif
-    switch(chipid){
-        case BM1688_PREV:
-        case BM1688:
-            ret = bm_ive_resize(handle, &input, &output, resize_mode);
-            break;
-        default:
-            ret = BM_NOT_SUPPORTED;
-            break;
-    }
-
-    return ret;
 }
 
 bm_status_t bmcv_ive_stcandicorner(
-        bm_handle_t                   handle,
-        bm_image                      input,
-        bm_image                      output,
-        bmcv_ive_stcandicorner_attr   stcandicorner_attr)
+    bm_handle_t                   handle,
+    bm_image                      input,
+    bm_image                      output,
+    bmcv_ive_stcandicorner_attr   stcandicorner_attr)
 {
-    bm_status_t ret = BM_SUCCESS;
-    unsigned chipid = BM1688;
-#ifndef _FPGA
-    ret = bm_get_chipid(handle, &chipid);
-    if (BM_SUCCESS != ret)
-        return ret;
+#ifdef BM_PCIE_MODE
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
+    return BM_NOT_SUPPORTED;
+#else
+    return bm_ive_stCandiCorner(handle, &input, &output, &stcandicorner_attr);
 #endif
-    switch(chipid){
-        case BM1688_PREV:
-        case BM1688:
-            ret = bm_ive_stCandiCorner(handle, &input, &output, &stcandicorner_attr);
-            break;
-        default:
-            ret = BM_NOT_SUPPORTED;
-            break;
-    }
-
-    return ret;
 }
 
 bm_status_t bmcv_ive_gradfg(
@@ -920,27 +836,16 @@ bm_status_t bmcv_ive_gradfg(
     bm_image                output_gradfg,
     bmcv_ive_gradfg_attr    gradfg_attr)
 {
-    bm_status_t ret = BM_SUCCESS;
-    unsigned chipid = BM1688;
-#ifndef _FPGA
-    ret = bm_get_chipid(handle, &chipid);
-    if (BM_SUCCESS != ret)
-        return ret;
-#endif
-    switch(chipid){
-        case BM1688_PREV:
-        case BM1688:
-            ret = bm_ive_gradFg(handle, &input_bgdiff_fg,
+#ifdef BM_PCIE_MODE
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
+    return BM_NOT_SUPPORTED;
+#else
+    return bm_ive_gradFg(handle, &input_bgdiff_fg,
                     &input_fggrad, &input_bggrad, &output_gradfg, &gradfg_attr);
-            break;
-        default:
-            ret = BM_NOT_SUPPORTED;
-            break;
-    }
-
-    return ret;
+#endif
 }
 
+#ifndef BM_PCIE_MODE
 bm_status_t bmcv_image_ive_sad_u8(bm_handle_t handle, bm_image dst_){
     bm_status_t ret;
     bm_image dst_sad_u8;
@@ -952,7 +857,6 @@ bm_status_t bmcv_image_ive_sad_u8(bm_handle_t handle, bm_image dst_){
     bm_image_get_stride(dst_, stride);
 
     bm_image_create(handle, height, width, fmt, dtype, &dst_sad_u8, stride);
-
     ret = bm_image_alloc_dev_mem(dst_sad_u8, BMCV_HEAP1_ID);
     if (ret != BM_SUCCESS) {
         printf("dst_sad_u8 bm_image_alloc_dev_mem failed. ret = %d\n", ret);
@@ -977,65 +881,44 @@ bm_status_t bmcv_image_ive_sad_u8(bm_handle_t handle, bm_image dst_){
     dst_.image_private->data->u.device.device_addr = dst_sad_u8.image_private->data->u.device.device_addr;
     return ret;
 }
+#endif
 
 bm_status_t bmcv_ive_sad(
-        bm_handle_t                handle,
-        bm_image *                 input,
-        bm_image *                 output_sad,
-        bm_image *                 output_thr,
-        bmcv_ive_sad_attr *        sad_attr,
-        bmcv_ive_sad_thresh_attr*  thresh_attr)
+    bm_handle_t                handle,
+    bm_image *                 input,
+    bm_image *                 output_sad,
+    bm_image *                 output_thr,
+    bmcv_ive_sad_attr *        sad_attr,
+    bmcv_ive_sad_thresh_attr*  thresh_attr)
 {
-    bm_status_t ret = BM_SUCCESS;
-    unsigned chipid = BM1688;
-#ifndef _FPGA
-    ret = bm_get_chipid(handle, &chipid);
-    if (BM_SUCCESS != ret)
-        return ret;
-#endif
-    switch(chipid){
-        case BM1688_PREV:
-        case BM1688:
-            ret = bm_ive_sad(handle, input, output_sad, output_thr, sad_attr, thresh_attr);
-            if(output_sad->data_type == DATA_TYPE_EXT_1N_BYTE)
-                ret = bmcv_image_ive_sad_u8(handle, *output_sad);
-            break;
-        default:
-            ret = BM_NOT_SUPPORTED;
-            break;
-    }
+#ifdef BM_PCIE_MODE
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
+    return BM_NOT_SUPPORTED;
+#else
+    bm_status_t ret = bm_ive_sad(handle, input, output_sad, output_thr, sad_attr, thresh_attr);
+    if(output_sad->data_type == DATA_TYPE_EXT_1N_BYTE)
+        ret = bmcv_image_ive_sad_u8(handle, *output_sad);
 
     return ret;
+#endif
 }
 
 bm_status_t bmcv_ive_match_bgmodel(
-        bm_handle_t                   handle,
-        bm_image                      cur_img,
-        bm_image                      bgmodel_img,
-        bm_image                      fgflag_img,
-        bm_image                      diff_fg_img,
-        bm_device_mem_t               stat_data_mem,
-        bmcv_ive_match_bgmodel_attr   attr)
+    bm_handle_t                   handle,
+    bm_image                      cur_img,
+    bm_image                      bgmodel_img,
+    bm_image                      fgflag_img,
+    bm_image                      diff_fg_img,
+    bm_device_mem_t               stat_data_mem,
+    bmcv_ive_match_bgmodel_attr   attr)
 {
-    bm_status_t ret = BM_SUCCESS;
-    unsigned chipid = BM1688;
-#ifndef _FPGA
-    ret = bm_get_chipid(handle, &chipid);
-    if (BM_SUCCESS != ret)
-        return ret;
-#endif
-    switch(chipid){
-        case BM1688_PREV:
-        case BM1688:
-            ret = bm_ive_match_bgmodel(handle, &cur_img, &bgmodel_img,
+#ifdef BM_PCIE_MODE
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
+    return BM_NOT_SUPPORTED;
+#else
+    return bm_ive_match_bgmodel(handle, &cur_img, &bgmodel_img,
                     &fgflag_img, &diff_fg_img, &stat_data_mem, &attr);
-            break;
-        default:
-            ret = BM_NOT_SUPPORTED;
-            break;
-    }
-
-    return ret;
+#endif
 }
 
 bm_status_t bmcv_ive_update_bgmodel(
@@ -1048,51 +931,27 @@ bm_status_t bmcv_ive_update_bgmodel(
     bm_device_mem_t                stat_data_mem,
     bmcv_ive_update_bgmodel_attr   attr)
 {
-    bm_status_t ret = BM_SUCCESS;
-    unsigned chipid = BM1688;
-#ifndef _FPGA
-    ret = bm_get_chipid(handle, &chipid);
-    if (BM_SUCCESS != ret)
-        return ret;
-#endif
-    switch(chipid){
-        case BM1688_PREV:
-        case BM1688:
-            ret = bm_ive_update_bgmodel(handle, cur_img, bgmodel_img,
+#ifdef BM_PCIE_MODE
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
+    return BM_NOT_SUPPORTED;
+#else
+    return bm_ive_update_bgmodel(handle, cur_img, bgmodel_img,
                            fgflag_img, bg_img, chgsta_img, &stat_data_mem, &attr);
-            break;
-        default:
-            ret = BM_NOT_SUPPORTED;
-            break;
-    }
-
-    return ret;
+#endif
 }
 
 bm_status_t bmcv_ive_ccl(
-        bm_handle_t          handle,
-        bm_image             src_dst_image,
-        bm_device_mem_t      ccblob_output,
-        bmcv_ive_ccl_attr    ccl_attr)
+    bm_handle_t          handle,
+    bm_image             src_dst_image,
+    bm_device_mem_t      ccblob_output,
+    bmcv_ive_ccl_attr    ccl_attr)
 {
-    bm_status_t ret = BM_SUCCESS;
-    unsigned chipid = BM1688;
-#ifndef _FPGA
-    ret = bm_get_chipid(handle, &chipid);
-    if (BM_SUCCESS != ret)
-        return ret;
+#ifdef BM_PCIE_MODE
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
+    return BM_NOT_SUPPORTED;
+#else
+    return bm_ive_ccl(handle, &src_dst_image, &ccblob_output, &ccl_attr);
 #endif
-    switch(chipid){
-        case BM1688_PREV:
-        case BM1688:
-            ret = bm_ive_ccl(handle, &src_dst_image, &ccblob_output, &ccl_attr);
-            break;
-        default:
-            ret = BM_NOT_SUPPORTED;
-            break;
-    }
-
-    return ret;
 }
 
 bm_status_t bmcv_ive_bernsen(
@@ -1101,24 +960,12 @@ bm_status_t bmcv_ive_bernsen(
     bm_image              output,
     bmcv_ive_bernsen_attr attr)
 {
-    bm_status_t ret = BM_SUCCESS;
-    unsigned chipid = BM1688;
-#ifndef _FPGA
-    ret = bm_get_chipid(handle, &chipid);
-    if (BM_SUCCESS != ret)
-        return ret;
+#ifdef BM_PCIE_MODE
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
+    return BM_NOT_SUPPORTED;
+#else
+    return bm_ive_bernsen(handle, input, output, attr);
 #endif
-    switch(chipid){
-        case BM1688_PREV:
-        case BM1688:
-            ret = bm_ive_bernsen(handle, input, output, attr);
-            break;
-        default:
-            ret = BM_NOT_SUPPORTED;
-            break;
-    }
-
-    return ret;
 }
 
 bm_status_t bmcv_ive_filter_and_csc(
@@ -1128,24 +975,12 @@ bm_status_t bmcv_ive_filter_and_csc(
     bmcv_ive_filter_ctrl    filter_attr,
     csc_type_t              csc_type)
 {
-    bm_status_t ret = BM_SUCCESS;
-    unsigned chipid = BM1688;
-#ifndef _FPGA
-    ret = bm_get_chipid(handle, &chipid);
-    if (BM_SUCCESS != ret)
-        return ret;
+#ifdef BM_PCIE_MODE
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
+    return BM_NOT_SUPPORTED;
+#else
+    return bm_ive_filterAndCsc(handle, input, output, filter_attr, csc_type);
 #endif
-    switch(chipid){
-        case BM1688_PREV:
-        case BM1688:
-            ret = bm_ive_filterAndCsc(handle, input, output, filter_attr, csc_type);
-            break;
-        default:
-            ret = BM_NOT_SUPPORTED;
-            break;
-    }
-
-    return ret;
 }
 
 bm_status_t bmcv_ive_16bit_to_8bit(
@@ -1154,24 +989,12 @@ bm_status_t bmcv_ive_16bit_to_8bit(
     bm_image                    output,
     bmcv_ive_16bit_to_8bit_attr attr)
 {
-    bm_status_t ret = BM_SUCCESS;
-    unsigned chipid = BM1688;
-#ifndef _FPGA
-    ret = bm_get_chipid(handle, &chipid);
-    if (BM_SUCCESS != ret)
-        return ret;
+#ifdef BM_PCIE_MODE
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
+    return BM_NOT_SUPPORTED;
+#else
+    return bm_ive_16bit_to_8bit(handle, input, output, attr);
 #endif
-    switch(chipid){
-        case BM1688_PREV:
-        case BM1688:
-            ret = bm_ive_16bit_to_8bit(handle, input, output, attr);
-            break;
-        default:
-            ret = BM_NOT_SUPPORTED;
-            break;
-    }
-
-    return ret;
 }
 
 bm_status_t bmcv_ive_frame_diff_motion(
@@ -1181,365 +1004,10 @@ bm_status_t bmcv_ive_frame_diff_motion(
     bm_image                        output,
     bmcv_ive_frame_diff_motion_attr attr)
 {
-    bm_status_t ret = BM_SUCCESS;
-    unsigned chipid = BM1688;
-#ifndef _FPGA
-    ret = bm_get_chipid(handle, &chipid);
-    if (BM_SUCCESS != ret)
-        return ret;
-#endif
-    switch(chipid){
-        case BM1688_PREV:
-        case BM1688:
-            ret = bm_ive_frame_diff_motion(handle, input1, input2, output, attr);
-            break;
-        default:
-            ret = BM_NOT_SUPPORTED;
-            break;
-    }
-
-    return ret;
-}
+#ifdef BM_PCIE_MODE
+    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
+    return BM_NOT_SUPPORTED;
 #else
-#include "bmcv_internal.h"
-bm_status_t bmcv_ive_add(
-    bm_handle_t          handle,
-    bm_image             input1,
-    bm_image             input2,
-    bm_image             output,
-    bmcv_ive_add_attr    attr) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_and(
-    bm_handle_t          handle,
-    bm_image             input1,
-    bm_image             input2,
-    bm_image             output) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_or(
-    bm_handle_t          handle,
-    bm_image             input1,
-    bm_image             input2,
-    bm_image             output) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_xor(
-    bm_handle_t          handle,
-    bm_image             input1,
-    bm_image             input2,
-    bm_image             output) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_sub(
-    bm_handle_t          handle,
-    bm_image             input1,
-    bm_image             input2,
-    bm_image             output,
-    bmcv_ive_sub_attr    attr) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_thresh(
-    bm_handle_t               handle,
-    bm_image                  input,
-    bm_image                  output,
-    bmcv_ive_thresh_mode      thresh_mode,
-    bmcv_ive_thresh_attr      attr) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_dma_set(
-    bm_handle_t                      handle,
-    bm_image                         image,
-    bmcv_ive_dma_set_mode            dma_set_mode,
-    unsigned long long               val) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_dma(
-    bm_handle_t                      handle,
-    bm_image                         input,
-    bm_image                         output,
-    bmcv_ive_dma_mode                dma_mode,
-    bmcv_ive_interval_dma_attr *     attr) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_map(
-    bm_handle_t             handle,
-    bm_image                input,
-    bm_image                output,
-    bm_device_mem_t         map_table) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_hist(
-    bm_handle_t          handle,
-    bm_image             input,
-    bm_device_mem_t      output) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_integ(
-    bm_handle_t              handle,
-    bm_image                 input,
-    bm_device_mem_t          output,
-    bmcv_ive_integ_ctrl_s    integ_attr) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_ncc(
-    bm_handle_t          handle,
-    bm_image             input1,
-    bm_image             input2,
-    bm_device_mem_t      output) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_ord_stat_filter(
-    bm_handle_t                   handle,
-    bm_image                      input,
-    bm_image                      output,
-    bmcv_ive_ord_stat_filter_mode mode) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_lbp(
-    bm_handle_t              handle,
-    bm_image                 input,
-    bm_image                 output,
-    bmcv_ive_lbp_ctrl_attr   lbp_attr) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_dilate(
-    bm_handle_t           handle,
-    bm_image              input,
-    bm_image              output,
-    unsigned char         dilate_mask[25]) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_erode(
-    bm_handle_t           handle,
-    bm_image              input,
-    bm_image              output,
-    unsigned char         erode_mask[25]) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_mag_and_ang(
-    bm_handle_t                   handle,
-    bm_image  *                   input,
-    bm_image  *                   mag_output,
-    bm_image  *                   ang_output,
-    bmcv_ive_mag_and_ang_ctrl     attr) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_sobel(
-    bm_handle_t           handle,
-    bm_image *            input,
-    bm_image *            output_h,
-    bm_image *            output_v,
-    bmcv_ive_sobel_ctrl   sobel_attr) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_norm_grad(
-    bm_handle_t              handle,
-    bm_image *               input,
-    bm_image *               output_h,
-    bm_image *               output_v,
-    bm_image *               output_hv,
-    bmcv_ive_normgrad_ctrl   normgrad_attr) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_gmm(
-    bm_handle_t            handle,
-    bm_image               input,
-    bm_image               output_fg,
-    bm_image               output_bg,
-    bm_device_mem_t        output_model,
-    bmcv_ive_gmm_ctrl      gmm_attr) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_gmm2(
-    bm_handle_t            handle,
-    bm_image *             input,
-    bm_image *             input_factor,
-    bm_image *             output_fg,
-    bm_image *             output_bg,
-    bm_image *             output_match_model_info,
-    bm_device_mem_t        output_model,
-    bmcv_ive_gmm2_ctrl     gmm2_attr) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_canny(
-    bm_handle_t                    handle,
-    bm_image                       input,
-    bm_device_mem_t                output_edge,
-    bmcv_ive_canny_hys_edge_ctrl   canny_hys_edge_attr) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_filter(
-    bm_handle_t                  handle,
-    bm_image                     input,
-    bm_image                     output,
-    bmcv_ive_filter_ctrl         filter_attr) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_csc(
-    bm_handle_t     handle,
-    bm_image        input,
-    bm_image        output,
-    csc_type_t      csc_type) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_filter_and_csc(
-    bm_handle_t             handle,
-    bm_image                input,
-    bm_image                output,
-    bmcv_ive_filter_ctrl    attr,
-    csc_type_t              csc_type) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_resize(
-    bm_handle_t              handle,
-    bm_image                 input,
-    bm_image                 output,
-    bmcv_resize_algorithm    resize_mode) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_stcandicorner(
-    bm_handle_t                   handle,
-    bm_image                      input,
-    bm_image                      output,
-    bmcv_ive_stcandicorner_attr   stcandicorner_attr) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_gradfg(
-    bm_handle_t             handle,
-    bm_image                input_bgdiff_fg,
-    bm_image                input_fggrad,
-    bm_image                input_bggrad,
-    bm_image                output_gradfg,
-    bmcv_ive_gradfg_attr    gradfg_attr) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_sad(
-    bm_handle_t                handle,
-    bm_image *                 input,
-    bm_image *                 output_sad,
-    bm_image *                 output_thr,
-    bmcv_ive_sad_attr *        sad_attr,
-    bmcv_ive_sad_thresh_attr*  thresh_attr) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_match_bgmodel(
-    bm_handle_t                   handle,
-    bm_image                      cur_img,
-    bm_image                      bgmodel_img,
-    bm_image                      fgflag_img,
-    bm_image                      diff_fg_img,
-    bm_device_mem_t               stat_data_mem,
-    bmcv_ive_match_bgmodel_attr   attr) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_update_bgmodel(
-    bm_handle_t                    handle,
-    bm_image  *                    cur_img,
-    bm_image  *                    bgmodel_img,
-    bm_image  *                    fgflag_img,
-    bm_image  *                    bg_img,
-    bm_image  *                    chgsta_img,
-    bm_device_mem_t                stat_data_mem,
-    bmcv_ive_update_bgmodel_attr   attr) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_ccl(
-    bm_handle_t          handle,
-    bm_image             src_dst_image,
-    bm_device_mem_t      ccblob_output,
-    bmcv_ive_ccl_attr    ccl_attr) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_bernsen(
-    bm_handle_t           handle,
-    bm_image              input,
-    bm_image              output,
-    bmcv_ive_bernsen_attr attr) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_16bit_to_8bit(
-    bm_handle_t                 handle,
-    bm_image                    input,
-    bm_image                    output,
-    bmcv_ive_16bit_to_8bit_attr attr) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
-
-bm_status_t bmcv_ive_frame_diff_motion(
-    bm_handle_t                     handle,
-    bm_image                        input1,
-    bm_image                        input2,
-    bm_image                        output,
-    bmcv_ive_frame_diff_motion_attr attr) {
-    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "pcie not support!\n");
-    return BM_NOT_SUPPORTED;
-}
+    return bm_ive_frame_diff_motion(handle, input1, input2, output, attr);
 #endif
+}

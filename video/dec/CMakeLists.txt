@@ -6,6 +6,10 @@ add_definitions(-DVDEC_GIT_COMMIT_HASH="${COMMIT_HASH}")
 add_definitions(-DVDEC_GIT_BRANCH="${BRANCH}")
 add_definitions(-DVDEC_SDK_VERSION="${GIT_VERSION}")
 
+if("${CHIP_NAME}" STREQUAL "cv84x6")
+    add_definitions(-DMEDIA_V3)
+endif()
+
 # add header files path
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/inc)
 if("${PLATFORM}" STREQUAL "pcie" OR "${PLATFORM}" STREQUAL "pcie_arm64")

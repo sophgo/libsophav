@@ -24,6 +24,11 @@ bm_status_t bmcv_faiss_indexflatIP_check(int database_vecs_num, int sort_cnt, in
                         filename(__FILE__), __func__, __LINE__);
                 return BM_NOT_SUPPORTED;
             }
+            if (sort_cnt > 128) {
+                bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "faiss_api_indexflatIP when input_dtype = char, output_dtype = int, sort_cnt(%d) should be <= 128! %s: %s: %d\n",
+                        sort_cnt, filename(__FILE__), __func__, __LINE__);
+                return BM_NOT_SUPPORTED;
+            }
             break;
         default:
             bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "faiss_api_indexflatIP input_dtype should be fp32/fp16/char! %s: %s: %d\n",

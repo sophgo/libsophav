@@ -89,12 +89,12 @@ bmcv_ive_thresh
         // s16
         IVE_THRESH_S16_TO_S8_MIN_MID_MAX = 0x8,
         IVE_THRESH_S16_TO_S8_MIN_ORI_MAX = 0x9,
-        IVE_THRESH_S16_TO_U8_MIN_MID_MAX = 0x10,
-        IVE_THRESH_S16_TO_U8_MIN_ORI_MAX = 0x11,
+        IVE_THRESH_S16_TO_U8_MIN_MID_MAX = 0xa,
+        IVE_THRESH_S16_TO_U8_MIN_ORI_MAX = 0xb,
 
         // u16
-        IVE_THRESH_U16_TO_U8_MIN_MID_MAX = 0x12,
-        IVE_THRESH_U16_TO_U8_MIN_ORI_MAX = 0x13,
+        IVE_THRESH_U16_TO_U8_MIN_MID_MAX = 0xc,
+        IVE_THRESH_U16_TO_U8_MIN_ORI_MAX = 0xd,
 
       } bmcv_ive_thresh_mode;
 

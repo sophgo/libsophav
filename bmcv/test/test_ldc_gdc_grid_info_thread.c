@@ -77,6 +77,7 @@ static void * ldc_gdc_grid_info(void * arg)
     struct timeval tv_start;
     struct timeval tv_end;
     struct timeval timediff;
+    char *buffer = NULL;
 
     loop_time = ctx.loop;
 
@@ -102,21 +103,19 @@ static void * ldc_gdc_grid_info(void * arg)
     ret = bm_image_alloc_dev_mem(src, BMCV_HEAP1_ID);
     if(ret != BM_SUCCESS){
         printf("bm_image_alloc_dev_mem_src failed \n");
-        bm_image_destroy(&src);
-        bm_image_destroy(&dst);
+        goto fail;
     }
 
     ret = bm_image_alloc_dev_mem(dst, BMCV_HEAP1_ID);
     if(ret != BM_SUCCESS){
         printf("bm_image_alloc_dev_mem_dst failed \n");
-        bm_image_destroy(&src);
-        bm_image_destroy(&dst);
+        goto fail;
     }
 
     // read image data from input files
     bm_read_bin(src, src_name);
 
-    char *buffer = (char *)malloc(stLDCAttr.grid_info.size);
+    buffer = (char *)malloc(stLDCAttr.grid_info.size);
     if (buffer == NULL) {
         printf("malloc buffer for grid_info failed!\n");
         goto fail;
@@ -198,7 +197,9 @@ static void * ldc_gdc_grid_info(void * arg)
             bm_image_copy_device_to_host(crop_dst, (void **)out_ptr);
             if(md5_cmp(output_ptr, (unsigned char*)md5, byte_size) != 0) {
                 bm_write_bin(crop_dst, "error_cmp.bin");
-                exit(-1);
+                free(output_ptr);
+                bm_image_destroy(&crop_dst);
+                goto fail;
             }
             free(output_ptr);
         }
@@ -214,14 +215,21 @@ static void * ldc_gdc_grid_info(void * arg)
     printf("idx:%d, bmcv_ldc_gdc_grid_info: loop %d cycles, time_max = %llu, time_avg = %llu, fps %llu, %lluM pps\n",
             ctx.i, loop_time, time_max, time_avg, fps_actual, pixel_per_sec);
 
+    bm_image_destroy(&src);
+    bm_image_destroy(&dst);
+    free(buffer);
+    return NULL;
+
 fail:
     bm_image_destroy(&src);
     bm_image_destroy(&dst);
     free(buffer);
-    return 0;
+    return (void *)-1;   /* failure: reported via pthread_join in main, becomes the exit code */
 }
 
 static void * ldc_gdc_grid_info_list(void* arg) {
+    int failed = 0;
+
     printf("-----------1280x768.yuv-----------\n");
     src_h = 768, src_w = 1280;
     src_fmt = FORMAT_NV21, dst_fmt = FORMAT_NV21;
@@ -229,7 +237,9 @@ static void * ldc_gdc_grid_info_list(void* arg) {
     stLDCAttr.grid_info.size = 336080;
     src_name = "ldc_data/1280x768.yuv", dst_name = "ldc_data/out_grid_info.yuv", grid_name = "ldc_data/grid_info_79_44_3476_80_45_1280x720.dat";
     md5 = "9fe88b54ed51a09a9d245b805b346435";
-    ldc_gdc_grid_info(arg);
+    if (ldc_gdc_grid_info(arg) != NULL) {
+        failed = 1;
+    }
     wait_pthread();
 
     printf("-----------left_00.yuv-----------\n");
@@ -239,7 +249,9 @@ static void * ldc_gdc_grid_info_list(void* arg) {
     stLDCAttr.grid_info.size = 336080;
     src_name = "ldc_data/grid_info_in_nv21/left_00.yuv", dst_name = "ldc_data/grid_info_out_nv21/out_left_00.yuv", grid_name = "ldc_data/bianli_grid_info_79_44_3476_80_45_1280x720.dat";
     md5 = "c547898b0af47720760c4ef40145a772";
-    ldc_gdc_grid_info(arg);
+    if (ldc_gdc_grid_info(arg) != NULL) {
+        failed = 1;
+    }
     wait_pthread();
 
     printf("-----------left_01.yuv-----------\n");
@@ -249,7 +261,9 @@ static void * ldc_gdc_grid_info_list(void* arg) {
     stLDCAttr.grid_info.size = 336080;
     src_name = "ldc_data/grid_info_in_nv21/left_01.yuv", dst_name = "ldc_data/grid_info_out_nv21/out_left_01.yuv", grid_name = "ldc_data/bianli_grid_info_79_44_3476_80_45_1280x720.dat";
     md5 = "21aa3c60abfae892379320dc1d2832f5";
-    ldc_gdc_grid_info(arg);
+    if (ldc_gdc_grid_info(arg) != NULL) {
+        failed = 1;
+    }
     wait_pthread();
 
     printf("-----------left_02.yuv-----------\n");
@@ -259,7 +273,9 @@ static void * ldc_gdc_grid_info_list(void* arg) {
     stLDCAttr.grid_info.size = 336080;
     src_name = "ldc_data/grid_info_in_nv21/left_02.yuv", dst_name = "ldc_data/grid_info_out_nv21/out_left_02.yuv", grid_name = "ldc_data/bianli_grid_info_79_44_3476_80_45_1280x720.dat";
     md5 = "47d94ccb6493f89c382a41414f8eab34";
-    ldc_gdc_grid_info(arg);
+    if (ldc_gdc_grid_info(arg) != NULL) {
+        failed = 1;
+    }
     wait_pthread();
 
     printf("-----------left_03.yuv-----------\n");
@@ -269,7 +285,9 @@ static void * ldc_gdc_grid_info_list(void* arg) {
     stLDCAttr.grid_info.size = 336080;
     src_name = "ldc_data/grid_info_in_nv21/left_03.yuv", dst_name = "ldc_data/grid_info_out_nv21/out_left_03.yuv", grid_name = "ldc_data/bianli_grid_info_79_44_3476_80_45_1280x720.dat";
     md5 = "af593594ed89a2885c0466691d933ead";
-    ldc_gdc_grid_info(arg);
+    if (ldc_gdc_grid_info(arg) != NULL) {
+        failed = 1;
+    }
     wait_pthread();
 
     printf("-----------left_04.yuv-----------\n");
@@ -279,7 +297,9 @@ static void * ldc_gdc_grid_info_list(void* arg) {
     stLDCAttr.grid_info.size = 336080;
     src_name = "ldc_data/grid_info_in_nv21/left_04.yuv", dst_name = "ldc_data/grid_info_out_nv21/out_left_04.yuv", grid_name = "ldc_data/bianli_grid_info_79_44_3476_80_45_1280x720.dat";
     md5 = "527892257c5ac542eab9a90b04e4b163";
-    ldc_gdc_grid_info(arg);
+    if (ldc_gdc_grid_info(arg) != NULL) {
+        failed = 1;
+    }
     wait_pthread();
 
     printf("-----------left_05.yuv-----------\n");
@@ -289,7 +309,9 @@ static void * ldc_gdc_grid_info_list(void* arg) {
     stLDCAttr.grid_info.size = 336080;
     src_name = "ldc_data/grid_info_in_nv21/left_05.yuv", dst_name = "ldc_data/grid_info_out_nv21/out_left_05.yuv", grid_name = "ldc_data/bianli_grid_info_79_44_3476_80_45_1280x720.dat";
     md5 = "9b791e34b454b4c4697b5dbce222a16c";
-    ldc_gdc_grid_info(arg);
+    if (ldc_gdc_grid_info(arg) != NULL) {
+        failed = 1;
+    }
     wait_pthread();
 
     printf("-----------left_06.yuv-----------\n");
@@ -299,7 +321,9 @@ static void * ldc_gdc_grid_info_list(void* arg) {
     stLDCAttr.grid_info.size = 336080;
     src_name = "ldc_data/grid_info_in_nv21/left_06.yuv", dst_name = "ldc_data/grid_info_out_nv21/out_left_06.yuv", grid_name = "ldc_data/bianli_grid_info_79_44_3476_80_45_1280x720.dat";
     md5 = "17b375341975935683a70260aaa869d5";
-    ldc_gdc_grid_info(arg);
+    if (ldc_gdc_grid_info(arg) != NULL) {
+        failed = 1;
+    }
     wait_pthread();
 
     printf("-----------left_07.yuv-----------\n");
@@ -309,7 +333,9 @@ static void * ldc_gdc_grid_info_list(void* arg) {
     stLDCAttr.grid_info.size = 336080;
     src_name = "ldc_data/grid_info_in_nv21/left_07.yuv", dst_name = "ldc_data/grid_info_out_nv21/out_left_07.yuv", grid_name = "ldc_data/bianli_grid_info_79_44_3476_80_45_1280x720.dat";
     md5 = "f23db442d0a0a4bfe8cc5bde869524c0";
-    ldc_gdc_grid_info(arg);
+    if (ldc_gdc_grid_info(arg) != NULL) {
+        failed = 1;
+    }
     wait_pthread();
 
     printf("-----------left_08.yuv-----------\n");
@@ -319,7 +345,9 @@ static void * ldc_gdc_grid_info_list(void* arg) {
     stLDCAttr.grid_info.size = 336080;
     src_name = "ldc_data/grid_info_in_nv21/left_08.yuv", dst_name = "ldc_data/grid_info_out_nv21/out_left_08.yuv", grid_name = "ldc_data/bianli_grid_info_79_44_3476_80_45_1280x720.dat";
     md5 = "7356263e1d53330625f099a19ffea954";
-    ldc_gdc_grid_info(arg);
+    if (ldc_gdc_grid_info(arg) != NULL) {
+        failed = 1;
+    }
     wait_pthread();
 
     printf("-----------left_09.yuv-----------\n");
@@ -329,10 +357,12 @@ static void * ldc_gdc_grid_info_list(void* arg) {
     stLDCAttr.grid_info.size = 336080;
     src_name = "ldc_data/grid_info_in_nv21/left_09.yuv", dst_name = "ldc_data/grid_info_out_nv21/out_left_09.yuv", grid_name = "ldc_data/bianli_grid_info_79_44_3476_80_45_1280x720.dat";
     md5 = "7e4c9499dfc89149808210d1ec0ecf87";
-    ldc_gdc_grid_info(arg);
+    if (ldc_gdc_grid_info(arg) != NULL) {
+        failed = 1;
+    }
     wait_pthread();
 
-    return 0;
+    return failed ? (void *)-1 : NULL;
 }
 
 int main(int argc, char **argv) {
@@ -384,6 +414,7 @@ int main(int argc, char **argv) {
     pthread_mutex_init(&mutex, NULL);
     pthread_cond_init(&condition, NULL);
     ldc_gdc_ctx ctx[MAX_THREAD_NUM];
+    int test_failed = 0;
 #ifdef __linux__
     pthread_t pid[MAX_THREAD_NUM];
     for (int i = 0; i < test_threads_num; i++) {
@@ -404,10 +435,15 @@ int main(int argc, char **argv) {
         }
     }
     for (int i = 0; i < test_threads_num; i++) {
-        ret = pthread_join(pid[i], NULL);
-        if (ret != 0) {
+        void *thread_ret = NULL;
+        int join_ret = pthread_join(pid[i], &thread_ret);
+        if (join_ret != 0) {
             perror("Thread join failed");
             exit(-1);
+        }
+        if (thread_ret != NULL) {
+            printf("idx:%d, thread test failed\n", i);
+            test_failed = 1;
         }
     }
     pthread_mutex_destroy(&mutex);
@@ -416,5 +452,5 @@ int main(int argc, char **argv) {
     printf("--------ALL THREADS TEST OVER---------\n");
 #endif
 
-    return 0;
+    return test_failed ? -1 : 0;
 }

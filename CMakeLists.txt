@@ -5,7 +5,7 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 include(GitUtils)
 
 get_version_from_tag(LIBSOPHAV_VERSION COMMIT_HASH COMMIT_COUNT BRANCH COMMIT_DATE)
-set(GIT_VERSION "2.2.0")
+set(GIT_VERSION "2.3.0")
 add_compile_definitions(LIBSOPHAV_VERSION="${GIT_VERSION}")
 add_compile_definitions(COMMIT_HASH="${COMMIT_HASH}")
 add_compile_definitions(COMMIT_COUNT="${COMMIT_COUNT}")
@@ -138,6 +138,19 @@ message(STATUS "CMAKE_INSTALL_PREFIX........ " ${CMAKE_INSTALL_PREFIX})
 # add sub-modules
 find_package(Sophav)
 ADD_TARGET_YUV_LIB(yuv_lib ${PLATFORM} off libsophon ${LIBSOPHAV_OUT_PATH})
+
+# If cv_internal/ is present, build libcmodel + libvg_lite locally and overwrite
+# the corresponding prebuilt library files (libsophav/3rdparty/.../libcmodel.so
+# and libsophav/vglite/lib/libvg_lite.{a,so}). If cv_internal/ is absent, fall back
+# to the prebuilt libraries shipped in the tree.
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cv_internal/CMakeLists.txt")
+    message(STATUS "cv_internal detected -> building libcmodel + libvg_lite locally")
+    add_subdirectory(cv_internal)
+endif()
+# Resolve one library directory for all SoC VGLite consumers.
+if(NOT "${PCIE_MODE}" STREQUAL "on")
+    include(vglite_libs)
+endif()
 add_subdirectory(jpeg)
 add_subdirectory(video/dec)
 add_subdirectory(video/enc)

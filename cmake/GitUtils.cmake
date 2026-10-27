@@ -42,6 +42,7 @@ function(get_version_from_tag ver_var commit_hash_var commit_count_var branch_va
         execute_process(
             COMMAND ${GIT_EXECUTABLE} branch -r --contains HEAD
             COMMAND grep -v " -> "
+            COMMAND head -1
             OUTPUT_VARIABLE branch
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
             OUTPUT_STRIP_TRAILING_WHITESPACE)

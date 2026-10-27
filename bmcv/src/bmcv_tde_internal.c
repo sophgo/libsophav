@@ -190,7 +190,9 @@ bm_status_t bmcv_tde_fill(
 	vg_lite_rectangle_t vg_rect = {.x = 0, .y = 0, .width = image.width, .height = image.height};
 	u32 addr_h = 0;
 	u8 dev_id = device;
+#ifndef MEDIA_V3
 	device = (device + 1) % 2;
+#endif
 
 	ret = tde_vglite_init_buf(&vgbuf, image, false);
 	if (ret != BM_SUCCESS){
@@ -204,7 +206,7 @@ bm_status_t bmcv_tde_fill(
 		vg_rect.width = rect->crop_w;
 		vg_rect.height = rect->crop_h;
 	}
-	ret = bm_vg_lite_init(dev_id, 1920, 1080);
+	ret = bm_vg_lite_init(dev_id, 0, 0);
 	if (ret != BM_SUCCESS){
 		printf("bm_vg_lite_init failed.\n");
 		return ret;
@@ -217,7 +219,7 @@ bm_status_t bmcv_tde_fill(
 		vgbuf.memory = (void*)paddr;
 		addr_h = paddr >> 32;
 	}
-	bm_vg_lite_set_high_addr(dev_id, 0, addr_h);
+	bm_vg_lite_set_high_addr(dev_id, 0, addr_h & 0xf);
 
 	pthread_mutex_lock(task_mutex[dev_id]);
 	ret = bm_vg_lite_clear(dev_id, &vgbuf, &vg_rect, *(unsigned int*)&color);
@@ -253,7 +255,9 @@ bm_status_t bmcv_tde_convert(
 	vg_lite_blend_t vg_blend = VG_LITE_BLEND_NORMAL_LVGL;
 	u32 raddr_h = 0, waddr_h = 0;
 	u8 dev_id = device;
+#ifndef MEDIA_V3
 	device = (device + 1) % 2;
+#endif
 
 	ret = tde_vglite_init_buf(&src_buf, input, true);
 	if (ret != BM_SUCCESS){
@@ -323,7 +327,7 @@ bm_status_t bmcv_tde_convert(
 	center_x = offset_x + _dst_rect.start_x;
 	center_y = offset_y + _dst_rect.start_y;
 
-	ret = bm_vg_lite_init(dev_id, 1920, 1080);
+	ret = bm_vg_lite_init(dev_id, 0, 0);
 	if (ret != BM_SUCCESS){
 		printf("bm_vg_lite_init failed.\n");
 		return ret;
@@ -345,7 +349,7 @@ bm_status_t bmcv_tde_convert(
 		waddr_h = paddr >> 32;
 	}
 
-	bm_vg_lite_set_high_addr(dev_id, raddr_h, waddr_h);
+	bm_vg_lite_set_high_addr(dev_id, raddr_h, waddr_h & 0xf);
 	vg_lite_identity(&matrix);
 	vg_lite_translate(center_x, center_y, &matrix);
 	vg_lite_rotate(deg, &matrix);
@@ -397,7 +401,9 @@ bm_status_t bmcv_tde_warp_affine(
 	vg_lite_filter_t filter = VG_LITE_FILTER_POINT;
 	u32 raddr_h = 0, waddr_h = 0;
 	u8 dev_id = device;
+#ifndef MEDIA_V3
 	device = (device + 1) % 2;
+#endif
 
 	ret = tde_vglite_init_buf(&src_buf, input, true);
 	if (ret != BM_SUCCESS){
@@ -411,7 +417,7 @@ bm_status_t bmcv_tde_warp_affine(
 		return ret;
 	}
 
-	ret = bm_vg_lite_init(dev_id, 1920, 1080);
+	ret = bm_vg_lite_init(dev_id, 0, 0);
 	if (ret != BM_SUCCESS){
 		printf("bm_vg_lite_init failed.\n");
 		return ret;
@@ -433,7 +439,7 @@ bm_status_t bmcv_tde_warp_affine(
 		waddr_h = paddr >> 32;
 	}
 
-	bm_vg_lite_set_high_addr(dev_id, raddr_h, waddr_h);
+	bm_vg_lite_set_high_addr(dev_id, raddr_h, waddr_h & 0xf);
 	vg_lite_identity(&vg_matrix);
 
 	rect.x = 0;
@@ -490,7 +496,9 @@ bm_status_t bmcv_tde_line(
 	};
 	vg_lite_blend_t vg_blend = VG_LITE_BLEND_NORMAL_LVGL;
 	u8 dev_id = device;
+#ifndef MEDIA_V3
 	device = (device + 1) % 2;
+#endif
 
 	ret = tde_vglite_init_buf(&fb, image, false);
 	if (ret != BM_SUCCESS){
@@ -500,7 +508,7 @@ bm_status_t bmcv_tde_line(
 
 	if (color.a == 0) color.a = 255;
 
-	ret = bm_vg_lite_init(dev_id, 1920, 1080);
+	ret = bm_vg_lite_init(dev_id, image.width, image.height);
 	if (ret != BM_SUCCESS){
 		printf("bm_vg_lite_init failed.\n");
 		return ret;
@@ -513,7 +521,7 @@ bm_status_t bmcv_tde_line(
 		fb.memory = (void*)paddr;
 		addr_h = paddr >> 32;
 	}
-	bm_vg_lite_set_high_addr(dev_id, 0, addr_h);
+	bm_vg_lite_set_high_addr(dev_id, 0, addr_h & 0xf);
 
 	vg_lite_identity(&matrix);
 
@@ -607,7 +615,9 @@ bm_status_t bmcv_tde_draw(
 	vg_lite_blend_t vg_blend = VG_LITE_BLEND_NORMAL_LVGL;
 	uint32_t addr_h = 0;
 	u8 dev_id = device;
+#ifndef MEDIA_V3
 	device = (device + 1) % 2;
+#endif
 
 	ret = tde_vglite_init_buf(&fb, image, false);
 	if (ret != BM_SUCCESS){
@@ -617,7 +627,7 @@ bm_status_t bmcv_tde_draw(
 
 	if (color.a == 0) color.a = 255;
 
-	ret = bm_vg_lite_init(dev_id, 1920, 1080);
+	ret = bm_vg_lite_init(dev_id, image.width, image.height);
 	if (ret != BM_SUCCESS){
 		printf("bm_vg_lite_init failed.\n");
 		return ret;
@@ -630,7 +640,7 @@ bm_status_t bmcv_tde_draw(
 		fb.memory = (void*)paddr;
 		addr_h = paddr >> 32;
 	}
-	bm_vg_lite_set_high_addr(dev_id, 0, addr_h);
+	bm_vg_lite_set_high_addr(dev_id, 0, addr_h & 0xf);
 
 	vg_lite_identity(&matrix);
 

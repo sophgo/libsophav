@@ -74,6 +74,7 @@ typedef struct BMTestConfig_struct {
     int frame_delay;
     int cmd_queue;
     int across_heap;
+    int streamBufferSize;   /* 0 = default 0x500000(5MiB); override via --bs-size */
 
     int wtlFormat;
     BMVidCodHandle vidCodHandle;
@@ -82,6 +83,9 @@ typedef struct BMTestConfig_struct {
     char refYuvPath[MAX_FILE_PATH];
 
     unsigned char bStop;    /* replace bmvpu_dec_get_status */
+#ifdef MEDIA_V3
+    int mmu_config;
+#endif
 } BMTestConfig;
 
 static int write_yuv(BMVidCodHandle vidCodHandle, BMVidFrame *stVFrame, int frame_idx)
@@ -766,7 +770,7 @@ static void *dec_test(void* arg)
     param.streamFormat = testConfigPara->streamFormat;
     param.wtlFormat = testConfigPara->wtlFormat;
     param.extraFrameBufferNum = testConfigPara->extraFrame;
-    param.streamBufferSize = 0x500000;
+    param.streamBufferSize = testConfigPara->streamBufferSize ? testConfigPara->streamBufferSize : 0x500000;
     param.enable_cache = 1;
     param.bsMode = testConfigPara->bsMode;   /* VIDEO_MODE_STREAM */
     param.core_idx=-1;
@@ -782,6 +786,9 @@ static void *dec_test(void* arg)
     else {
         param.pixel_format = BM_VPU_DEC_PIX_FORMAT_YUV420P;
     }
+#ifdef MEDIA_V3
+    param.mmu_config = testConfigPara->mmu_config;
+#endif
 
     /* example: allocate bs buffer and frame buffer from user space */
     if(testConfigPara->mem_alloc_type == 1)
@@ -1291,12 +1298,16 @@ Help(const char *programName)
     fprintf(stderr, "--frame_delay      minimum count of linear buffer delay.\n");
     fprintf(stderr, "--cmd_queue        command queue deepth. default 4.\n");
     fprintf(stderr, "--bs_across_heap   bitstream buffer across heap. default 0.\n");
+    fprintf(stderr, "--bs-size          bitstream buffer size in bytes (dec or 0xhex). default 0x500000(5MiB).\n");
     fprintf(stderr, "--write_yuv        0 no writing , num write frame numbers\n");
     fprintf(stderr, "--wtl-format       yuv format. default 0.\n");
     fprintf(stderr, "--read-block-len      block length of read from file, default is 0x80000\n");
     fprintf(stderr, "--inject-percent      percent of blocks to introduce lost/scramble data, will introduce random length of data at %% of blocks, or the whole block \n");
     fprintf(stderr, "--inject-lost         type of injection, default is 1 for data lost, set to 0 for scramble the data\n");
     fprintf(stderr, "--inject-whole-block  lost the whole block, default is lost part of the block\n");
+#ifdef MEDIA_V3
+    fprintf(stderr, "--mmu_config       0, disbale; 1, page size 2MB; 2, page size 1MB; 3, page size 512KB\n");
+#endif
 
 #ifdef    BM_PCIE_MODE
     fprintf(stderr, "--pcie_board_id    select pcie card by pci_board_id\n");
@@ -1379,6 +1390,10 @@ static struct option   options[] = {
     {"cmd_queue",             1, NULL, 0},
     {"extraFrame",            1, NULL, 0},
     {"bs_across_heap",        1, NULL, 0},
+    {"bs-size",               1, NULL, 0},
+#ifdef MEDIA_V3
+    {"mmu_config",            1, NULL, 0},
+#endif
 #ifdef    BM_PCIE_MODE
     {"pcie_board_id",         1, NULL, 0},
 #endif
@@ -1505,6 +1520,16 @@ static int parse_args(int argc, char **argv, BMTestConfig* par)
             {
                 par->across_heap = atoi(optarg);
             }
+            else if (!strcmp(options[index].name, "bs-size"))
+            {
+                par->streamBufferSize = (int)strtol(optarg, NULL, 0);
+            }
+#ifdef MEDIA_V3
+            else if (!strcmp(options[index].name, "mmu_config"))
+            {
+                par->mmu_config = atoi(optarg);
+            }
+#endif
 #ifdef    BM_PCIE_MODE
             else if (!strcmp(options[index].name, "pcie_board_id")) {
                 par->pcie_board_id = (int)atoi(optarg);

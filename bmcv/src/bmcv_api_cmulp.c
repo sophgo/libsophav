@@ -27,11 +27,6 @@ bm_status_t bmcv_cmulp(bm_handle_t handle, bm_device_mem_t inputReal, bm_device_
     bm_status_t ret = BM_SUCCESS;
     bm_api_cv_cmulp_t api;
     sg_api_cv_cmulp_dual_core_t api_dual_core;
-    unsigned int chipid;
-    if (bm_get_chipid(handle, &chipid) != BM_SUCCESS) {
-        bmlib_log("CMULP", BMLIB_LOG_ERROR, "get chipid error!\n");
-        return BM_ERR_FAILURE;
-    }
     int core_id = 0;
     tpu_launch_param_t launch_params[BM1688_MAX_CORES];
     int if_core0 = 1;
@@ -48,7 +43,9 @@ bm_status_t bmcv_cmulp(bm_handle_t handle, bm_device_mem_t inputReal, bm_device_
             if_core1 = 1;
         } else if (strcmp(tpu_env, "2") == 0 || strcmp(tpu_env, "both") == 0) {
             bmlib_log("CMULP", BMLIB_LOG_DEBUG, "Use all TPU cores (0 and 1)\n");
+#ifndef MEDIA_V3
             if_core1 = 1;
+#endif
         } else {
             bmlib_log("CMULP", BMLIB_LOG_ERROR, "Invalid TPU_CORES value: %s\n", tpu_env);
             bmlib_log("CMULP", BMLIB_LOG_ERROR, "Available options: 0, 1, 2/both\n");
@@ -86,19 +83,10 @@ bm_status_t bmcv_cmulp(bm_handle_t handle, bm_device_mem_t inputReal, bm_device_
             launch_params[core_idx].param_data = &params[core_idx];
             launch_params[core_idx].param_size = sizeof(sg_api_cv_cmulp_dual_core_t);
         }
-        switch(chipid) {
-            case BM1688_PREV:
-            case BM1688:
-                ret = bm_tpu_kernel_launch_dual_core(handle, "cv_cmulp_bm1688", launch_params, core_list, core_nums);
-                if(ret != BM_SUCCESS){
-                    bmlib_log("CMULP", BMLIB_LOG_ERROR, "cv_cmulp sync api error\n");
-                    return ret;
-                }
-                break;
-            default:
-                printf("BM_NOT_SUPPORTED!\n");
-                ret = BM_NOT_SUPPORTED;
-                break;
+        ret = bm_tpu_kernel_launch_dual_core(handle, "cv_cmulp_bm1688", launch_params, core_list, core_nums);
+        if(ret != BM_SUCCESS){
+            bmlib_log("CMULP", BMLIB_LOG_ERROR, "cv_cmulp sync api error\n");
+            return ret;
         }
     } else {
         api.XR = bm_mem_get_device_addr(inputReal);
@@ -109,19 +97,10 @@ bm_status_t bmcv_cmulp(bm_handle_t handle, bm_device_mem_t inputReal, bm_device_
         api.YI = bm_mem_get_device_addr(outputImag);
         api.batch = batch;
         api.len = len;
-        switch(chipid) {
-            case BM1688_PREV:
-            case BM1688:
-                ret = bm_tpu_kernel_launch(handle, "cv_cmulp", (u8*)&api, sizeof(api), core_id);
-                if(ret != BM_SUCCESS){
-                    bmlib_log("CMULP", BMLIB_LOG_ERROR, "cv_cmulp sync api error\n");
-                    return ret;
-                }
-                break;
-            default:
-                printf("BM_NOT_SUPPORTED!\n");
-                ret = BM_NOT_SUPPORTED;
-                break;
+        ret = bm_tpu_kernel_launch(handle, "cv_cmulp", (u8*)&api, sizeof(api), core_id);
+        if(ret != BM_SUCCESS){
+            bmlib_log("CMULP", BMLIB_LOG_ERROR, "cv_cmulp sync api error\n");
+            return ret;
         }
     }
     return ret;

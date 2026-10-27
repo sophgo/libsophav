@@ -18,7 +18,6 @@ bm_status_t bmcv_image_transpose(bm_handle_t handle, bm_image input, bm_image ou
     int type_len;
     bool in_need_convert = false;
     bm_api_cv_transpose_t api;
-    unsigned int chipid;
     int core_id = 0;
 
     if (handle == NULL) {
@@ -120,26 +119,10 @@ bm_status_t bmcv_image_transpose(bm_handle_t handle, bm_image input, bm_image ou
     api.width                  = input.width;
     api.type_len               = type_len;
 
-    ret = bm_get_chipid(handle, &chipid);
+    ret = bm_tpu_kernel_launch(handle, "cv_transpose", (u8*)&api, sizeof(api), core_id);
     if (ret != BM_SUCCESS) {
-        printf("get chipid is error !\n");
-        return BM_ERR_FAILURE;
-    }
-
-    switch(chipid) {
-        case BM1688_PREV:
-        case BM1688:
-            ret = bm_tpu_kernel_launch(handle, "cv_transpose", (u8*)&api,
-                                                sizeof(api), core_id);
-            if (ret != BM_SUCCESS) {
-                bmlib_log("TRANSPOSE", BMLIB_LOG_ERROR, "transpose sync api error\n");
-                return ret;
-            }
-            break;
-        default:
-            printf("BM_NOT_SUPPORTED!\n");
-            ret = BM_NOT_SUPPORTED;
-            break;
+        bmlib_log("TRANSPOSE", BMLIB_LOG_ERROR, "transpose sync api error\n");
+        return ret;
     }
 
     bm_image_destroy(&(input_->inner[0]));

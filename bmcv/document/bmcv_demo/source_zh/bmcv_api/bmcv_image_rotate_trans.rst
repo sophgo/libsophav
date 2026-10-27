@@ -61,19 +61,15 @@ bmcv_image_rotate_trans
 +=====+========================+
 | 1   | FORMAT_YUV444P         |
 +-----+------------------------+
-| 2   | FORMAT_NV12            |
+| 2   | FORMAT_RGB_PLANAR      |
 +-----+------------------------+
-| 3   | FORMAT_NV21            |
+| 3   | FORMAT_BGR_PLANAR      |
 +-----+------------------------+
-| 4   | FORMAT_RGB_PLANAR      |
+| 4   | FORMAT_RGBP_SEPARATE   |
 +-----+------------------------+
-| 5   | FORMAT_BGR_PLANAR      |
+| 5   | FORMAT_BGRP_SEPARATE   |
 +-----+------------------------+
-| 6   | FORMAT_RGBP_SEPARATE   |
-+-----+------------------------+
-| 7   | FORMAT_BGRP_SEPARATE   |
-+-----+------------------------+
-| 8   | FORMAT_GRAY            |
+| 6   | FORMAT_GRAY            |
 +-----+------------------------+
 
 | 【注意】
@@ -83,8 +79,6 @@ bmcv_image_rotate_trans
 #. 输入输出图像的data_type、image_format必须相同。
 
 #. 输入输出图像的宽高尺寸支持8*8-8192*8192。
-
-#. 输入输出图像为nv12和nv21图像格式时，因处理过程中会经过多次色彩变换，输出图像像素值将存在误差，但肉眼观察差异不大。
 
 | 【代码示例】
 
@@ -100,7 +94,6 @@ bmcv_image_rotate_trans
         #include <assert.h>
         #include <float.h>
 
-        #define BM1688 0x1686a200
         #define TIME_COST_US(start, end) ((end.tv_sec - start.tv_sec) * 1000000 + (end.tv_usec - start.tv_usec))
 
         static void read_bin(const char *input_path, unsigned char *input_data, int width, int height, float channel) {
