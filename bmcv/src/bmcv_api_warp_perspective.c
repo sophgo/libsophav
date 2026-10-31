@@ -125,6 +125,10 @@ static bm_status_t bmcv_perspective_check(
     }
     int out_num = 0;
     for (int i = 0; i < image_num; i++) {
+        if (matrix[i].matrix_num > 0 && matrix[i].matrix == NULL) {
+            printf("matrix[%d] is NULL\n", i);
+            return BM_ERR_PARAM;
+        }
         out_num += matrix[i].matrix_num;
     }
     if (out_num <= 0) {
@@ -408,7 +412,7 @@ bm_status_t bmcv_image_warp_perspective_1684X(
                 printf("bm_image_alloc_dev_mem error\r\n");
                 for (int free_idx = 0; free_idx < num; free_idx ++) {
                     if (output_alloc_flag[free_idx]) {
-                        bm_image_detach(output[num]);
+                        bm_image_detach(output[free_idx]);
                     }
                 }
                 return BM_ERR_FAILURE;
@@ -426,7 +430,7 @@ bm_status_t bmcv_image_warp_perspective_1684X(
                     tensor_output[num], matrix[num]);
         }
         if (BM_SUCCESS != ret) {
-            for (int free_idx = 0; free_idx < num; free_idx ++) {
+            for (int free_idx = 0; free_idx <= num; free_idx ++) {
                 if (output_alloc_flag[free_idx])
                     bm_image_detach(output[free_idx]);
             }
@@ -444,10 +448,7 @@ bm_status_t bmcv_image_warp_perspective(
     bm_image *                    output,
     int                           use_bilinear)
 {
-    unsigned int chipid;
-    bm_get_chipid(handle, &chipid);
-    if (chipid == BM1688 || chipid == BM1688_PREV){
-        return bmcv_image_warp_perspective_1684X(
+    return bmcv_image_warp_perspective_1684X(
                 handle,
                 image_num,
                 matrix,
@@ -456,11 +457,6 @@ bm_status_t bmcv_image_warp_perspective(
                 input,
                 output,
                 use_bilinear);
-    }
-    else {
-        printf(" NOT SUPPORT! \n");
-        return BM_ERR_FAILURE;
-    }
 }
 
 bm_status_t bmcv_image_warp_perspective_with_coordinate(

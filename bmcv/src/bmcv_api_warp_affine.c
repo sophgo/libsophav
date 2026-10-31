@@ -703,19 +703,14 @@ bm_status_t bmcv_image_warp_affine(
         return BM_ERR_FAILURE;
     }
 
-    unsigned int chipid;
-    bm_get_chipid(handle, &chipid);
-    if (chipid == BM1688 || chipid == BM1688_PREV){
-        return bmcv_image_warp_affine_1684X(handle,
-                image_num,
-                &matrix[0],
-                output->height,
-                output->width,
-                input,
-                output,
-                use_bilinear);
-    }
-    return BM_SUCCESS;
+    return bmcv_image_warp_affine_1684X(handle,
+            image_num,
+            &matrix[0],
+            output->height,
+            output->width,
+            input,
+            output,
+            use_bilinear);
 }
 
 bm_status_t bmcv_image_warp_affine_similar_to_opencv(
@@ -766,19 +761,14 @@ bm_status_t bmcv_image_warp_affine_padding(
         return BM_ERR_FAILURE;
     }
 
-    unsigned int chipid;
-    bm_get_chipid(handle, &chipid);
-    if (chipid == BM1688 || chipid == BM1688_PREV){
-        return bmcv_image_warp_affine_1684X_padding(handle,
-                image_num,
-                &matrix[0],
-                output->height,
-                output->width,
-                input,
-                output,
-                use_bilinear);
-    }
-    return BM_SUCCESS;
+    return bmcv_image_warp_affine_1684X_padding(handle,
+            image_num,
+            &matrix[0],
+            output->height,
+            output->width,
+            input,
+            output,
+            use_bilinear);
 }
 
 bm_status_t bmcv_image_warp_affine_similar_to_opencv_padding(

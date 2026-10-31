@@ -58,7 +58,6 @@ bm_status_t bmcv_image_bayer2rgb(
         unsigned char* convd_kernel,
         bm_image input,
         bm_image output) {
-    unsigned int chipid;
     int core_id = 0;
     bm_status_t ret = BM_SUCCESS;
     if(BM_SUCCESS !=bmcv_bayer2rgb_check(handle, convd_kernel, input, output)) {
@@ -145,23 +144,11 @@ bm_status_t bmcv_image_bayer2rgb(
     param.input_addr_padding_up_left = bm_mem_get_device_addr(input_dev_buffer_padding_ul.bm_device_mem);
     param.input_addr_padding_bottom_right = bm_mem_get_device_addr(input_dev_buffer_padding_br.bm_device_mem);
 
-
-    bm_get_chipid(handle, &chipid);
-
-    switch(chipid)
-    {
-        case BM1688_PREV:
-        case BM1688:
-            ret = bm_tpu_kernel_launch(handle, "cv_bayer2rgb", (u8 *)&param, sizeof(param), core_id);
-            if (BM_SUCCESS != ret) {
-                bmlib_log("BAYER2RGB", BMLIB_LOG_ERROR, "bayer2rgb sync api error\n");
-                bm_image_destroy(&output);
-                goto FREEMEM;
-            }
-            break;
-        default:
-            ret = BM_NOT_SUPPORTED;
-            break;
+    ret = bm_tpu_kernel_launch(handle, "cv_bayer2rgb", (u8 *)&param, sizeof(param), core_id);
+    if (BM_SUCCESS != ret) {
+        bmlib_log("BAYER2RGB", BMLIB_LOG_ERROR, "bayer2rgb sync api error\n");
+        bm_image_destroy(&output);
+        goto FREEMEM;
     }
 
 FREEMEM:

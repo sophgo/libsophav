@@ -105,29 +105,11 @@ bm_status_t bmcv_faiss_indexPQ_ADC_ext(bm_handle_t handle,
     api.IP_metric = IP_metric;
     api.input_dtype = in_dtype;
     api.output_dtype = out_dtype;
-    unsigned int chipid;
-    ret = bm_get_chipid(handle, &chipid);
-    if (BM_SUCCESS != ret) {
-        printf("faiss_api_indexPQ_ADCsearch bm_get_chipid failed!\n");
-        if (bm_mem_get_type(distance_output_dev) == BM_MEM_TYPE_DEVICE) {
-            bm_free_device(handle, distance_output_dev_fp32);
-        }
-        return ret;
-    }
     int core_id = 0;
 
-    switch (chipid) {
-        case BM1688_PREV:
-        case BM1688:
-            ret = bm_tpu_kernel_launch(handle, "faiss_api_indexPQ_ADCsearch", (u8 *)&api, sizeof(api), core_id);
-            if (BM_SUCCESS != ret) {
-                bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "faiss_indexPQ_ADC launch_sync api error!, %s: %s: %d\n", filename(__FILE__), __func__, __LINE__);
-            }
-            break;
-        default:
-            printf("unknown chip_id!\n");
-            ret = BM_NOT_SUPPORTED;
-            break;
+    ret = bm_tpu_kernel_launch(handle, "faiss_api_indexPQ_ADCsearch", (u8 *)&api, sizeof(api), core_id);
+    if (BM_SUCCESS != ret) {
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "faiss_indexPQ_ADC launch_sync api error!, %s: %s: %d\n", filename(__FILE__), __func__, __LINE__);
     }
     if (bm_mem_get_type(distance_output_dev) == BM_MEM_TYPE_DEVICE) {
         bm_free_device(handle, distance_output_dev_fp32);
@@ -210,28 +192,10 @@ bm_status_t bmcv_faiss_indexPQ_SDC_ext(bm_handle_t handle,
     api.IP_metric = IP_metric;
     api.input_dtype = in_dtype;
     api.output_dtype = out_dtype;
-    unsigned int chipid;
-    ret = bm_get_chipid(handle, &chipid);
-    if (BM_SUCCESS != ret) {
-        printf("faiss_api_indexPQ_SDCsearch bm_get_chipid failed!\n");
-        if (bm_mem_get_type(distance_output_dev) == BM_MEM_TYPE_DEVICE) {
-            bm_free_device(handle, distance_output_dev_fp32);
-        }
-        return ret;
-    }
     int core_id = 0;
-    switch (chipid) {
-        case BM1688_PREV:
-        case BM1688:
-            ret = bm_tpu_kernel_launch(handle, "faiss_api_indexPQ_SDCsearch", (u8 *)&api, sizeof(api), core_id);
-            if (BM_SUCCESS != ret) {
-                bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "faiss_indexPQ_SDC launch_sync api error!, %s: %s: %d\n", filename(__FILE__), __func__, __LINE__);
-            }
-            break;
-        default:
-            printf("unknown chip_id!\n");
-            ret = BM_NOT_SUPPORTED;
-            break;
+    ret = bm_tpu_kernel_launch(handle, "faiss_api_indexPQ_SDCsearch", (u8 *)&api, sizeof(api), core_id);
+    if (BM_SUCCESS != ret) {
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "faiss_indexPQ_SDC launch_sync api error!, %s: %s: %d\n", filename(__FILE__), __func__, __LINE__);
     }
     if (bm_mem_get_type(distance_output_dev) == BM_MEM_TYPE_DEVICE) {
         bm_free_device(handle, distance_output_dev_fp32);
@@ -307,29 +271,11 @@ bm_status_t bmcv_faiss_indexPQ_encode_ext(bm_handle_t handle,
     api.IP_metric = IP_metric;
     api.input_dtype = input_dtype;
     api.output_dtype = output_dtype;
-    unsigned int chipid;
-    ret = bm_get_chipid(handle, &chipid);
-    if (BM_SUCCESS != ret) {
-        printf("faiss_api_indexPQ_SDCsearch bm_get_chipid failed!\n");
-        if (bm_mem_get_type(buffer_table_dev) == BM_MEM_TYPE_DEVICE) {
-            bm_free_device(handle, buffer_table_dev_32byte);
-        }
-        return ret;
-    }
     int core_id = 0;
-    switch (chipid) {
-        case BM1688_PREV:
-        case BM1688:
-            ret = bm_tpu_kernel_launch(handle, "faiss_api_indexPQ_encode", (u8 *)&api, sizeof(api), core_id);
-            if (BM_SUCCESS != ret)
-            {
-                bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "faiss_indexPQ_encode launch_sync api error!, %s: %s: %d\n", filename(__FILE__), __func__, __LINE__);
-            }
-            break;
-        default:
-            printf("unknown chip_id!\n");
-            ret = BM_NOT_SUPPORTED;
-            break;
+    ret = bm_tpu_kernel_launch(handle, "faiss_api_indexPQ_encode", (u8 *)&api, sizeof(api), core_id);
+    if (BM_SUCCESS != ret)
+    {
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "faiss_indexPQ_encode launch_sync api error!, %s: %s: %d\n", filename(__FILE__), __func__, __LINE__);
     }
     if (bm_mem_get_type(buffer_table_dev) == BM_MEM_TYPE_DEVICE) {
         bm_free_device(handle, buffer_table_dev_32byte);

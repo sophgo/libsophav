@@ -56,6 +56,7 @@ typedef enum bmcv_vpss_csc_type {
 	VPSS_CSC_YPbPr2YPbPr_BT709,
 	VPSS_CSC_YCbCr2YCbCr_BT709,
 	VPSS_CSC_RGB2RGB,
+	VPSS_CSC_YUV2YUV,
 } bmcv_vpss_csc_type;
 
 typedef struct bmcv_csc_cfg {

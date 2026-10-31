@@ -171,6 +171,7 @@ int main(int argc, char* args[])
     struct timespec tp;
     clock_gettime(0, &tp);
     srand(tp.tv_nsec);
+    printf("seed = %d\n", (int)tp.tv_nsec);
     int thread_num = 1;
     int loop = 1;
     int height = rand() % 8192 + 1;

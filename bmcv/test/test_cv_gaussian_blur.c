@@ -554,11 +554,14 @@ int main(int argc, char *args[]) {
         }
     }
     for (int i = 0; i < thread_num; i++) {
-        int ret = pthread_join(pid[i], NULL);
-        if (ret != 0) {
+        void *thread_ret = NULL;
+        if (pthread_join(pid[i], &thread_ret) != 0) {
             printf("Thread join failed\n");
             bm_dev_free(handle);
             exit(-1);
+        }
+        if (thread_ret != NULL) {
+            ret = -1;
         }
     }
 

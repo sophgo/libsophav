@@ -231,9 +231,13 @@ bm_status_t bmcv_image_convert_to(
 {
     bm_status_t ret = BM_SUCCESS;
 
-    if(input->data_type == DATA_TYPE_EXT_1N_BYTE && (input->image_format == FORMAT_RGB_PLANAR || input->image_format == FORMAT_BGR_PLANAR /* || input->image_format == FORMAT_GRAY */)) {
+    if(input->data_type == DATA_TYPE_EXT_1N_BYTE && (input->image_format == FORMAT_RGB_PLANAR ||
+        input->image_format == FORMAT_BGR_PLANAR ||
+        input->image_format == FORMAT_RGBP_SEPARATE ||
+        input->image_format == FORMAT_BGRP_SEPARATE ||
+        input->image_format == FORMAT_GRAY)) {
         ret = bm_vpss_convert_to(handle, input_num, convert_to_attr, input, output);
-    } else{
+    } else {
         if (BM_SUCCESS != bmcv_convert_to_check(handle, input_num, convert_to_attr, input, output)) {
             BMCV_ERR_LOG("convert_to param error\r\n");
             return BM_ERR_FAILURE;

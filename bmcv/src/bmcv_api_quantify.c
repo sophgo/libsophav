@@ -71,7 +71,9 @@ bm_status_t bmcv_image_quantify(
             if_core1 = 1;
         } else if (strcmp(tpu_env, "2") == 0 || strcmp(tpu_env, "both") == 0) {
             bmlib_log("QUANTIFY", BMLIB_LOG_DEBUG, "Use all TPU cores (0 and 1)\n");
+#ifndef MEDIA_V3
             if_core1 = 1;
+#endif
         } else {
             bmlib_log("QUANTIFY", BMLIB_LOG_ERROR, "Invalid TPU_CORES value: %s\n", tpu_env);
             bmlib_log("QUANTIFY", BMLIB_LOG_ERROR, "Available options: 0, 1, 2/both\n");
@@ -80,12 +82,6 @@ bm_status_t bmcv_image_quantify(
     }
     ret = bmcv_quantify_check(handle, input, output);
     if (BM_SUCCESS != ret) {
-        return ret;
-    }
-    unsigned int chipid;
-    ret = bm_get_chipid(handle, &chipid);
-    if (ret) {
-        printf("bm_get_chipid error !\n");
         return ret;
     }
     bool output_alloc_flag = false;
@@ -142,19 +138,10 @@ bm_status_t bmcv_image_quantify(
             launch_params[core_idx].param_data = &params[core_idx];
             launch_params[core_idx].param_size = sizeof(sg_api_cv_quantify_dual_core_t);
         }
-        switch (chipid) {
-            case BM1688_PREV:
-            case BM1688:
-                ret = bm_tpu_kernel_launch_dual_core(handle, "cv_quantify_bm1688", launch_params, core_list, core_nums);
-                if(BM_SUCCESS != ret) {
-                    bmlib_log("QUANTIFY", BMLIB_LOG_ERROR, "quantify sync api error\n");
-                    return ret;
-                }
-                break;
-            default:
-                ret = BM_NOT_SUPPORTED;
-                printf("BM_NOT_SUPPORTED!\n");
-                break;
+        ret = bm_tpu_kernel_launch_dual_core(handle, "cv_quantify_bm1688", launch_params, core_list, core_nums);
+        if(BM_SUCCESS != ret) {
+            bmlib_log("QUANTIFY", BMLIB_LOG_ERROR, "quantify sync api error\n");
+            return ret;
         }
     } else {
         api.channel = channel;
@@ -171,24 +158,15 @@ bm_status_t bmcv_image_quantify(
             input.image_format == FORMAT_BGR_PLANAR) {
             api.height[0] *= 3;
         }
-        switch (chipid) {
-            case BM1688_PREV:
-            case BM1688:
-                ret = bm_tpu_kernel_launch(handle, "cv_quantify", (u8*)&api, sizeof(api), core_id);
-                if(BM_SUCCESS != ret){
-                    bmlib_log("QUANTIFY", BMLIB_LOG_ERROR, "quantify sync api error\n");
-                    if (output_alloc_flag) {
-                        for (int i = 0; i < channel; i++) {
-                            bm_free_device(handle, output_mem[i]);
-                        }
-                    }
-                    return ret;
+        ret = bm_tpu_kernel_launch(handle, "cv_quantify", (u8*)&api, sizeof(api), core_id);
+        if(BM_SUCCESS != ret){
+            bmlib_log("QUANTIFY", BMLIB_LOG_ERROR, "quantify sync api error\n");
+            if (output_alloc_flag) {
+                for (int i = 0; i < channel; i++) {
+                    bm_free_device(handle, output_mem[i]);
                 }
-                break;
-
-            default:
-                printf("ChipID is NOT supported\n");
-                break;
+            }
+            return ret;
         }
     }
 

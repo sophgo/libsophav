@@ -427,6 +427,17 @@ bm_status_t check_bm_vpss_csctype(
 			if ((input_color_space == COLOR_SPACE_RGB) && (output_color_space == COLOR_SPACE_RGB))
 				csc_cfg->csc_type = VPSS_CSC_RGB2RGB;
 			break;
+		case CSC_YUV2YUV:
+			if ((input_color_space != COLOR_SPACE_YUV) ||
+			    (output_color_space != COLOR_SPACE_YUV)) {
+				ret = BM_ERR_PARAM;
+				bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
+					"CSC_YUV2YUV needs YUV input and YUV output, %s: %s: %d\n",
+					filename(__FILE__), __func__, __LINE__);
+				break;
+			}
+			csc_cfg->csc_type = VPSS_CSC_YUV2YUV;
+			break;
 		case CSC_FANCY_PbPr_BT601:
 			if ((input_color_space == COLOR_SPACE_YUV) && (output_color_space == COLOR_SPACE_RGB))
 				csc_cfg->csc_type = VPSS_CSC_YPbPr2RGB_BT601;
@@ -893,6 +904,11 @@ bm_status_t bm_vpss_set_csc(bmcv_csc_cfg *csc_cfg, bm_vpss_cfg *vpss_cfg)
 	bmcv_vpss_csc_matrix csc_matrix;
 	if (csc_cfg->csc_type == VPSS_CSC_RGB2RGB)
 		return BM_SUCCESS;
+	if (csc_cfg->csc_type == VPSS_CSC_YUV2YUV) {
+		bm_vpss_set_grp_csc(csc_cfg->is_fancy, &csc_default_matrix[8], &vpss_cfg->grp_csc_cfg);
+		bm_vpss_set_chn_csc(&csc_default_matrix[8], &vpss_cfg->chn_csc_cfg);
+		return BM_SUCCESS;
+	}
 	if (csc_cfg->is_user_defined_matrix) {
 		csc_matrix = csc_cfg->csc_matrix;
 		if (csc_cfg->csc_type == VPSS_CSC_RGB2YCbCr_BT601 ||
@@ -1606,7 +1622,8 @@ bm_status_t bm_vpss_convert_to(
 	if (ret != BM_SUCCESS)
 		return ret;
 
-	if (input->image_format == FORMAT_BGR_PLANAR) {
+	if (input->image_format == FORMAT_BGR_PLANAR ||
+	    input->image_format == FORMAT_BGRP_SEPARATE) {
 		float exc = convert_to_attr.alpha_0;
 		convert_to_attr.alpha_0 = convert_to_attr.alpha_2;
 		convert_to_attr.alpha_2 = exc;
@@ -1615,8 +1632,12 @@ bm_status_t bm_vpss_convert_to(
 		convert_to_attr.beta_2 = exc;
 	}
 
+	csc_type_t csc = CSC_MAX_ENUM;
+	if (input->image_format == FORMAT_GRAY && output->image_format == FORMAT_GRAY)
+		csc = CSC_YUV2YUV;
+
 	ret = bm_vpss_multi_parameter_processing(handle, input_num, input, output, NULL, NULL,
-		BMCV_INTER_LINEAR, CSC_MAX_ENUM, NULL, &convert_to_attr, NULL, NULL, NULL, NO_FLIP, NULL);
+		BMCV_INTER_LINEAR, csc, NULL, &convert_to_attr, NULL, NULL, NULL, NO_FLIP, NULL);
 
 	return ret;
 }

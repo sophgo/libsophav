@@ -169,17 +169,24 @@ int find_tpufirmaware_path(char fw_path[512], const char* path){
 #endif
 }
 
+/* the firmware path cache and the module load must not interleave between threads. */
+static pthread_mutex_t tpu_load_mutex = PTHREAD_MUTEX_INITIALIZER;
+
 bm_status_t bm_load_tpu_module(bm_handle_t handle, tpu_kernel_module_t *tpu_module, int core_id){
     const  char* fw_fname = FIRMWARE_NAME;
     static char fw_path[512] = {0};
     static bool first = true;
-    if(first){
+
+    pthread_mutex_lock(&tpu_load_mutex);
+    if (first) {
         if(0 != find_tpufirmaware_path(fw_path, fw_fname)){
             printf("%s does not exist\n", fw_fname);
+            pthread_mutex_unlock(&tpu_load_mutex);
             return BM_ERR_FAILURE;
         }
         first = false;
     }
+    pthread_mutex_unlock(&tpu_load_mutex);
     int key_size = strlen(FIRMWARE_NAME);
     *tpu_module = tpu_kernel_load_module_file_key_to_core(handle,
                                                  fw_path,
@@ -211,7 +218,7 @@ bm_status_t bm_tpu_kernel_launch(bm_handle_t handle,
     ret = tpu_kernel_launch_from_multi_cores(handle, func_id, param, size, 1, 1);
     /* 84x6 launch is async: sync before unloading the module */
     if (ret == BM_SUCCESS) {
-        bm_thread_sync_from_core(handle, core_id);
+        ret = bm_thread_sync_from_core(handle, core_id);
     }
 #else
     ret = tpu_kernel_launch_from_core(handle, func_id, param, size, core_id);

@@ -238,6 +238,7 @@ typedef enum csc_type {
     CSC_RGB2YPbPr_BT709,
     CSC_FANCY_PbPr_BT601 = 100,
     CSC_FANCY_PbPr_BT709,
+    CSC_YUV2YUV,
     CSC_USER_DEFINED_MATRIX = 1000,
     CSC_MAX_ENUM
 } csc_type_t;
