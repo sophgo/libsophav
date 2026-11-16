@@ -1,0 +1,15 @@
+# Prefer internal lib over public LD and require a complete library set.
+get_filename_component(vglite_root "${CMAKE_CURRENT_LIST_DIR}/../vglite" ABSOLUTE)
+if(IS_DIRECTORY "${vglite_root}/lib")
+    set(vglite_lib_dir "${vglite_root}/lib")
+elseif(IS_DIRECTORY "${vglite_root}/LD")
+    set(vglite_lib_dir "${vglite_root}/LD")
+else()
+    message(FATAL_ERROR "VGLite library directory is missing: ${vglite_root}/lib or ${vglite_root}/LD")
+endif()
+
+foreach(vglite_library libbmvg.a libvg_lite.a libvg_lite.so libvg_lite_util.a libvg_lite_util.so)
+    if(NOT EXISTS "${vglite_lib_dir}/${vglite_library}" OR IS_DIRECTORY "${vglite_lib_dir}/${vglite_library}")
+        message(FATAL_ERROR "VGLite library is missing: ${vglite_lib_dir}/${vglite_library}")
+    endif()
+endforeach()
