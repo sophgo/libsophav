@@ -5,7 +5,7 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 include(GitUtils)
 
 get_version_from_tag(LIBSOPHAV_VERSION COMMIT_HASH COMMIT_COUNT BRANCH COMMIT_DATE)
-set(GIT_VERSION "2.3.0")
+set(GIT_VERSION "2.4.0")
 add_compile_definitions(LIBSOPHAV_VERSION="${GIT_VERSION}")
 add_compile_definitions(COMMIT_HASH="${COMMIT_HASH}")
 add_compile_definitions(COMMIT_COUNT="${COMMIT_COUNT}")
