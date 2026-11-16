@@ -129,6 +129,10 @@ static void print_help(char **argv){
 };
 
 int main(int argc, char **argv) {
+    if (getenv("BMCV_CONVERT_TO_USE_VPSS") == NULL) {
+        setenv("BMCV_CONVERT_TO_USE_VPSS", "1", 1);
+        execv("/proc/self/exe", argv);
+    }
     if (argc >= 17) {
         md5 = argv[16];
     } else if(argc > 3){

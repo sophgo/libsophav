@@ -106,6 +106,7 @@ bm_status_t bmcv_ldc_rot(bm_handle_t          handle,
     switch(chipid) {
         case BM1688_PREV:
         case BM1688:
+        case CV84X6:
             ret = bm_ldc_rot_internal(handle, in_image, out_image, rot_mode);
             if(ret != BM_SUCCESS){
                 bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "Bmcv ldc execution failed! \n");

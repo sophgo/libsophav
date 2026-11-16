@@ -67,7 +67,7 @@ static int parameters_check(int height, int width, bm_image_format_ext fmt, int 
         printf("Unsupported format : Only support FORMAT_GRAY \n");
         error = -1;
     }
-    if (ksize != 1 && ksize != 3) {
+    if (ksize >= 0 && ksize != 1 && ksize != 3) {
         printf("Unsupported ksize : The size of the Laplacian kernel must be 1 or 3 \n");
         error = -1;
     }
@@ -226,6 +226,16 @@ static int test_lap(int if_use_image, int width, int height, bm_image_format_ext
     return ret;
 }
 
+/* Reroll only the -1 sentinel fields; given values stay fixed. height/width
+ * and ksize are independent; ksize's legal set is {1,3}. */
+static void randomize_params(cv_laplace_thread_arg_t *arg, int *height, int *width, int *ksize)
+{
+    if (arg->if_use_img) return;
+    if (arg->height < 0) *height = 2 + rand() % 4095;
+    if (arg->width  < 0) *width  = 2 + rand() % 4095;
+    if (arg->ksize  < 0) *ksize  = (rand() % 2) ? 3 : 1;
+}
+
 void* test_thread_laplace(void* args) {
     cv_laplace_thread_arg_t* cv_laplace_thread_arg = (cv_laplace_thread_arg_t*)args;
     int loop = cv_laplace_thread_arg->loop;
@@ -239,6 +249,7 @@ void* test_thread_laplace(void* args) {
     bm_handle_t handle = cv_laplace_thread_arg->handle;
 
     for (int i = 0; i < loop; ++i) {
+        randomize_params(cv_laplace_thread_arg, &height, &width, &ksize);
         int ret = test_lap(if_use_img, width, height, fmt, ksize, src_name, dst_name ,handle);
         if (ret) {
             printf("------Test Laplace Failed------\n");
@@ -258,9 +269,9 @@ int main(int argc, char* args[])
     int thread_num = 1;
     int if_use_img = 0;
     int loop = 1;
-    int height = 2 + rand()% 4095;
-    int width = 2 + rand() % 4095;
-    unsigned int ksize = 3;
+    int height = -1;
+    int width = -1;
+    int ksize = -1;
     bm_image_format_ext fmt = FORMAT_GRAY; /* 14 */
     int ret = 0;
     int i;
@@ -283,6 +294,7 @@ int main(int argc, char* args[])
         printf("%s 2 10 1\n", args[0]);
         printf("%s 2 1 1 0 512 512 14\n", args[0]);
         printf("%s 2 1 3 1 1080 1920 14 input.bin laplace_output.bin \n", args[0]);
+        printf("-1 for ksize/height/width means random (re-randomized each loop)\n");
         return 0;
     }
 

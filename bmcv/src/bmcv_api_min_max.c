@@ -25,7 +25,6 @@ static bm_status_t bmcv_min_max_check(bm_handle_t handle, int len, float *minVal
 bm_status_t bmcv_min_max(bm_handle_t handle, bm_device_mem_t input, float* minVal, float* maxVal, int len) {
     bm_status_t ret = BM_SUCCESS;
     bm_device_mem_t minDev, maxDev, buffer_dual_core_min_addr, buffer_dual_core_max_addr;
-    unsigned int chipid;
     int core_id = 0;
     float* min_npu = NULL;
     float* max_npu = NULL;
@@ -48,7 +47,9 @@ bm_status_t bmcv_min_max(bm_handle_t handle, bm_device_mem_t input, float* minVa
             if_core1 = 1;
         } else if (strcmp(tpu_env, "2") == 0 || strcmp(tpu_env, "both") == 0) {
             bmlib_log("MIN_MAX", BMLIB_LOG_DEBUG, "Use all TPU cores (0 and 1)\n");
+#ifndef MEDIA_V3
             if_core1 = 1;
+#endif
         } else {
             bmlib_log("MIN_MAX", BMLIB_LOG_ERROR, "Invalid TPU_CORES value: %s\n", tpu_env);
             bmlib_log("MIN_MAX", BMLIB_LOG_ERROR, "Available options: 0, 1, 2/both\n");
@@ -61,21 +62,29 @@ bm_status_t bmcv_min_max(bm_handle_t handle, bm_device_mem_t input, float* minVa
         BMCV_ERR_LOG("min_max check error\r\n");
         return ret;
     }
-    ret = bm_get_chipid(handle, &chipid);
-    if (ret) {
-        printf("get chipid is error !\n");
-        return ret;
-    }
-
 
     if (if_core0 == 1 && if_core1 == 1) {
         if (maxVal != NULL) {
             buffer_dual_core_max_npu = (float*)malloc(2 * sizeof(float));
-            BM_CHECK_RET(bm_malloc_device_byte(handle, &buffer_dual_core_max_addr, 2 * sizeof(float)));
+            if (buffer_dual_core_max_npu == NULL) {
+                ret = BM_ERR_NOMEM;
+                goto exit;
+            }
+            ret = bm_malloc_device_byte(handle, &buffer_dual_core_max_addr, 2 * sizeof(float));
+            if (ret != BM_SUCCESS) {
+                goto exit;
+            }
         }
         if (minVal != NULL) {
             buffer_dual_core_min_npu = (float*)malloc(2 * sizeof(float));
-            BM_CHECK_RET(bm_malloc_device_byte(handle, &buffer_dual_core_min_addr, 2 * sizeof(float)));
+            if (buffer_dual_core_min_npu == NULL) {
+                ret = BM_ERR_NOMEM;
+                goto exit;
+            }
+            ret = bm_malloc_device_byte(handle, &buffer_dual_core_min_addr, 2 * sizeof(float));
+            if (ret != BM_SUCCESS) {
+                goto exit;
+            }
         }
         int base_msg_id = 0;
         int core_list[BM1688_MAX_CORES];
@@ -83,8 +92,8 @@ bm_status_t bmcv_min_max(bm_handle_t handle, bm_device_mem_t input, float* minVa
         if (if_core0) core_list[core_nums++] = 0;
         if (if_core1) core_list[core_nums++] = 1;
         api_dual_core.inputAddr = bm_mem_get_device_addr(input);
-        api_dual_core.buffer_dual_core_min_addr = bm_mem_get_device_addr(buffer_dual_core_min_addr);
-        api_dual_core.buffer_dual_core_max_addr = bm_mem_get_device_addr(buffer_dual_core_max_addr);
+        api_dual_core.buffer_dual_core_min_addr = bm_mem_get_device_addr(minVal != NULL ? buffer_dual_core_min_addr : buffer_dual_core_max_addr);
+        api_dual_core.buffer_dual_core_max_addr = bm_mem_get_device_addr(maxVal != NULL ? buffer_dual_core_max_addr : buffer_dual_core_min_addr);
         api_dual_core.len = len;
         api_dual_core.mode = maxVal == NULL ? ONLY_MIN : (minVal == NULL ? ONLY_MAX : BOTH);
         for (int i = 0; i < core_nums; i++) {
@@ -100,72 +109,90 @@ bm_status_t bmcv_min_max(bm_handle_t handle, bm_device_mem_t input, float* minVa
             launch_params[core_idx].param_data = &params[core_idx];
             launch_params[core_idx].param_size = sizeof(sg_api_cv_min_max_dual_core_t);
         }
-        switch (chipid) {
-            case BM1688_PREV:
-            case BM1688:
-                ret = bm_tpu_kernel_launch_dual_core(handle, "cv_min_max_bm1688", launch_params, core_list, core_nums);
-                if(BM_SUCCESS != ret) {
-                    bmlib_log("MIN_MAX", BMLIB_LOG_ERROR, "min_max sync api error\n");
-                    return ret;
-                }
-                break;
-            default:
-                ret = BM_NOT_SUPPORTED;
-                printf("BM_NOT_SUPPORTED!\n");
-                break;
+        ret = bm_tpu_kernel_launch_dual_core(handle, "cv_min_max_bm1688", launch_params, core_list, core_nums);
+        if(BM_SUCCESS != ret) {
+            bmlib_log("MIN_MAX", BMLIB_LOG_ERROR, "min_max sync api error\n");
+            goto exit;
         }
         if (maxVal != NULL) {
-            BM_CHECK_RET(bm_memcpy_d2s(handle, buffer_dual_core_max_npu, buffer_dual_core_max_addr));
+            ret = bm_memcpy_d2s(handle, buffer_dual_core_max_npu, buffer_dual_core_max_addr);
+            if (ret != BM_SUCCESS) {
+                goto exit;
+            }
             *maxVal = buffer_dual_core_max_npu[0] > buffer_dual_core_max_npu[1] ? buffer_dual_core_max_npu[0] : buffer_dual_core_max_npu[1];
-            bm_free_device(handle, buffer_dual_core_max_addr);
-            free(buffer_dual_core_max_npu);
         }
         if (minVal != NULL) {
-            BM_CHECK_RET(bm_memcpy_d2s(handle, buffer_dual_core_min_npu, buffer_dual_core_min_addr));
+            ret = bm_memcpy_d2s(handle, buffer_dual_core_min_npu, buffer_dual_core_min_addr);
+            if (ret != BM_SUCCESS) {
+                goto exit;
+            }
             *minVal = buffer_dual_core_min_npu[0] < buffer_dual_core_min_npu[1] ? buffer_dual_core_min_npu[0] : buffer_dual_core_min_npu[1];
-            bm_free_device(handle, buffer_dual_core_min_addr);
-            free(buffer_dual_core_min_npu);
         }
     } else {
         if (maxVal != NULL) {
             max_npu = (float*)malloc(sizeof(float));
-            BM_CHECK_RET(bm_malloc_device_byte(handle, &maxDev, sizeof(float)));
+            if (max_npu == NULL) {
+                ret = BM_ERR_NOMEM;
+                goto exit;
+            }
+            ret = bm_malloc_device_byte(handle, &maxDev, sizeof(float));
+            if (ret != BM_SUCCESS) {
+                goto exit;
+            }
         }
         if (minVal != NULL) {
             min_npu = (float*)malloc(sizeof(float));
-            BM_CHECK_RET(bm_malloc_device_byte(handle, &minDev, sizeof(float)));
+            if (min_npu == NULL) {
+                ret = BM_ERR_NOMEM;
+                goto exit;
+            }
+            ret = bm_malloc_device_byte(handle, &minDev, sizeof(float));
+            if (ret != BM_SUCCESS) {
+                goto exit;
+            }
         }
         api.inputAddr = bm_mem_get_device_addr(input);
-        api.minAddr = bm_mem_get_device_addr(minDev);
-        api.maxAddr = bm_mem_get_device_addr(maxDev);
+        api.minAddr = bm_mem_get_device_addr(minVal != NULL ? minDev : maxDev);
+        api.maxAddr = bm_mem_get_device_addr(maxVal != NULL ? maxDev : minDev);
         api.len = len;
         api.mode = maxVal == NULL ? ONLY_MIN : (minVal == NULL ? ONLY_MAX : BOTH);
-        switch(chipid) {
-            case BM1688_PREV:
-            case BM1688:
-                ret = bm_tpu_kernel_launch(handle, "cv_min_max", (u8*)&api, sizeof(api), core_id);
-                if(BM_SUCCESS != ret){
-                    bmlib_log("MIN_MAX", BMLIB_LOG_ERROR, "min_max sync api error\n");
-                    return ret;
-                }
-                break;
-            default:
-                printf("BM_NOT_SUPPORTED!\n");
-                ret = BM_NOT_SUPPORTED;
-                break;
+        ret = bm_tpu_kernel_launch(handle, "cv_min_max", (u8*)&api, sizeof(api), core_id);
+        if(BM_SUCCESS != ret){
+            bmlib_log("MIN_MAX", BMLIB_LOG_ERROR, "min_max sync api error\n");
+            goto exit;
         }
         if (maxVal != NULL) {
             ret = bm_memcpy_d2s(handle, max_npu, maxDev);
+            if (ret != BM_SUCCESS) {
+                goto exit;
+            }
             *maxVal = *max_npu;
-            bm_free_device(handle, maxDev);
-            free(max_npu);
         }
         if (minVal != NULL) {
             ret = bm_memcpy_d2s(handle, min_npu, minDev);
+            if (ret != BM_SUCCESS) {
+                goto exit;
+            }
             *minVal = *min_npu;
-            bm_free_device(handle, minDev);
-            free(min_npu);
         }
+    }
+
+exit:
+    if (buffer_dual_core_max_npu != NULL) {
+        bm_free_device(handle, buffer_dual_core_max_addr);
+        free(buffer_dual_core_max_npu);
+    }
+    if (buffer_dual_core_min_npu != NULL) {
+        bm_free_device(handle, buffer_dual_core_min_addr);
+        free(buffer_dual_core_min_npu);
+    }
+    if (max_npu != NULL) {
+        bm_free_device(handle, maxDev);
+        free(max_npu);
+    }
+    if (min_npu != NULL) {
+        bm_free_device(handle, minDev);
+        free(min_npu);
     }
     return ret;
 }
@@ -175,7 +202,6 @@ bm_status_t bmcv_min_max_u64(bm_handle_t handle, bm_device_mem_u64_t input, floa
 {
     bm_status_t ret = BM_SUCCESS;
     bm_device_mem_u64_t minDev, maxDev;
-    unsigned int chipid;
     uint8_t npu_num;
     int core_id = 0;
     float* min_npu = NULL;
@@ -187,73 +213,74 @@ bm_status_t bmcv_min_max_u64(bm_handle_t handle, bm_device_mem_u64_t input, floa
         BMCV_ERR_LOG("min_max check error\r\n");
         return ret;
     }
-    if (handle == NULL) {
-        bmlib_log("MIN_MAX", BMLIB_LOG_ERROR, "Can not get handle!\r\n");
-        return BM_ERR_PARAM;
-    }
 
-    if (minVal == NULL && maxVal == NULL) {
-        return ret;
-    }
+    npu_num = 32;
 
-    ret = bm_get_chipid(handle, &chipid);
-    if (ret) {
-        printf("get chipid is error !\n");
-        return ret;
-    }
-
-    if (chipid == BM1688) {
-        npu_num = 32;
-    } else {
-        npu_num = 64;
-    }
-
-    min_npu = (float*)malloc(npu_num * sizeof(float));
-    max_npu = (float*)malloc(npu_num * sizeof(float));
-
-    if (maxVal != NULL)
+    if (maxVal != NULL) {
+        max_npu = (float*)malloc(npu_num * sizeof(float));
+        if (max_npu == NULL) {
+            ret = BM_ERR_NOMEM;
+            goto exit;
+        }
         ret = bm_malloc_device_byte_u64(handle, &maxDev, npu_num * sizeof(float));
+        if (ret != BM_SUCCESS) {
+            goto exit;
+        }
+    }
 
-    if (minVal != NULL)
+    if (minVal != NULL) {
+        min_npu = (float*)malloc(npu_num * sizeof(float));
+        if (min_npu == NULL) {
+            ret = BM_ERR_NOMEM;
+            goto exit;
+        }
         ret = bm_malloc_device_byte_u64(handle, &minDev, npu_num * sizeof(float));
+        if (ret != BM_SUCCESS) {
+            goto exit;
+        }
+    }
 
     api.inputAddr = bm_mem_get_device_addr_u64(input);
-    api.minAddr = bm_mem_get_device_addr_u64(minDev);
-    api.maxAddr = bm_mem_get_device_addr_u64(maxDev);
+    api.minAddr = bm_mem_get_device_addr_u64(minVal != NULL ? minDev : maxDev);
+    api.maxAddr = bm_mem_get_device_addr_u64(maxVal != NULL ? maxDev : minDev);
     api.len = len;
     api.mode = maxVal == NULL ? ONLY_MIN : (minVal == NULL ? ONLY_MAX : BOTH);
 
-    switch(chipid) {
-        case BM1688_PREV:
-        case BM1688:
-        ret = bm_tpu_kernel_launch(handle, "cv_min_max", (u8*)&api,
-                                    sizeof(api), core_id);
-        if(BM_SUCCESS != ret){
+    ret = bm_tpu_kernel_launch(handle, "cv_min_max", (u8*)&api,
+                                sizeof(api), core_id);
+    if (BM_SUCCESS != ret){
         bmlib_log("MIN_MAX", BMLIB_LOG_ERROR, "min_max sync api error\n");
-        return ret;
-        }
-        break;
-        default:
-        printf("BM_NOT_SUPPORTED!\n");
-        ret = BM_NOT_SUPPORTED;
-        break;
+        goto exit;
     }
 
     if (maxVal != NULL) {
         ret = bm_memcpy_d2s_u64(handle, max_npu, maxDev);
+        if (ret != BM_SUCCESS) {
+            goto exit;
+        }
         *maxVal = max_npu[0];
         for (int i = 1; i < npu_num; ++i)
             *maxVal = *maxVal > max_npu[i] ? *maxVal : max_npu[i];
-        bm_free_device_u64(handle, maxDev);
     }
 
     if (minVal != NULL) {
         ret = bm_memcpy_d2s_u64(handle, min_npu, minDev);
+        if (ret != BM_SUCCESS) {
+            goto exit;
+        }
         *minVal = min_npu[0];
         for (int i = 1; i < npu_num; ++i)
             *minVal = *minVal < min_npu[i] ? *minVal : min_npu[i];
-        bm_free_device_u64(handle, minDev);
     }
 
+exit:
+    if (max_npu != NULL) {
+        bm_free_device_u64(handle, maxDev);
+        free(max_npu);
+    }
+    if (min_npu != NULL) {
+        bm_free_device_u64(handle, minDev);
+        free(min_npu);
+    }
     return ret;
 }

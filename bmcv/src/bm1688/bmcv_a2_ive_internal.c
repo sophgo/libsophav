@@ -4144,6 +4144,36 @@ bm_status_t BM_IVE_FilterAndCsc(ive_handle ive_handle, ive_src_image_s *psrc,
     return ret;
 }
 
+#ifdef MEDIA_V3
+bm_status_t BM_IVE_FilterAndCsc_ext(ive_handle ive_handle, ive_src_image_s *psrc,
+                    ive_dst_image_s *pdst,
+                    ive_filter_and_csc_ext_ctrl *pctrl,
+                    unsigned char instant)
+{
+    struct ive_ioctl_arg ioctl_arg;
+    struct ive_ioctl_filter_and_csc_ext_arg ive_arg;
+    struct IVE_HANDLE_CTX *p = (struct IVE_HANDLE_CTX *)ive_handle;
+
+    if (p == NULL || p->dev_fd <= 0) {
+        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
+            "Device ive is not open, please check it %s: %s: %d\n",
+            filename(__FILE__), __func__, __LINE__);
+        return BM_ERR_DEVNOTREADY;
+    }
+
+    ive_arg.ive_handle = ive_handle;
+    ive_arg.src = *psrc;
+    ive_arg.dst = *pdst;
+    ive_arg.ctrl = *pctrl;
+    ive_arg.instant = instant;
+
+    ioctl_arg.input_data = (uint64_t)&ive_arg;
+    bm_status_t ret = (bm_status_t) ioctl(p->dev_fd, IVE_IOC_FILTER_AND_CSC, &ioctl_arg);
+
+    return ret;
+}
+#endif
+
 int bm_image_format_filterandcsc_mode(csc_type_t csc_type)
 {
     switch (csc_type)
@@ -4177,11 +4207,20 @@ bm_status_t bm_ive_filterAndCsc(
     ive_handle ive_handle = NULL;
     ive_src_image_s src;
     ive_dst_image_s dst;
+#ifndef MEDIA_V3
     ive_filter_and_csc_ctrl_s ctrl;
+#else
+    ive_filter_and_csc_ext_ctrl ctrl;
+    int row = 0, col = 0;
+#endif
 
     memset(&src, 0, sizeof(ive_src_image_s));
     memset(&dst, 0, sizeof(ive_dst_image_s));
+#ifndef MEDIA_V3
     memset(&ctrl, 0, sizeof(ive_filter_and_csc_ctrl_s));
+#else
+    memset(&ctrl, 0, sizeof(ive_filter_and_csc_ext_ctrl));
+#endif
 
     ret = bm_image_convert_to_ive_image(handle, &input, &src);
     if(ret != BM_SUCCESS){
@@ -4199,8 +4238,6 @@ bm_status_t bm_ive_filterAndCsc(
             return BM_ERR_FAILURE;
     }
 
-    ctrl.norm = attr.u8_norm;
-    memcpy(ctrl.mask, attr.as8_mask, 5 * 5 * sizeof(signed char));
     int csc_mode = bm_image_format_filterandcsc_mode(csc_type);
     if (csc_mode < 0 || csc_mode >= IVE_CSC_MODE_BUTT) {
         bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
@@ -4208,6 +4245,18 @@ bm_status_t bm_ive_filterAndCsc(
             filename(__FILE__), __func__, __LINE__);
     }
     ctrl.mode = (ive_csc_mode_e)csc_mode;
+    ctrl.norm = attr.u8_norm;
+#ifndef MEDIA_V3
+    memcpy(ctrl.mask, attr.as8_mask, 5 * 5 * sizeof(signed char));
+#else
+    for (row = 0; row < 5; row++) {
+        for (col = 0; col < 5; col++) {
+            ctrl.mask[(row + 2) * 9 + (col + 2)] =
+                attr.as8_mask[row * 5 + col];
+        }
+    }
+    ctrl.ksize = 5;
+#endif
 
     // get ive handle and invoke ive funtion
     ive_handle = BM_IVE_CreateHandle();
@@ -4218,7 +4267,11 @@ bm_status_t bm_ive_filterAndCsc(
         return BM_ERR_FAILURE;
     }
 
+#ifndef MEDIA_V3
     ret = BM_IVE_FilterAndCsc(ive_handle, &src, &dst, &ctrl, false);
+#else
+    ret = BM_IVE_FilterAndCsc_ext(ive_handle, &src, &dst, &ctrl, false);
+#endif
     if(ret != BM_SUCCESS){
          bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
                 "BM_IVE_FilterAndCsc error %s: %s: %d\n",

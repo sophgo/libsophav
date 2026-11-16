@@ -59,24 +59,10 @@ bm_status_t bmcv_raw12_to_uint16(bm_handle_t handle, bm_device_mem_t input_dev_m
     api.output_addr = bm_mem_get_device_addr(output_dev_mem);
     api.width = width;
     api.height = height;
-    unsigned int chipid;
-    bm_get_chipid(handle, &chipid);
     int core_id = 0;
-    switch (chipid) {
-        case BM1688_PREV:
-        case BM1688:
-            ret = bm_tpu_kernel_launch(handle, "raw12_to_uint16_a2_84x", (u8*)&api, sizeof(api), core_id);
-            if(BM_SUCCESS != ret){
-                bmlib_log("RAW12_TO_UINT16", BMLIB_LOG_ERROR, "raw12_to_uint16 sync api error\n");
-                return BM_ERR_FAILURE;
-            }
-            break;
-        default:
-            printf("ChipID is NOT supported\n");
-            break;
-    }
-    if (ret != BM_SUCCESS) {
-        printf("raw12_to_uint16 tpu_kernel_launch failed\n");
+    ret = bm_tpu_kernel_launch(handle, "raw12_to_uint16_a2_84x", (u8*)&api, sizeof(api), core_id);
+    if(BM_SUCCESS != ret){
+        bmlib_log("RAW12_TO_UINT16", BMLIB_LOG_ERROR, "raw12_to_uint16 sync api error\n");
         return BM_ERR_FAILURE;
     }
 

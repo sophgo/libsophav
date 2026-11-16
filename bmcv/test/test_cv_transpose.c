@@ -18,10 +18,10 @@ typedef struct {
     int channel;
     int height;
     int width;
-    int stride;
     int type;
     char* src_name;
     char* dst_name;
+    int thread_num;
     bm_handle_t handle;
 } cv_transpose_thread_arg_t;
 
@@ -51,6 +51,10 @@ static void fill_input_u8(unsigned char* input, int channel, int height, int wid
 static void readBin(const char* path, unsigned char* input_data, int size)
 {
     FILE *fp_src = fopen(path, "rb");
+    if (fp_src == NULL) {
+        printf("Unable to open input file %s\n", path);
+        return;
+    }
     if (fread((void *)input_data, 1, size, fp_src) < (unsigned int)size) {
         printf("file size is less than %d required bytes\n", size);
     };
@@ -61,6 +65,10 @@ static void readBin(const char* path, unsigned char* input_data, int size)
 static void writeBin(const char * path, unsigned char* input_data, int size)
 {
     FILE *fp_dst = fopen(path, "wb+");
+    if (fp_dst == NULL) {
+        printf("Unable to open output file %s\n", path);
+        return;
+    }
     if (fwrite((void *)input_data, 1, size, fp_dst) < (unsigned int)size) {
         printf("file size is less than %d required bytes\n", size);
     };
@@ -84,6 +92,20 @@ static int parameters_check(int height, int width, int channel, int type)
         error = -1;
     }
     return error;
+}
+
+/* host peak = threads x 3 buffers x el_size (float 4B, u8 1B) x W*H*ch; keep under ~1.2GB */
+#define TRANSPOSE_MEM_BUDGET 1200000000L
+
+static void randomize_size(int channel, int type, int thread_num, int *height, int *width)
+{
+    long max_px = TRANSPOSE_MEM_BUDGET / ((long)(type == DTYPE_F32 ? 12 : 3) * channel
+              * (thread_num > 0 ? thread_num : 1));
+    if (max_px < 1) max_px = 1;
+    do {
+        *height = 1 + rand() % 4096;
+        *width  = 1 + rand() % 4096;
+    } while ((long)*height * *width > max_px);
 }
 
 static int cmp_result(void* tpu_out, void* cpu_out, int channel, int height, int width, int type)
@@ -317,13 +339,19 @@ void* thread_test_transpose(void* args) {
     int channel = cv_transpose_thread_arg->channel;
     int height = cv_transpose_thread_arg->height;
     int width = cv_transpose_thread_arg->width;
-    int stride = cv_transpose_thread_arg->stride;
     int type = cv_transpose_thread_arg->type;
     char* src_name = cv_transpose_thread_arg->src_name;
     char* dst_name = cv_transpose_thread_arg->dst_name;
     bm_handle_t handle = cv_transpose_thread_arg->handle;
+    int thread_num = cv_transpose_thread_arg->thread_num;
+    int ch_num[2] = {1, 3};
+    int type_num[2] = {DTYPE_U8, DTYPE_F32};
     for (int i = 0; i < loop; ++i) {
-        int ret = test_transpose(if_use_img, channel, height, width, stride, type, src_name, dst_name, handle);
+        if (cv_transpose_thread_arg->channel < 0) channel = ch_num[rand() % 2];
+        if (cv_transpose_thread_arg->type < 0) type = type_num[rand() % 2];
+        if (cv_transpose_thread_arg->height == -1 || cv_transpose_thread_arg->width == -1)
+            randomize_size(channel, type, thread_num, &height, &width);
+        int ret = test_transpose(if_use_img, channel, height, width, width, type, src_name, dst_name, handle);
         if (ret) {
             printf("------Test Transpose Failed!------\n");
             exit(-1);
@@ -342,11 +370,10 @@ int main(int argc, char* args[])
     int thread_num = 1;
     int if_use_img = 0;
     int loop = 1;
-    int channel = 1;
-    int height = 1 + rand() % 4096;
-    int width = 1 + rand() % 4096;
-    int stride = width;
-    int type = 1;
+    int channel = -1;
+    int height = -1;
+    int width = -1;
+    int type = -1;
     int ret = 0;
     int check = 0;
     char* src_name = NULL;
@@ -361,6 +388,7 @@ int main(int argc, char* args[])
     if (argc == 2 && atoi(args[1]) == -1) {
         printf("usage: %d\n", argc);
         printf("%s thread_num loop use_real_img type channel height width src_name dst_name(when use_real_img = 1,need to set src_name and dst_name) \n", args[0]);
+        printf("-1 type/channel/height/width means random (re-randomized each loop)\n");
         printf("example:\n");
         printf("%s \n", args[0]);
         printf("%s 2 1 0\n", args[0]);
@@ -379,11 +407,16 @@ int main(int argc, char* args[])
     if (argc > 8) src_name = args[8];
     if (argc > 9) dst_name = args[9];
 
-    stride = ALIGN_WIDTH(width, 64); /*stride is align width.*/
-    check = parameters_check(height, width, channel, type);
-    if (check) {
-        printf("Parameters Failed! \n");
-        return check;
+    if (if_use_img == 1 && (channel < 0 || height == -1 || width == -1)) {
+        printf("real img mode needs fixed channel/height/width\n");
+        return -1;
+    }
+    if (channel >= 0 && height >= 0 && width >= 0 && type >= 0) {
+        check = parameters_check(height, width, channel, type);
+        if (check) {
+            printf("Parameters Failed! \n");
+            return check;
+        }
     }
     printf("seed = %d\n", seed);
     // test for multi-thread
@@ -395,10 +428,10 @@ int main(int argc, char* args[])
         cv_transpose_thread_arg[i].channel = channel;
         cv_transpose_thread_arg[i].height = height;
         cv_transpose_thread_arg[i].width = width;
-        cv_transpose_thread_arg[i].stride = stride;
         cv_transpose_thread_arg[i].type = type;
         cv_transpose_thread_arg[i].src_name = src_name;
         cv_transpose_thread_arg[i].dst_name = dst_name;
+        cv_transpose_thread_arg[i].thread_num = thread_num;
         cv_transpose_thread_arg[i].handle = handle;
         if (pthread_create(&pid[i], NULL, thread_test_transpose, &cv_transpose_thread_arg[i]) != 0) {
             printf("create thread failed\n");

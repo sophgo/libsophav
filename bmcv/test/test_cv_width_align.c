@@ -41,88 +41,67 @@ static int parameters_check(int height, int width, int format, int type)
     return error;
 }
 
-#define BMCV_WIDTH_ALIGN_CMP(type, p_exp, p_got, count, cmp_expr, fmt) \
-    do { \
-        int ret = 0; \
-        for (int j = 0; j < (count); j++) { \
-            if (cmp_expr) { \
-                printf("error: when idx=%d, exp=" fmt " but got=" fmt "\n", \
-                       j, \
-                       (type)(p_exp)[j], \
-                       (type)(p_got)[j]); \
-                return -1; \
-            } \
-        } \
-        return ret; \
-    } while (0)
+typedef int (*width_align_row_op_t)(void *ctx, void *row_src, void *row_dst, int bytes, int elem_base);
 
-static int bmcv_width_align_cmp_uchar(unsigned char *p_exp, unsigned char *p_got, int count) {
-    BMCV_WIDTH_ALIGN_CMP(int, p_exp, p_got, count, (p_exp[j] != p_got[j]), "%d");
+static int wa_memcpy_row(void *ctx, void *row_src, void *row_dst, int bytes, int elem_base)
+{
+    (void)ctx;
+    (void)elem_base;
+    memcpy(row_dst, row_src, bytes);
+    return 0;
 }
 
-static int bmcv_width_align_cmp_float(float *p_exp, float *p_got, int count) {
-    BMCV_WIDTH_ALIGN_CMP(float, p_exp, p_got, count, (fabs(p_exp[j] - p_got[j]) > 0.001f), "%f");
+// in-place row compare: row_src = golden, row_dst = valid segment of the same tpu output row
+static int wa_cmp_row(void *ctx, void *row_src, void *row_dst, int bytes, int elem_base)
+{
+    int data_type = *(int *)ctx;
+    int j;
+    int count = bytes / ((data_type == 0) ? 4 : 1);
+
+    if (data_type == 0) {
+        float *p_exp = (float *)row_src;
+        float *p_got = (float *)row_dst;
+        for (j = 0; j < count; j++) {
+            if (fabs(p_exp[j] - p_got[j]) > 0.001f) {
+                printf("error: when idx=%d, exp=%f but got=%f\n",
+                       elem_base + j, p_exp[j], p_got[j]);
+                return -1;
+            }
+        }
+    } else {
+        unsigned char *p_exp = (unsigned char *)row_src;
+        unsigned char *p_got = (unsigned char *)row_dst;
+        for (j = 0; j < count; j++) {
+            if (p_exp[j] != p_got[j]) {
+                printf("error: when idx=%d, exp=%d but got=%d\n",
+                       elem_base + j, (int)p_exp[j], (int)p_got[j]);
+                return -1;
+            }
+        }
+    }
+    return 0;
 }
 
-
-// static int bmcv_width_align_cmp(unsigned char *p_exp, unsigned char *p_got, int count) {
-//     int ret = 0;
-//     for (int j = 0; j < count; j++) {
-//         if (p_exp[j] != p_got[j]) {
-//             printf("error: when idx=%d,  exp=%d but got=%d\n",
-//                    j,
-//                    (int)p_exp[j],
-//                    (int)p_got[j]);
-//             return -1;
-//         }
-//     }
-
-//     return ret;
-// }
-// static int bmcv_width_align_cmp(float *p_exp, float *p_got, int count) {
-//     int ret = 0;
-//     for (int j = 0; j < count; j++) {
-//         if (p_exp[j] - p_got[j] > 0.001) {
-//             printf("error: when idx=%d,  exp=%d but got=%d\n",
-//                    j,
-//                    (float)p_exp[j],
-//                    (float)p_got[j]);
-//             return -1;
-//         }
-//     }
-
-//     return ret;
-// }
-
-static void memcpy_float(float *dst, float *src, size_t size) {
-    memcpy(dst, src, size);
-}
-
-static void memcpy_uchar(unsigned char *dst, unsigned char *src, size_t size) {
-    memcpy(dst, src, size);
-}
-
-static bm_status_t bmcv_width_align_ref(
+static bm_status_t bmcv_width_align_walk(
     void *src_image,
+    void *dst_image,
     int data_type,
     bm_image_format_ext format,
     int image_h,
     int image_w,
     int *stride_src,
     int *stride_dst,
-    void *dst_image) {
+    width_align_row_op_t op,
+    void *ctx) {
 
-    // 定义处理函数类型
-    typedef void (*CopyFunc)(void*, void*, size_t);
-    CopyFunc copy_func = (data_type == 0) ?
-        (CopyFunc)memcpy_float : (CopyFunc)memcpy_uchar;
-
-    // 辅助宏定义
-    #define COPY_PLANES(count, src_offsets, dst_offsets, widths) \
+    #define WALK_PLANES(count, src_offsets, dst_offsets, widths) \
         for (int i = 0; i < (count); i++) { \
-            void *src = (void*)((char*)src_image + (src_offsets)); \
-            void *dst = (void*)((char*)dst_image + (dst_offsets)); \
-            copy_func(dst, src, (widths) * data_size); \
+            if (op(ctx, \
+                   (void*)((char*)src_image + (src_offsets)), \
+                   (void*)((char*)dst_image + (dst_offsets)), \
+                   (widths) * data_size, \
+                   (src_offsets) / data_size)) \
+                return BM_ERR_FAILURE; \
         }
 
     int data_size = (data_type == 0) ? 4 : 1;
@@ -130,7 +109,7 @@ static bm_status_t bmcv_width_align_ref(
     switch (format) {
     case FORMAT_BGR_PLANAR:
     case FORMAT_RGB_PLANAR:
-        COPY_PLANES(3 * image_h,
+        WALK_PLANES(3 * image_h,
                    i * stride_src[0] * data_size,
                    i * stride_dst[0] * data_size,
                    image_w);
@@ -138,51 +117,83 @@ static bm_status_t bmcv_width_align_ref(
 
     case FORMAT_BGR_PACKED:
     case FORMAT_RGB_PACKED:
-        COPY_PLANES(image_h,
+        WALK_PLANES(image_h,
                    i * stride_src[0] * data_size,
                    i * stride_dst[0] * data_size,
                    image_w * 3);
         break;
 
     case FORMAT_NV12:
-        COPY_PLANES(image_h,
+        WALK_PLANES(image_h,
                    i * stride_src[0] * data_size,
                    i * stride_dst[0] * data_size,
                    image_w);
-        COPY_PLANES(image_h / 2,
-                   image_h * stride_src[0] + i * stride_src[1] * data_size,
-                   image_h * stride_dst[0] + i * stride_dst[1] * data_size,
+        WALK_PLANES(image_h / 2,
+                   image_h * stride_src[0] * data_size + i * stride_src[1] * data_size,
+                   image_h * stride_dst[0] * data_size + i * stride_dst[1] * data_size,
                    image_w);
         break;
 
     case FORMAT_NV16:
-        COPY_PLANES(image_h,
+        WALK_PLANES(image_h,
                    i * stride_src[0] * data_size,
                    i * stride_dst[0] * data_size,
                    image_w);
-        COPY_PLANES(image_h,
-                   image_h * stride_src[0] + i * stride_src[1] * data_size,
-                   image_h * stride_dst[0] + i * stride_dst[1] * data_size,
+        WALK_PLANES(image_h,
+                   image_h * stride_src[0] * data_size + i * stride_src[1] * data_size,
+                   image_h * stride_dst[0] * data_size + i * stride_dst[1] * data_size,
                    image_w);
         break;
 
     case FORMAT_YUV420P:
-        COPY_PLANES(image_h,
+        WALK_PLANES(image_h,
                    i * stride_src[0] * data_size,
                    i * stride_dst[0] * data_size,
                    image_w);
-        COPY_PLANES(image_h / 2,
+        WALK_PLANES(image_h / 2,
                    image_h * stride_src[0] * data_size + i * stride_src[1] * data_size,
                    image_h * stride_dst[0] * data_size + i * stride_dst[1] * data_size,
                    image_w / 2);
-        COPY_PLANES(image_h / 2,
-                   image_h * stride_src[0] * data_size + (image_h / 2) * stride_src[1] * data_size + i * stride_src[2] * data_size,
-                   image_h * stride_dst[0] * data_size + (image_h / 2) * stride_dst[1] * data_size + i * stride_dst[2] * data_size,
+        WALK_PLANES(image_h / 2,
+                   image_h * stride_src[0] * data_size + (image_h / 2) * stride_src[1] * data_size,
+                   image_h * stride_dst[0] * data_size + (image_h / 2) * stride_dst[1] * data_size,
                    image_w / 2);
         break;
 
+    case FORMAT_YUV422P:
+        WALK_PLANES(image_h,
+                   i * stride_src[0] * data_size,
+                   i * stride_dst[0] * data_size,
+                   image_w);
+        WALK_PLANES(image_h,
+                   image_h * stride_src[0] * data_size + i * stride_src[1] * data_size,
+                   image_h * stride_dst[0] * data_size + i * stride_dst[1] * data_size,
+                   image_w / 2);
+        WALK_PLANES(image_h,
+                   image_h * stride_src[0] * data_size + image_h * stride_src[1] * data_size + i * stride_src[2] * data_size,
+                   image_h * stride_dst[0] * data_size + image_h * stride_dst[1] * data_size + i * stride_dst[2] * data_size,
+                   image_w / 2);
+        break;
+
+    case FORMAT_YUV444P:
+    case FORMAT_RGBP_SEPARATE:
+    case FORMAT_BGRP_SEPARATE:
+        WALK_PLANES(image_h,
+                   i * stride_src[0] * data_size,
+                   i * stride_dst[0] * data_size,
+                   image_w);
+        WALK_PLANES(image_h,
+                   image_h * stride_src[0] * data_size + i * stride_src[1] * data_size,
+                   image_h * stride_dst[0] * data_size + i * stride_dst[1] * data_size,
+                   image_w);
+        WALK_PLANES(image_h,
+                   image_h * stride_src[0] * data_size + image_h * stride_src[1] * data_size + i * stride_src[2] * data_size,
+                   image_h * stride_dst[0] * data_size + image_h * stride_dst[1] * data_size + i * stride_dst[2] * data_size,
+                   image_w);
+        break;
+
     case FORMAT_GRAY:
-        COPY_PLANES(image_h,
+        WALK_PLANES(image_h,
                    i * stride_src[0] * data_size,
                    i * stride_dst[0] * data_size,
                    image_w);
@@ -292,7 +303,29 @@ static int tpu_width_align(void* input, void* output, int format, int height,
     return ret;
 }
 
-static int test_width_align_random(int if_use_img, int format, int data_type, int width, int height, int in_width_stride, int out_width_stride, char* src_name, char* dst_name, bm_handle_t handle) {
+static const char* wa_format_name(int format)
+{
+    static const char* names[] = {
+        [FORMAT_YUV420P]       = "FORMAT_YUV420P",
+        [FORMAT_YUV422P]       = "FORMAT_YUV422P",
+        [FORMAT_YUV444P]       = "FORMAT_YUV444P",
+        [FORMAT_NV12]          = "FORMAT_NV12",
+        [FORMAT_NV21]          = "FORMAT_NV21",
+        [FORMAT_NV16]          = "FORMAT_NV16",
+        [FORMAT_NV61]          = "FORMAT_NV61",
+        [FORMAT_NV24]          = "FORMAT_NV24",
+        [FORMAT_RGB_PLANAR]    = "FORMAT_RGB_PLANAR",
+        [FORMAT_BGR_PLANAR]    = "FORMAT_BGR_PLANAR",
+        [FORMAT_RGB_PACKED]    = "FORMAT_RGB_PACKED",
+        [FORMAT_BGR_PACKED]    = "FORMAT_BGR_PACKED",
+        [FORMAT_RGBP_SEPARATE] = "FORMAT_RGBP_SEPARATE",
+        [FORMAT_BGRP_SEPARATE] = "FORMAT_BGRP_SEPARATE",
+        [FORMAT_GRAY]          = "FORMAT_GRAY",
+    };
+    return (format >= 0 && format <= FORMAT_GRAY) ? names[format] : "UNKNOWN";
+}
+
+static int test_width_align_random(int if_use_img, int format, int data_type, int width, int height, int in_width_stride, int out_width_stride, char* src_name, char* dst_name, bm_handle_t handle, int loop_idx) {
     int ret = 0;
     int image_w             = ALIGN(width, 2);
     int image_h             = ALIGN(height, 2);
@@ -432,11 +465,11 @@ static int test_width_align_random(int if_use_img, int format, int data_type, in
 
             raw_size = image_h * image_w * 2;
             src_size = image_h * src_stride[0] +
-                        image_h / 2 * src_stride[1] +
-                        image_h / 2 * src_stride[2];
+                        image_h * src_stride[1] +
+                        image_h * src_stride[2];
             dst_size = image_h * dst_stride[0] +
-                        image_h / 2 * dst_stride[1] +
-                        image_h / 2 * dst_stride[2];
+                        image_h * dst_stride[1] +
+                        image_h * dst_stride[2];
             break;
         case 0:
             // image_format = FORMAT_YUV420P;
@@ -465,6 +498,13 @@ static int test_width_align_random(int if_use_img, int format, int data_type, in
             break;
     }
 
+    if (loop_idx == 0) {
+        printf("width_align test: format=%d(%s), %dx%d, dtype=%s, in_stride=[%d %d %d], out_stride=[%d %d %d]\n",
+               format, wa_format_name(format), image_w, image_h, (data_type == 0) ? "fp32" : "u8",
+               src_stride[0], src_stride[1], src_stride[2],
+               dst_stride[0], dst_stride[1], dst_stride[2]);
+    }
+
     if (data_type == 0) {
         float* raw_img      = (float*)malloc(raw_size * sizeof(float));
         float* input        = (float*)malloc(src_size * sizeof(float));
@@ -478,7 +518,15 @@ static int test_width_align_random(int if_use_img, int format, int data_type, in
             fill_input_f32(raw_img, raw_size);
         }
 
-        bmcv_width_align_ref(raw_img, data_type, format, image_h, image_w, default_stride, src_stride, input);
+        ret = bmcv_width_align_walk(raw_img, input, data_type, format, image_h, image_w,
+                                    default_stride, src_stride, wa_memcpy_row, NULL);
+        if (ret) {
+            printf("width_align does not support format %d\n", format);
+            free(raw_img);
+            free(input);
+            free(tpu_out);
+            return -1;
+        }
 
         ret = tpu_width_align((void*)input, (void*)tpu_out, format, image_h, image_w, src_stride, dst_stride, data_type, handle);
         if (ret) {
@@ -489,19 +537,15 @@ static int test_width_align_random(int if_use_img, int format, int data_type, in
             return -1;
         }
 
-        float* src_data = (float*)malloc(raw_size * sizeof(float));
-        float* dst_data = (float*)malloc(raw_size * sizeof(float));
-        bmcv_width_align_ref(input, data_type, format, image_h, image_w, src_stride, default_stride, src_data);
-        bmcv_width_align_ref(tpu_out, data_type, format, image_h, image_w, dst_stride, default_stride, dst_data);
-        ret = bmcv_width_align_cmp_float(src_data, dst_data, raw_size);
+        /* pure copy: expected data is raw_img, compare rows in place via dst_stride, no de-pad buffer */
+        ret = bmcv_width_align_walk(raw_img, tpu_out, data_type, format, image_h, image_w,
+                                    default_stride, dst_stride, wa_cmp_row, &data_type);
         if (ret != 0) {
             printf("TPU width_align failed!\n");
         }
         free(raw_img);
         free(input);
         free(tpu_out);
-        free(src_data);
-        free(dst_data);
     } else if (data_type == 1) {
         unsigned char* raw_img = (unsigned char*)malloc(raw_size * sizeof(unsigned char));
         unsigned char* input = (unsigned char*) malloc(src_size * sizeof(unsigned char));
@@ -515,7 +559,15 @@ static int test_width_align_random(int if_use_img, int format, int data_type, in
             fill_input_u8(raw_img, raw_size);
         }
 
-        bmcv_width_align_ref(raw_img, data_type, format, image_h, image_w, default_stride, src_stride, input);
+        ret = bmcv_width_align_walk(raw_img, input, data_type, format, image_h, image_w,
+                                    default_stride, src_stride, wa_memcpy_row, NULL);
+        if (ret) {
+            printf("width_align does not support format %d\n", format);
+            free(raw_img);
+            free(input);
+            free(tpu_out);
+            return -1;
+        }
 
         ret = tpu_width_align((void*)input, (void*)tpu_out, format, image_h, image_w, src_stride, dst_stride, data_type, handle);
         if (ret) {
@@ -526,13 +578,8 @@ static int test_width_align_random(int if_use_img, int format, int data_type, in
             return -1;
         }
 
-        unsigned char* src_data = (unsigned char*)malloc(raw_size * sizeof(unsigned char));
-        unsigned char* dst_data = (unsigned char*)malloc(raw_size * sizeof(unsigned char));
-        bmcv_width_align_ref(input, data_type, format, image_h, image_w, src_stride, default_stride, src_data);
-
-        bmcv_width_align_ref(tpu_out, data_type, format, image_h, image_w, dst_stride, default_stride, dst_data);
-
-        ret = bmcv_width_align_cmp_uchar(src_data, dst_data, raw_size);
+        ret = bmcv_width_align_walk(raw_img, tpu_out, data_type, format, image_h, image_w,
+                                    default_stride, dst_stride, wa_cmp_row, &data_type);
         if (ret != 0) {
             printf("TPU width_align failed!\n");
         }
@@ -562,7 +609,7 @@ void* test_width_align(void* args) {
     char *dst_name = cv_width_align_thread_arg->dst_name;
     bm_handle_t handle = cv_width_align_thread_arg->handle;
     for (int i = 0; i < loop; i++) {
-        int ret = test_width_align_random(if_use_img, format, data_type, width, height, in_width_stride, out_width_stride, src_name, dst_name, handle);
+        int ret = test_width_align_random(if_use_img, format, data_type, width, height, in_width_stride, out_width_stride, src_name, dst_name, handle, i);
         if (ret) {
             printf("------Test width_align Failed!------\n");
             exit(-1);

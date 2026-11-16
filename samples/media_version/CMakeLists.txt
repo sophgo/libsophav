@@ -6,17 +6,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../3rdparty/osdrv)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../3rdparty/libbmcv/include)
 
 
-if("${PLATFORM}" STREQUAL "pcie" OR "${PLATFORM}" STREQUAL "pcie_arm64")
-    link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../3rdparty/libbmcv/lib/${PLATFORM})
-elseif("${PLATFORM}" STREQUAL "soc")
-    if("${GCC_VERSION}" STREQUAL "930")
-        link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../3rdparty/libbmcv/lib930/${PLATFORM})
-    elseif("${GCC_VERSION}" STREQUAL "1131")
-        link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../3rdparty/libbmcv/lib1131/${PLATFORM})
-    else()
-        link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../3rdparty/libbmcv/lib/${PLATFORM})
-    endif()
-endif()
+link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../3rdparty/libbmcv/${LIB_VERSION}/${PLATFORM})
 #jpeg
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../jpeg/3rdparty/include)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../jpeg/inc)

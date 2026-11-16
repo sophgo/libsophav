@@ -69,7 +69,6 @@ bm_status_t bmcv_image_laplacian(bm_handle_t handle, bm_image input, bm_image ou
     int channel;
     int i;
     int stride_i, stride_o;
-    unsigned int chipid;
     int core_id = 0;
     bm_api_laplacian_t api;
 
@@ -146,27 +145,11 @@ bm_status_t bmcv_image_laplacian(bm_handle_t handle, bm_image input, bm_image ou
     api.kw = ksize;
     api.kh = ksize;
 
-    if (bm_get_chipid(handle, &chipid) != BM_SUCCESS) {
-        printf("get chipid is error !\n");
+    ret = bm_tpu_kernel_launch(handle, "cv_laplacian", (u8*)&api, sizeof(api), core_id);
+    if (ret != BM_SUCCESS) {
+        bmlib_log("LAPLACE", BMLIB_LOG_ERROR, "laplacian sync api error\n");
         bm_free_device(handle, kernel_mem);
-        return BM_ERR_FAILURE;
-    }
-
-    switch(chipid) {
-        case BM1688_PREV:
-        case BM1688:
-            ret = bm_tpu_kernel_launch(handle, "cv_laplacian", (u8*)&api,
-                                                sizeof(api), core_id);
-            if (ret != BM_SUCCESS) {
-                bmlib_log("LAPLACE", BMLIB_LOG_ERROR, "laplacian sync api error\n");
-                bm_free_device(handle, kernel_mem);
-                return ret;
-            }
-            break;
-        default:
-            printf("BM_NOT_SUPPORTED!\n");
-            ret = BM_NOT_SUPPORTED;
-            break;
+        return ret;
     }
 
     bm_free_device(handle, kernel_mem);

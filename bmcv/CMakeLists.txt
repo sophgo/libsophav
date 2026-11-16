@@ -12,6 +12,17 @@ endif()
 
 add_compile_options(-Werror)
 
+# sync BMCV_VERSION_MINOR in bmcv_api_ext*.h with GIT_VERSION; rewrite into binary-dir copies and install those
+if(DEFINED MAJOR_VERSION AND DEFINED MINOR_VERSION)
+    math(EXPR _bmcv_ver_minor "${MAJOR_VERSION} * 10 + ${MINOR_VERSION}")
+    foreach(_hdr bmcv_api_ext.h bmcv_api_ext_c.h)
+        file(READ "${CMAKE_CURRENT_SOURCE_DIR}/include/${_hdr}" _bmcv_hdr)
+        string(REGEX REPLACE "(#define BMCV_VERSION_MINOR )[0-9]+" "\\1${_bmcv_ver_minor}" _bmcv_hdr "${_bmcv_hdr}")
+        file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/include/${_hdr}" "${_bmcv_hdr}")
+    endforeach()
+    include_directories(BEFORE "${CMAKE_CURRENT_BINARY_DIR}/include")
+endif()
+
 # add header files path
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/libbmcv/include)
 if("${PLATFORM}" STREQUAL "pcie" OR "${PLATFORM}" STREQUAL "pcie_arm64")
@@ -20,15 +31,17 @@ else()
     include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/osdrv)
 endif()
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include/ive_cmodel)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/ive_cmodel)
-
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/ive_cmodel/comm/include)
+# Include CPU-model sources and tests only when the source files are present.
+file(GLOB ive_cmodel_srcs "${CMAKE_CURRENT_SOURCE_DIR}/src/ive_cmodel/*.c")
+if(ive_cmodel_srcs)
+    include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include/ive_cmodel)
+    include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/ive_cmodel)
+    include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/ive_cmodel/comm/include)
+endif()
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/${SRC_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/libjpeg-turbo/include)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../jpeg/inc)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../vglite/inc)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include/ive_cmodel)
 
 # add library files path
 link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/tpu_kernel_module/)
@@ -39,8 +52,8 @@ link_directories(${CMAKE_CURRENT_BINARY_DIR}/../jpeg)
 # build bmcv library
 set(BMCV_LIB_NAME bmcv CACHE INTERNAL "bmcv library name")
 file(GLOB SRCS src/*.c
-     src/${SRC_DIR}/*.c
-     src/ive_cmodel/*.c)
+     src/${SRC_DIR}/*.c)
+list(APPEND SRCS ${ive_cmodel_srcs})
 
 if("${CHIP_NAME}" STREQUAL "cv84x6")
     list(REMOVE_ITEM SRCS ${CMAKE_CURRENT_SOURCE_DIR}/src/bmcv_dpu_internal.c)
@@ -50,16 +63,38 @@ if("${CHIP_NAME}" STREQUAL "cv84x6")
     add_definitions(-DMEDIA_V3=1)
 endif()
 
-set(HEADERS include/bmcv_api_ext.h include/bmcv_api_ext_c.h include/bmcv_api.h)
+if(DEFINED MAJOR_VERSION AND DEFINED MINOR_VERSION)
+    set(HEADERS ${CMAKE_CURRENT_BINARY_DIR}/include/bmcv_api_ext.h ${CMAKE_CURRENT_BINARY_DIR}/include/bmcv_api_ext_c.h include/bmcv_api.h)
+else()
+    set(HEADERS include/bmcv_api_ext.h include/bmcv_api_ext_c.h include/bmcv_api.h)
+endif()
 set(component libsophon)
 
 if(NOT "${PCIE_MODE}" STREQUAL "on")
-    find_library(VGLITE_STATIC NAMES libbmvg.a bmvg PATHS "${CMAKE_CURRENT_SOURCE_DIR}/../vglite/LD")
+    # Use the selected archive directly to avoid stale library-search cache entries.
+    set(VGLITE_STATIC "${vglite_lib_dir}/libbmvg.a")
 endif()
 
 add_library(${BMCV_LIB_NAME} SHARED ${SRCS})
 target_link_options(${BMCV_LIB_NAME} PRIVATE "LINKER:-Bsymbolic")
+target_link_options(${BMCV_LIB_NAME} PRIVATE -Wl,-z,relro,-z,now -Wl,-z,noexecstack)
 target_link_libraries(${BMCV_LIB_NAME} bmlib dl bmjpeg turbojpeg ${VGLITE_STATIC})
+# strip local symbols and debug info for release; keep symbols when DEBUG=on or Debug build
+if(NOT "${DEBUG}" STREQUAL "on" AND NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
+    # Derive the strip that matches the (cross) compiler, since CMAKE_STRIP may
+    # fall back to the host strip when no toolchain file is used, which cannot
+    # handle a cross-built aarch64 .so.
+    string(REGEX REPLACE "(gcc|cc|clang)$" "strip" BMCV_STRIP "${CMAKE_C_COMPILER}")
+    if("${BMCV_STRIP}" STREQUAL "${CMAKE_C_COMPILER}" OR NOT EXISTS "${BMCV_STRIP}")
+        set(BMCV_STRIP "${CMAKE_STRIP}")
+    endif()
+    add_custom_command(TARGET ${BMCV_LIB_NAME} POST_BUILD
+        COMMAND ${BMCV_STRIP} --strip-unneeded $<TARGET_FILE:${BMCV_LIB_NAME}>
+        COMMENT "stripping symbols from ${BMCV_LIB_NAME} with ${BMCV_STRIP}")
+else()
+    add_custom_command(TARGET ${BMCV_LIB_NAME} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E echo "DEBUG build, skip strip ${BMCV_LIB_NAME}")
+endif()
 
 # avoid to compile source file repeated
 add_library(${BMCV_LIB_NAME}-static STATIC $<TARGET_OBJECTS:${BMCV_LIB_NAME}>)
@@ -75,7 +110,11 @@ if ("${PCIE_MODE}" STREQUAL "on")
 
     add_compile_options(-Wno-unused-result)
 else ()
-    file(GLOB TEST_SRCS test/*.c test/ive_test_cmodel/*.c)
+    file(GLOB TEST_SRCS test/*.c)
+    if(ive_cmodel_srcs)
+        file(GLOB ive_cmodel_tests test/ive_test_cmodel/*.c)
+        list(APPEND TEST_SRCS ${ive_cmodel_tests})
+    endif()
     set(IVE_TEST_OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/daily_test)
     file(MAKE_DIRECTORY ${IVE_TEST_OUTPUT_DIR})
 endif ()
@@ -164,10 +203,18 @@ install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/libbmcv/${LIB_VERSION}/${P
     PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
     COMPONENT ${component})
 
-install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/tpu_kernel_module/libbm1688_kernel_module.so
-    DESTINATION lib/tpu_module/
-    PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
-    COMPONENT ${component})
+if("${CHIP_NAME}" STREQUAL "cv84x6")
+    install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/tpu_kernel_module/libfirmware_core.so
+        DESTINATION lib/tpu_module/
+        RENAME libbm1688_kernel_module.so
+        PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
+        COMPONENT ${component})
+else()
+    install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/tpu_kernel_module/libbm1688_kernel_module.so
+        DESTINATION lib/tpu_module/
+        PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
+        COMPONENT ${component})
+endif()
 
 install(TARGETS ${BMCV_LIB_NAME}-static
     DESTINATION lib

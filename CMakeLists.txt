@@ -5,7 +5,7 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 include(GitUtils)
 
 get_version_from_tag(LIBSOPHAV_VERSION COMMIT_HASH COMMIT_COUNT BRANCH COMMIT_DATE)
-set(GIT_VERSION "2.2.0")
+set(GIT_VERSION "2.3.0")
 add_compile_definitions(LIBSOPHAV_VERSION="${GIT_VERSION}")
 add_compile_definitions(COMMIT_HASH="${COMMIT_HASH}")
 add_compile_definitions(COMMIT_COUNT="${COMMIT_COUNT}")
@@ -111,6 +111,12 @@ else()
     project("libsophav")
 endif()
 
+# Security hardening flags
+add_compile_options(-fstack-protector-strong)
+# Use both add_link_options and CMAKE_SHARED_LINKER_FLAGS to ensure flags take effect
+add_link_options(-Wl,-z,relro,-z,now -Wl,-z,noexecstack)
+set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-z,relro,-z,now -Wl,-z,noexecstack")
+
 #if("${PLATFORM}" STREQUAL "soc" OR "${PLATFORM}" STREQUAL "pcie_arm64")
 #    set(CMAKE_TOOLCHAIN_FILE cmake/aarch64-gnu.toolchain.cmake)
 #    #include(cmake/aarch64-gnu.toolchain.cmake)
@@ -141,11 +147,15 @@ ADD_TARGET_YUV_LIB(yuv_lib ${PLATFORM} off libsophon ${LIBSOPHAV_OUT_PATH})
 
 # If cv_internal/ is present, build libcmodel + libvg_lite locally and overwrite
 # the corresponding prebuilt library files (libsophav/3rdparty/.../libcmodel.so
-# and libsophav/vglite/LD/libvg_lite.{a,so}). If cv_internal/ is absent, fall back
+# and libsophav/vglite/lib/libvg_lite.{a,so}). If cv_internal/ is absent, fall back
 # to the prebuilt libraries shipped in the tree.
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cv_internal/CMakeLists.txt")
     message(STATUS "cv_internal detected -> building libcmodel + libvg_lite locally")
     add_subdirectory(cv_internal)
+endif()
+# Resolve one library directory for all SoC VGLite consumers.
+if(NOT "${PCIE_MODE}" STREQUAL "on")
+    include(vglite_libs)
 endif()
 add_subdirectory(jpeg)
 add_subdirectory(video/dec)

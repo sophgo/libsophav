@@ -6,12 +6,6 @@ bm_status_t bmcv_as_strided(bm_handle_t handle, bm_device_mem_t input, bm_device
                             int output_col, int row_stride, int col_stride) {
     bm_status_t ret = BM_SUCCESS;
     bm_api_cv_as_strided_t api;
-    unsigned int chipid;
-    ret = bm_get_chipid(handle, &chipid);
-    if (ret != BM_SUCCESS) {
-        bmlib_log("AS_STRIDED", BMLIB_LOG_ERROR, "Can not get chipid!\n");
-        return BM_ERR_FAILURE;
-    }
     int core_id = 0;
     sg_api_cv_as_strided_dual_core_t api_dual_core;
     tpu_launch_param_t launch_params[BM1688_MAX_CORES];
@@ -29,7 +23,9 @@ bm_status_t bmcv_as_strided(bm_handle_t handle, bm_device_mem_t input, bm_device
             if_core1 = 1;
         } else if (strcmp(tpu_env, "2") == 0 || strcmp(tpu_env, "both") == 0) {
             bmlib_log("AS_STRIDED", BMLIB_LOG_DEBUG, "Use all TPU cores (0 and 1)\n");
+#ifndef MEDIA_V3
             if_core1 = 1;
+#endif
         } else {
             bmlib_log("AS_STRIDED", BMLIB_LOG_ERROR, "Invalid TPU_CORES value: %s\n", tpu_env);
             bmlib_log("AS_STRIDED", BMLIB_LOG_ERROR, "Available options: 0, 1, 2/both\n");
@@ -67,19 +63,10 @@ bm_status_t bmcv_as_strided(bm_handle_t handle, bm_device_mem_t input, bm_device
             launch_params[core_idx].param_data = &params[core_idx];
             launch_params[core_idx].param_size = sizeof(sg_api_cv_as_strided_dual_core_t);
         }
-        switch(chipid) {
-            case BM1688_PREV:
-            case BM1688:
-                ret = bm_tpu_kernel_launch_dual_core(handle, "cv_as_strided_bm1688", launch_params, core_list, core_nums);
-                if (ret != BM_SUCCESS) {
-                    bmlib_log("AS_STRIDED", BMLIB_LOG_ERROR, "as_strided sync api error\n");
-                    return ret;
-                }
-                break;
-            default:
-                printf("BM_NOT_SUPPORTED!\n");
-                ret = BM_NOT_SUPPORTED;
-                break;
+        ret = bm_tpu_kernel_launch_dual_core(handle, "cv_as_strided_bm1688", launch_params, core_list, core_nums);
+        if (ret != BM_SUCCESS) {
+            bmlib_log("AS_STRIDED", BMLIB_LOG_ERROR, "as_strided sync api error\n");
+            return ret;
         }
     } else {
         api.input_addr = bm_mem_get_device_addr(input);
@@ -90,19 +77,10 @@ bm_status_t bmcv_as_strided(bm_handle_t handle, bm_device_mem_t input, bm_device
         api.output_col = output_col;
         api.row_stride = row_stride;
         api.col_stride = col_stride;
-        switch(chipid) {
-            case BM1688_PREV:
-            case BM1688:
-                ret = bm_tpu_kernel_launch(handle, "cv_as_strided", (u8 *)&api, sizeof(api), core_id);
-                if (ret != BM_SUCCESS) {
-                    bmlib_log("AS_STRIDED", BMLIB_LOG_ERROR, "as_strided sync api error\n");
-                    return ret;
-                }
-                break;
-            default:
-                printf("BM_NOT_SUPPORTED!\n");
-                ret = BM_NOT_SUPPORTED;
-                break;
+        ret = bm_tpu_kernel_launch(handle, "cv_as_strided", (u8 *)&api, sizeof(api), core_id);
+        if (ret != BM_SUCCESS) {
+            bmlib_log("AS_STRIDED", BMLIB_LOG_ERROR, "as_strided sync api error\n");
+            return ret;
         }
     }
     return ret;

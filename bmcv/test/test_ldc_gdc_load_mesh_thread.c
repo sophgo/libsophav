@@ -269,7 +269,8 @@ static void * ldc_gdc_load_mesh(void * arg)
                 bm_image_copy_device_to_host(dst, (void **)out_ptr);
                 if(md5_cmp(output_ptr, (unsigned char*)md5, byte_size) != 0) {
                     bm_write_bin(dst, "error_cmp.bin");
-                    exit(-1);
+                    free(output_ptr);
+                    goto fail;
                 }
                 free(output_ptr);
             }
@@ -287,10 +288,14 @@ static void * ldc_gdc_load_mesh(void * arg)
     printf("idx:%d, bmcv_ldc_gdc_load_mesh: loop %d cycles, time_max = %llu, time_avg = %llu, fps %llu, %lluM pps\n",
                                             ctx.i, loop_time, time_max, time_avg, fps_actual, pixel_per_sec);
 
+    bm_image_destroy(&src);
+    bm_image_destroy(&dst);
+    return NULL;
+
 fail:
     bm_image_destroy(&src);
     bm_image_destroy(&dst);
-    return 0;
+    return (void *)-1;   /* failure: reported via pthread_join in main, becomes the exit code */
 }
 
 int main(int argc, char **argv) {
@@ -324,6 +329,7 @@ int main(int argc, char **argv) {
         loop_mode = atoi(argv[2]);
         rand_input_width = atoi(argv[3]);
         rand_input_height = atoi(argv[4]);
+        int test_failed = 0;
         for (width = rand_input_width; width <= IMG_MAX_WIDTH; width += 64) {
             for (height = rand_input_height; height <= IMG_MAX_HEIGHT; height += 64) {
                 src_fmt = FORMAT_NV21;
@@ -349,17 +355,22 @@ int main(int argc, char **argv) {
                     }
                 }
                 for (int i = 0; i < test_threads_num; i++) {
-                    bm_status_t ret = pthread_join(pid[i], NULL);
-                    if (ret != 0) {
+                    void *thread_ret = NULL;
+                    int join_ret = pthread_join(pid[i], &thread_ret);
+                    if (join_ret != 0) {
                         perror("Thread join failed");
                         exit(-1);
+                    }
+                    if (thread_ret != NULL) {
+                        printf("idx:%d, thread test failed\n", i);
+                        test_failed = 1;
                     }
                 }
                 bm_dev_free(handle);
 #endif
                 if (width == 4608 && height == 4096) {
                     printf("--------ALL GDC_LOAD_MESH SIZE LOOP TEST OVER---------\n");
-                    return 0;
+                    return test_failed ? -1 : 0;
                 }
             }
             rand_input_height = 64;
@@ -411,6 +422,7 @@ int main(int argc, char **argv) {
     }
 
     ldc_gdc_ctx ctx[MAX_THREAD_NUM];
+    int test_failed = 0;
 #ifdef __linux__
     pthread_t pid[MAX_THREAD_NUM];
     for (int i = 0; i < test_threads_num; i++) {
@@ -423,15 +435,20 @@ int main(int argc, char **argv) {
         }
     }
     for (int i = 0; i < test_threads_num; i++) {
-        bm_status_t ret = pthread_join(pid[i], NULL);
-        if (ret != 0) {
+        void *thread_ret = NULL;
+        int join_ret = pthread_join(pid[i], &thread_ret);
+        if (join_ret != 0) {
             perror("Thread join failed.");
             exit(-1);
+        }
+        if (thread_ret != NULL) {
+            printf("idx:%d, thread test failed\n", i);
+            test_failed = 1;
         }
     }
     bm_dev_free(handle);
     printf("--------ALL THREADS TEST OVER---------\n");
 #endif
 
-    return 0;
+    return test_failed ? -1 : 0;
 }

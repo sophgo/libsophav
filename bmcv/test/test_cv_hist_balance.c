@@ -145,6 +145,14 @@ exit:
     return ret;
 }
 
+/* Reroll only the -1 sentinel fields; given values stay fixed. height and
+ * width are independent, so each reseeds on its own (per thread, per loop). */
+static void randomize_params(struct cv_hb_thread_arg_t *arg, int *height, int *width)
+{
+    if (arg->height < 0) *height = rand() % 8192 + 1;
+    if (arg->width  < 0) *width  = rand() % 8192 + 1;
+}
+
 void* test_hist_balance_all(void* args)
 {
     struct cv_hb_thread_arg_t* cv_hb_thread_arg = (struct cv_hb_thread_arg_t*)args;
@@ -156,6 +164,7 @@ void* test_hist_balance_all(void* args)
     int ret = 0;
 
     for (i = 0; i < loop; ++i) {
+        randomize_params(cv_hb_thread_arg, &height, &width);
         ret = test_hist_balance(handle, height, width);
         if (ret) {
             printf("test_hist_balance failed\n");
@@ -171,10 +180,11 @@ int main(int argc, char* args[])
     struct timespec tp;
     clock_gettime(0, &tp);
     srand(tp.tv_nsec);
+    printf("seed = %d\n", (int)tp.tv_nsec);
     int thread_num = 1;
     int loop = 1;
-    int height = rand() % 8192 + 1;
-    int width = rand() % 8192 + 1;
+    int height = -1;
+    int width = -1;
     int ret = 0;
     bm_handle_t handle;
     int i;
@@ -192,6 +202,7 @@ int main(int argc, char* args[])
         printf("%s 2\n", args[0]);
         printf("%s 1 3\n", args[0]);
         printf("%s 1 1 800 800\n", args[0]);
+        printf("-1 height/width means random (re-randomized each loop)\n");
         return 0;
     }
 

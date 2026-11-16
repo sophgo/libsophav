@@ -20,6 +20,7 @@
 
 typedef struct {
     int loop;
+    int thread_num;
     int num;
     float nms_threshold;
     bm_handle_t handle;
@@ -114,6 +115,22 @@ exit:
     return ret;
 }
 
+#define NMS_MEM_BUDGET 1200000000L
+
+/* Reroll only sentinel fields (num<0, threshold<0); given values stay fixed.
+ * Heap is 2*num*sizeof(face_rect_t), so cap a rerolled num by budget/threads. */
+static void randomize_params(cv_nms_thread_arg_t *arg, int *num, float *nms_threshold)
+{
+    if (arg->num < 0) {
+        long per = 2L * sizeof(face_rect_t);
+        long cap = NMS_MEM_BUDGET / (per * (arg->thread_num > 0 ? arg->thread_num : 1));
+        if (cap > SCORE_RAND_LEN_MAX) cap = SCORE_RAND_LEN_MAX;
+        if (cap < 1) cap = 1;
+        *num = 1 + rand() % (int)cap;
+    }
+    if (arg->nms_threshold < 0) *nms_threshold = (float)rand() / (float)RAND_MAX;
+}
+
 void* test_thread_nms(void* args) {
     cv_nms_thread_arg_t* cv_nms_thread_arg = (cv_nms_thread_arg_t*)args;
     int loop = cv_nms_thread_arg->loop;
@@ -122,9 +139,7 @@ void* test_thread_nms(void* args) {
     bm_handle_t handle = cv_nms_thread_arg->handle;
 
     for (int i = 0; i < loop; ++i) {
-        if(loop > 1) {
-            num = 1 + rand() % SCORE_RAND_LEN_MAX;
-        }
+        randomize_params(cv_nms_thread_arg, &num, &nms_threshold);
         int ret = test_nms(num, nms_threshold, handle);
         if (ret) {
             printf("------Test NMS Failed!------\n");
@@ -143,10 +158,10 @@ int main(int argc, char* args[])
 
     int loop = 1;
     int thread_num = 1;
-    int num = rand() % SCORE_RAND_LEN_MAX + 1;
+    int num = -1;
     int i;
     int ret = 0;
-    float nms_threshold = 0.7;
+    float nms_threshold = -1.0f;
     bm_handle_t handle;
     ret = bm_dev_request(&handle, 0);
 
@@ -161,6 +176,7 @@ int main(int argc, char* args[])
         printf("example:\n");
         printf("%s \n", args[0]);
         printf("%s 2 1 10 0.7 \n", args[0]);
+        printf("-1 num / negative threshold means random (re-randomized each loop)\n");
         return 0;
     }
 
@@ -173,6 +189,7 @@ int main(int argc, char* args[])
     cv_nms_thread_arg_t cv_nms_thread_arg[thread_num];
     for (int i = 0; i < thread_num; i++) {
         cv_nms_thread_arg[i].loop = loop;
+        cv_nms_thread_arg[i].thread_num = thread_num;
         cv_nms_thread_arg[i].num = num;
         cv_nms_thread_arg[i].nms_threshold = nms_threshold;
         cv_nms_thread_arg[i].handle = handle;

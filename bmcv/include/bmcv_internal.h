@@ -168,8 +168,6 @@ bm_status_t bm_tpu_kernel_launch_dual_core(
         int* core_list,
         int core_nums);
 
-void put_text(bmMat mat, const char* text, bmcv_point_t org, int fontFace, float fontScale,
-            bmcv_color_t color, int thickness);
 void draw_line(bmMat* inout, bmcv_point_t start, bmcv_point_t end, bmcv_color_t color, int thickness);
 
 // typedef enum {

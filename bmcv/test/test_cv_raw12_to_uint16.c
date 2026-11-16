@@ -106,13 +106,17 @@ static int raw12_to_uint16_tpu(unsigned char* input, uint16_t* output, int heigh
 }
 
 static int cmp(uint16_t *tpu_output, uint16_t *cpu_output, int len) {
+    int bad = 0;
     for (int i = 0; i < len; i++) {
         if (tpu_output[i] != cpu_output[i]) {
-            printf("cmp error: idx=%d  cpu_output=%d  tpu_output=%d\n", i, cpu_output[i], tpu_output[i]);
-            return -1;
+            if (bad < 8)
+                printf("cmp error: idx=%d  cpu_output=%d  tpu_output=%d\n", i, cpu_output[i], tpu_output[i]);
+            bad++;
         }
     }
-    return 0;
+    if (bad)
+        printf("cmp: total %d / %d mismatches\n", bad, len);
+    return bad ? -1 : 0;
 }
 
 static int test_raw12_to_uint16_random(int use_real_img, int height, int width, const char* input_path,
@@ -136,7 +140,7 @@ static int test_raw12_to_uint16_random(int use_real_img, int height, int width, 
         fill_raw12(input_data, width * height / 2 * 3);
     }
     gettimeofday(&t1, NULL);
-    raw12_to_uint16_cpu(input_data, output_cpu, height, width);
+    raw12_to_uint16_cpu(input_data, output_cpu, width, height);
     gettimeofday(&t2, NULL);
     printf("Raw12_to_uint16 CPU using time = %ld(us)\n", (long)TIME_COST_US(t1, t2));
     ret = raw12_to_uint16_tpu(input_data, output_tpu, height, width, handle);
@@ -161,6 +165,23 @@ static int test_raw12_to_uint16_random(int use_real_img, int height, int width, 
     return ret;
 }
 
+/* Supported (width,height) pairs -- the only sizes the op accepts. */
+static const struct { int width; int height; } raw12_supported_sizes[] = {
+    {640, 480}, {640, 1932}, {640, 3864}, {640, 5796},
+    {320, 972}, {320, 1944}, {320, 2916}
+};
+
+/* Reroll width/height only when either is the -1 sentinel; given values stay
+ * fixed. The two are a coupled valid pair, so draw one random supported size. */
+static void randomize_params(raw12_to_uint16_thread_arg_t *arg, int *width, int *height)
+{
+    if (arg->width >= 0 && arg->height >= 0) return;
+    int n = sizeof(raw12_supported_sizes) / sizeof(raw12_supported_sizes[0]);
+    int idx = rand() % n;
+    *width  = raw12_supported_sizes[idx].width;
+    *height = raw12_supported_sizes[idx].height;
+}
+
 void* test_raw12_to_uint16(void* args) {
     raw12_to_uint16_thread_arg_t* raw12_to_uint16_thread_arg = (raw12_to_uint16_thread_arg_t*)args;
     int loop_num = raw12_to_uint16_thread_arg->loop_num;
@@ -171,31 +192,11 @@ void* test_raw12_to_uint16(void* args) {
     const char* output_path = raw12_to_uint16_thread_arg->output_path;
     bm_handle_t handle = raw12_to_uint16_thread_arg->handle;
 
-    struct {
-        int width;
-        int height;
-    } supported_sizes[] = {
-        {640, 480},
-        {640, 1932},
-        {640, 3864},
-        {640, 5796},
-        {320, 972},
-        {320, 1944},
-        {320, 2916}
-    };
 
     for (int i = 0; i < loop_num; i++) {
-        int test_width = width;
-        int test_height = height;
+        randomize_params(raw12_to_uint16_thread_arg, &width, &height);
 
-        if (loop_num > 1) {
-            int size_index = i % (sizeof(supported_sizes)/sizeof(supported_sizes[0]));
-            test_width = supported_sizes[size_index].width;
-            test_height = supported_sizes[size_index].height;
-            printf("Testing (loop %d/%d)\n",  i+1, loop_num);
-        }
-
-        if (0 != test_raw12_to_uint16_random(use_real_img, test_height, test_width, input_path, output_path, handle)){
+        if (0 != test_raw12_to_uint16_random(use_real_img, height, width, input_path, output_path, handle)){
             printf("------TEST RAW12_TO_UINT16 FAILED------\n");
             bm_dev_free(handle);
             exit(-1);
@@ -212,8 +213,8 @@ int main(int argc, char* args[]) {
     srand(seed);
     int use_real_img = 0;
     int loop = 1;
-    int width = 640;
-    int height = 480;
+    int width = -1;
+    int height = -1;
     int thread_num = 1;
     const char* input_path = NULL;
     const char* output_path = NULL;
@@ -226,6 +227,7 @@ int main(int argc, char* args[]) {
         printf("%s 2\n", args[0]);
         printf("%s 2 1 0 640 480 \n", args[0]);
         printf("%s 1 1 0 640 480\n", args[0]);
+        printf("-1 width/height means random (a random supported size each loop)\n");
         return 0;
     }
 

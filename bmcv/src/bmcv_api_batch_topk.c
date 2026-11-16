@@ -102,46 +102,31 @@ bm_status_t bmcv_batch_topk(
   api.batch_stride = src_batch_stride;
   api.dtype = 8;
 
-  unsigned int chipid = BM1688;
   int core_id = 0;
-  ret = bm_get_chipid(handle, &chipid);
-  if (BM_SUCCESS != ret) {
-    return ret;
-  }
 
-  switch (chipid) {
-    case BM1688_PREV:
-    case BM1688:
-    {
-      bm_status_t status = BM_SUCCESS;
-      status = bm_tpu_kernel_launch(handle, "cv_batch_topk", (u8 *)&api, sizeof(api), core_id);
-      if (BM_SUCCESS != status) {
-          BMCV_ERR_LOG("batch topk send api error\r\n");
-          goto free_devmem;
-      }
-      break;
+  bm_status_t status = BM_SUCCESS;
+  status = bm_tpu_kernel_launch(handle, "cv_batch_topk", (u8 *)&api, sizeof(api), core_id);
+  if (BM_SUCCESS != status) {
+      BMCV_ERR_LOG("batch topk send api error\r\n");
+      goto free_devmem;
+  }
+  // Copy data
+  if (bm_mem_get_type(dst_data_addr) == BM_MEM_TYPE_SYSTEM) {
+    ret = bm_memcpy_d2s_partial(handle, bm_mem_get_system_addr(dst_data_addr), dst_data_device,
+                                batch * k * sizeof(float));
+    if (BM_SUCCESS != ret) {
+      BMCV_ERR_LOG("bm_memcpy_d2s error\r\n");
+      goto free_devmem;
     }
-    default:
-      ret = BM_NOT_SUPPORTED;
-      break;
+  }
+  if (bm_mem_get_type(dst_index_addr) == BM_MEM_TYPE_SYSTEM) {
+    ret = bm_memcpy_d2s_partial(handle, bm_mem_get_system_addr(dst_index_addr), dst_index_device,
+                                batch * k * sizeof(int));
+    if (BM_SUCCESS != ret) {
+      BMCV_ERR_LOG("bm_memcpy_d2s error\r\n");
+      goto free_devmem;
     }
-    // Copy data
-    if (bm_mem_get_type(dst_data_addr) == BM_MEM_TYPE_SYSTEM) {
-      ret = bm_memcpy_d2s_partial(handle, bm_mem_get_system_addr(dst_data_addr), dst_data_device,
-                                  batch * k * sizeof(float));
-      if (BM_SUCCESS != ret) {
-        BMCV_ERR_LOG("bm_memcpy_d2s error\r\n");
-        goto free_devmem;
-      }
-    }
-    if (bm_mem_get_type(dst_index_addr) == BM_MEM_TYPE_SYSTEM) {
-      ret = bm_memcpy_d2s_partial(handle, bm_mem_get_system_addr(dst_index_addr), dst_index_device,
-                                  batch * k * sizeof(int));
-      if (BM_SUCCESS != ret) {
-        BMCV_ERR_LOG("bm_memcpy_d2s error\r\n");
-        goto free_devmem;
-      }
-    }
+  }
 
 free_devmem:
   for(int i = 0; i < size; i++){

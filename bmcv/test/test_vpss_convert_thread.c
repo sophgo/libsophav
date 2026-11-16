@@ -343,6 +343,7 @@ static void * convert_list(void* arg){
     rect.start_x = 0; rect.start_y = 0; rect.crop_w = 16; rect.crop_h = 16;
     algorithm = BMCV_INTER_LINEAR; md5 = "00b995b1b6617bb01a240430196c10db";
     convert(arg);
+    wait_pthread();
 
     //yuv420 1920x1080 crop (0 0 960 540) (960 540 960 540)
     src_w = 1920; src_h = 1080; dst_w = 960; dst_h = 540; dev_id = 0;

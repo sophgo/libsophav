@@ -18,7 +18,6 @@ bm_status_t bmcv_gemm(bm_handle_t handle, bool is_A_trans, bool is_B_trans, int 
     bm_device_mem_t A_mem, B_mem, C_mem;
     bm_api_cv_gemm_t api;
     bm_status_t ret = BM_SUCCESS;
-    unsigned int chipid;
     int core_id = 0;
 
     if (handle == NULL) {
@@ -70,25 +69,10 @@ bm_status_t bmcv_gemm(bm_handle_t handle, bool is_A_trans, bool is_B_trans, int 
     api.in_dtype = DATA_TYPE_EXT_FLOAT32;
     api.out_dtype = DATA_TYPE_EXT_FLOAT32;
 
-    ret = bm_get_chipid(handle, &chipid);
-    if (ret) {
-        printf("get chipid is error !\n");
+    ret = bm_tpu_kernel_launch(handle, "cv_gemm", (u8*)(&api), sizeof(api), core_id);
+    if(ret != BM_SUCCESS){
+        bmlib_log("GEMM", BMLIB_LOG_ERROR, "gemm sync api error\n");
         goto err3;
-    }
-
-    switch(chipid) {
-        case BM1688_PREV:
-        case BM1688:
-            ret = bm_tpu_kernel_launch(handle, "cv_gemm", (u8*)(&api), sizeof(api), core_id);
-            if(ret != BM_SUCCESS){
-                bmlib_log("GEMM", BMLIB_LOG_ERROR, "gemm sync api error\n");
-                goto err3;
-            }
-            break;
-        default:
-            printf("BM_NOT_SUPPORTED!\n");
-            ret = BM_NOT_SUPPORTED;
-            break;
     }
 
     if (bm_mem_get_type(C) == BM_MEM_TYPE_SYSTEM) {
@@ -134,7 +118,6 @@ bm_status_t bmcv_gemm_ext(bm_handle_t handle, bool is_A_trans, bool is_B_trans, 
     bm_device_mem_t A_mem, B_mem, C_mem, Y_mem;
     bm_api_cv_gemm_t api;
     bm_status_t ret = BM_SUCCESS;
-    unsigned int chipid;
     int core_id = 0;
 
     if (handle == NULL) {
@@ -181,25 +164,10 @@ bm_status_t bmcv_gemm_ext(bm_handle_t handle, bool is_A_trans, bool is_B_trans, 
         api.out_dtype = GEMM_DATA_TYPE_EXT_FLOAT32;
     }
 
-    ret = bm_get_chipid(handle, &chipid);
-    if (ret) {
-        printf("get chipid is error !\n");
-        return BM_ERR_FAILURE;
-    }
-
-    switch(chipid) {
-        case BM1688_PREV:
-        case BM1688:
-            ret = bm_tpu_kernel_launch(handle, "cv_gemm", (u8*)(&api), sizeof(api), core_id);
-            if(ret != BM_SUCCESS){
-                bmlib_log("GEMM", BMLIB_LOG_ERROR, "gemm sync api error\n");
-                return ret;
-            }
-            break;
-        default:
-            printf("BM_NOT_SUPPORTED!\n");
-            ret = BM_NOT_SUPPORTED;
-            break;
+    ret = bm_tpu_kernel_launch(handle, "cv_gemm", (u8*)(&api), sizeof(api), core_id);
+    if(ret != BM_SUCCESS){
+        bmlib_log("GEMM", BMLIB_LOG_ERROR, "gemm sync api error\n");
+        return ret;
     }
 
     return ret;
@@ -213,7 +181,6 @@ bm_status_t bmcv_gemm_u64(bm_handle_t handle, bool is_A_trans, bool is_B_trans, 
     bm_device_mem_u64_t A_mem, B_mem, C_mem;
     bm_api_cv_gemm_t api;
     bm_status_t ret = BM_SUCCESS;
-    unsigned int chipid;
     int core_id = 0;
 
     if (handle == NULL) {
@@ -265,25 +232,10 @@ bm_status_t bmcv_gemm_u64(bm_handle_t handle, bool is_A_trans, bool is_B_trans, 
     api.in_dtype = DATA_TYPE_EXT_FLOAT32;
     api.out_dtype = DATA_TYPE_EXT_FLOAT32;
 
-    ret = bm_get_chipid(handle, &chipid);
-    if (ret) {
-        printf("get chipid is error !\n");
+    ret = bm_tpu_kernel_launch(handle, "cv_gemm", (u8*)(&api), sizeof(api), core_id);
+    if(ret != BM_SUCCESS){
+        bmlib_log("GEMM", BMLIB_LOG_ERROR, "gemm sync api error\n");
         goto err3;
-    }
-
-    switch(chipid) {
-        case BM1688_PREV:
-        case BM1688:
-            ret = bm_tpu_kernel_launch(handle, "cv_gemm", (u8*)(&api), sizeof(api), core_id);
-            if(ret != BM_SUCCESS){
-                bmlib_log("GEMM", BMLIB_LOG_ERROR, "gemm sync api error\n");
-                goto err3;
-            }
-        break;
-        default:
-            printf("BM_NOT_SUPPORTED!\n");
-            ret = BM_NOT_SUPPORTED;
-        break;
     }
 
     if (bm_mem_get_type_u64(C) == BM_MEM_TYPE_SYSTEM) {
@@ -329,7 +281,6 @@ bm_status_t bmcv_gemm_ext_u64(bm_handle_t handle, bool is_A_trans, bool is_B_tra
     bm_device_mem_u64_t A_mem, B_mem, C_mem, Y_mem;
     bm_api_cv_gemm_t api;
     bm_status_t ret = BM_SUCCESS;
-    unsigned int chipid;
     int core_id = 0;
 
     if (handle == NULL) {
@@ -376,26 +327,9 @@ bm_status_t bmcv_gemm_ext_u64(bm_handle_t handle, bool is_A_trans, bool is_B_tra
         api.out_dtype = GEMM_DATA_TYPE_EXT_FLOAT32;
     }
 
-    ret = bm_get_chipid(handle, &chipid);
-    if (ret) {
-        printf("get chipid is error !\n");
-        return BM_ERR_FAILURE;
-    }
-
-    switch(chipid) {
-        case BM1688_PREV:
-        case BM1688:
-            ret = bm_tpu_kernel_launch(handle, "cv_gemm", (u8*)(&api), sizeof(api), core_id);
-            if(ret != BM_SUCCESS){
-                bmlib_log("GEMM", BMLIB_LOG_ERROR, "gemm sync api error\n");
-            return ret;
-        }
-        break;
-        default:
-            printf("BM_NOT_SUPPORTED!\n");
-            ret = BM_NOT_SUPPORTED;
-        break;
-    }
+    ret = bm_tpu_kernel_launch(handle, "cv_gemm", (u8*)(&api), sizeof(api), core_id);
+    if (ret != BM_SUCCESS)
+        bmlib_log("GEMM", BMLIB_LOG_ERROR, "gemm sync api error\n");
 
     return ret;
 }

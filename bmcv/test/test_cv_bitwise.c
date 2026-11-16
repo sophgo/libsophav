@@ -66,14 +66,14 @@ static void fill_img (unsigned char* input, int img_size)
     }
 }
 
-static int parameters_check(int height, int width, enum operation op)
+static int parameters_check(int height, int width, int op)
 {
     int error = 0;
     if (height > 4096 || width > 4096){
         printf("Unsupported size : size_max = 4096 x 4096 \n");
         error = -1;
     }
-    if (op != 7 && op != 8 && op != 9) {
+    if (op >= 0 && op != 7 && op != 8 && op != 9) {
         printf("Unsupported op : AND = 7, OR = 8, XOR = 9 \n");
         error = -1;
     }
@@ -349,6 +349,20 @@ static int test_bitwise_random(struct frame_size* frame, int format, enum operat
     return ret;
 }
 
+/* Legal formats this test covers (0=YUV420P is valid, not a sentinel). */
+static const int bitwise_formats[] = {0,1,2,8,9,10,11,12,13,14};
+
+/* Reroll only the -1 sentinel fields; given values stay fixed. height/width,
+ * format and op are independent, so each reseeds on its own (per thread, per loop). */
+static void randomize_params(cv_bitwise_thread_arg_t *arg, struct frame_size *frame, int *format, int *op)
+{
+    if (arg->if_use_img) return;
+    if (arg->height < 0) frame->height = 1 + rand() % 4096;
+    if (arg->width  < 0) frame->width  = 1 + rand() % 4096;
+    if (arg->format < 0) *format = bitwise_formats[rand() % (int)(sizeof(bitwise_formats) / sizeof(bitwise_formats[0]))];
+    if (arg->op < 0) *op = 7 + rand() % 3;
+}
+
 void* test_bitwise(void* args) {
     cv_bitwise_thread_arg_t* cv_bitwise_thread_arg = (cv_bitwise_thread_arg_t*)args;
     struct frame_size frame;
@@ -364,16 +378,7 @@ void* test_bitwise(void* args) {
     bm_handle_t handle = cv_bitwise_thread_arg->handle;
 
     for (int i = 0; i < loop; ++i) {
-        //test for random loop
-        // if (loop > 1) {
-        //     frame.height = 1 + rand() % 4096;
-        //     frame.width = 1 + rand() % 4096;
-        //     int format_num[] = {0,1,2,8,9,10,11,12,13,14};
-        //     int size = sizeof(format_num) / sizeof(format_num[0]);
-        //     int rand_num = rand() % size;
-        //     format = format_num[rand_num];
-        //     op = 7 + rand() % 3;
-        // }
+        randomize_params(cv_bitwise_thread_arg, &frame, &format, &op);
         int ret = test_bitwise_random(&frame, format, op, if_use_img, src1_name, src2_name, dst_name, handle);
         if (ret) {
             printf("------Test bitwise Failed!------\n");
@@ -394,13 +399,10 @@ int main(int argc, char* args[])
     int loop = 1;
     int if_use_img = 0;
     struct frame_size frame;
-    frame.height = 1 + rand() % 4096;
-    frame.width = 1 + rand() % 4096;
-    int format_num[] = {0,1,2,8,9,10,11,12,13,14};
-    int size = sizeof(format_num) / sizeof(format_num[0]);
-    int rand_num = rand() % size;
-    int format = format_num[rand_num];
-    enum operation op = 7 + rand() % 3;
+    frame.height = -1;
+    frame.width = -1;
+    int format = -1;
+    enum operation op = -1;
     char* src1_name = NULL;
     char* src2_name = NULL;
     char* dst_name = NULL;
@@ -423,6 +425,7 @@ int main(int argc, char* args[])
         printf("%s 2 1\n", args[0]);
         printf("%s 2 2 0 1024 1024 12 7 \n", args[0]);
         printf("%s 2 1 1 1024 1024 12 8 res/1920x1080_rgb.bin res/1920x1080_rgb.bin out/out_bitwise.bin \n", args[0]);
+        printf("-1 for height/width/format/op means random (re-randomized each loop)\n");
         return 0;
     }
 

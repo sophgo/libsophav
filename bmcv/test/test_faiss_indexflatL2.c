@@ -13,10 +13,6 @@
 #include <pthread.h>
 #include "string.h"
 
-typedef unsigned int u32;
-typedef unsigned char u8;
-typedef unsigned short u16;
-typedef unsigned long long u64;
 
 typedef struct {
     int L_row_num;
@@ -65,13 +61,13 @@ void matrix_trans(void* src, void* dst, int row_num, int col_num, enum bm_data_t
     for (int i = 0; i < row_num; i++) {
         for (int j = 0; j < col_num; j++) {
             if (dtype == DT_INT8 || dtype == DT_UINT8) {
-                ((u8*)dst)[j * row_num + i] = ((u8*)src)[i * col_num + j];
+                ((unsigned char*)dst)[j * row_num + i] = ((unsigned char*)src)[i * col_num + j];
             } else if (dtype == DT_INT16 || dtype == DT_UINT16) {
-                ((u16*)dst)[j * row_num + i] = ((u16*)src)[i * col_num + j];
+                ((unsigned short*)dst)[j * row_num + i] = ((unsigned short*)src)[i * col_num + j];
             } else if (dtype == DT_FP32) {
                 ((float*)dst)[j * row_num + i] = ((float*)src)[i * col_num + j];
             } else if (dtype == DT_INT32 || dtype == DT_UINT32) {
-                ((u32*)dst)[j * row_num + i] = ((u32*)src)[i * col_num + j];
+                ((unsigned int*)dst)[j * row_num + i] = ((unsigned int*)src)[i * col_num + j];
             } else if (dtype == DT_FP16) {
                 ((fp16*)dst)[j * row_num + i] = ((fp16*)src)[i * col_num + j];
             }

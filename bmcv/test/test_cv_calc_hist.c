@@ -48,19 +48,23 @@ static int parameters_check(struct frame_size frame, struct hist_para para)
         printf("Unsupported size : size_max = 1024 x 1024 \n");
         error = -1;
     }
-    if (para.chn_num != 1 && para.chn_num != 2 && para.chn_num != 3) {
+    if (para.chn_num >= 0 && para.chn_num != 1 && para.chn_num != 2 && para.chn_num != 3) {
         printf("parameters error : channel = 1/3 \n");
         error = -1;
     }
-    if (para.out_dim > para.chn_num) {
+    if (para.chn_num >= 0 && para.out_dim > para.chn_num) {
         printf("parameters error : out_dim <= chn_num \n");
         error = -1;
     }
-    if (para.data_type != 0 && para.data_type != 1) {
+    if (para.out_dim > CHN_NUM_MAX) {
+        printf("parameters error : out_dim <= 3 \n");
+        error = -1;
+    }
+    if (para.data_type >= 0 && para.data_type != 0 && para.data_type != 1) {
         printf("parameters error : data_type = 0/1, 0 is float, 1 is uint8 \n");
         error = -1;
     }
-    if (para.op != 0 && para.op != 1) {
+    if (para.op >= 0 && para.op != 0 && para.op != 1) {
         printf("parameters error : op = 0/1, 0 is no weighted, 1 is weighted \n");
         error = -1;
     }
@@ -214,6 +218,8 @@ static int test_calc_hist_random(struct frame_size* frame, struct hist_para* par
     int Num = 0;
     struct timeval t1, t2;
 
+    printf("H=%d W=%d chn_num=%d out_dim=%d data_type=%d op=%d\n", H, W, C, dim, data_type, para->op);
+
     for (i = 0; i < dim; ++i) {
         totalHists *= histSizes[i];
     }
@@ -308,6 +314,21 @@ exit:
     return ret;
 }
 
+/* Reroll only the -1 sentinel fields; given values stay fixed. out_dim is hard-
+ * bounded by chn_num, so a sentinel chn_num rerolls >= any given out_dim. */
+static void randomize_params(cv_calc_hist_thread_arg_t *arg, struct frame_size *frame, struct hist_para *para)
+{
+    if (arg->height < 0) frame->height = 1 + rand() % 1024;
+    if (arg->width  < 0) frame->width  = 1 + rand() % 1024;
+    if (arg->data_type < 0) para->data_type = rand() % 2;
+    if (arg->op < 0) para->op = rand() % 2;
+    if (arg->chn_num < 0) {
+        int lo = (arg->out_dim >= 0 && para->out_dim >= 1) ? para->out_dim : 1;
+        para->chn_num = lo + rand() % (3 - lo + 1);
+    }
+    if (arg->out_dim < 0) para->out_dim = 1 + rand() % para->chn_num;
+}
+
 void* test_calc_hist(void* args) {
     cv_calc_hist_thread_arg_t* cv_calc_hist_thread_arg = (cv_calc_hist_thread_arg_t*)args;
     struct frame_size frame;
@@ -321,6 +342,7 @@ void* test_calc_hist(void* args) {
     para.op = cv_calc_hist_thread_arg->op;
     bm_handle_t handle = cv_calc_hist_thread_arg->handle;
     for (int i = 0; i < loop; ++i) {
+        randomize_params(cv_calc_hist_thread_arg, &frame, &para);
         int ret = test_calc_hist_random(&frame, &para, handle);
         if (ret) {
             printf("------Test calc_hist Failed!------\n");
@@ -340,12 +362,13 @@ int main(int argc, char* args[])
     int thread_num = 1;
     int loop = 1;
     struct frame_size frame;
-    frame.height = 1 + rand() % 1024;
-    frame.width = 1 + rand() % 1024;
+    frame.height = -1;
+    frame.width = -1;
     struct hist_para para;
-    para.chn_num = 1 + rand() % 3;
-    para.data_type = rand() % 2;
-    para.op = rand() % 2;
+    para.chn_num = -1;
+    para.data_type = -1;
+    para.op = -1;
+    para.out_dim = -1;
     int ret = 0;
     int i;
     int check = 0;
@@ -363,6 +386,7 @@ int main(int argc, char* args[])
         printf("%s 2\n", args[0]);
         printf("%s 1 3\n", args[0]);
         printf("%s 1 1 512 512 1 0 1 0 \n", args[0]);
+        printf("-1 for height/width/chn_num/type/out_dim/op means random (re-randomized each loop)\n");
         return 0;
     }
 
@@ -371,7 +395,6 @@ int main(int argc, char* args[])
     if (argc > 3) frame.height = atoi(args[3]);
     if (argc > 4) frame.width = atoi(args[4]);
     if (argc > 5) para.chn_num = atoi(args[5]);
-    para.out_dim = 1 + rand() % para.chn_num;
     if (argc > 6) para.data_type = atoi(args[6]);
     if (argc > 7) para.out_dim = atoi(args[7]);
     if (argc > 8) para.op = atoi(args[8]);

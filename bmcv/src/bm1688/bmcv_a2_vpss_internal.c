@@ -22,6 +22,9 @@
 		.coef[2][0] = a, .coef[2][1] = b, .coef[2][2] = c,
 #define BIT(nr) (1U << (nr))
 
+/* a csc coefficient is 13 bits of magnitude, BIT(13) carries the sign flag */
+#define CSC_COEF_MAX 8191
+
 static bmcv_vpss_csc_matrix csc_default_matrix[9] = {
 	/*YUV2RGB 601 NOT FULL RANGE YCbCr2RGB_BT601*/
 	// {1.1643835616438400, 0.0000000000000000, 1.5958974359999800, 0.0,
@@ -369,31 +372,50 @@ bm_status_t check_bm_vpss_csctype(
 					*csc_type, filename(__FILE__), __func__, __LINE__);
 				return ret;
 			} else {
+				short csc_coe[9] = {
+					matrix->csc_coe00, matrix->csc_coe01, matrix->csc_coe02,
+					matrix->csc_coe10, matrix->csc_coe11, matrix->csc_coe12,
+					matrix->csc_coe20, matrix->csc_coe21, matrix->csc_coe22
+				};
+				int k = 0;
+
+				for (k = 0; k < 9; k++) {
+					if ((csc_coe[k] > CSC_COEF_MAX) || (csc_coe[k] < -CSC_COEF_MAX)) {
+						ret = BM_ERR_PARAM;
+						bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
+							"bm_vpss csc matrix coefficient %d out of range [-%d, %d],"
+							" %s: %s: %d\n",
+							csc_coe[k], CSC_COEF_MAX, CSC_COEF_MAX,
+							filename(__FILE__), __func__, __LINE__);
+						return ret;
+					}
+				}
+
 				csc_cfg->is_user_defined_matrix = true;
-				csc_cfg->csc_matrix.coef[0][0] = matrix->csc_coe00 < 0 ?
-					BIT(13)|(unsigned short)(-matrix->csc_coe00) : (unsigned short)matrix->csc_coe00;
-				csc_cfg->csc_matrix.coef[0][1] = matrix->csc_coe01 < 0 ?
-					BIT(13)|(unsigned short)(-matrix->csc_coe01) : (unsigned short)matrix->csc_coe01;
-				csc_cfg->csc_matrix.coef[0][2] = matrix->csc_coe02 < 0 ?
-					BIT(13)|(unsigned short)(-matrix->csc_coe02) : (unsigned short)matrix->csc_coe02;
-				csc_cfg->csc_matrix.coef[1][0] = matrix->csc_coe10 < 0 ?
-					BIT(13)|(unsigned short)(-matrix->csc_coe10) : (unsigned short)matrix->csc_coe10;
-				csc_cfg->csc_matrix.coef[1][1] = matrix->csc_coe11 < 0 ?
-					BIT(13)|(unsigned short)(-matrix->csc_coe11) : (unsigned short)matrix->csc_coe11;
-				csc_cfg->csc_matrix.coef[1][2] = matrix->csc_coe12 < 0 ?
-					BIT(13)|(unsigned short)(-matrix->csc_coe12) : (unsigned short)matrix->csc_coe12;
-				csc_cfg->csc_matrix.coef[2][0] = matrix->csc_coe20 < 0 ?
-					BIT(13)|(unsigned short)(-matrix->csc_coe20) : (unsigned short)matrix->csc_coe20;
-				csc_cfg->csc_matrix.coef[2][1] = matrix->csc_coe21 < 0 ?
-					BIT(13)|(unsigned short)(-matrix->csc_coe21) : (unsigned short)matrix->csc_coe21;
-				csc_cfg->csc_matrix.coef[2][2] = matrix->csc_coe22 < 0 ?
-					BIT(13)|(unsigned short)(-matrix->csc_coe22) : (unsigned short)matrix->csc_coe22;
-				csc_cfg->csc_matrix.add[0] = matrix->csc_add0 < 0 ? 0 : (unsigned char)matrix->csc_add0;
-				csc_cfg->csc_matrix.add[1] = matrix->csc_add1 < 0 ? 0 : (unsigned char)matrix->csc_add1;
-				csc_cfg->csc_matrix.add[2] = matrix->csc_add2 < 0 ? 0 : (unsigned char)matrix->csc_add2;
-				csc_cfg->csc_matrix.sub[0] = matrix->csc_sub0 < 0 ? 0 : (unsigned char)matrix->csc_sub0;
-				csc_cfg->csc_matrix.sub[1] = matrix->csc_sub1 < 0 ? 0 : (unsigned char)matrix->csc_sub1;
-				csc_cfg->csc_matrix.sub[2] = matrix->csc_sub2 < 0 ? 0 : (unsigned char)matrix->csc_sub2;
+				csc_cfg->csc_matrix.coef[0][0] = csc_coe[0] < 0 ?
+					BIT(13)|(unsigned short)(-csc_coe[0]) : (unsigned short)csc_coe[0];
+				csc_cfg->csc_matrix.coef[0][1] = csc_coe[1] < 0 ?
+					BIT(13)|(unsigned short)(-csc_coe[1]) : (unsigned short)csc_coe[1];
+				csc_cfg->csc_matrix.coef[0][2] = csc_coe[2] < 0 ?
+					BIT(13)|(unsigned short)(-csc_coe[2]) : (unsigned short)csc_coe[2];
+				csc_cfg->csc_matrix.coef[1][0] = csc_coe[3] < 0 ?
+					BIT(13)|(unsigned short)(-csc_coe[3]) : (unsigned short)csc_coe[3];
+				csc_cfg->csc_matrix.coef[1][1] = csc_coe[4] < 0 ?
+					BIT(13)|(unsigned short)(-csc_coe[4]) : (unsigned short)csc_coe[4];
+				csc_cfg->csc_matrix.coef[1][2] = csc_coe[5] < 0 ?
+					BIT(13)|(unsigned short)(-csc_coe[5]) : (unsigned short)csc_coe[5];
+				csc_cfg->csc_matrix.coef[2][0] = csc_coe[6] < 0 ?
+					BIT(13)|(unsigned short)(-csc_coe[6]) : (unsigned short)csc_coe[6];
+				csc_cfg->csc_matrix.coef[2][1] = csc_coe[7] < 0 ?
+					BIT(13)|(unsigned short)(-csc_coe[7]) : (unsigned short)csc_coe[7];
+				csc_cfg->csc_matrix.coef[2][2] = csc_coe[8] < 0 ?
+					BIT(13)|(unsigned short)(-csc_coe[8]) : (unsigned short)csc_coe[8];
+				csc_cfg->csc_matrix.add[0] = matrix->csc_add0;
+				csc_cfg->csc_matrix.add[1] = matrix->csc_add1;
+				csc_cfg->csc_matrix.add[2] = matrix->csc_add2;
+				csc_cfg->csc_matrix.sub[0] = matrix->csc_sub0;
+				csc_cfg->csc_matrix.sub[1] = matrix->csc_sub1;
+				csc_cfg->csc_matrix.sub[2] = matrix->csc_sub2;
 			}
 		case CSC_MAX_ENUM:
 			if ((input_color_space == COLOR_SPACE_YUV) && (output_color_space == COLOR_SPACE_RGB))
@@ -404,6 +426,17 @@ bm_status_t check_bm_vpss_csctype(
 				csc_cfg->csc_type = VPSS_CSC_YCbCr2YCbCr_BT601;
 			if ((input_color_space == COLOR_SPACE_RGB) && (output_color_space == COLOR_SPACE_RGB))
 				csc_cfg->csc_type = VPSS_CSC_RGB2RGB;
+			break;
+		case CSC_YUV2YUV:
+			if ((input_color_space != COLOR_SPACE_YUV) ||
+			    (output_color_space != COLOR_SPACE_YUV)) {
+				ret = BM_ERR_PARAM;
+				bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
+					"CSC_YUV2YUV needs YUV input and YUV output, %s: %s: %d\n",
+					filename(__FILE__), __func__, __LINE__);
+				break;
+			}
+			csc_cfg->csc_type = VPSS_CSC_YUV2YUV;
 			break;
 		case CSC_FANCY_PbPr_BT601:
 			if ((input_color_space == COLOR_SPACE_YUV) && (output_color_space == COLOR_SPACE_RGB))
@@ -434,6 +467,16 @@ bm_status_t check_bm_vpss_csctype(
 				*csc_type, filename(__FILE__), __func__, __LINE__);
 			return ret;
 	}
+
+	if (csc_cfg->is_user_defined_matrix && (csc_cfg->csc_type == VPSS_CSC_RGB2RGB)) {
+		ret = BM_ERR_PARAM;
+		bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR,
+			"CSC_USER_DEFINED_MATRIX with RGB->RGB input/output is not supported,"
+			" the matrix would be ignored, %s: %s: %d\n",
+			filename(__FILE__), __func__, __LINE__);
+		return ret;
+	}
+
 	return ret;
 }
 
@@ -861,6 +904,11 @@ bm_status_t bm_vpss_set_csc(bmcv_csc_cfg *csc_cfg, bm_vpss_cfg *vpss_cfg)
 	bmcv_vpss_csc_matrix csc_matrix;
 	if (csc_cfg->csc_type == VPSS_CSC_RGB2RGB)
 		return BM_SUCCESS;
+	if (csc_cfg->csc_type == VPSS_CSC_YUV2YUV) {
+		bm_vpss_set_grp_csc(csc_cfg->is_fancy, &csc_default_matrix[8], &vpss_cfg->grp_csc_cfg);
+		bm_vpss_set_chn_csc(&csc_default_matrix[8], &vpss_cfg->chn_csc_cfg);
+		return BM_SUCCESS;
+	}
 	if (csc_cfg->is_user_defined_matrix) {
 		csc_matrix = csc_cfg->csc_matrix;
 		if (csc_cfg->csc_type == VPSS_CSC_RGB2YCbCr_BT601 ||
@@ -884,7 +932,7 @@ bm_status_t bm_vpss_set_csc(bmcv_csc_cfg *csc_cfg, bm_vpss_cfg *vpss_cfg)
 				bm_vpss_set_grp_csc(csc_cfg->is_fancy, &csc_default_matrix[VPSS_CSC_YCbCr2RGB_BT601], &vpss_cfg->grp_csc_cfg);
 				bm_vpss_set_chn_csc(&csc_default_matrix[VPSS_CSC_RGB2YCbCr_BT601], &vpss_cfg->chn_csc_cfg);
 		} else if (csc_cfg->csc_type == VPSS_CSC_YCbCr2YCbCr_BT709) {
-				bm_vpss_set_grp_csc(csc_cfg->is_fancy, &csc_default_matrix[VPSS_CSC_YCbCr2RGB_BT601], &vpss_cfg->grp_csc_cfg);
+				bm_vpss_set_grp_csc(csc_cfg->is_fancy, &csc_default_matrix[VPSS_CSC_YCbCr2RGB_BT709], &vpss_cfg->grp_csc_cfg);
 				bm_vpss_set_chn_csc(&csc_default_matrix[VPSS_CSC_RGB2YCbCr_BT709], &vpss_cfg->chn_csc_cfg);
 		} else if (csc_cfg->csc_type == VPSS_CSC_YPbPr2YPbPr_BT601) {
 				bm_vpss_set_grp_csc(csc_cfg->is_fancy, &csc_default_matrix[VPSS_CSC_YPbPr2RGB_BT601], &vpss_cfg->grp_csc_cfg);
@@ -1574,7 +1622,8 @@ bm_status_t bm_vpss_convert_to(
 	if (ret != BM_SUCCESS)
 		return ret;
 
-	if (input->image_format == FORMAT_BGR_PLANAR) {
+	if (input->image_format == FORMAT_BGR_PLANAR ||
+	    input->image_format == FORMAT_BGRP_SEPARATE) {
 		float exc = convert_to_attr.alpha_0;
 		convert_to_attr.alpha_0 = convert_to_attr.alpha_2;
 		convert_to_attr.alpha_2 = exc;
@@ -1583,8 +1632,12 @@ bm_status_t bm_vpss_convert_to(
 		convert_to_attr.beta_2 = exc;
 	}
 
+	csc_type_t csc = CSC_MAX_ENUM;
+	if (input->image_format == FORMAT_GRAY && output->image_format == FORMAT_GRAY)
+		csc = CSC_YUV2YUV;
+
 	ret = bm_vpss_multi_parameter_processing(handle, input_num, input, output, NULL, NULL,
-		BMCV_INTER_LINEAR, CSC_MAX_ENUM, NULL, &convert_to_attr, NULL, NULL, NULL, NO_FLIP, NULL);
+		BMCV_INTER_LINEAR, csc, NULL, &convert_to_attr, NULL, NULL, NULL, NO_FLIP, NULL);
 
 	return ret;
 }

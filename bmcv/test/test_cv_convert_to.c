@@ -175,7 +175,7 @@ static int parameters_check(int test_loop_times, int test_threads_num)
 }
 
 static int gen_test_size(
-    int chipid, int *image_w, int *image_h, int *image_n, int *image_c, int gen_mode) {
+    int *image_w, int *image_h, int *image_n, int *image_c, int gen_mode) {
     switch (gen_mode) {
         case (MIN_TEST): {
             *image_w = MIN_W;
@@ -437,7 +437,10 @@ static int32_t convert_to_test_rand_int8(bm_handle_t       handle,
     for(int img_idx = 0; img_idx < input_num; img_idx++){
         int img_offset = image_w_stride * image_h * image_channel;
         signed char *input_img_data = input + img_offset * img_idx;
-        bm_image_copy_host_to_device(input_images[img_idx], (void **)&input_img_data);
+        if (bm_image_copy_host_to_device(input_images[img_idx], (void **)&input_img_data) != BM_SUCCESS) {
+            printf("bm_image_copy_host_to_device failed!\n");
+            exit(-1);
+        }
     }
 
     for(int img_idx = 0; img_idx < output_num; img_idx++){
@@ -464,23 +467,24 @@ static int32_t convert_to_test_rand_int8(bm_handle_t       handle,
     bm_image_alloc_contiguous_mem(output_num, output_images, BMCV_HEAP0_ID);
 
     //TODO: using time
-    #ifdef __linux__
+#ifdef __linux__
         gettimeofday(&t1, NULL);
-        bmcv_image_convert_to(handle, input_num, convert_to_attr, input_images, output_images);
+        ret = bmcv_image_convert_to(handle, input_num, convert_to_attr, input_images, output_images);
         gettimeofday(&t2, NULL);
         printf("Convert_to test_rand_int8 TPU using time = %ld(us)\n", TIME_COST_US(t1, t2));
-    #else
-    //     struct timespec tp1, tp2;
-    //     clock_gettime_win(0, &tp1);
-    //     bmcv_image_convert_to(handle, input_num, convert_to_attr, input_images, output_images);
-    //     clock_gettime_win(0, &tp2);
-    //     cout << "Convert to using time: " << ((tp2.tv_sec - tp1.tv_sec) * 1000000 + (tp2.tv_nsec - tp1.tv_nsec)/1000) << "us" << endl;
-    #endif
+        if (ret != BM_SUCCESS) {
+            printf("bmcv_image_convert_to failed. ret = %d\n", ret);
+            exit(-1);
+        }
+#endif
 
     for(int img_idx = 0; img_idx < output_num; img_idx++){
         int img_offset = image_w * image_h * image_channel;
         signed char *res_img_data = bmcv_res + img_offset * img_idx;
-        bm_image_copy_device_to_host(output_images[img_idx], (void **)&res_img_data);
+        if (bm_image_copy_device_to_host(output_images[img_idx], (void **)&res_img_data) != BM_SUCCESS) {
+            printf("bm_image_copy_device_to_host failed!\n");
+            exit(-1);
+        }
     }
     gettimeofday(&t3, NULL);
 
@@ -697,7 +701,10 @@ if (img_format == FORMAT_BGR_PLANAR) {
     for(int img_idx = 0; img_idx < input_num; img_idx++){
         int img_offset = image_w_stride * image_h * image_channel;
         float *input_img_data = input + img_offset * img_idx;
-        bm_image_copy_host_to_device(input_images[img_idx], (void **)&input_img_data);
+        if (bm_image_copy_host_to_device(input_images[img_idx], (void **)&input_img_data) != BM_SUCCESS) {
+            printf("bm_image_copy_host_to_device failed!\n");
+            exit(-1);
+        }
     }
 
 
@@ -728,9 +735,13 @@ if (img_format == FORMAT_BGR_PLANAR) {
     //TODO: using time
     #ifdef __linux__
     gettimeofday(&t1, NULL);
-    bmcv_image_convert_to(handle, input_num, convert_to_attr, input_images, output_images);
+    ret = bmcv_image_convert_to(handle, input_num, convert_to_attr, input_images, output_images);
     gettimeofday(&t2, NULL);
     printf("Convert_to test_rand_float TPU using time = %ld(us)\n", TIME_COST_US(t1, t2));
+    if (ret != BM_SUCCESS) {
+        printf("bmcv_image_convert_to failed. ret = %d\n", ret);
+        exit(-1);
+    }
     #else
     //     struct timespec tp1, tp2;
     //     clock_gettime_win(0, &tp1);
@@ -742,7 +753,10 @@ if (img_format == FORMAT_BGR_PLANAR) {
     for(int img_idx = 0; img_idx < output_num; img_idx++){
         int img_offset = image_w * image_h * image_channel;
         float *res_img_data = bmcv_res + img_offset * img_idx;
-        bm_image_copy_device_to_host(output_images[img_idx], (void **)&res_img_data);
+        if (bm_image_copy_device_to_host(output_images[img_idx], (void **)&res_img_data) != BM_SUCCESS) {
+            printf("bm_image_copy_device_to_host failed!\n");
+            exit(-1);
+        }
     }
     gettimeofday(&t3, NULL);
     if (input_images->image_format == FORMAT_BGR_PLANAR) {
@@ -792,7 +806,7 @@ if (img_format == FORMAT_BGR_PLANAR) {
     if(is_contiguous)
         bm_image_free_contiguous_mem(input_num, input_images);
     bm_image_free_contiguous_mem(output_num, output_images);
-    for(int i = 0; i > input_num; i++){
+    for(int i = 0; i < input_num; i++){
         bm_image_destroy(&input_images[i]);
     }
     for(int i = 0; i < output_num; i++){
@@ -869,183 +883,170 @@ DWORD WINAPI test_convert_to_thread(LPVOID arg)
             same_convert_to_arg[i].beta = same_beta;
         }
 
-        unsigned int chipid = 0x1686a200;
-        bm_get_chipid(handle, &chipid);
         for (int i = 0; i < 2; i++) {
             int img_format = 0;
             if (i == 0) img_format = 0;
             if (i == 1) img_format = 9;
-            switch(chipid){
-                case 0x1686a200:
-                    printf("---------CONVERT TO CLASSICAL SIZE TEST---------- \n");
+            printf("---------CONVERT TO CLASSICAL SIZE TEST---------- \n");
+            convert_format = CONVERT_1N_TO_1N;
+            printf("CONVERT TO 1N int8 TO 1N int8 \n");
+            convert_to_test_rand_int8(handle,
+                                    INT8_C3,
+                                    INT8_C3,
+                                    image_shape,
+                                    img_format,
+                                    convert_to_arg,
+                                    convert_format,
+                                    0);
+            printf("result of %d compare pass \n", test_cnt++);
+
+            printf("[WITH STRIDE] CONVERT TO 1N int8 TO 1N int8 \n");
+            convert_to_test_rand_int8(handle,
+                                    INT8_C3,
+                                    INT8_C3,
+                                    image_shape,
+                                    img_format,
+                                    convert_to_arg,
+                                    convert_format,
+                                    1);
+            printf("result of %d compare pass \n", test_cnt++);
+
+            printf("[SAME PARA] CONVERT TO 1N int8 TO 1N int8 \n");
+            convert_to_test_rand_int8(handle,
+                                    INT8_C3,
+                                    INT8_C3,
+                                    image_shape,
+                                    img_format,
+                                    same_convert_to_arg,
+                                    convert_format,
+                                    0);
+            printf("result of %d compare pass \n", test_cnt++);
+
+            printf("CONVERT TO 1N FP32 TO 1N FP32 \n");
+            convert_to_test_rand_float(handle,
+                                    FLOAT32_C3,
+                                    FLOAT32_C3,
+                                    image_shape,
+                                    img_format,
+                                    convert_to_arg,
+                                    convert_format,
+                                    0);
+            printf("result of %d compare pass \n", test_cnt++);
+
+            printf("[WITH STRIDE] CONVERT TO 1N FP32 TO 1N FP32 \n");
+            convert_to_test_rand_float(handle,
+                                        FLOAT32_C3,
+                                        FLOAT32_C3,
+                                        image_shape,
+                                        img_format,
+                                        convert_to_arg,
+                                        convert_format,
+                                        1);
+            printf("result of %d compare pass \n", test_cnt++);
+
+            printf("[SAME PARA] CONVERT TO 1N FP32 TO 1N FP32 \n");
+            convert_to_test_rand_float(handle,
+                                    FLOAT32_C3,
+                                    FLOAT32_C3,
+                                    image_shape,
+                                    img_format,
+                                    same_convert_to_arg,
+                                    convert_format,
+                                    0);
+            printf("result of %d compare pass \n", test_cnt++);
+
+            printf("[SAME PARA] [WITH STRIDE] CONVERT TO 1N FP32 TO 1N FP32 \n");
+            convert_to_test_rand_float(handle,
+                                        FLOAT32_C3,
+                                        FLOAT32_C3,
+                                        image_shape,
+                                        img_format,
+                                        same_convert_to_arg,
+                                        convert_format,
+                                        1);
+            printf("result of %d compare pass \n", test_cnt++);
+
+            printf("---------CONVERT TO CORNER TEST---------- \n");
+            int rand_loop_num = 2;
+            for(int rand_loop_idx = 0; rand_loop_idx < rand_loop_num; rand_loop_idx++){
+                for(int rand_mode = 0; rand_mode < my_MAX_RAND_MODE; rand_mode++){
+                    gen_test_size(&image_shape.w,
+                                &image_shape.h,
+                                &image_shape.n,
+                                &image_shape.c,
+                                rand_mode);
+                    printf("rand_mode: %d , img_w: %d ,img_h: %d , img_c: %d img_n: %d\n",
+                            rand_mode, image_shape.w, image_shape.h, image_shape.c, image_shape.n);
+                    test_cnt = 0;
                     convert_format = CONVERT_1N_TO_1N;
-                    printf("CONVERT TO 1N int8 TO 1N int8 \n");
-                    convert_to_test_rand_int8(handle,
-                                            INT8_C3,
-                                            INT8_C3,
-                                            image_shape,
-                                            img_format,
-                                            convert_to_arg,
-                                            convert_format,
-                                            0);
+                    printf("CONVERT TO 1N fp32 TO 1N fp32");
+                    convert_to_test_rand_float(handle,
+                                    FLOAT32_C3,
+                                    FLOAT32_C3,
+                                    image_shape,
+                                    img_format,
+                                    convert_to_arg,
+                                    convert_format,
+                                    0);
                     printf("result of %d compare pass \n", test_cnt++);
 
                     printf("[WITH STRIDE] CONVERT TO 1N int8 TO 1N int8 \n");
                     convert_to_test_rand_int8(handle,
-                                            INT8_C3,
-                                            INT8_C3,
-                                            image_shape,
-                                            img_format,
-                                            convert_to_arg,
-                                            convert_format,
-                                            1);
+                                        INT8_C3,
+                                        INT8_C3,
+                                        image_shape,
+                                        img_format,
+                                        convert_to_arg,
+                                        convert_format,
+                                        1);
                     printf("result of %d compare pass \n", test_cnt++);
 
-                    printf("[SAME PARA] CONVERT TO 1N int8 TO 1N int8 \n");
-                    convert_to_test_rand_int8(handle,
-                                            INT8_C3,
-                                            INT8_C3,
-                                            image_shape,
-                                            img_format,
-                                            same_convert_to_arg,
-                                            convert_format,
-                                            0);
-                    printf("result of %d compare pass \n", test_cnt++);
-
-                    printf("CONVERT TO 1N FP32 TO 1N FP32 \n");
+                    printf("[WITH STRIDE] CONVERT TO 1N fp32 TO 1N fp32 \n");
                     convert_to_test_rand_float(handle,
-                                            FLOAT32_C3,
-                                            FLOAT32_C3,
-                                            image_shape,
-                                            img_format,
-                                            convert_to_arg,
-                                            convert_format,
-                                            0);
-                    printf("result of %d compare pass \n", test_cnt++);
-
-                    printf("[WITH STRIDE] CONVERT TO 1N FP32 TO 1N FP32 \n");
-                    convert_to_test_rand_float(handle,
-                                               FLOAT32_C3,
-                                               FLOAT32_C3,
-                                               image_shape,
-                                               img_format,
-                                               convert_to_arg,
-                                               convert_format,
-                                               1);
+                                        FLOAT32_C3,
+                                        FLOAT32_C3,
+                                        image_shape,
+                                        img_format,
+                                        convert_to_arg,
+                                        convert_format,
+                                        1);
                     printf("result of %d compare pass \n", test_cnt++);
 
                     printf("[SAME PARA] CONVERT TO 1N FP32 TO 1N FP32 \n");
                     convert_to_test_rand_float(handle,
-                                            FLOAT32_C3,
-                                            FLOAT32_C3,
-                                            image_shape,
-                                            img_format,
-                                            same_convert_to_arg,
-                                            convert_format,
-                                            0);
+                                    FLOAT32_C3,
+                                    FLOAT32_C3,
+                                    image_shape,
+                                    img_format,
+                                    same_convert_to_arg,
+                                    convert_format,
+                                    0);
+                    printf("result of %d compare pass \n", test_cnt++);
+
+                    printf("[SAME PARA] CONVERT TO 1N int8 TO 1N int8 \n");
+                    convert_to_test_rand_int8(handle,
+                                    INT8_C3,
+                                    INT8_C3,
+                                    image_shape,
+                                    img_format,
+                                    same_convert_to_arg,
+                                    convert_format,
+                                    0);
                     printf("result of %d compare pass \n", test_cnt++);
 
                     printf("[SAME PARA] [WITH STRIDE] CONVERT TO 1N FP32 TO 1N FP32 \n");
                     convert_to_test_rand_float(handle,
-                                               FLOAT32_C3,
-                                               FLOAT32_C3,
-                                               image_shape,
-                                               img_format,
-                                               same_convert_to_arg,
-                                               convert_format,
-                                               1);
+                                        FLOAT32_C3,
+                                        FLOAT32_C3,
+                                        image_shape,
+                                        img_format,
+                                        same_convert_to_arg,
+                                        convert_format,
+                                        1);
                     printf("result of %d compare pass \n", test_cnt++);
-
-                    printf("---------CONVERT TO CORNER TEST---------- \n");
-                    int rand_loop_num = 2;
-                    for(int rand_loop_idx = 0; rand_loop_idx < rand_loop_num; rand_loop_idx++){
-                        for(int rand_mode = 0; rand_mode < my_MAX_RAND_MODE; rand_mode++){
-                            gen_test_size(chipid,
-                                        &image_shape.w,
-                                        &image_shape.h,
-                                        &image_shape.n,
-                                        &image_shape.c,
-                                        rand_mode);
-                            printf("rand_mode: %d , img_w: %d ,img_h: %d , img_c: %d img_n: %d\n",
-                                    rand_mode, image_shape.w, image_shape.h, image_shape.c, image_shape.n);
-                            test_cnt = 0;
-                            convert_format = CONVERT_1N_TO_1N;
-                            printf("CONVERT TO 1N fp32 TO 1N fp32");
-                            convert_to_test_rand_float(handle,
-                                            FLOAT32_C3,
-                                            FLOAT32_C3,
-                                            image_shape,
-                                            img_format,
-                                            convert_to_arg,
-                                            convert_format,
-                                            0);
-                            printf("result of %d compare pass \n", test_cnt++);
-
-                            printf("[WITH STRIDE] CONVERT TO 1N int8 TO 1N int8 \n");
-                            convert_to_test_rand_int8(handle,
-                                               INT8_C3,
-                                               INT8_C3,
-                                               image_shape,
-                                               img_format,
-                                               convert_to_arg,
-                                               convert_format,
-                                               1);
-                            printf("result of %d compare pass \n", test_cnt++);
-
-                            printf("[WITH STRIDE] CONVERT TO 1N fp32 TO 1N fp32 \n");
-                            convert_to_test_rand_float(handle,
-                                               FLOAT32_C3,
-                                               FLOAT32_C3,
-                                               image_shape,
-                                               img_format,
-                                               convert_to_arg,
-                                               convert_format,
-                                               1);
-                            printf("result of %d compare pass \n", test_cnt++);
-
-                            printf("[SAME PARA] CONVERT TO 1N FP32 TO 1N FP32 \n");
-                            convert_to_test_rand_float(handle,
-                                            FLOAT32_C3,
-                                            FLOAT32_C3,
-                                            image_shape,
-                                            img_format,
-                                            same_convert_to_arg,
-                                            convert_format,
-                                            0);
-                            printf("result of %d compare pass \n", test_cnt++);
-
-                            printf("[SAME PARA] CONVERT TO 1N int8 TO 1N int8 \n");
-                            convert_to_test_rand_int8(handle,
-                                            INT8_C3,
-                                            INT8_C3,
-                                            image_shape,
-                                            img_format,
-                                            same_convert_to_arg,
-                                            convert_format,
-                                            0);
-                            printf("result of %d compare pass \n", test_cnt++);
-
-                            printf("[SAME PARA] [WITH STRIDE] CONVERT TO 1N FP32 TO 1N FP32 \n");
-                            convert_to_test_rand_float(handle,
-                                               FLOAT32_C3,
-                                               FLOAT32_C3,
-                                               image_shape,
-                                               img_format,
-                                               same_convert_to_arg,
-                                               convert_format,
-                                               1);
-                            printf("result of %d compare pass \n", test_cnt++);
-                        }
-                    }
-
-                    break;
-                default:
-                    printf("Chipid Is Not Support !\n");
-                    break;
+                }
             }
-
         }
-
     }
     return NULL;
 }
@@ -1128,7 +1129,7 @@ int main(int32_t argc, char **argv){
     }
 
     int ret = 0;
-    for(int i = 0; i < dev_cnt; i++){
+    for(int i = 0; i < dev_cnt * test_threads_num; i++){
         ret = pthread_join(pid[i], NULL);
         if(ret != 0){
             free(pid);

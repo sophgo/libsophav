@@ -47,17 +47,14 @@ bm_status_t bmcv_hamming_distance(bm_handle_t handle, bm_device_mem_t input1, bm
             if_core1 = 1;
         } else if (strcmp(tpu_env, "2") == 0 || strcmp(tpu_env, "both") == 0) {
             bmlib_log("HM_DISTANCE", BMLIB_LOG_DEBUG, "Use all TPU cores (0 and 1)\n");
+#ifndef MEDIA_V3
             if_core1 = 1;
+#endif
         } else {
             bmlib_log("HM_DISTANCE", BMLIB_LOG_ERROR, "Invalid TPU_CORES value: %s\n", tpu_env);
             bmlib_log("HM_DISTANCE", BMLIB_LOG_ERROR, "Available options: 0, 1, 2/both\n");
             exit(EXIT_FAILURE);
         }
-    }
-    unsigned int chipid;
-    if (bm_get_chipid(handle, &chipid) != BM_SUCCESS) {
-        printf("get chipid is error !\n");
-        return BM_ERR_FAILURE;
     }
 
     ret = bmcv_hamming_distance_check(handle, bits_len, input1_num, input2_num, if_core0, if_core1);
@@ -91,19 +88,10 @@ bm_status_t bmcv_hamming_distance(bm_handle_t handle, bm_device_mem_t input1, bm
             launch_params[core_idx].param_data = &hamming_params[core_idx];
             launch_params[core_idx].param_size = sizeof(sg_api_hamming_distance_dual_core_t);
         }
-        switch (chipid) {
-            case BM1688_PREV:
-            case BM1688:
-                ret = bm_tpu_kernel_launch_dual_core(handle, "cv_hamming_distance_bm1688", launch_params, core_list, core_nums);
-                if(BM_SUCCESS != ret) {
-                    bmlib_log("HM_DISTANCE", BMLIB_LOG_ERROR, "hm_distance sync api error\n");
-                    return ret;
-                }
-                break;
-            default:
-                ret = BM_NOT_SUPPORTED;
-                printf("BM_NOT_SUPPORTED!\n");
-                break;
+        ret = bm_tpu_kernel_launch_dual_core(handle, "cv_hamming_distance_bm1688", launch_params, core_list, core_nums);
+        if(BM_SUCCESS != ret) {
+            bmlib_log("HM_DISTANCE", BMLIB_LOG_ERROR, "hm_distance sync api error\n");
+            return ret;
         }
     } else {
         int core_id = 0;
@@ -116,19 +104,10 @@ bm_status_t bmcv_hamming_distance(bm_handle_t handle, bm_device_mem_t input1, bm
         if(if_core1 == 1) {
             core_id = 1;
         }
-        switch (chipid) {
-            case BM1688_PREV:
-            case BM1688:
-                ret = bm_tpu_kernel_launch(handle, "cv_hanming_distance_1684x", (u8 *)&api, sizeof(api), core_id);
-                if(BM_SUCCESS != ret) {
-                    bmlib_log("HM_DISTANCE", BMLIB_LOG_ERROR, "hm_distance sync api error\n");
-                    return ret;
-                }
-                break;
-            default:
-                ret = BM_NOT_SUPPORTED;
-                printf("BM_NOT_SUPPORTED!\n");
-                break;
+        ret = bm_tpu_kernel_launch(handle, "cv_hanming_distance_1684x", (u8 *)&api, sizeof(api), core_id);
+        if(BM_SUCCESS != ret) {
+            bmlib_log("HM_DISTANCE", BMLIB_LOG_ERROR, "hm_distance sync api error\n");
+            return ret;
         }
     }
     return ret;

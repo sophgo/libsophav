@@ -34,7 +34,6 @@ bm_status_t bmcv_sort(bm_handle_t handle, bm_device_mem_t src_index_addr, bm_dev
     bool use_index_i = index_enable && (!auto_index);
     bool use_index_o = index_enable;
     bm_status_t ret = BM_SUCCESS;
-    unsigned int chipid;
     int core_id = 0;
     int if_core0 = 1;
     int if_core1 = 0;
@@ -54,7 +53,9 @@ bm_status_t bmcv_sort(bm_handle_t handle, bm_device_mem_t src_index_addr, bm_dev
             if_core1 = 1;
         } else if (strcmp(tpu_env, "2") == 0 || strcmp(tpu_env, "both") == 0) {
             bmlib_log("SORT", BMLIB_LOG_DEBUG, "Use all TPU cores (0 and 1)\n");
+#ifndef MEDIA_V3
             if_core1 = 1;
+#endif
         } else {
             bmlib_log("SORT", BMLIB_LOG_ERROR, "Invalid TPU_CORES value: %s\n", tpu_env);
             bmlib_log("SORT", BMLIB_LOG_ERROR, "Available options: 0, 1, 2/both\n");
@@ -97,11 +98,6 @@ bm_status_t bmcv_sort(bm_handle_t handle, bm_device_mem_t src_index_addr, bm_dev
                                                            false, data_cnt));
     } else {
         dst_data_buf_device = dst_data_addr;
-    }
-    ret = bm_get_chipid(handle, &chipid);
-    if (ret != BM_SUCCESS) {
-        printf("get chipid is error !\n");
-        return BM_ERR_FAILURE;
     }
     if (if_core0 == 1 && if_core1 == 1) {
         ret = bmcv_sort_dual_check_check(handle, data_cnt, sort_cnt);
@@ -150,19 +146,10 @@ bm_status_t bmcv_sort(bm_handle_t handle, bm_device_mem_t src_index_addr, bm_dev
             launch_params[core_idx].param_size = sizeof(sg_api_cv_sort_dual_core_t);
         }
 
-        switch (chipid) {
-            case BM1688_PREV:
-            case BM1688:
-                ret = bm_tpu_kernel_launch_dual_core(handle, "cv_sort_bm1688", launch_params, core_list, core_nums);
-                if(BM_SUCCESS != ret) {
-                    bmlib_log("SORT", BMLIB_LOG_ERROR, "sort sync api error\n");
-                    return ret;
-                }
-                break;
-            default:
-                ret = BM_NOT_SUPPORTED;
-                printf("BM_NOT_SUPPORTED!\n");
-                break;
+        ret = bm_tpu_kernel_launch_dual_core(handle, "cv_sort_bm1688", launch_params, core_list, core_nums);
+        if (BM_SUCCESS != ret) {
+            bmlib_log("SORT", BMLIB_LOG_ERROR, "sort sync api error\n");
+            return ret;
         }
     } else {
         api.src_index_addr = use_index_i ? bm_mem_get_device_addr(src_index_buf_device) : 0;
@@ -178,19 +165,10 @@ bm_status_t bmcv_sort(bm_handle_t handle, bm_device_mem_t src_index_addr, bm_dev
             core_id = 1;
         }
 
-        switch (chipid) {
-            case BM1688_PREV:
-            case BM1688:
-                ret = bm_tpu_kernel_launch(handle, "cv_sort", (u8 *)&api, sizeof(api), core_id);
-                if(BM_SUCCESS != ret) {
-                    bmlib_log("SORT", BMLIB_LOG_ERROR, "sort sync api error\n");
-                    return ret;
-                }
-                break;
-            default:
-                ret = BM_NOT_SUPPORTED;
-                printf("BM_NOT_SUPPORTED!\n");
-                break;
+        ret = bm_tpu_kernel_launch(handle, "cv_sort", (u8 *)&api, sizeof(api), core_id);
+        if (BM_SUCCESS != ret) {
+            bmlib_log("SORT", BMLIB_LOG_ERROR, "sort sync api error\n");
+            return ret;
         }
     }
 

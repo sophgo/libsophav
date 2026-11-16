@@ -215,6 +215,15 @@ exit:
     return ret;
 }
 
+/* Reroll only the -1 sentinel fields; given values stay fixed. height and
+ * width are independent (max 4096 x 2043 per parameters_check). */
+static void randomize_params(cv_pyramid_thread_arg_t *arg, int *height, int *width)
+{
+    if (arg->if_use_img) return;
+    if (arg->height < 0) *height = 3 + rand() % 4094;
+    if (arg->width  < 0) *width  = 3 + rand() % 2041;
+}
+
 void* test_thread_pyramid(void* args) {
     cv_pyramid_thread_arg_t* cv_pyramid_thread_arg = (cv_pyramid_thread_arg_t*)args;
     int loop = cv_pyramid_thread_arg->loop;
@@ -226,10 +235,7 @@ void* test_thread_pyramid(void* args) {
     bm_handle_t handle = cv_pyramid_thread_arg->handle;
 
     for (int i = 0; i < loop; ++i) {
-        // if (loop > 1) {
-        //     height = 3 + rand() % 4094;
-        //     width = 3 + rand() % 2041;
-        // }
+        randomize_params(cv_pyramid_thread_arg, &height, &width);
         int ret = test_pyramid_down(if_use_img, height, width, src_name, dst_name, handle);
         if (ret) {
             printf("------Test Pyramid Failed!------\n");
@@ -249,8 +255,8 @@ int main(int argc, char* args[])
     int thread_num = 1;
     int if_use_img = 0;
     int loop = 1;
-    int height = 3 + rand() % 4094;
-    int width = 3 + rand() % 2041;
+    int height = -1;
+    int width = -1;
     int ret = 0;
     int check = 0;
     char* src_name = NULL;
@@ -270,6 +276,7 @@ int main(int argc, char* args[])
         printf("%s 2\n", args[0]);
         printf("%s 1 1 0 512 512 \n", args[0]);
         printf("%s 1 1 1 1024 1024 input.bin pyramid_output.bin \n", args[0]);
+        printf("-1 for height/width means random (re-randomized each loop)\n");
         return 0;
     }
 

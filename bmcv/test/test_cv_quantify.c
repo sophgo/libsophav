@@ -18,6 +18,7 @@ typedef struct {
     int use_real_img;
     char* input_path;
     char* output_path;
+    int thread_num;
     bm_handle_t handle;
 } cv_quantify_thread_arg_t;
 
@@ -48,6 +49,20 @@ static void write_bin(const char *output_path, unsigned char *output_data, int w
 
 float random_float(float min, float max) {
     return min + ((float)rand() / RAND_MAX) * (max - min);
+}
+
+/* host peak = threads x 6B/el (float input + two u8 outputs) x W*H*ch; keep under ~1.2GB */
+#define QUANTIFY_MEM_BUDGET 1200000000L
+
+static void randomize_size(int format, int thread_num, int *height, int *width) {
+    /* gray counts 1 channel, others 3 */
+    int ch = (format == FORMAT_GRAY) ? 1 : 3;
+    long max_px = QUANTIFY_MEM_BUDGET / ((long)6 * ch * (thread_num > 0 ? thread_num : 1));
+    if (max_px < 1) max_px = 1;
+    do {
+        *height = 1 + rand() % 8192;
+        *width  = 1 + rand() % 8192;
+    } while ((long)*height * *width > max_px);
 }
 
 static void fill(
@@ -200,13 +215,12 @@ void* test_quantify(void* args) {
     char* input_path = cv_quantify_thread_arg->input_path;
     char* output_path = cv_quantify_thread_arg->output_path;
     bm_handle_t handle = cv_quantify_thread_arg->handle;
+    int thread_num = cv_quantify_thread_arg->thread_num;
+    int format_num[8] = {FORMAT_YUV444P, FORMAT_RGB_PLANAR, FORMAT_BGR_PLANAR,
+        FORMAT_RGB_PACKED, FORMAT_BGR_PACKED, FORMAT_RGBP_SEPARATE, FORMAT_BGRP_SEPARATE, FORMAT_GRAY};
     for (int i = 0; i < loop_num; i++) {
-        if(loop_num > 1) {
-            height = 1 + rand() % 8192;
-            width = 1 + rand() % 8192;
-            int format_num[8] = {FORMAT_YUV444P, FORMAT_RGB_PLANAR, FORMAT_BGR_PLANAR, FORMAT_RGB_PACKED, FORMAT_BGR_PACKED, FORMAT_RGBP_SEPARATE, FORMAT_BGRP_SEPARATE, FORMAT_GRAY};
-            format = format_num[rand() % 8];
-        }
+        if (cv_quantify_thread_arg->format < 0) format = format_num[rand() % 8];
+        if (cv_quantify_thread_arg->height == -1 || cv_quantify_thread_arg->width == -1) randomize_size(format, thread_num, &height, &width);
         if (0 != test_quantify_random(format, height, width, use_real_img, input_path, output_path, handle)){
             printf("------TEST CV_QUANTIFY FAILED------\n");
             exit(-1);
@@ -223,10 +237,9 @@ int main(int argc, char* args[]) {
     srand(seed);
     int use_real_img = 0;
     int loop = 1;
-    int height = 1 + rand() % 8192;
-    int width = 1 + rand() % 8192;
-    int format_num[8] = {FORMAT_YUV444P, FORMAT_RGB_PLANAR, FORMAT_BGR_PLANAR, FORMAT_RGB_PACKED, FORMAT_BGR_PACKED, FORMAT_RGBP_SEPARATE, FORMAT_BGRP_SEPARATE, FORMAT_GRAY};
-    int format = format_num[rand() % 8];
+    int height = -1;
+    int width = -1;
+    int format = -1;
     int thread_num = 1;
     char *input_path = NULL;
     char *output_path = NULL;
@@ -239,7 +252,8 @@ int main(int argc, char* args[]) {
 
     if (argc == 2 && atoi(args[1]) == -1) {
         printf("usage:\n");
-        printf("%s thread_num loop use_real_img height width format input_path output_path(when use_real_img = 1,need to set input_path and output_path) \n", args[0]);
+        printf("%s thread_num loop use_real_img height width format input_path output_path\n", args[0]);
+        printf("-1 height/width/format means random (re-randomized each loop)\n");
         printf("example:\n");
         printf("%s \n", args[0]);
         printf("%s 2\n", args[0]);
@@ -269,6 +283,7 @@ int main(int argc, char* args[]) {
         cv_quantify_thread_arg[i].input_path = input_path;
         cv_quantify_thread_arg[i].output_path = output_path;
         cv_quantify_thread_arg[i].handle = handle;
+        cv_quantify_thread_arg[i].thread_num = thread_num;
         if (pthread_create(pid + i, NULL, test_quantify, cv_quantify_thread_arg + i) != 0) {
             printf("create thread failed\n");
             return -1;

@@ -27,7 +27,6 @@ bm_status_t bmcv_hist_balance(bm_handle_t handle, bm_device_mem_t input, bm_devi
     bm_device_mem_t cdf;
     int32_t* cdf_sys = NULL;
     float cdf_min = 0.f;
-    unsigned int chipid;
     int core_id = 0;
     int i;
 
@@ -51,30 +50,15 @@ bm_status_t bmcv_hist_balance(bm_handle_t handle, bm_device_mem_t input, bm_devi
         goto exit;
     }
 
-    ret = bm_get_chipid(handle, &chipid);
-    if (ret != BM_SUCCESS) {
-        bmlib_log("HIST_BALANCE", BMLIB_LOG_ERROR, "Can not get chipid!\n");
-        goto exit;
-    }
-
     api1.Xaddr = bm_mem_get_device_addr(input);
     api1.len = imageSize;
     api1.cdf_addr = bm_mem_get_device_addr(cdf);
 
-    switch(chipid) {
-        case BM1688_PREV:
-        case BM1688:
-            ret = bm_tpu_kernel_launch(handle, "cv_hist_balance1", (u8*)&api1,
-                                                sizeof(api1), core_id);
-            if (ret != BM_SUCCESS) {
-                bmlib_log("HIST_BALANCE1", BMLIB_LOG_ERROR, "cv_hist_balance1 sync api error\n");
-                goto exit;
-            }
-            break;
-        default:
-            printf("BM_NOT_SUPPORTED!\n");
-            ret = BM_NOT_SUPPORTED;
-            break;
+    ret = bm_tpu_kernel_launch(handle, "cv_hist_balance1", (u8*)&api1,
+                                        sizeof(api1), core_id);
+    if (ret != BM_SUCCESS) {
+        bmlib_log("HIST_BALANCE1", BMLIB_LOG_ERROR, "cv_hist_balance1 sync api error\n");
+        goto exit;
     }
 
     ret = bm_memcpy_d2s(handle, cdf_sys, cdf);
@@ -90,20 +74,12 @@ bm_status_t bmcv_hist_balance(bm_handle_t handle, bm_device_mem_t input, bm_devi
     api2.cdf_min = cdf_min;
     api2.cdf_addr = bm_mem_get_device_addr(cdf);
     api2.Yaddr = bm_mem_get_device_addr(output);
-    switch(chipid) {
-        case BM1688_PREV:
-        case BM1688:
-            ret = bm_tpu_kernel_launch(handle, "cv_hist_balance2", (u8*)&api2,
-                                                sizeof(api2), core_id);
-            if (ret != BM_SUCCESS) {
-                bmlib_log("HIST_BALANCE2", BMLIB_LOG_ERROR, "cv_hist_balance2 sync api error\n");
-                goto exit;
-            }
-            break;
-        default:
-            printf("BM_NOT_SUPPORTED!\n");
-            ret = BM_NOT_SUPPORTED;
-            break;
+
+    ret = bm_tpu_kernel_launch(handle, "cv_hist_balance2", (u8*)&api2,
+                                        sizeof(api2), core_id);
+    if (ret != BM_SUCCESS) {
+        bmlib_log("HIST_BALANCE2", BMLIB_LOG_ERROR, "cv_hist_balance2 sync api error\n");
+        goto exit;
     }
 
 exit:

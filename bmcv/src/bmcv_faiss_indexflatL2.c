@@ -55,13 +55,6 @@ bm_status_t bmcv_faiss_indexflatL2(bm_handle_t handle,
                                    int input_dtype,
                                    int output_dtype) {
     bm_status_t ret = BM_SUCCESS;
-    unsigned int chipid;
-    ret = bm_get_chipid(handle, &chipid);
-    if (BM_SUCCESS != ret) {
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "faiss_api_indexflatL2 bm_get_chipid failed!, %s: %s: %d\n",
-                                        filename(__FILE__), __func__, __LINE__);
-        return ret;
-    }
     faiss_api_indexflatL2_t api;
     sg_api_indexflatL2_dual_core_t api_dual_core;
     tpu_launch_param_t launch_params[BM1688_MAX_CORES];
@@ -81,7 +74,9 @@ bm_status_t bmcv_faiss_indexflatL2(bm_handle_t handle,
             if_core1 = 1;
         } else if (strcmp(tpu_env, "2") == 0 || strcmp(tpu_env, "both") == 0) {
             bmlib_log("FAISS_INDEXFLATL2", BMLIB_LOG_DEBUG, "Use all TPU cores (0 and 1)\n");
+#ifndef MEDIA_V3
             if_core1 = 1;
+#endif
         } else {
             bmlib_log("FAISS_INDEXFLATL2", BMLIB_LOG_ERROR, "Invalid TPU_CORES value: %s\n", tpu_env);
             bmlib_log("FAISS_INDEXFLATL2", BMLIB_LOG_ERROR, "Available options: 0, 1, 2/both\n");
@@ -135,17 +130,9 @@ bm_status_t bmcv_faiss_indexflatL2(bm_handle_t handle,
             launch_params[core_idx].param_data = &params[core_idx];
             launch_params[core_idx].param_size = sizeof(sg_api_indexflatL2_dual_core_t);
         }
-        switch (chipid) {
-            case BM1688_PREV:
-            case BM1688:
-                ret = bm_tpu_kernel_launch_dual_core(handle, "faiss_api_indexflatL2_bm1688", launch_params, core_list, core_nums);
-                if (BM_SUCCESS != ret) {
-                    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "faiss_api_indexflatL2 launch_sync api error!, %s: %s: %d\n", filename(__FILE__), __func__, __LINE__);
-                }
-                break;
-            default:
-                ret = BM_NOT_SUPPORTED;
-                break;
+        ret = bm_tpu_kernel_launch_dual_core(handle, "faiss_api_indexflatL2_bm1688", launch_params, core_list, core_nums);
+        if (BM_SUCCESS != ret) {
+            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "faiss_api_indexflatL2 launch_sync api error!, %s: %s: %d\n", filename(__FILE__), __func__, __LINE__);
         }
         if(query_vecs_num == 1) {
             float *dual_core_similarity_host_fp32, *similarity_host_fp32;
@@ -199,18 +186,9 @@ bm_status_t bmcv_faiss_indexflatL2(bm_handle_t handle,
         api.transpose = is_transpose;
         api.input_dtype = input_dtype;
         api.output_dtype = output_dtype;
-        switch (chipid) {
-            case BM1688_PREV:
-            case BM1688:
-                ret = bm_tpu_kernel_launch(handle, "faiss_api_indexflatL2", (u8 *)&api, sizeof(api), core_id);
-                if (BM_SUCCESS != ret) {
-                    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "faiss_api_indexflatL2 launch_sync api error!, %s: %s: %d\n", filename(__FILE__), __func__, __LINE__);
-                }
-                break;
-            default:
-                bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "faiss_api_indexflatL2 chip_id not support, %s: %s: %d\n", filename(__FILE__), __func__, __LINE__);
-                ret = BM_NOT_SUPPORTED;
-                break;
+        ret = bm_tpu_kernel_launch(handle, "faiss_api_indexflatL2", (u8 *)&api, sizeof(api), core_id);
+        if (BM_SUCCESS != ret) {
+            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "faiss_api_indexflatL2 launch_sync api error!, %s: %s: %d\n", filename(__FILE__), __func__, __LINE__);
         }
     }
     return ret;
@@ -232,13 +210,6 @@ bm_status_t bmcv_faiss_indexflatL2_u64(bm_handle_t handle,
     int input_dtype,
     int output_dtype) {
     bm_status_t ret = BM_SUCCESS;
-    unsigned int chipid;
-    ret = bm_get_chipid(handle, &chipid);
-    if (BM_SUCCESS != ret) {
-        bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "bmcv_faiss_indexflatL2_u64 bm_get_chipid failed!, %s: %s: %d\n",
-                                        filename(__FILE__), __func__, __LINE__);
-        return ret;
-    }
     faiss_api_indexflatL2_t api;
     sg_api_indexflatL2_dual_core_t api_dual_core;
     tpu_launch_param_t launch_params[BM1688_MAX_CORES];
@@ -258,7 +229,9 @@ bm_status_t bmcv_faiss_indexflatL2_u64(bm_handle_t handle,
             if_core1 = 1;
         } else if (strcmp(tpu_env, "2") == 0 || strcmp(tpu_env, "both") == 0) {
             bmlib_log("FAISS_INDEXFLATL2", BMLIB_LOG_DEBUG, "Use all TPU cores (0 and 1)\n");
+#ifndef MEDIA_V3
             if_core1 = 1;
+#endif
         } else {
             bmlib_log("FAISS_INDEXFLATL2", BMLIB_LOG_ERROR, "Invalid TPU_CORES value: %s\n", tpu_env);
             bmlib_log("FAISS_INDEXFLATL2", BMLIB_LOG_ERROR, "Available options: 0, 1, 2/both\n");
@@ -312,17 +285,9 @@ bm_status_t bmcv_faiss_indexflatL2_u64(bm_handle_t handle,
             launch_params[core_idx].param_data = &params[core_idx];
             launch_params[core_idx].param_size = sizeof(sg_api_indexflatL2_dual_core_t);
         }
-        switch (chipid) {
-            case BM1688_PREV:
-            case BM1688:
-                ret = bm_tpu_kernel_launch_dual_core(handle, "faiss_api_indexflatL2_bm1688", launch_params, core_list, core_nums);
-                if (BM_SUCCESS != ret) {
-                    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "faiss_api_indexflatL2 launch_sync api error!, %s: %s: %d\n", filename(__FILE__), __func__, __LINE__);
-                }
-                break;
-            default:
-                ret = BM_NOT_SUPPORTED;
-                break;
+        ret = bm_tpu_kernel_launch_dual_core(handle, "faiss_api_indexflatL2_bm1688", launch_params, core_list, core_nums);
+        if (BM_SUCCESS != ret) {
+            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "faiss_api_indexflatL2 launch_sync api error!, %s: %s: %d\n", filename(__FILE__), __func__, __LINE__);
         }
         if(query_vecs_num == 1) {
             float *dual_core_similarity_host_fp32, *similarity_host_fp32;
@@ -376,17 +341,9 @@ bm_status_t bmcv_faiss_indexflatL2_u64(bm_handle_t handle,
         api.transpose = is_transpose;
         api.input_dtype = input_dtype;
         api.output_dtype = output_dtype;
-        switch (chipid) {
-            case BM1688_PREV:
-            case BM1688:
-                ret = bm_tpu_kernel_launch(handle, "faiss_api_indexflatL2", (u8 *)&api, sizeof(api), core_id);
-                if (BM_SUCCESS != ret) {
-                    bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "faiss_api_indexflatL2 launch_sync api error!, %s: %s: %d\n", filename(__FILE__), __func__, __LINE__);
-                }
-                break;
-            default:
-                ret = BM_NOT_SUPPORTED;
-                break;
+        ret = bm_tpu_kernel_launch(handle, "faiss_api_indexflatL2", (u8 *)&api, sizeof(api), core_id);
+        if (BM_SUCCESS != ret) {
+            bmlib_log(BMCV_LOG_TAG, BMLIB_LOG_ERROR, "faiss_api_indexflatL2 launch_sync api error!, %s: %s: %d\n", filename(__FILE__), __func__, __LINE__);
         }
     }
     return ret;

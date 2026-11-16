@@ -249,6 +249,16 @@ static int test_threshold_random(
     return ret;
 }
 
+/* Reroll only the -1 sentinel fields; given values stay fixed. height/width
+ * and type are independent, so each reseeds on its own (per thread, per loop). */
+static void randomize_params(cv_threshold_thread_arg_t *arg, int *height, int *width, int *type)
+{
+    if (arg->use_realimg) return;
+    if (arg->height < 0) *height = 2 + rand() % 8191;
+    if (arg->width  < 0) *width  = 2 + rand() % 8191;
+    if (arg->type   < 0) *type   = rand() % 5;
+}
+
 void* test_threshold(void* args) {
     cv_threshold_thread_arg_t* cv_threshold_thread_arg = (cv_threshold_thread_arg_t*)args;
     int loop_num = cv_threshold_thread_arg->loop_num;
@@ -260,6 +270,7 @@ void* test_threshold(void* args) {
     char* output_path = cv_threshold_thread_arg->output_path;
     bm_handle_t handle = cv_threshold_thread_arg->handle;
     for (int i = 0; i < loop_num; i++) {
+        randomize_params(cv_threshold_thread_arg, &height, &width, &type);
         if (0 != test_threshold_random(height, width, use_realimg, input_path, output_path, type, handle)){
             printf("------TEST CV_THRESHOLD FAILED------\n");
             exit(-1);
@@ -277,9 +288,9 @@ int main(int argc, char* args[]) {
     printf("seed = %d\n", seed);
     int use_realimg = 0;
     int loop = 1;
-    int height = 2 + rand() % 8191;
-    int width = 2 + rand() % 8191;
-    int type = rand() % 5;
+    int height = -1;
+    int width = -1;
+    int type = -1;
     int thread_num = 1;
     int check = 0;
     char *input_path = NULL;
@@ -299,6 +310,7 @@ int main(int argc, char* args[]) {
         printf("%s 2\n", args[0]);
         printf("%s 2 1 0 512 512 2 \n", args[0]);
         printf("%s 1 1 1 1920 1080 2 res/1920x1080_gray.bin out/out_threshold.bin \n", args[0]);
+        printf("-1 for height/width/type means random (re-randomized each loop)\n");
         return 0;
     }
 

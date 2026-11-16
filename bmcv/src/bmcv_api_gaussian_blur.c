@@ -176,7 +176,6 @@ bm_status_t bmcv_image_gaussian_blur(bm_handle_t handle, bm_image input, bm_imag
     }
 
     // construct and send api
-    unsigned int chipid;
     int stride_i[3], stride_o[3];
     bm_device_mem_t input_mem[3];
     bm_device_mem_t output_mem[3];
@@ -243,72 +242,60 @@ bm_status_t bmcv_image_gaussian_blur(bm_handle_t handle, bm_image input, bm_imag
             api.output_addr[i] = bm_mem_get_device_addr(output_mem[0]) + input.height * stride_i[0] * i;
         }
     }
-    ret = bm_get_chipid(handle, &chipid);
-    switch (chipid) {
-        case BM1688_PREV:
-        case BM1688:
-            tpu_env = getenv("TPU_CORES");
-            if (tpu_env) {
-                if (strcmp(tpu_env, "0") == 0) {
-                    bmlib_log("GAUSSIAN_BLUR", BMLIB_LOG_DEBUG, "Use TPU Core0\n");
-                } else if (strcmp(tpu_env, "1") == 0) {
-                    if_core0 = 0;
-                    if_core1 = 1;
-                    bmlib_log("GAUSSIAN_BLUR", BMLIB_LOG_DEBUG, "Use TPU Core1\n");
-                } else if (is_dual_core_enabled()) {
-                    if_core1 = 1;
-                    bmlib_log("GAUSSIAN_BLUR", BMLIB_LOG_DEBUG, "Use ALL TPU Cores(0 and 1)\n");
-                } else {
-                    bmlib_log("GAUSSIAN_BLUR", BMLIB_LOG_ERROR, "Invalid TPU_CORES value: %s\n", tpu_env);
-                    bmlib_log("GAUSSIAN_BLUR", BMLIB_LOG_ERROR, "Available options: 0, 1, 2/both\n");
-                    exit(EXIT_FAILURE);
-                }
-            }
 
-            if (if_core0 && if_core1) {
-                int core_list[BM1688_MAX_CORES] = {0, 1};
-
-                tpu_launch_param_t tpu_params[BM1688_MAX_CORES];
-                sg_api_cv_gaussian_blur_dual_core_t dual_api;
-                sg_api_cv_gaussian_blur_dual_core_t dual_params[BM1688_MAX_CORES];
-
-                memcpy(&dual_api, &api, sizeof(sg_api_cv_gaussian_blur_t));
-
-                dual_api.core_num = BM1688_MAX_CORES;
-                dual_api.base_msg_id = BM1688_BASE_MSG_ID;
-
-                for (int n = 0; n < BM1688_MAX_CORES; n++) {
-                    dual_api.core_id = n;
-
-                    dual_params[n] = dual_api;
-                    tpu_params[n].core_id = n;
-                    tpu_params[n].param_data = &dual_params[n];
-                    tpu_params[n].param_size = sizeof(sg_api_cv_gaussian_blur_dual_core_t);
-                }
-
-                ret = bm_tpu_kernel_launch_dual_core(handle, "cv_gaussian_blur_dual_core_split_col", tpu_params, core_list, BM1688_MAX_CORES);
-            } else {
-                int core_id = if_core1 == 1 ? 1 : 0;
-                ret = bm_tpu_kernel_launch(handle, "cv_gaussian_blur_split_col", (u8 *)&api, sizeof(api), core_id);
-            }
-
-            if (BM_SUCCESS != ret) {
-                bmlib_log("gaussian_blur", BMLIB_LOG_ERROR, "gaussian_blur sync api error\n");
-                return ret;
-            }
-            break;
-        default:
-            ret = BM_NOT_SUPPORTED;
-            break;
-    }
-    if (BM_SUCCESS != ret) {
-        if (output_alloc_flag) {
-            bm_free_device(handle,output_mem[0]);
+    tpu_env = getenv("TPU_CORES");
+    if (tpu_env) {
+        if (strcmp(tpu_env, "0") == 0) {
+            bmlib_log("GAUSSIAN_BLUR", BMLIB_LOG_DEBUG, "Use TPU Core0\n");
+        } else if (strcmp(tpu_env, "1") == 0) {
+            if_core0 = 0;
+            if_core1 = 1;
+            bmlib_log("GAUSSIAN_BLUR", BMLIB_LOG_DEBUG, "Use TPU Core1\n");
+        } else if (is_dual_core_enabled()) {
+#ifndef MEDIA_V3
+            if_core1 = 1;
+#endif
+            bmlib_log("GAUSSIAN_BLUR", BMLIB_LOG_DEBUG, "Use ALL TPU Cores(0 and 1)\n");
+        } else {
+            bmlib_log("GAUSSIAN_BLUR", BMLIB_LOG_ERROR, "Invalid TPU_CORES value: %s\n", tpu_env);
+            bmlib_log("GAUSSIAN_BLUR", BMLIB_LOG_ERROR, "Available options: 0, 1, 2/both\n");
+            exit(EXIT_FAILURE);
         }
     }
 
-    // NV post-processing is now done on device side
+    if (if_core0 && if_core1) {
+        int core_list[BM1688_MAX_CORES] = {0, 1};
 
+        tpu_launch_param_t tpu_params[BM1688_MAX_CORES];
+        sg_api_cv_gaussian_blur_dual_core_t dual_api;
+        sg_api_cv_gaussian_blur_dual_core_t dual_params[BM1688_MAX_CORES];
+
+        memcpy(&dual_api, &api, sizeof(sg_api_cv_gaussian_blur_t));
+
+        dual_api.core_num = BM1688_MAX_CORES;
+        dual_api.base_msg_id = BM1688_BASE_MSG_ID;
+
+        for (int n = 0; n < BM1688_MAX_CORES; n++) {
+            dual_api.core_id = n;
+
+            dual_params[n] = dual_api;
+            tpu_params[n].core_id = n;
+            tpu_params[n].param_data = &dual_params[n];
+            tpu_params[n].param_size = sizeof(sg_api_cv_gaussian_blur_dual_core_t);
+        }
+
+        ret = bm_tpu_kernel_launch_dual_core(handle, "cv_gaussian_blur_dual_core_split_col", tpu_params, core_list, BM1688_MAX_CORES);
+    } else {
+        int core_id = if_core1 == 1 ? 1 : 0;
+        ret = bm_tpu_kernel_launch(handle, "cv_gaussian_blur_split_col", (u8 *)&api, sizeof(api), core_id);
+    }
+
+    if (BM_SUCCESS != ret) {
+        bmlib_log("gaussian_blur", BMLIB_LOG_ERROR, "gaussian_blur sync api error\n");
+        if (output_alloc_flag) {
+            bm_image_destroy(&output);
+        }
+    }
 nv_cleanup:
     if (nv_temp_in_alloc)  bm_free_device(handle, nv_temp_in_mem);
     if (nv_temp_out_alloc) bm_free_device(handle, nv_temp_out_mem);

@@ -49,9 +49,6 @@
 #include "bmlib_runtime.h"
 
 #define MAX_SOC_NUM 64
-#define VENC_GIT_COMMIT_HASH "be78834fc8"
-#define VENC_GIT_BRANCH "master"
-#define VENC_SDK_VERSION "2.1.0"
 
 __attribute__((visibility("default")))
 static const char _venc_commit_info[] = "SDK version: " VENC_SDK_VERSION "  commit hash: " VENC_GIT_COMMIT_HASH "   branch: " VENC_GIT_BRANCH;

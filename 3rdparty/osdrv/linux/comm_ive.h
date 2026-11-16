@@ -327,10 +327,10 @@ typedef struct _ive_filter_ctrl_s {
 	unsigned char norm; /*Normalization parameter, by right s_ft*/
 } ive_filter_ctrl_s;
 
-typedef struct _ive_filter_ext_ctrl_s {
+typedef struct ive_filter_ext_ctrl_s {
 	signed char mask[81]; /*Template parameter filter coefficient*/
 	unsigned char norm; /*Normalization parameter, by right s_ft*/
-	unsigned char ksize; /*Filter kernel size, only support 3,5,7,9*/
+    unsigned char ksize; /*Filter kernel size, only support 3,5,7,9*/
 } ive_filter_ext_ctrl;
 
 typedef enum _ive_csc_mode_e {
@@ -375,7 +375,7 @@ typedef struct _ive_filter_and_csc_ext_ctrl_s {
 	ive_csc_mode_e mode; /*CSC working mode*/
 	signed char mask[81]; /*Template parameter filter coefficient*/
 	unsigned char norm; /*Normalization parameter, by right s_ft*/
-	unsigned char ksize; /*Filter kernel size, only support 3,5,7,9*/
+    unsigned char ksize; /*Filter kernel size, only support 3,5,7,9*/
 } ive_filter_and_csc_ext_ctrl;
 
 typedef struct _ive_filter_and_csc_ctrl_s {
@@ -420,13 +420,13 @@ typedef struct _ive_dilate_ctrl_s {
 } ive_dilate_ctrl_s;
 
 typedef struct ive_dilate_ext_ctrl_s {
-	unsigned char au8Mask[81]; /*The template parameter value must be 0 or 255.*/
-	unsigned char ksize; /*dilate kernel size, only support 3,5,7,9*/
+    unsigned char au8Mask[81];    /*The template parameter value must be 0 or 255.*/
+    unsigned char ksize;   /*dilate kernel size, only support 3,5,7,9*/
 } ive_dilate_ext_ctrl;
 
 typedef struct ive_erode_ext_ctrl_s {
-	unsigned char au8Mask[81]; /*The template parameter value must be 0 or 255.*/
-	unsigned char ksize; /*erode kernel size, only support 3,5,7,9*/
+    unsigned char au8Mask[81]; /*The template parameter value must be 0 or 255.*/
+    unsigned char ksize;   /*erode kernel size, only support 3,5,7,9*/
 } ive_erode_ext_ctrl;
 
 typedef ive_dilate_ctrl_s ive_erode_ctrl_s;

@@ -550,12 +550,22 @@ static int test_cv_warp_random(int trials) {
         float* trans_mat = (float*)malloc(output_num * 6 * sizeof(float));
 
         for (int i = 0; i < output_num; i++){
-            trans_mat[0 + i * 6] = 3.84843f;
-            trans_mat[1 + i * 6] = -0.0248411f;
-            trans_mat[2 + i * 6] = 916.203f;
-            trans_mat[3 + i * 6] = 0.0248411;
-            trans_mat[4 + i * 6] = 3.84843f;
-            trans_mat[5 + i * 6] = 55.9748f;
+            if (flag == 9) {
+                /* NPU c-slot regression: 2x downscale, rows > NPU_NUM. */
+                trans_mat[0 + i * 6] = 2.0f;   /* src_x = 2*dst_x */
+                trans_mat[1 + i * 6] = 0.0f;
+                trans_mat[2 + i * 6] = 0.0f;
+                trans_mat[3 + i * 6] = 0.0f;
+                trans_mat[4 + i * 6] = 2.0f;   /* src_y = 2*dst_y */
+                trans_mat[5 + i * 6] = 0.0f;
+            } else {
+                trans_mat[0 + i * 6] = 3.84843f;
+                trans_mat[1 + i * 6] = -0.0248411f;
+                trans_mat[2 + i * 6] = 916.203f;
+                trans_mat[3 + i * 6] = 0.0248411;
+                trans_mat[4 + i * 6] = 3.84843f;
+                trans_mat[5 + i * 6] = 55.9748f;
+            }
         }
         ret = test_cv_warp_single_case(src_data, trans_mat, matrix_num, image_n, image_c,
                                         image_sh, image_sw, image_dh, image_dw, use_opencv, is_bilinear);

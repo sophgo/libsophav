@@ -31,14 +31,7 @@ bm_status_t bmcv_feature_match_normalized(bm_handle_t handle, bm_device_mem_t in
     bm_device_mem_t output_sorted_similarity_global_addr_device;
     bm_device_mem_t output_sorted_index_global_addr_device;
     bm_status_t ret = BM_SUCCESS;
-    unsigned int chipid;
     int core_id = 0;
-
-    ret = bm_get_chipid(handle, &chipid);
-    if (ret) {
-        printf("get chipid is error !\n");
-        return BM_ERR_FAILURE;
-    }
 
     if (bm_mem_get_type(input_data_global_addr) == BM_MEM_TYPE_SYSTEM) {
         ret = bm_malloc_device_byte(handle, &input_data_global_addr_device,
@@ -136,20 +129,11 @@ bm_status_t bmcv_feature_match_normalized(bm_handle_t handle, bm_device_mem_t in
     arg.batch_size = batch_size;
     arg.db_size = db_size;
 
-    switch(chipid) {
-        case BM1688_PREV:
-        case BM1688:
-            ret = bm_tpu_kernel_launch(handle, "cv_feature_match_1684x", (u8*)(&arg),
-                                                sizeof(arg), core_id);
-            if (ret != BM_SUCCESS) {
-                bmlib_log("FEATURE_MATCH", BMLIB_LOG_ERROR, "FEATURE_MATCH sync api error\n");
-                goto err5;
-            }
-            break;
-        default:
-            printf("BM_NOT_SUPPORTED!\n");
-            ret = BM_NOT_SUPPORTED;
-            break;
+    ret = bm_tpu_kernel_launch(handle, "cv_feature_match_1684x", (u8*)(&arg),
+                                        sizeof(arg), core_id);
+    if (ret != BM_SUCCESS) {
+        bmlib_log("FEATURE_MATCH", BMLIB_LOG_ERROR, "FEATURE_MATCH sync api error\n");
+        goto err5;
     }
 
     if (bm_mem_get_type(output_sorted_similarity_global_addr) == BM_MEM_TYPE_SYSTEM) {
@@ -243,14 +227,7 @@ bm_status_t bmcv_feature_match(bm_handle_t handle, bm_device_mem_t input_data_gl
     bm_device_mem_t output_sorted_index_global_addr_device;
     bm_device_mem_t arm_tmp_buffer;
     bm_status_t ret = BM_SUCCESS;
-    unsigned int chipid;
     int core_id = 0;
-
-    ret = bm_get_chipid(handle, &chipid);
-    if (ret) {
-        printf("get chipid is error !\n");
-        return BM_ERR_FAILURE;
-    }
 
     if (((sizeof(short) + sizeof(int)) * batch_size * sort_cnt) >= 0x4000000) {
         printf("tmp buffer is not enough\r\n");
@@ -328,20 +305,11 @@ bm_status_t bmcv_feature_match(bm_handle_t handle, bm_device_mem_t input_data_gl
     arg.arm_tmp_buffer = bm_mem_get_device_addr(arm_tmp_buffer);
     arg.rshiftbits = rshiftbits;
 
-    switch(chipid) {
-        case BM1688_PREV:
-        case BM1688:
-            ret = bm_tpu_kernel_launch(handle, "cv_feature_match_fix8b_1684x", (u8*)(&arg),
-                                                sizeof(arg), core_id);
-            if (ret != BM_SUCCESS) {
-                bmlib_log("FEATURE_MATCH_FIX_8B", BMLIB_LOG_ERROR, "FEATURE_MATCH_FIX_8B sync api error\n");
-                goto err5;
-            }
-            break;
-        default:
-            printf("BM_NOT_SUPPORTED!\n");
-            ret = BM_NOT_SUPPORTED;
-            break;
+    ret = bm_tpu_kernel_launch(handle, "cv_feature_match_fix8b_1684x", (u8*)(&arg),
+                                        sizeof(arg), core_id);
+    if (ret != BM_SUCCESS) {
+        bmlib_log("FEATURE_MATCH_FIX_8B", BMLIB_LOG_ERROR, "FEATURE_MATCH_FIX_8B sync api error\n");
+        goto err5;
     }
 
     bm_free_device(handle, arm_tmp_buffer);

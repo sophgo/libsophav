@@ -10,6 +10,7 @@ pthread_mutex_t lock;
 
 typedef struct {
     int loop;
+    int thread_num;
     int len;
     bm_handle_t handle;
 } cv_min_max_thread_arg_t;
@@ -88,15 +89,26 @@ static int test_min_max(int len, bm_handle_t handle)
     return ret;
 }
 
+#define MIN_MAX_MEM_BUDGET 1200000000L
+
+/* Reroll len only when it is the -1 sentinel; given values stay fixed. One
+ * float buffer of 4*len bytes, so cap len by budget/(4*threads). */
+static void randomize_params(cv_min_max_thread_arg_t *arg, int *len)
+{
+    if (arg->len >= 0) return;
+    long max_len = MIN_MAX_MEM_BUDGET / (4L * (arg->thread_num > 0 ? arg->thread_num : 1));
+    if (max_len > 1000049) max_len = 1000049;
+    if (max_len < 50) max_len = 50;
+    *len = 50 + rand() % (int)(max_len - 49);
+}
+
 void* test_thread_min_max(void* args) {
     cv_min_max_thread_arg_t* cv_cmulp_thread_arg = (cv_min_max_thread_arg_t*)args;
     int loop = cv_cmulp_thread_arg->loop;
     int len = cv_cmulp_thread_arg->len;
     bm_handle_t handle = cv_cmulp_thread_arg->handle;
     for (int i = 0; i < loop; ++i) {
-        if(loop > 1) {
-            len = 50 + rand() % 1000000;
-        }
+        randomize_params(cv_cmulp_thread_arg, &len);
         int ret = test_min_max(len, handle);
         if (ret) {
             printf("------Test Min_Max Failed!------\n");
@@ -114,7 +126,7 @@ int main(int argc, char* args[]) {
     srand(seed);
     int thread_num = 1;
     int loop = 1;
-    int len = 50 + rand() % 1000000;
+    int len = -1;
     int ret = 0;
     bm_handle_t handle;
     ret = bm_dev_request(&handle, 0);
@@ -129,6 +141,7 @@ int main(int argc, char* args[]) {
         printf("example:\n");
         printf("%s \n", args[0]);
         printf("%s 2 1 512\n", args[0]);
+        printf("-1 for len means random (re-randomized each loop)\n");
         return 0;
     }
 
@@ -141,6 +154,7 @@ int main(int argc, char* args[]) {
     cv_min_max_thread_arg_t cv_cmulp_thread_arg[thread_num];
     for (int i = 0; i < thread_num; i++) {
         cv_cmulp_thread_arg[i].loop = loop;
+        cv_cmulp_thread_arg[i].thread_num = thread_num;
         cv_cmulp_thread_arg[i].len = len;
         cv_cmulp_thread_arg[i].handle = handle;
         if (pthread_create(&pid[i], NULL, test_thread_min_max, &cv_cmulp_thread_arg[i]) != 0) {

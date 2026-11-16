@@ -1,7 +1,7 @@
 #ifndef BMCV_API_EXT_H
 #define BMCV_API_EXT_H
 #define BMCV_VERSION_MAJOR 2
-#define BMCV_VERSION_MINOR 22
+#define BMCV_VERSION_MINOR 23
 #include <stdint.h>
 #include "bmlib_runtime.h"
 #ifdef _WIN32
@@ -238,6 +238,7 @@ typedef enum csc_type {
     CSC_RGB2YPbPr_BT709,
     CSC_FANCY_PbPr_BT601 = 100,
     CSC_FANCY_PbPr_BT709,
+    CSC_YUV2YUV,
     CSC_USER_DEFINED_MATRIX = 1000,
     CSC_MAX_ENUM
 } csc_type_t;
@@ -3341,6 +3342,19 @@ DECL_EXPORT bm_status_t bmcv_hist_balance(
     bm_device_mem_t output,
     int H,
     int W);
+
+/**
+ * This interface implements transformations for the C and H dimensions of the tensor based on bm_image.
+ */
+DECL_EXPORT bm_status_t bmcv_memory_permute(
+    bm_handle_t handle,
+    bm_device_mem_t src,
+    bm_device_mem_t dst,
+    int N,
+    int C,
+    int H,
+    int W,
+    int data_size);
 
 /**
  * Convert raw 12-bit data to 16-bit data

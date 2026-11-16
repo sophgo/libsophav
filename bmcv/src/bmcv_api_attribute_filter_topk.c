@@ -89,11 +89,6 @@ bm_status_t bmcv_attribute_filter_topk(
         printf("bmcv_attribute_filter_topk_check failed!\n");
         return ret;
     }
-    unsigned int chipid;
-    if (bm_get_chipid(handle, &chipid) != BM_SUCCESS) {
-        printf("bm_get_chipid error!\n");
-        return BM_ERR_FAILURE;
-    }
     sg_api_attribute_filter_topk_t api;
     api.data_type = data_type;
     api.data_count = data_count;
@@ -115,19 +110,11 @@ bm_status_t bmcv_attribute_filter_topk(
     api.topk_data_dev_mem = bm_mem_get_device_addr(topk_data_dev_mem);
     api.topk_idx_dev_mem = bm_mem_get_device_addr(topk_idx_dev_mem);
     int core_id = 0;
-    switch (chipid) {
-        case BM1688_PREV:
-        case BM1688:
-            ret = bm_tpu_kernel_launch(handle, "cv_attribute_filter_topk", (u8 *)&api, sizeof(api), core_id);
-            if(BM_SUCCESS != ret) {
-                bmlib_log("ATTRIBUTE_FILTER_TOPK", BMLIB_LOG_ERROR, "attribute_filter_topk sync api error\n");
-                return ret;
-            }
-            break;
-        default:
-            ret = BM_NOT_SUPPORTED;
-            printf("Not support this chipid!\n");
-            break;
+
+    ret = bm_tpu_kernel_launch(handle, "cv_attribute_filter_topk", (u8 *)&api, sizeof(api), core_id);
+    if(BM_SUCCESS != ret) {
+        bmlib_log("ATTRIBUTE_FILTER_TOPK", BMLIB_LOG_ERROR, "attribute_filter_topk sync api error\n");
+        return ret;
     }
     return ret;
 }

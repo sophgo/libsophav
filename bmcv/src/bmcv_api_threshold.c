@@ -72,7 +72,6 @@ bm_status_t bmcv_image_threshold(
     int channel = bm_image_get_plane_num(input);
     int input_str[3], output_str[3];
     bm_api_cv_threshold_t api;
-    unsigned int chipid;
     int core_id = 0;
     ret = bmcv_threshold_check(handle, input, output, type);
     if (BM_SUCCESS != ret) {
@@ -108,21 +107,10 @@ bm_status_t bmcv_image_threshold(
         api.height[0] *= 3;
     }
 
-    bm_get_chipid(handle, &chipid);
-
-    switch (chipid) {
-        case BM1688_PREV:
-        case BM1688:
-            ret = bm_tpu_kernel_launch(handle, "cv_threshold", (u8 *)&api, sizeof(api), core_id);
-            if (BM_SUCCESS != ret) {
-                bmlib_log("THRESHOLD", BMLIB_LOG_ERROR, "threshold sync api error\n");
-                return ret;
-            }
-            break;
-        default:
-            ret = BM_NOT_SUPPORTED;
-            printf("BM_NOT_SUPPORTED!\n");
-            break;
+    ret = bm_tpu_kernel_launch(handle, "cv_threshold", (u8 *)&api, sizeof(api), core_id);
+    if (BM_SUCCESS != ret) {
+        bmlib_log("THRESHOLD", BMLIB_LOG_ERROR, "threshold sync api error\n");
+        return ret;
     }
     return ret;
 }

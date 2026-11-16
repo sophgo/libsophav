@@ -26,6 +26,7 @@ typedef struct {
     char* src1_name;
     char* src2_name;
     char* dst_name;
+    int thread_num;
     bm_handle_t handle;
 } cv_add_weighted_thread_arg_t;
 
@@ -49,44 +50,40 @@ int cpu_add_weighted_float(float* input1, float* input2, float* output,
     return 0;
 }
 
-static void readBin_uchar(const char* path, unsigned char* input_data, int size)
+static int readBin(const char *path, void *input_data, int unit, int count)
 {
     FILE *fp_src = fopen(path, "rb");
-    if (fread((void *)input_data, 1, size, fp_src) < (unsigned int)size) {
-        printf("file size is less than %d required bytes\n", size);
-    };
+    if (fp_src == NULL) {
+        printf("open %s failed!\n", path);
+        return -1;
+    }
+    if (fread(input_data, unit, count, fp_src) < (unsigned int)count) {
+        printf("read %s failed: file size is less than %d required bytes\n", path, (int)(count * unit));
+        fclose(fp_src);
+        return -1;
+    }
 
     fclose(fp_src);
+    return 0;
 }
 
-static void readBin_float(const char* path, float* input_data, int size)
-{
-    FILE *fp_src = fopen(path, "rb");
-    if (fread((void *)input_data, sizeof(float), size, fp_src) < (unsigned int)size) {
-        printf("file size is less than %d required bytes\n", size);
-    };
-
-    fclose(fp_src);
-}
-
-static void writeBin_uchar(const char * path, unsigned char* input_data, int size)
+static int writeBin(const char *path, void *input_data, int unit, int count)
 {
     FILE *fp_dst = fopen(path, "wb");
-    if (fwrite((void *)input_data, 1, size, fp_dst) < (unsigned int)size){
-        printf("file size is less than %d required bytes\n", size);
-    };
+    int written;
+    if (fp_dst == NULL) {
+        printf("open %s failed!\n", path);
+        return -1;
+    }
+    written = fwrite(input_data, unit, count, fp_dst);
+    if (written < count) {
+        printf("write %s failed: only %d of %d elements written\n", path, written, count);
+        fclose(fp_dst);
+        return -1;
+    }
 
     fclose(fp_dst);
-}
-
-static void writeBin_float(const char * path, float* input_data, int size)
-{
-    FILE *fp_dst = fopen(path, "wb");
-    if (fwrite((void *)input_data, sizeof(float), size, fp_dst) < (unsigned int)size){
-        printf("file size is less than %d required bytes\n", size);
-    };
-
-    fclose(fp_dst);
+    return 0;
 }
 
 static void fill_img_uchar(unsigned char* input, int img_size)
@@ -345,8 +342,10 @@ static int test_add_weighted_random(int if_use_img, void* frame, int format, int
 
         if (if_use_img) {
             printf("test real img \n");
-            readBin_uchar(src1_name, input1_data, img_size);
-            readBin_uchar(src2_name, input2_data, img_size);
+            if (readBin(src1_name, input1_data, 1, img_size) ||
+                readBin(src2_name, input2_data, 1, img_size)) {
+                return -1;
+            }
         } else {
             printf("test random data !\n");
             fill_img_uchar(input1_data, img_size);
@@ -377,7 +376,9 @@ static int test_add_weighted_random(int if_use_img, void* frame, int format, int
         }
         if(if_use_img){
             printf("output img by tpu\n");
-            writeBin_uchar(dst_name, output_tpu, img_size);
+            if (writeBin(dst_name, output_tpu, 1, img_size)) {
+                return -1;
+            }
         }
         free(input1_data);
         free(input2_data);
@@ -391,8 +392,10 @@ static int test_add_weighted_random(int if_use_img, void* frame, int format, int
 
         if (if_use_img) {
             printf("test real img \n");
-            readBin_float(src1_name, input1_data, img_size);
-            readBin_float(src2_name, input2_data, img_size);
+            if (readBin(src1_name, input1_data, sizeof(float), img_size) ||
+                readBin(src2_name, input2_data, sizeof(float), img_size)) {
+                return -1;
+            }
         } else {
             printf("test random data !\n");
             fill_img_float(input1_data, img_size);
@@ -423,7 +426,9 @@ static int test_add_weighted_random(int if_use_img, void* frame, int format, int
         }
         if(if_use_img){
             printf("output img by tpu\n");
-            writeBin_float(dst_name, output_tpu, img_size);
+            if (writeBin(dst_name, output_tpu, sizeof(float), img_size)) {
+                return -1;
+            }
         }
         free(input1_data);
         free(input2_data);
@@ -432,6 +437,22 @@ static int test_add_weighted_random(int if_use_img, void* frame, int format, int
     }
 
     return ret;
+}
+
+/* host peak = threads x bytes/el (float 4bufx4B / uchar 4B) x W*H*ch; keep under ~1.2GB */
+#define ADD_WEIGHT_MEM_BUDGET 1200000000L
+
+static void randomize_size(int format, int data_type, int thread_num, int *height, int *width) {
+    /* elements per pixel: gray 1, YUV420P 1.5 (rounded to 2), others 3 */
+    int ch = (format == FORMAT_GRAY) ? 1 : ((format == FORMAT_YUV420P) ? 2 : 3);
+    int el_bytes = (data_type == 0) ? 16 : 4;
+    long max_px = ADD_WEIGHT_MEM_BUDGET /
+                  ((long)el_bytes * ch * (thread_num > 0 ? thread_num : 1));
+    if (max_px < 1) max_px = 1;
+    do {
+        *height = 1 + rand() % 4096;
+        *width  = 1 + rand() % 4096;
+    } while ((long)*height * *width > max_px);
 }
 
 void* test_add_weighted(void* args) {
@@ -450,7 +471,15 @@ void* test_add_weighted(void* args) {
     char* src2_name = cv_add_weighted_thread_arg->src2_name;
     char* dst_name = cv_add_weighted_thread_arg->dst_name;
     bm_handle_t handle = cv_add_weighted_thread_arg->handle;
+    int thread_num = cv_add_weighted_thread_arg->thread_num;
     for (int i = 0; i < loop; i++) {
+        if (cv_add_weighted_thread_arg->format < 0) format = rand() % 15;
+        if (cv_add_weighted_thread_arg->data_type < 0) data_type = rand() % 2;
+        if (cv_add_weighted_thread_arg->height == -1 || cv_add_weighted_thread_arg->width == -1)
+            randomize_size(format, data_type, thread_num, &frame.height, &frame.width);
+        if (cv_add_weighted_thread_arg->alpha < 0.0f) alpha = roundf((float)rand() / RAND_MAX * 10) / 10.0f;
+        if (cv_add_weighted_thread_arg->beta < 0.0f) beta = 1.0f - alpha;
+        if (cv_add_weighted_thread_arg->gamma < 0.0f) gamma = ((float)rand() / RAND_MAX) * 255.0f;
         int ret = test_add_weighted_random(if_use_img, &frame, format, data_type, alpha, beta, gamma, src1_name, src2_name, dst_name, handle);
         if (ret) {
             printf("------Test add_weighted Failed!------\n");
@@ -471,13 +500,13 @@ int main(int argc, char* args[])
     int loop = 1;
     int if_use_img = 0;
     struct frame_size frame;
-    frame.height = 1 + rand() % 4096;
-    frame.width = 1 + rand() % 4096;
-    int format =  rand() % 15;
-    int data_type = 0;  //0: float; 1: uchar;
-    float alpha = roundf((float)rand() / RAND_MAX * 10)/ 10.0;
-    float beta = 1.0f - alpha;
-    float gamma = ((float)rand()/RAND_MAX) * 255.0f;
+    frame.height = -1;
+    frame.width = -1;
+    int format = -1;
+    int data_type = -1;  //0: float; 1: uchar;
+    float alpha = -1.0f; // <0 means random per loop
+    float beta = -1.0f;
+    float gamma = -1.0f;
     char* src1_name = NULL;
     char* src2_name = NULL;
     char* dst_name = NULL;
@@ -493,7 +522,8 @@ int main(int argc, char* args[])
 
     if (argc == 2 && atoi(args[1]) == -1) {
         printf("usage: %d\n", argc);
-        printf("%s thread_num loop if_use_img width height format data_type alpha beta gamma src1_name src2_name dst_name(when use_real_img = 1,need to set src_name and dst_name) \n", args[0]);
+        printf("%s thread_num loop if_use_img width height format data_type alpha beta gamma src1_name src2_name dst_name\n", args[0]);
+        printf("-1 width/height/format/data_type or negative alpha/beta/gamma means random (re-randomized each loop)\n");
         printf("example:\n");
         printf("%s \n", args[0]);
         printf("%s 2\n", args[0]);
@@ -542,6 +572,7 @@ int main(int argc, char* args[])
         cv_add_weighted_thread_arg[i].src2_name = src2_name;
         cv_add_weighted_thread_arg[i].dst_name = dst_name;
         cv_add_weighted_thread_arg[i].handle = handle;
+        cv_add_weighted_thread_arg[i].thread_num = thread_num;
         if (pthread_create(&pid[i], NULL, test_add_weighted, &cv_add_weighted_thread_arg[i]) != 0) {
             printf("create thread failed\n");
             return -1;

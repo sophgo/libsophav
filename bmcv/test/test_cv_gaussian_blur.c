@@ -13,16 +13,15 @@
 typedef struct {
     int loop_num;
     int random;
-    int channel;
     int height;
     int width;
     int format;
     int ksize;
     float sigmaX;
     float sigmaY;
-    bool is_packed;
     char* input_path;
     char* output_path;
+    int thread_num;
     bm_handle_t handle;
 } gaussian_blur_thread_arg_t;
 
@@ -268,7 +267,7 @@ static int gaussian_blur_tpu(unsigned char *input, unsigned char *output, int he
     bm_image_alloc_dev_mem(img_i, 2);
     bm_image_alloc_dev_mem(img_o, 2);
 
-    if(format == 14){
+    if(format == FORMAT_GRAY){
         unsigned char *input_addr[1] = {input};
         bm_image_copy_host_to_device(img_i, (void **)(input_addr));
     } else if (format == FORMAT_NV12 || format == FORMAT_NV21 ||
@@ -282,14 +281,14 @@ static int gaussian_blur_tpu(unsigned char *input, unsigned char *output, int he
 
     gettimeofday(&t1, NULL);
     if(BM_SUCCESS != bmcv_image_gaussian_blur(handle, img_i, img_o, kw, kh, sigmaX, sigmaY)){
+        /* handle is shared by all threads, only main() may free it */
         bm_image_destroy(&img_i);
         bm_image_destroy(&img_o);
-        bm_dev_free(handle);
         return -1;
     }
     gettimeofday(&t2, NULL);
     printf("Gaussian_blur TPU using time = %ld(us)\n", TIME_COST_US(t1, t2));
-    if (format == 14){
+    if (format == FORMAT_GRAY){
         unsigned char *output_addr[1] = {output};
         bm_image_copy_device_to_host(img_o, (void **)output_addr);
     } else if (format == FORMAT_NV12 || format == FORMAT_NV21 ||
@@ -355,9 +354,9 @@ static int test_gaussian_blur_random(int random, int channel, bool is_packed, in
     printf("channel  = %d\n", channel);
     printf("is_packed= %d\n", is_packed);
 
-    unsigned char *input_data = (unsigned char*)malloc(width * height * (is_packed ? 3 : channel));
-    unsigned char *output_tpu = (unsigned char*)malloc(width * height * (is_packed ? 3 : channel));
-    unsigned char *output_cpu = (unsigned char*)malloc(width * height * (is_packed ? 3 : channel));
+    unsigned char *input_data = (unsigned char*)malloc(get_format_size(format, width, height));
+    unsigned char *output_tpu = (unsigned char*)malloc(get_format_size(format, width, height));
+    unsigned char *output_cpu = (unsigned char*)malloc(get_format_size(format, width, height));
     // 2.fill input_img
     if (random) {
         if (format == FORMAT_NV12 || format == FORMAT_NV21 ||
@@ -397,52 +396,53 @@ static int test_gaussian_blur_random(int random, int channel, bool is_packed, in
     return ret;
 }
 
+/* host peak = threads x B/el (gray 3, NV 10, others 9) x W*H; keep under ~1.2GB.
+ * main 3 buffers use exact get_format_size (NV12/21 1.5x, NV16/61 2x, others 3x);
+ * NV adds 4 cpu-ref uv planes (+4B/px). */
+#define GAUSSIAN_BLUR_MEM_BUDGET 1200000000L
+
+static void randomize_size(int format, int thread_num, int *height, int *width)
+{
+    int is_nv = (format == FORMAT_NV12 || format == FORMAT_NV21 ||
+              format == FORMAT_NV16 || format == FORMAT_NV61);
+    int el_bytes = (format == FORMAT_GRAY) ? 3 : (is_nv ? 10 : 9);
+    long max_px = GAUSSIAN_BLUR_MEM_BUDGET / ((long)el_bytes * (thread_num > 0 ? thread_num : 1));
+    if (max_px < 1) max_px = 1;
+    /* NV four formats are capped at 1920x1080 by the API (dual-core); others at 8192 */
+    do {
+        *height = 8 + rand() % (is_nv ? 1073 : 8185);
+        *width  = 8 + rand() % (is_nv ? 1913 : 8185);
+    } while ((long)*height * *width > max_px);
+    if ((format == FORMAT_NV12 || format == FORMAT_NV21) && (*height % 2 != 0)) (*height)++;
+    if (is_nv && (*width % 2 != 0)) (*width)++;
+}
+
 void* test_gaussian_blur(void* args) {
     gaussian_blur_thread_arg_t* gaussian_blur_thread_arg = (gaussian_blur_thread_arg_t*)args;
     int loop_num = gaussian_blur_thread_arg->loop_num;
     int random = gaussian_blur_thread_arg->random;
-    int channel = gaussian_blur_thread_arg->channel;
     int height = gaussian_blur_thread_arg->height;
     int width = gaussian_blur_thread_arg->width;
     int format = gaussian_blur_thread_arg->format;
     int ksize = gaussian_blur_thread_arg->ksize;
     float sigmaX = gaussian_blur_thread_arg->sigmaX;
     float sigmaY = gaussian_blur_thread_arg->sigmaY;
-    bool is_packed = gaussian_blur_thread_arg->is_packed;
     char* input_path = gaussian_blur_thread_arg->input_path;
     char* output_path = gaussian_blur_thread_arg->output_path;
     bm_handle_t handle = gaussian_blur_thread_arg->handle;
+    int thread_num = gaussian_blur_thread_arg->thread_num;
+    int k_size_num[] = {3, 5, 7, 9};
+    int format_num[] = {2, 3, 4, 5, 6, 8, 9, 12, 13, 14};
     for (int i = 0; i < loop_num; i++) {
-        if (loop_num > 1) {
-            int k_size_num[] = {3, 5, 7, 9};
-            int size = sizeof(k_size_num) / sizeof(k_size_num[0]);
-            int rand_num = rand() % size;
-            ksize = k_size_num[rand_num];
-            int format_num[] = {2,3,4,5,6,8,9,12,13,14};
-            size = sizeof(format_num) / sizeof(format_num[0]);
-            rand_num = rand() % size;
-            format = format_num[rand_num];
-            // NV four formats limit max random size to 1920x1080
-            if (format == FORMAT_NV12 || format == FORMAT_NV21 ||
-                format == FORMAT_NV16 || format == FORMAT_NV61) {
-                width = 8 + rand() % 1913;
-                height = 8 + rand() % 1073;
-            } else {
-                width = 8 + rand() % 8185;
-                height = 8 + rand() % 8185;
-            }
-            sigmaX = (float)rand() / RAND_MAX * 5.0f;
-            sigmaY = (float)rand() / RAND_MAX * 5.0f;
-            channel = ((format == 10 || format == 11 || format == 14) ? 1 : 3);
-            is_packed = ((format == 10 || format == 11) ? 1 : 0);
-            if ((format == FORMAT_NV12 || format == FORMAT_NV21) && (height % 2 != 0)) {
-                height++;
-            }
-            if ((format == FORMAT_NV12 || format == FORMAT_NV21 ||
-                 format == FORMAT_NV16 || format == FORMAT_NV61) && (width % 2 != 0)) {
-                width++;
-            }
-        }
+        if (gaussian_blur_thread_arg->ksize < 0) ksize = k_size_num[rand() % 4];
+        if (gaussian_blur_thread_arg->format < 0) format = format_num[rand() % 10];
+        if (gaussian_blur_thread_arg->height == -1 || gaussian_blur_thread_arg->width == -1)
+            randomize_size(format, thread_num, &height, &width);
+        if (gaussian_blur_thread_arg->sigmaX < 0.0f) sigmaX = (float)rand() / RAND_MAX * 5.0f;
+        if (gaussian_blur_thread_arg->sigmaY < 0.0f) sigmaY = (float)rand() / RAND_MAX * 5.0f;
+        int channel = ((format == FORMAT_RGB_PACKED || format == FORMAT_BGR_PACKED ||
+                        format == FORMAT_GRAY) ? 1 : 3);
+        bool is_packed = ((format == FORMAT_RGB_PACKED || format == FORMAT_BGR_PACKED) ? 1 : 0);
         if (0 != test_gaussian_blur_random(random, channel, is_packed, height, width, ksize, format, sigmaX,
                                            sigmaY, input_path, output_path, handle)) {
             printf("------TEST GAUSSIAN_BLUR FAILED------\n");
@@ -462,29 +462,12 @@ int main(int argc, char *args[]) {
     int thread_num = 1;
     int loop = 1;
     int random = 1;
-    int width = 8;
-    int height = 8;
-    int k_size_num[] = {3, 5, 7, 9};
-    int size = sizeof(k_size_num) / sizeof(k_size_num[0]);
-    int rand_num = rand() % size;
-    int ksize = k_size_num[rand_num];
-    int format_num[] = {2,3,4,5,6,8,9,12,13,14};
-    size = sizeof(format_num) / sizeof(format_num[0]);
-    rand_num = rand() % size;
-    int format = format_num[rand_num];
-    // NV four formats limit max random size to 1920x1080
-    if (format == FORMAT_NV12 || format == FORMAT_NV21 ||
-        format == FORMAT_NV16 || format == FORMAT_NV61) {
-        width = 8 + rand() % 1913;
-        height = 8 + rand() % 1073;
-    } else {
-        width = 8 + rand() % 8185;
-        height = 8 + rand() % 8185;
-    }
-    float sigmaX = (float)rand() / RAND_MAX * 5.0f;
-    float sigmaY = (float)rand() / RAND_MAX * 5.0f;
-    int channel;
-    int is_packed;
+    int width = -1;
+    int height = -1;
+    int ksize = -1;
+    int format = -1;
+    float sigmaX = -1.0f;
+    float sigmaY = -1.0f;
     int ret = 0;
     char *input_path = NULL;
     char *output_path = NULL;
@@ -498,6 +481,7 @@ int main(int argc, char *args[]) {
     if (argc == 2 && atoi(args[1]) == -1) {
         printf("usage: \n");
         printf("%s thread_num loop random width height format ksize sigmaX sigmaY input_path output_path(when random = 0,need to set input_path and output_path) \n", args[0]);
+        printf("-1 width/height/format/ksize or negative sigmaX/sigmaY means random (re-randomized each loop)\n");
         printf("example:\n");
         printf("%s \n", args[0]);
         printf("%s 2\n", args[0]);
@@ -518,15 +502,10 @@ int main(int argc, char *args[]) {
     if (argc > 9) sigmaY = atof(args[9]);
     if (argc > 10) input_path = args[10];
     if (argc > 11) output_path = args[11];
-    channel = ((format == 10 || format == 11 || format == 14) ? 1 : 3);
-    is_packed = ((format == 10 || format == 11) ? 1 : 0);
-    // NV12/NV21 requires even height and width for UV plane
-    if ((format == FORMAT_NV12 || format == FORMAT_NV21) && (height % 2 != 0)) {
-        height++;
-    }
-    if ((format == FORMAT_NV12 || format == FORMAT_NV21 ||
-         format == FORMAT_NV16 || format == FORMAT_NV61) && (width % 2 != 0)) {
-        width++;
+    if (random == 0 && (width == -1 || height == -1 || format < 0)) {
+        printf("real img mode needs fixed width/height/format\n");
+        bm_dev_free(handle);
+        return -1;
     }
     printf("thread_num = %d\n", thread_num);
     printf("loop_num   = %d\n", loop);
@@ -536,8 +515,6 @@ int main(int argc, char *args[]) {
     for (int i = 0; i < thread_num; i++) {
         gaussian_blur_thread_arg[i].loop_num = loop;
         gaussian_blur_thread_arg[i].random = random;
-        gaussian_blur_thread_arg[i].channel = channel;
-        gaussian_blur_thread_arg[i].is_packed = is_packed;
         gaussian_blur_thread_arg[i].height = height;
         gaussian_blur_thread_arg[i].width = width;
         gaussian_blur_thread_arg[i].format = format;
@@ -546,6 +523,7 @@ int main(int argc, char *args[]) {
         gaussian_blur_thread_arg[i].sigmaY = sigmaY;
         gaussian_blur_thread_arg[i].input_path = input_path;
         gaussian_blur_thread_arg[i].output_path = output_path;
+        gaussian_blur_thread_arg[i].thread_num = thread_num;
         gaussian_blur_thread_arg[i].handle = handle;
         if (pthread_create(pid + i, NULL, test_gaussian_blur, gaussian_blur_thread_arg + i) != 0) {
             printf("create thread failed\n");
@@ -554,11 +532,14 @@ int main(int argc, char *args[]) {
         }
     }
     for (int i = 0; i < thread_num; i++) {
-        int ret = pthread_join(pid[i], NULL);
-        if (ret != 0) {
+        void *thread_ret = NULL;
+        if (pthread_join(pid[i], &thread_ret) != 0) {
             printf("Thread join failed\n");
             bm_dev_free(handle);
             exit(-1);
+        }
+        if (thread_ret != NULL) {
+            ret = -1;
         }
     }
 

@@ -251,6 +251,16 @@ static int test_absdiff_random( int if_use_img,
     return ret;
 }
 
+/* Reroll only the -1 sentinel fields; given values stay fixed. height/width and
+ * format are independent, so each reseeds on its own (per thread, per loop). */
+static void randomize_params(cv_absdiff_thread_arg_t *arg, int *format, int *height, int *width)
+{
+    if (arg->use_real_img) return;
+    if (arg->height < 0) *height = 1 + rand() % 4096;
+    if (arg->width  < 0) *width  = 1 + rand() % 4096;
+    if (arg->format < 0) *format = rand() % 15;
+}
+
 void* test_thread_absdiff(void* args) {
     cv_absdiff_thread_arg_t* cv_absdiff_thread_arg = (cv_absdiff_thread_arg_t*)args;
     int loop_num = cv_absdiff_thread_arg->loop_num;
@@ -264,11 +274,7 @@ void* test_thread_absdiff(void* args) {
     bm_handle_t handle = cv_absdiff_thread_arg->handle;
 
     for (int i = 0; i < loop_num; i++) {
-        // if (loop_num > 1) {
-        //     height = 1 + rand() % 4096;
-        //     width = 1 + rand() % 4096;
-        //     format = rand() % 15;
-        // }
+        randomize_params(cv_absdiff_thread_arg, &format, &height, &width);
         if(0 != test_absdiff_random(use_real_img, format, height, width, src1_name, src2_name, dst_name, handle)){
             printf("------TEST ABSDIFF FAILED!------\n");
             exit(-1);
@@ -285,9 +291,9 @@ int main(int argc, char* args[]) {
     srand(seed);
     int loop = 1;
     int use_real_img = 0;
-    int height = 1 + rand() % 4096;
-    int width = 1 + rand() % 4096;
-    int format = rand() % 15;
+    int height = -1;
+    int width = -1;
+    int format = -1;
     int thread_num = 1;
     char *src1_name = NULL;
     char *src2_name = NULL;
@@ -309,6 +315,7 @@ int main(int argc, char* args[]) {
         printf("%s 1 100\n", args[0]);
         printf("%s 2 1 0 12 8 8 \n", args[0]);
         printf("%s 1 1 1 12 1024 1024 input1.bin input2.bin asbdiff_output.bin \n", args[0]);
+        printf("-1 for format/height/width means random (re-randomized each loop)\n");
         return 0;
     }
     if (argc > 1) thread_num = atoi(args[1]);

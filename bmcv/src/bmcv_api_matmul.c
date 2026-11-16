@@ -8,7 +8,6 @@ bm_status_t bmcv_matmul(bm_handle_t handle, int M, int N, int K, bm_device_mem_t
     bm_device_mem_t input_mem, weight_mem, output_mem;
     bm_status_t ret = BM_SUCCESS;
     int byte_num;
-    unsigned int chipid;
     bm_api_cv_matmul_t api;
     int core_id = 0;
 
@@ -49,12 +48,6 @@ bm_status_t bmcv_matmul(bm_handle_t handle, int M, int N, int K, bm_device_mem_t
         output_mem = C;
     }
 
-    ret = bm_get_chipid(handle, &chipid);
-    if (ret) {
-        printf("bm_get_chipid is error !\n");
-        goto exit;
-    }
-
     api.M = M;
     api.N = N;
     api.K = K;
@@ -69,23 +62,12 @@ bm_status_t bmcv_matmul(bm_handle_t handle, int M, int N, int K, bm_device_mem_t
     api.alpha = alpha;
     api.beta = beta;
 
-    switch (chipid) {
-        case BM1688_PREV:
-        case BM1688:
-            ret = bm_tpu_kernel_launch(handle, "cv_matmul", (u8*)&api,
-                                                sizeof(api), core_id);
-            if (ret != BM_SUCCESS) {
-                bmlib_log("Matmul", BMLIB_LOG_ERROR, "matmul sync api error\n");
-                goto exit;
-            }
-            break;
-        default:
-            printf("BM_NOT_SUPPORTED!\n");
-            ret = BM_NOT_SUPPORTED;
-            break;
+    ret = bm_tpu_kernel_launch(handle, "cv_matmul", (u8*)&api,
+                                        sizeof(api), core_id);
+    if (ret != BM_SUCCESS) {
+        bmlib_log("Matmul", BMLIB_LOG_ERROR, "matmul sync api error\n");
     }
 
-exit:
     if (bm_mem_get_type(A) == BM_MEM_TYPE_SYSTEM) {
         bm_free_device(handle, input_mem);
     }
@@ -114,7 +96,6 @@ bm_status_t bmcv_matmul_u64(bm_handle_t handle, int M, int N, int K, bm_device_m
     bm_device_mem_u64_t input_mem, weight_mem, output_mem;
     bm_status_t ret = BM_SUCCESS;
     int byte_num;
-    unsigned int chipid;
     bm_api_cv_matmul_t api;
     int core_id = 0;
 
@@ -155,12 +136,6 @@ bm_status_t bmcv_matmul_u64(bm_handle_t handle, int M, int N, int K, bm_device_m
         output_mem = C;
     }
 
-    ret = bm_get_chipid(handle, &chipid);
-    if (ret) {
-        printf("bm_get_chipid is error !\n");
-        goto exit;
-    }
-
     api.M = M;
     api.N = N;
     api.K = K;
@@ -175,23 +150,12 @@ bm_status_t bmcv_matmul_u64(bm_handle_t handle, int M, int N, int K, bm_device_m
     api.alpha = alpha;
     api.beta = beta;
 
-    switch (chipid) {
-        case BM1688_PREV:
-        case BM1688:
-            ret = bm_tpu_kernel_launch(handle, "cv_matmul", (u8*)&api,
+    ret = bm_tpu_kernel_launch(handle, "cv_matmul", (u8*)&api,
                                     sizeof(api), core_id);
-        if (ret != BM_SUCCESS) {
-            bmlib_log("Matmul", BMLIB_LOG_ERROR, "matmul sync api error\n");
-            goto exit;
-        }
-        break;
-        default:
-            printf("BM_NOT_SUPPORTED!\n");
-            ret = BM_NOT_SUPPORTED;
-        break;
+    if (ret != BM_SUCCESS) {
+        bmlib_log("Matmul", BMLIB_LOG_ERROR, "matmul sync api error\n");
     }
 
-exit:
     if (bm_mem_get_type_u64(A) == BM_MEM_TYPE_SYSTEM) {
         bm_free_device_u64(handle, input_mem);
     }

@@ -7,49 +7,41 @@
 
 #include "bmcv_api_ext_c.h"
 
-typedef unsigned char u8;
-typedef unsigned short u16;
-typedef unsigned char __u8;
-typedef unsigned int __u32;
-typedef __signed__ int __s32;
-
 struct cvi_rect {
-    __s32 left;
-    __s32 top;
-    __u32 width;
-    __u32 height;
+    int left;
+    int top;
+    unsigned int width;
+    unsigned int height;
 };
 
 struct cvi_rgn_coverex_param {
     struct cvi_rect rect;
-    __u32 color;
-    __u8 enable;
+    unsigned int color;
+    unsigned char enable;
 };
 
 typedef struct border {
     bool rect_border_enable;
-    u16 st_x;
-    u16 st_y;
-    u16 width;
-    u16 height;
-    u8 value_r;
-    u8 value_g;
-    u8 value_b;
-    u16 thickness;
+    unsigned short st_x;
+    unsigned short st_y;
+    unsigned short width;
+    unsigned short height;
+    unsigned int color;
+    unsigned short thickness;
 } border_t;
 
 typedef struct coverex_cfg {
     struct cvi_rgn_coverex_param coverex_param[4];
-    u8 cover_num;
+    unsigned char cover_num;
 } coverex_cfg;
 
 typedef struct bm_rgn_cfg {
     struct cvi_rgn_param *param;
-    u8 rgn_num;
+    unsigned char rgn_num;
 } bmcv_rgn_cfg;
 
 typedef struct bmcv_border {
-    u8 border_num;
+    unsigned char border_num;
     border_t border_cfg[4];
 } bmcv_border;
 
@@ -240,9 +232,7 @@ bm_status_t cmodel_draw_rectangle(unsigned char *src_data,
         my_border.border_cfg[i].st_y = crop_rect[i].start_y;
         my_border.border_cfg[i].width = crop_rect[i].crop_w;
         my_border.border_cfg[i].height = crop_rect[i].crop_h;
-        my_border.border_cfg[i].value_r = r;
-        my_border.border_cfg[i].value_g = g;
-        my_border.border_cfg[i].value_b = b;
+        my_border.border_cfg[i].color = ((r << 16) | (g << 8) | b);
         my_border.border_cfg[i].thickness = line_width;
     }
     coverex_cfg my_coverex = {

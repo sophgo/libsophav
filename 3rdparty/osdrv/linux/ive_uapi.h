@@ -203,7 +203,7 @@ struct ive_ioctl_sobel_arg {
 	unsigned char instant;
 };
 
-struct ive_ioctl_sobel_ext_arg{
+struct ive_ioctl_sobel_ext_arg {
 	ive_handle ive_handle;
 	ive_src_image_s src;
 	ive_dst_image_s dst_h;
@@ -241,6 +241,14 @@ struct ive_ioctl_filter_and_csc_arg {
 	ive_src_image_s src;
 	ive_dst_image_s dst;
 	ive_filter_and_csc_ctrl_s ctrl;
+	unsigned char instant;
+};
+
+struct ive_ioctl_filter_and_csc_ext_arg {
+	ive_handle ive_handle;
+	ive_src_image_s src;
+	ive_dst_image_s dst;
+	ive_filter_and_csc_ext_ctrl ctrl;
 	unsigned char instant;
 };
 

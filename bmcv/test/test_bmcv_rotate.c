@@ -28,6 +28,7 @@ typedef struct {
     int rotation_angle;
     char* input_path;
     char* output_path;
+    int thread_num;
     bm_handle_t handle;
 } cv_rotate_thread_arg_t;
 
@@ -37,7 +38,7 @@ static int parameters_check(int height, int width)
         printf("Unsupported size : size_max = 8192 x 8192 \n");
         return -1;
     }
-    if (height < 8 || width < 8) {
+    if ((height >= 0 && height < 8) || (width >= 0 && width < 8)) {
         printf("Unsupported size : size_min = 8 x 8 \n");
         return -1;
     }
@@ -221,7 +222,7 @@ static int rotate_tpu(
         bm_image nv12_input_img) {
     bm_status_t ret;
     struct timeval t1, t2;
-    bm_image input_img, output_img, nv12_output_rgbp;
+    bm_image input_img, output_img, nv12_output_rgbp = {0};
 
     if(rotation_angle == 180) {
         bm_image_create(handle, height, width, (bm_image_format_ext)format, DATA_TYPE_EXT_1N_BYTE, &input_img, NULL);
@@ -341,7 +342,7 @@ static int test_rotate_random(
     unsigned char* input_data;
     unsigned char* output_cpu;
     unsigned char* output_tpu;
-    bm_image input_img;
+    bm_image input_img = {0};
     if(format == FORMAT_GRAY){
         input_data = (unsigned char*)malloc(width * height * sizeof(unsigned char));
         output_cpu = (unsigned char*)malloc(width * height * sizeof(unsigned char));
@@ -434,6 +435,28 @@ static int test_rotate_random(
     return ret;
 }
 
+#define ROTATE_BUDGET (1200LL * 1024 * 1024)
+static const int rotate_formats[] = {FORMAT_RGB_PLANAR, FORMAT_BGR_PLANAR, FORMAT_RGBP_SEPARATE, FORMAT_BGRP_SEPARATE, FORMAT_GRAY};
+static const int rotate_angles[] = {90, 180, 270};
+
+/* Reroll only the -1 sentinel fields; given values stay fixed. format/angle
+ * pick from legal tables; width/height share the host budget (3 buffers x
+ * bytes/px x threads), so they reroll together in a do-while. */
+static void randomize_params(cv_rotate_thread_arg_t *arg, int *width, int *height, int *format, int *rotation_angle)
+{
+    if (arg->use_real_img) return;
+    if (arg->format < 0) *format = rotate_formats[rand() % 5];
+    if (arg->rotation_angle < 0) *rotation_angle = rotate_angles[rand() % 3];
+    int bpp = 3 * ((*format == FORMAT_GRAY) ? 1 : 3);
+    long long max_px = ROTATE_BUDGET / ((long long)bpp * arg->thread_num);
+    int any = (arg->width < 0) || (arg->height < 0);
+    int tries = 0;
+    do {
+        if (arg->width  < 0) *width  = 16 + rand() % 8177;
+        if (arg->height < 0) *height = 16 + rand() % 8177;
+    } while (any && (long long)(*width) * (*height) > max_px && ++tries < 20);
+}
+
 void* test_rotate(void* args) {
     cv_rotate_thread_arg_t* cv_rotate_thread_arg = (cv_rotate_thread_arg_t*)args;
     int thread_idx = cv_rotate_thread_arg->thread_idx;
@@ -448,19 +471,7 @@ void* test_rotate(void* args) {
     bm_handle_t handle = cv_rotate_thread_arg->handle;
     int count = 0;
     for (int i = 0; i < loop_num; i++) {
-        if(loop_num > 1) {
-            width = 16 + rand() % 8177;
-            height = 16 + rand() % 8177;
-            int format_num[] = {FORMAT_RGB_PLANAR, FORMAT_BGR_PLANAR, FORMAT_RGBP_SEPARATE, FORMAT_BGRP_SEPARATE, FORMAT_GRAY};
-            int rand_format_num = rand() % 5;
-            format = format_num[rand_format_num];
-            int rotation_angle_num[] = {90, 180, 270};
-            int rand_angle_num = rand() % 3;
-            rotation_angle = rotation_angle_num[rand_angle_num];
-            use_real_img = 0;
-            input_path = NULL;
-            output_path = NULL;
-        }
+        randomize_params(cv_rotate_thread_arg, &width, &height, &format, &rotation_angle);
         count++;
         if (0 != test_rotate_random(thread_idx, width, height, format, rotation_angle, use_real_img, input_path, output_path, handle)){
             printf("------TEST CV_ROTATE FAILED------\n");
@@ -483,14 +494,10 @@ int main(int argc, char* args[]) {
     int thread_num = 1;
     int loop = 1;
     int use_real_img = 0;
-    int width = 16 + rand() % 8177;
-    int height = 16 + rand() % 8177;
-    int format_num[] = {FORMAT_RGB_PLANAR, FORMAT_BGR_PLANAR, FORMAT_RGBP_SEPARATE, FORMAT_BGRP_SEPARATE, FORMAT_GRAY};
-    int rand_format_num = rand() % 5;
-    int format = format_num[rand_format_num];
-    int rotation_angle_num[] = {90, 180, 270};
-    int rand_angle_num = rand() % 3;
-    int rotation_angle = rotation_angle_num[rand_angle_num];
+    int width = -1;
+    int height = -1;
+    int format = -1;
+    int rotation_angle = -1;
     int check = 0;
     char *input_path = NULL;
     char *output_path = NULL;
@@ -498,6 +505,7 @@ int main(int argc, char* args[]) {
     if (argc == 2 && atoi(args[1]) == -1) {
         printf("usage:\n");
         printf("%s thread_num loop use_real_img width height format rotation_angle input_path output_path\n", args[0]);
+        printf("-1 for width/height/format/rotation_angle means random (re-randomized each loop)\n");
         return 0;
     }
 
@@ -529,6 +537,7 @@ int main(int argc, char* args[]) {
         cv_rotate_thread_arg[i].rotation_angle = rotation_angle;
         cv_rotate_thread_arg[i].input_path = input_path;
         cv_rotate_thread_arg[i].output_path = output_path;
+        cv_rotate_thread_arg[i].thread_num = thread_num;
 
         bm_handle_t thread_handle;
         bm_status_t ret = bm_dev_request(&thread_handle, 0);

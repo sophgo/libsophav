@@ -13,6 +13,7 @@
 
 typedef struct {
     int loop_num;
+    int thread_num;
     int input_row;
     int input_col;
     int output_row;
@@ -242,6 +243,46 @@ static int test_as_strided_random(struct row_col_para row_col, bm_handle_t handl
     return ret;
 }
 
+#define AS_STRIDED_MEM_BUDGET 1200000000L
+
+/* host peak per thread (bytes) = 4 * (2*input_size*crit_val + 2*output_size):
+ * input_data + concat temp are each input_size*crit_val, two output buffers are
+ * output_size each. input_size*crit_val covers span =
+ * 1+(output_col-1)*col_stride+(output_row-1)*row_stride. stride is a large
+ * multiplier, so keep the product under ~1.2GB across all threads. */
+static long as_strided_peak_bytes(struct row_col_para rc, int thread_num)
+{
+    long input_size  = (long)rc.row.input_row * rc.col.input_col;
+    long output_size = (long)rc.row.output_row * rc.col.output_col;
+    long span = 1 + (long)(rc.col.output_col - 1) * rc.col.col_stride
+               + (long)(rc.row.output_row - 1) * rc.row.row_stride;
+    long crit_val = DIV_UP(span, input_size);
+    if (crit_val < 1) crit_val = 1;
+    long in_alloc = input_size * crit_val;
+    long peak = 4L * (2 * in_alloc + 2 * output_size);
+    return peak * (thread_num > 0 ? thread_num : 1);
+}
+
+/* Reroll only the -1 sentinel fields; command-line given values stay fixed.
+ * The 6 params are coupled through the memory budget, so reroll them together
+ * in a do-while until the host peak fits. */
+static void randomize_params(cv_as_strided_thread_arg_t *arg, struct row_col_para *rc)
+{
+    int any = (arg->input_row < 0) || (arg->input_col < 0) ||
+              (arg->output_row < 0) || (arg->output_col < 0) ||
+              (arg->row_stride < 0) || (arg->col_stride < 0);
+    int tries = 0;
+    do {
+        if (arg->input_row  < 0) rc->row.input_row  = 1 + rand() % 4096;
+        if (arg->input_col  < 0) rc->col.input_col  = 1 + rand() % 4096;
+        if (arg->output_row < 0) rc->row.output_row = 1 + rand() % 4096;
+        if (arg->output_col < 0) rc->col.output_col = 1 + rand() % 4096;
+        if (arg->row_stride < 0) rc->row.row_stride = 1 + rand() % 4096;
+        if (arg->col_stride < 0) rc->col.col_stride = 1 + rand() % 4096;
+    } while (any && as_strided_peak_bytes(*rc, arg->thread_num) > AS_STRIDED_MEM_BUDGET
+               && ++tries < 10000);
+}
+
 void* test_as_strided(void* args) {
     cv_as_strided_thread_arg_t* cv_as_strided_thread_arg = (cv_as_strided_thread_arg_t*)args;
     struct row_col_para row_col;
@@ -254,14 +295,7 @@ void* test_as_strided(void* args) {
     row_col.col.col_stride = cv_as_strided_thread_arg->col_stride;
     bm_handle_t handle = cv_as_strided_thread_arg->handle;
     for (int i = 0; i < loop; ++i) {
-        if(loop > 1) {
-            row_col.row.input_row = 1 + rand() % 4096;
-            row_col.col.input_col = 1 + rand() % 4096;
-            row_col.row.output_row = 1 + rand() % 4096;
-            row_col.col.output_col = 1 + rand() % 4096;
-            row_col.row.row_stride = 1 + rand() % 4096;
-            row_col.col.col_stride = 1 + rand() % 4096;
-        }
+        randomize_params(cv_as_strided_thread_arg, &row_col);
         int ret = test_as_strided_random(row_col, handle);
         if (ret) {
             printf("------Test as_strided Failed!------\n");
@@ -281,12 +315,12 @@ int main(int argc, char* args[])
     int thread_num = 1;
     int loop = 1;
     struct row_col_para row_col;
-    row_col.row.input_row = 1 + rand() % 4096;
-    row_col.col.input_col = 1 + rand() % 4096;
-    row_col.row.output_row = 1 + rand() % 4096;
-    row_col.col.output_col = 1 + rand() % 4096;
-    row_col.row.row_stride = 1 + rand() % 4096;
-    row_col.col.col_stride = 1 + rand() % 4096;
+    row_col.row.input_row = -1;
+    row_col.col.input_col = -1;
+    row_col.row.output_row = -1;
+    row_col.col.output_col = -1;
+    row_col.row.row_stride = -1;
+    row_col.col.col_stride = -1;
     int ret = 0;
     int i;
     int check = 0;
@@ -305,6 +339,7 @@ int main(int argc, char* args[])
         printf("%s 2\n", args[0]);
         printf("%s 2 1\n", args[0]);
         printf("%s 1 1 5 5 3 3 2 1 \n", args[0]);
+        printf("-1 for any size/stride arg means random (re-randomized each loop)\n");
         return 0;
     }
 
@@ -328,6 +363,7 @@ int main(int argc, char* args[])
     cv_as_strided_thread_arg_t cv_as_strided_thread_arg[thread_num];
     for (i = 0; i < thread_num; i++) {
         cv_as_strided_thread_arg[i].loop_num = loop;
+        cv_as_strided_thread_arg[i].thread_num = thread_num;
         cv_as_strided_thread_arg[i].input_row = row_col.row.input_row;
         cv_as_strided_thread_arg[i].input_col = row_col.col.input_col;
         cv_as_strided_thread_arg[i].output_row = row_col.row.output_row;

@@ -3,7 +3,7 @@
 # example (run in libsophav root dir)
 GCC_V="630"
 PLATFORM=soc
-CHIP_NAME=${CHIP_NAME:-bm1688}
+CHIP_NAME=${CHIP_NAME:-bm1688}  # option: bm1688 cv84x6
 DISABLE_BMCV_DOC=on
 
 if [ $# -ge 1 ]; then
@@ -48,7 +48,6 @@ cmake -DPLATFORM=${PLATFORM} -DSUBTYPE=asic -DCMAKE_INSTALL_PREFIX=../install -D
     -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER} \
     -DDISABLE_BMCV_DOC=${DISABLE_BMCV_DOC} \
     -DCHIP_NAME=${CHIP_NAME} \
-    -DCMAKE_BUILD_TYPE=Release \
     ..
 
 cmake --build . --target all -- -j`nproc`

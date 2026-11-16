@@ -21,6 +21,7 @@ typedef float bm_sort_data_type_t;
 typedef enum { ASCEND_ORDER, DESCEND_ORDER } cdma_sort_order_e;
 typedef struct {
     int loop_num;
+    int thread_num;
     int data_num;
     int sort_num;
     bm_handle_t handle;
@@ -363,6 +364,23 @@ int32_t cv_sort_test_rand(bm_handle_t handle, cdma_sort_order_e order, int data_
     return SORT_SUCCESS;
 }
 
+#define SORT_MEM_BUDGET 1200000000L
+
+/* Reroll only -1 sentinel fields; given values stay fixed. Peak ~64*sort_num
+ * bytes/thread, so cap a rerolled sort_num by budget/(64*threads). data_num
+ * follows 2*sort_num when sentinel; a rerolled sort_num is clamped to data_num. */
+static void randomize_params(sort_thread_arg_t *arg, int *data_num, int *sort_num)
+{
+    if (arg->sort_num < 0) {
+        long cap = SORT_MEM_BUDGET / (64L * (arg->thread_num > 0 ? arg->thread_num : 1));
+        if (cap > 500000) cap = 500000;
+        if (cap < 1) cap = 1;
+        *sort_num = 1 + rand() % (int)cap;
+    }
+    if (arg->data_num < 0) *data_num = *sort_num * 2;
+    if (arg->sort_num < 0 && *sort_num > *data_num) *sort_num = *data_num;
+}
+
 void* test_sort(void* args) {
     sort_thread_arg_t* sort_thread_arg = (sort_thread_arg_t*)args;
     bm_handle_t handle = sort_thread_arg->handle;
@@ -370,10 +388,7 @@ void* test_sort(void* args) {
     int data_num = sort_thread_arg->data_num;
     int sort_num = sort_thread_arg->sort_num;
     for (int i = 0; i < loop_num; i++) {
-        if(loop_num > 1) {
-            sort_num = 1 + rand() % 500000;
-            data_num = sort_num * 2;
-        }
+        randomize_params(sort_thread_arg, &data_num, &sort_num);
         if (-1 == cv_sort_test_rand(handle, DESCEND_ORDER, data_num, sort_num)) {
             printf("TEST SORT FAILED\n");
             exit(-1);
@@ -395,8 +410,8 @@ int32_t main(int32_t argc, char **argv) {
     printf("seed = %d\n", seed);
     int test_loop_times = 1;
     int dev_id = 0;
-    int sort_num = 1 + rand() % 500000;
-    int data_num = sort_num * 2;
+    int sort_num = -1;
+    int data_num = -1;
     int test_threads_num = 1;
     int ret = 0;
     bm_handle_t handle;
@@ -409,6 +424,7 @@ int32_t main(int32_t argc, char **argv) {
         printf("%s 2\n", argv[0]);
         printf("%s 2 1\n", argv[0]);
         printf("%s 1 1 1000 1000 \n", argv[0]);
+        printf("-1 for data_num/sort_num means random (re-randomized each loop)\n");
         return 0;
     }
 
@@ -427,6 +443,7 @@ int32_t main(int32_t argc, char **argv) {
     sort_thread_arg_t sort_thread_arg[test_threads_num];
     for (int i = 0; i < test_threads_num; i++) {
         sort_thread_arg[i].loop_num = test_loop_times;
+        sort_thread_arg[i].thread_num = test_threads_num;
         sort_thread_arg[i].handle = handle;
         sort_thread_arg[i].data_num = data_num;
         sort_thread_arg[i].sort_num = sort_num;

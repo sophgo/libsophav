@@ -16,6 +16,7 @@ pthread_mutex_t lock;
 
 typedef struct {
     int loop_num;
+    int thread_num;
     int height;
     int width;
     int src_type;
@@ -38,11 +39,12 @@ void sleep_(unsigned long _t){
 
 static int parameters_check(int width, int height, int src_type)
 {
-    if (width % 2 != 0 || height % 2 != 0){
+    /* -1 is the random sentinel; only validate explicitly given values. */
+    if ((width >= 0 && width % 2 != 0) || (height >= 0 && height % 2 != 0)){
         printf("Unsupported value : Odd widths and heights are not supported \n");
         return -1;
     }
-    if (src_type != 0 && src_type != 1) {
+    if (src_type >= 0 && src_type != 0 && src_type != 1) {
         printf("src_type only support 0(bg8) or 1(rg8) now! \n");
         return -1;
     }
@@ -209,6 +211,31 @@ int test_bayer2rgb_random(bm_handle_t handle, int height, int width, bool use_re
     return ret;
 }
 
+#define BAYER2RGB_MEM_BUDGET 1200000000L
+
+/* host peak/thread = 7*width*height (u8): output w*h*3 + input + 3 CPU planes.
+ * width/height couple via area, keep under budget across threads. */
+static long bayer2rgb_peak_bytes(int width, int height, int thread_num)
+{
+    long px = (long)width * height;
+    return 7L * px * (thread_num > 0 ? thread_num : 1);
+}
+
+/* Reroll only -1 sentinel fields; given values stay fixed. width/height couple
+ * via budget (do-while); src_type (-1) picks 0/1; real image keeps file dims. */
+static void randomize_params(bayer2rgb_thread_arg_t *arg, int *width, int *height, int *src_type)
+{
+    if (arg->src_type < 0) *src_type = rand() % 2;
+    if (arg->use_real_img) return;
+    int any = (arg->width < 0) || (arg->height < 0);
+    int tries = 0;
+    do {
+        if (arg->width  < 0) *width  = 2 + rand() % 2047 * 2;
+        if (arg->height < 0) *height = 2 + rand() % 2047 * 2;
+    } while (any && bayer2rgb_peak_bytes(*width, *height, arg->thread_num) > BAYER2RGB_MEM_BUDGET
+            && ++tries < 10000);
+}
+
 void* test_bayer2rgb(void* args) {
     bayer2rgb_thread_arg_t* bayer2rgb_thread_arg = (bayer2rgb_thread_arg_t*)args;
     bm_handle_t handle = bayer2rgb_thread_arg->handle;
@@ -220,10 +247,7 @@ void* test_bayer2rgb(void* args) {
     const char* input_path = bayer2rgb_thread_arg->input_path;
     const char* output_path = bayer2rgb_thread_arg->output_path;
     for (int i = 0; i < loop_num; i++) {
-        if(loop_num > 1){
-            height = 2 + rand() % 2047 * 2;
-            width = 2 + rand() % 2047 * 2;
-        }
+        randomize_params(bayer2rgb_thread_arg, &width, &height, &src_type);
         if (0 != test_bayer2rgb_random(handle, height, width, use_real_img, input_path, output_path, src_type)) {
             printf("------TEST BAYER2RGB FAILED------\n");
             exit(-1);
@@ -240,9 +264,9 @@ int main(int argc, char* args[]) {
     srand(seed);
     int loop = 1;
     int use_real_img = 0;
-    int width = 2 + rand() % 2047 * 2;
-    int height = 2 + rand() % 2047 * 2;
-    int src_type = rand() % 2;
+    int width = -1;
+    int height = -1;
+    int src_type = -1;
     int thread_num = 1;
     int check = 0;
     char *input_path = NULL;
@@ -257,6 +281,7 @@ int main(int argc, char* args[]) {
         printf("%s 2 1\n", args[0]);
         printf("%s 1 1 0 1920 1080 0\n", args[0]);
         printf("%s 1 1 1 1024 1024 0 bayer.bin out/out_bayer2rgb.bin\n", args[0]);
+        printf("-1 for width/height/src_type means random (re-randomized each loop)\n");
         return 0;
     }
 
@@ -287,6 +312,7 @@ int main(int argc, char* args[]) {
     bayer2rgb_thread_arg_t bayer2rgb_thread_arg[thread_num];
     for (int i = 0; i < thread_num; i++) {
         bayer2rgb_thread_arg[i].loop_num = loop;
+        bayer2rgb_thread_arg[i].thread_num = thread_num;
         bayer2rgb_thread_arg[i].handle = handle;
         bayer2rgb_thread_arg[i].height = height;
         bayer2rgb_thread_arg[i].width = width;

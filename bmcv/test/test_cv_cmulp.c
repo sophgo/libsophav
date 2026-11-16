@@ -7,6 +7,7 @@
 
 typedef struct {
     int loop;
+    int thread_num;
     int L;
     int batch;
     bm_handle_t handle;
@@ -179,6 +180,30 @@ static int test_cmulp_random(int L, int batch, bm_handle_t handle) {
     return ret;
 }
 
+#define CMULP_MEM_BUDGET 1200000000L
+
+/* host peak/thread = 4*(6*L*batch + 2*L): 6 L*batch float buffers + 2 length-L.
+ * L/batch couple via L*batch, reroll together under budget. */
+static long cmulp_peak_bytes(int L, int batch, int thread_num)
+{
+    long area = (long)L * batch;
+    long peak = 4L * (6 * area + 2 * (long)L);
+    return peak * (thread_num > 0 ? thread_num : 1);
+}
+
+/* Reroll only -1 sentinel fields; given values stay fixed. L/batch couple via
+ * the budget, reroll together in a do-while until the host peak fits. */
+static void randomize_params(cv_cmulp_thread_arg_t *arg, int *L, int *batch)
+{
+    int any = (arg->L < 0) || (arg->batch < 0);
+    int tries = 0;
+    do {
+        if (arg->L < 0) *L = 1 + rand() % 4096;
+        if (arg->batch < 0) *batch = 2 + rand() % 1980;
+    } while (any && cmulp_peak_bytes(*L, *batch, arg->thread_num) > CMULP_MEM_BUDGET
+                && ++tries < 10000);
+}
+
 void* test_thread_cmulp(void* args) {
     cv_cmulp_thread_arg_t* cv_cmulp_thread_arg = (cv_cmulp_thread_arg_t*)args;
     int loop = cv_cmulp_thread_arg->loop;
@@ -186,10 +211,7 @@ void* test_thread_cmulp(void* args) {
     int batch = cv_cmulp_thread_arg->batch;
     bm_handle_t handle = cv_cmulp_thread_arg->handle;
     for (int i = 0; i < loop; ++i) {
-        if (loop > 1) {
-            L = 1 + rand() % 4096;
-            batch = 2 + rand() % 1980;
-        }
+        randomize_params(cv_cmulp_thread_arg, &L, &batch);
         int ret = test_cmulp_random(L, batch, handle);
         if (ret) {
             printf("------Test Cmulp Failed!------\n");
@@ -207,8 +229,8 @@ int main(int argc, char *args[]) {
     srand(seed);
     int thread_num = 1;
     int loop = 1;
-    int L = 1 + rand() % 4096;
-    int batch = 2 + rand() % 1979;
+    int L = -1;
+    int batch = -1;
     int ret = 0;
     bm_handle_t handle;
     ret = bm_dev_request(&handle, 0);
@@ -223,6 +245,7 @@ int main(int argc, char *args[]) {
         printf("example:\n");
         printf("%s \n", args[0]);
         printf("%s 1 1 256 20 \n", args[0]);
+        printf("-1 for len/batch means random (re-randomized each loop)\n");
         return 0;
     }
 
@@ -237,6 +260,7 @@ int main(int argc, char *args[]) {
     cv_cmulp_thread_arg_t cv_cmulp_thread_arg[thread_num];
     for (int i = 0; i < thread_num; i++) {
         cv_cmulp_thread_arg[i].loop = loop;
+        cv_cmulp_thread_arg[i].thread_num = thread_num;
         cv_cmulp_thread_arg[i].L = L;
         cv_cmulp_thread_arg[i].batch = batch;
         cv_cmulp_thread_arg[i].handle = handle;
